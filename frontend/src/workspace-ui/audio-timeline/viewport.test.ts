@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampViewport, timeAtX, zoomViewport } from './viewport';
+import { boundaryTime, clampViewport, timeAtX, zoomViewport } from './viewport';
 
 describe('shared audio time coordinates', () => {
   it('clamps zoom and pan to video bounds, including short or absent media', () => {
@@ -18,5 +18,11 @@ describe('shared audio time coordinates', () => {
     expect(timeAtX(50, 100, { start: 20, span: 10 })).toBe(25);
     expect(timeAtX(-10, 100, { start: 20, span: 10 })).toBe(20);
     expect(timeAtX(110, 100, { start: 20, span: 10 })).toBe(30);
+  });
+  it('snaps dragged boundaries to the subtitle grid without exceeding a fractional media end', () => {
+    expect(boundaryTime(1.234, 10000)).toBe(1230);
+    expect(boundaryTime(-1, 10000)).toBe(0);
+    expect(boundaryTime(12, 9996)).toBe(9990);
+    expect(boundaryTime(36000, 36000000)).toBe(35_999_990);
   });
 });

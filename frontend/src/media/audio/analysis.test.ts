@@ -61,4 +61,22 @@ describe('audio analysis and bounded segment reuse', () => {
     await expect(store.get(0, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
     expect(store.cacheBytes).toBe(0);
   });
+  it('reuses cached PCM across modes and charges spectrum bytes to the same budget', async () => {
+    let reads = 0;
+    const store = new AudioSegmentStore({
+      metadata: { sampleRate: 48000, channels: 1, codec: 'aac', firstTimestamp: 0, endTimestamp: 20 },
+      readRange: async () => { reads++; },
+    });
+    const controller = new AbortController();
+    const waveform = await store.get(1, controller.signal);
+    const bytesBefore = store.cacheBytes;
+    const spectrum = await store.withSpectrum(1, controller.signal);
+    expect(spectrum).toBe(waveform);
+    expect(reads).toBe(3); // Current PCM is reused; only two STFT edge neighbors are fetched.
+    expect(spectrum.tile.spectrum!.energy.byteLength).toBeGreaterThan(0);
+    expect(store.cacheBytes).toBe(bytesBefore * 3 + spectrum.tile.spectrum!.energy.byteLength);
+    await store.withSpectrum(1, controller.signal);
+    expect(reads).toBe(3);
+    expect(store.cacheBytes).toBeLessThanOrEqual(AUDIO_CACHE_BYTES);
+  });
 });

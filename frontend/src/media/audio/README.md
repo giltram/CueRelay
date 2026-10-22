@@ -15,7 +15,7 @@
 
 `BlobSource` 的字节缓存配置为 8 MiB。解码使用 `AudioSampleSink.samples(start,end)` 的内建有限预解码队列，逐块 `copyTo` 后在 finally 中关闭 sample；退出 / 取消时调用 iterator.return，销毁会话时 Input.dispose。模块不保留 PCM，调用方不能无限保留 chunks。库仍会解析容器索引，索引内存和解码器原生内存不属于 8 MiB 字节缓存限额。
 
-不调用整个 File.arrayBuffer、decodeAudioData、AudioContext 或第二套播放器，不发起媒体网络请求。解码不支持与读取错误必须由未来 UI 单独显示，不能清除视频或字幕。阶段 A 的验证页与现有工作区相互独立。
+不调用整个 File.arrayBuffer、decodeAudioData、AudioContext 或第二套播放器，不发起媒体网络请求。解码不支持与读取错误由音频区域单独显示，不能清除视频或字幕。阶段 A 的验证页与现有工作区相互独立。
 
 ## 验证入口
 
@@ -36,3 +36,5 @@ Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/m
 `spectrum.ts` 使用 fft.js 4.0.4（MIT，零运行时依赖），不用大型可视化框架。Hann STFT 的 FFT 长度按采样率选择最接近 43ms 的 2 次幂（512–8192），hop 为 FFT/4；使用绝对时间 hop 网格和相邻 PCM，避免 2 秒分段边缘重新起窗。每声道单独 FFT 后平均功率，避免反相下混抵消。频率线性映射 80Hz–min(8000Hz,Nyquist) 的 128 行；峰值功率按近似 -90..-15dBFS 映射到 8-bit 深浅，属于打轴辅助而非校准声学测量。
 
 两种模式共用 AudioTile 和同一个 PCM LRU，频谱仅在请求时计算；首尾窗最多多读相邻 2 秒段。谱图的 typed array 也计入同一 32 MiB 预算。FFT 每 16 列让出 Worker 事件队列并检查取消。UI 模式切换不重置坐标或播放器，ready 状态绑定 mode + start + end，避免新视窗暂时显示旧完成状态。
+
+最终集成回归：`test:audio-timeline` 验证正式页面与生产包；`test:audio-lifecycle` 用开发专用 hook 探针验证快速换片 / 卸载，另在正式页面验证无音轨不阻断视频与字幕。探针允许换片仅用于测试，不改变生产页面原有的成功选片固定规则。资源验证计数指 terminate 调用，不等同于操作系统级原生内存审计。

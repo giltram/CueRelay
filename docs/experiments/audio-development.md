@@ -17,4 +17,11 @@
 
 解码 / 分析归 media/audio；时间坐标、canvas 渲染和交互归 workspace-ui/audio-timeline。不得增加第二播放器或服务器媒体处理。保留现有成功选片后的固定片源限制，测试用刷新 / 卸载验证换片生命周期。
 
+## 完成状态
+
+- B 已通过测试并推送：`cb25b5e add local audio waveform timeline`。
+- C 已通过测试并推送：`bb049ba add shared audio spectrogram view`。
+- D 已完成边界草稿整合、交互 / 生命周期 / 生产包验证；提交说明 `finish audio timeline integration`，验证证据见 [时间轴记录](audio-timeline.md)。
+- 尚未做用户真实多 GB / 多小时片源与真实语音人工打轴验收；后续复测以记录中的限制为准。
+
 阶段 A 的实现与测试范围见 [本地音频实验记录](local-audio.md)，模块接口见 [audio README](../../frontend/src/media/audio/README.md)。

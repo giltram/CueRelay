@@ -14,6 +14,11 @@ export function timeAtX(x: number, width: number, view: AudioViewport): number {
   return view.start + Math.max(0, Math.min(1, x / Math.max(1, width))) * view.span;
 }
 
+/** Existing subtitle edits use a 10ms grid. Never drag past a fractional media end. */
+export function boundaryTime(seconds: number, durationMs: number): number {
+  return Math.max(0, Math.min(35_999_990, Math.floor(durationMs / 10) * 10, Math.round(seconds * 100) * 10));
+}
+
 export function rulerStep(span: number): number {
   return [0.1, 0.2, 0.5, 1, 2, 5, 10, 20].find(step => span / step <= 10) || 20;
 }

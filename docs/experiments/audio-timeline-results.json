@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-23",
+  "production": {
+    "browser": "147.0.7727.101",
+    "errors": [],
+    "mediaUploads": [],
+    "initial": {
+      "start": 0,
+      "end": 10,
+      "decoded": 5,
+      "cache": 4003840
+    },
+    "wavePixels": 9245,
+    "spectrum": {
+      "start": 0,
+      "end": 10,
+      "decoded": 6,
+      "cache": 4924672
+    },
+    "spectrumPixels": {
+      "loud": [
+        124,
+        141,
+        133,
+        255
+      ],
+      "quiet": [
+        231,
+        236,
+        231,
+        255
+      ]
+    },
+    "selected": {
+      "start": 0.6972599654732704,
+      "end": 4.048860195651467,
+      "decoded": 9,
+      "cache": 7326976
+    },
+    "boundary": {
+      "afterDrag": "0:00:01.50",
+      "committed": true
+    },
+    "stress": {
+      "start": 7.400460425829666,
+      "end": 10.752060656007863,
+      "decoded": 10,
+      "cache": 8151680,
+      "maxHeartbeatGapMs": 40.734999895095825,
+      "longTasksMs": []
+    },
+    "narrow": {
+      "width": 740,
+      "height": 82
+    },
+    "largeFile": {
+      "state": "ready",
+      "start": "0",
+      "end": "10",
+      "mode": "waveform",
+      "cacheBytes": "4003840",
+      "decodedSegments": "5"
+    }
+  },
+  "developmentStress": {
+    "start": 7.400460425829666,
+    "end": 10.752060656007863,
+    "decoded": 10,
+    "cache": 8151680,
+    "maxHeartbeatGapMs": 65.03999996185303,
+    "longTasksMs": []
+  },
+  "lifecycle": {
+    "browser": "147.0.7727.101",
+    "unmounted": {
+      "created": 14,
+      "terminated": 14
+    },
+    "cleared": {
+      "created": 15,
+      "terminated": 15
+    },
+    "noAudioVideoAndEditing": true,
+    "errors": []
+  },
+  "extractionRegression": {
+    "sparse": {
+      "status": "extracted",
+      "start": 100,
+      "end": 102,
+      "first": 100,
+      "last": 102,
+      "frames": 96000,
+      "peak": 0.13834917545318604,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 13.210000038146973,
+      "newReadBytes": 2097152,
+      "reads": {
+        "bytesRead": 2750074,
+        "largestRead": 2097152,
+        "readCacheLimit": 8388608
+      }
+    },
+    "memory": {
+      "before": {
+        "usedSize": 8012228,
+        "totalSize": 8814592,
+        "embedderHeapUsedSize": 1778000,
+        "backingStorageSize": 8206130
+      },
+      "after": {
+        "usedSize": 8011012,
+        "totalSize": 8814592,
+        "embedderHeapUsedSize": 1345008,
+        "backingStorageSize": 8206095
+      },
+      "rounds": 30,
+      "work": {
+        "maxChunkBytes": 8192,
+        "totalPcmBytes": 57600000,
+        "reads": {
+          "bytesRead": 2422394,
+          "largestRead": 1966080,
+          "readCacheLimit": 8388608
+        }
+      }
+    },
+    "errors": [],
+    "uploads": []
+  },
+  "unitTests": 88,
+  "relativeImportGraph": {
+    "files": 33,
+    "cycles": 0,
+    "mediaUpwardDependencies": 0
+  }
+}

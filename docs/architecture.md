@@ -8,7 +8,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
-2026-10-23 音频阶段 B/C 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值 / Hann STFT 分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、共享秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。Waveform / Spectrum 切换复用 PCM，不改变缩放、平移或播放头。阶段 A 的 `experiments/audio-probe.html` 仍是开发入口。契约见 [audio README](../frontend/src/media/audio/README.md)，B/C 实测见 [时间轴记录](experiments/audio-timeline.md)，大文件边界见 [A 记录](experiments/local-audio.md)。
+2026-10-23 音频阶段 B–D 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值 / Hann STFT 分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、共享秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。Waveform / Spectrum 切换复用 PCM，不改变缩放、平移或播放头。边界拖动 / 键盘只更新工作区的 changeTimeDraft，原 applyTimes 统一校验与提交。阶段 A 的 `experiments/audio-probe.html`、生命周期探针只用于开发。契约见 [audio README](../frontend/src/media/audio/README.md)，B–D 实测见 [时间轴记录](experiments/audio-timeline.md)，大文件边界见 [A 记录](experiments/local-audio.md)。
 
 运行和全部验证命令见 [README](../README.md)。当前没有数据库、Models/Migrations、认证或 WebSocket。
 

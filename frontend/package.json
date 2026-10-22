@@ -12,6 +12,7 @@
     "test": "vitest",
     "test:audio-browser": "node browser-tests/local-audio.mjs",
     "test:audio-timeline": "node browser-tests/audio-timeline.mjs",
+    "test:audio-lifecycle": "node browser-tests/audio-lifecycle.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },

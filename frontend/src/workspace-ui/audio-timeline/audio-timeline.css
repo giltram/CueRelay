@@ -11,8 +11,10 @@
 .audio-footer { display: flex; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; gap: 0 8px; padding: 2px 8px; border-top: 1px solid var(--border); font: 10px ui-monospace, monospace; }
 .audio-playhead, .audio-boundary { position: absolute; top: 20px; bottom: 0; width: 1px; pointer-events: none; }
 .audio-playhead { background: #9b4535; }
-.audio-boundary { background: #265c47; }
-.audio-boundary.end { background: #806528; }
-.audio-boundary span { position: absolute; top: 2px; left: 2px; font-size: 10px; line-height: 12px; color: #265c47; }
+.audio-stage .audio-boundary { width: 12px; min-height: 0; padding: 0; margin-left: -6px; border: 0; border-radius: 0; pointer-events: auto; background: transparent; cursor: ew-resize; }
+.audio-boundary::after { content: ''; position: absolute; inset: 0 auto 0 6px; width: 1px; background: #265c47; }
+.audio-boundary.end::after { background: #806528; }
+.audio-boundary span { position: absolute; top: 2px; left: 8px; font-size: 10px; line-height: 12px; color: #265c47; }
 .audio-boundary.end span { color: #806528; left: -14px; }
+.audio-stage:focus-visible { outline: 2px solid #7a9a87; outline-offset: -2px; }
 @media (max-width: 900px) { .audio-panel.audio-timeline { height: 180px; } }

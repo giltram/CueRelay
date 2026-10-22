@@ -104,6 +104,47 @@ try {
   await page.getByLabel('字幕出点 0:00:03.40', { exact: true }).waitFor();
   report.selected = await bounds();
   assert(report.selected.start <= 1.2);
+  const inputTime = page.getByRole('textbox', { name: '入点', exact: true });
+  const startHandle = page.getByRole('slider', { name: /^字幕入点/ });
+  await startHandle.focus(); await page.keyboard.press('ArrowRight');
+  assert.equal(await inputTime.inputValue(), '0:00:01.21');
+  await page.keyboard.press('Shift+ArrowRight');
+  assert.equal(await inputTime.inputValue(), '0:00:01.31');
+  const dragRect = await stage.boundingBox();
+  const handleRect = await startHandle.boundingBox();
+  const selectedView = await bounds();
+  const targetTime = 1.5;
+  const targetX = dragRect.x + (targetTime - selectedView.start) / (selectedView.end - selectedView.start) * dragRect.width;
+  await page.mouse.move(handleRect.x + handleRect.width / 2, handleRect.y + handleRect.height / 2);
+  await page.mouse.down(); await page.mouse.move(targetX, handleRect.y + handleRect.height / 2, { steps: 8 }); await page.mouse.up();
+  assert.equal(await inputTime.inputValue(), '0:00:01.50');
+  await startHandle.focus(); await page.keyboard.press('KeyG');
+  assert.equal(await page.locator('.cue-list tbody tr').first().locator('.time-cell').first().textContent(), '0:00:01.50');
+  report.boundary = { afterDrag: await inputTime.inputValue(), committed: true };
+
+  // Repeated viewport changes while Spectrum is computing must leave the newest request visible.
+  await page.evaluate(() => {
+    window.__audioPerf = { maxGap: 0, previous: performance.now(), tasks: [] };
+    window.__audioPerf.timer = setInterval(() => {
+      const now = performance.now();
+      window.__audioPerf.maxGap = Math.max(window.__audioPerf.maxGap, now - window.__audioPerf.previous);
+      window.__audioPerf.previous = now;
+    }, 16);
+    window.__audioPerf.observer = new PerformanceObserver(list => window.__audioPerf.tasks.push(...list.getEntries().map(entry => entry.duration)));
+    window.__audioPerf.observer.observe({ type: 'longtask', buffered: false });
+  });
+  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await stage.focus();
+  for (let i = 0; i < 30; i++) await page.keyboard.press(i % 3 === 0 ? 'ArrowLeft' : 'ArrowRight');
+  const latest = await bounds();
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+  assert.equal((await bounds()).start, latest.start);
+  report.stress = { ...(await bounds()), ...await page.evaluate(() => {
+    clearInterval(window.__audioPerf.timer); window.__audioPerf.observer.disconnect();
+    return { maxHeartbeatGapMs: window.__audioPerf.maxGap, longTasksMs: window.__audioPerf.tasks };
+  }) };
+  assert(report.stress.cache <= 32 * 1024 ** 2);
+  assert(report.stress.maxHeartbeatGapMs < 500);
   const countBefore = await page.locator('.cue-list tbody tr').count();
   await page.getByLabel('字幕中文文本').fill('音频回归测试');
   await page.locator('h1').click();
@@ -113,6 +154,23 @@ try {
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出 ASS', exact: true }).click();
   assert.equal((await download).suggestedFilename(), 'cuerelay.ass');
+  await page.setViewportSize({ width: 800, height: 900 });
+  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+  const mobile = await stage.boundingBox();
+  assert(mobile.width > 100 && mobile.height >= 64);
+  report.narrow = { width: mobile.width, height: mobile.height };
+  if (process.env.AUDIO_LARGE_FIXTURE) {
+    const largePage = await browser.newPage();
+    await largePage.goto(process.env.AUDIO_TIMELINE_URL || 'http://127.0.0.1:5176/');
+    await largePage.getByLabel('导入本地视频').setInputFiles(process.env.AUDIO_LARGE_FIXTURE);
+    await largePage.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+    report.largeFile = await largePage.locator('.audio-timeline').evaluate(el => ({ ...el.dataset }));
+    assert(Number(report.largeFile.cacheBytes) <= 32 * 1024 ** 2);
+    await largePage.getByRole('button', { name: 'Spectrum', exact: true }).click();
+    await largePage.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+    await largePage.close();
+  }
   assert.deepEqual(errors, []); assert.deepEqual(mediaUploads, []);
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

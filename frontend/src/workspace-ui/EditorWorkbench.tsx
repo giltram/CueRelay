@@ -65,6 +65,10 @@ export function EditorWorkbench() {
   function capture(which: 'start' | 'end') {
     if (!video || !duration) throw new Error('请先加载可播放的视频');
     const value = formatTime(snapTime(video.currentTime));
+    changeTimeDraft(which, value);
+  }
+
+  function changeTimeDraft(which: 'start' | 'end', value: string) {
     if (which === 'start') setStartText(value); else setEndText(value);
     setAudition(null);
   }
@@ -72,8 +76,7 @@ export function EditorWorkbench() {
   function nudge(which: 'start' | 'end', delta: number) {
     const value = parseTime(which === 'start' ? startText : endText) + delta;
     if (value < 0 || value > 35_999_990) throw new Error('微调时间超出范围');
-    if (which === 'start') setStartText(formatTime(value)); else setEndText(formatTime(value));
-    setAudition(null);
+    changeTimeDraft(which, formatTime(value));
   }
 
   function createCue() {
@@ -220,7 +223,9 @@ export function EditorWorkbench() {
           </>} />
       } editor={<>
           <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime}
-            selectionId={selectedId} selection={audioSelection} onSeek={time => run(() => {
+            selectionId={selectedId} selection={audioSelection}
+            onBoundaryChange={!busy && !pendingImport && selected ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
+            onSeek={time => run(() => {
               if (video) { setAudition(null); seekVideo(video, time); }
             })} />
           <section className="cue-editor" aria-label="字幕编辑">
@@ -245,10 +250,10 @@ export function EditorWorkbench() {
               </div>
               <div className="time-points">
                 <TimePointControl label="入点" value={startText} captureKey="I" decreaseKey="J" increaseKey="K"
-                  onChange={value => { setStartText(value); setAudition(null); }}
+                  onChange={value => changeTimeDraft('start', value)}
                   onCapture={() => run(() => capture('start'))} onNudge={delta => run(() => nudge('start', delta))} />
                 <TimePointControl label="出点" value={endText} captureKey="O" decreaseKey="U" increaseKey="P"
-                  onChange={value => { setEndText(value); setAudition(null); }}
+                  onChange={value => changeTimeDraft('end', value)}
                   onCapture={() => run(() => capture('end'))} onNudge={delta => run(() => nudge('end', delta))} />
               </div>
               <div className="controls range-actions">

@@ -1,9 +1,10 @@
-import type { AudioDisplayMode, AudioTile } from '../../media/audio/analysis-types';
+import type { AudioDisplayMode, AudioTile, SpectrumTile } from '../../media/audio/analysis-types';
 import { formatTime } from '../../media/playback';
 import { rulerStep, type AudioViewport } from './viewport';
 import { drawSpectrum } from './draw-spectrum';
 
-export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode) {
+export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode,
+  spectrumImages: WeakMap<SpectrumTile, HTMLCanvasElement>) {
   const width = canvas.clientWidth; const height = canvas.clientHeight;
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.max(1, Math.round(width * ratio)); canvas.height = Math.max(1, Math.round(height * ratio));
@@ -12,7 +13,7 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
   context.scale(ratio, ratio);
   context.fillStyle = '#f3f5f2'; context.fillRect(0, 0, width, height);
   const top = 22; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
-  if (mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top);
+  if (mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages);
   context.strokeStyle = '#dce3db'; context.lineWidth = 1;
   if (mode === 'waveform') { context.beginPath(); context.moveTo(0, mid); context.lineTo(width, mid); context.stroke(); }
   context.fillStyle = '#63756a'; context.font = '11px ui-monospace, monospace';
