@@ -13,4 +13,12 @@
 
 复现：在本 worktree 启动 ASS 服务和前端，运行 `cd frontend && npm run test:audio-timeline`。默认前端端口 5176，`AUDIO_TIMELINE_URL` 可覆盖。可用 `CUERELAY_API_TARGET=http://127.0.0.1:8016` 给 Vite 指定独立 ASS 服务；不改默认 8000。需本机 FFmpeg / 系统 Chrome。脚本生成临时文件和截图。
 
-频谱与进一步整合测试随阶段 C / D 在本记录追加。阶段 A 的多 GB 稀疏容器结果不代表真实长片性能。
+## 阶段 C：频谱
+
+- 加入 fft.js 4.0.4（MIT、零运行时依赖）；已核对安装包 realTransform API，参考 [官方仓库](https://github.com/indutny/fft.js)。不采用另一个可视化框架。
+- Worker 内 Hann STFT，约 43ms 窗 / 11ms hop，80Hz–8kHz（低采样率截至 Nyquist）128 行，颜色越深能量越强。两模式共用同一 PCM 段、时间坐标和播放头；跨段用绝对 hop 网格及邻段样本，保留时间偏移。
+- 实际执行 86 项单元测试、typecheck、build 和完整 Chrome 页面脚本，全部通过。单元测试验证 500/1000/3000Hz 定位、静音、反相声道、8kHz 采样率、跨段与整段 STFT 一致、FFT 批间取消。
+- 浏览器切换到 Spectrum 后视窗仍是 0–10 秒；解码段数从 5 到 6，仅多读边缘邻段。切回 Waveform、放大已缓存范围均不增加解码。频谱缓存 4,924,672 字节；1000Hz 的声音与静音像素具有明显深浅差别，已查看截图。
+- 修复模式切换时短暂沿用旧 ready 状态的问题；首次新增依赖的 Vite 预构建会刷新开发页面，生产包不经过该流程。
+
+进一步整合测试随阶段 D 追加。阶段 A 的多 GB 稀疏容器结果不代表真实长片性能。

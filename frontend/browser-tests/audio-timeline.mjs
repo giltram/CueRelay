@@ -46,10 +46,33 @@ try {
   await page.screenshot({ path: join(dir, 'waveform.png') });
   report.screenshot = join(dir, 'waveform.png');
 
+  const beforeSpectrum = await bounds();
+  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+  report.spectrum = await bounds();
+  assert.equal(report.spectrum.start, beforeSpectrum.start);
+  assert.equal(report.spectrum.end, beforeSpectrum.end);
+  // Only one edge neighbor may need decoding; all visible waveform PCM is reused.
+  assert(report.spectrum.decoded <= beforeSpectrum.decoded + 1);
+  await page.screenshot({ path: join(dir, 'spectrum.png') });
+  report.spectrumScreenshot = join(dir, 'spectrum.png');
+  report.spectrumPixels = await page.locator('.audio-stage canvas').evaluate(canvas => {
+    const context = canvas.getContext('2d'); const scale = canvas.width / canvas.clientWidth;
+    const height = canvas.height - 22 * scale;
+    const row = 22 * scale + height * (1 - (1000 - 80) / (8000 - 80));
+    const loud = context.getImageData(Math.round(canvas.width * 0.1), Math.round(row), 1, 1).data;
+    const quiet = context.getImageData(Math.round(canvas.width * 0.3), Math.round(row), 1, 1).data;
+    return { loud: [...loud], quiet: [...quiet] };
+  });
+  assert(report.spectrumPixels.loud[0] < report.spectrumPixels.quiet[0] - 50);
+  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+  assert.equal((await bounds()).decoded, report.spectrum.decoded);
+
   await page.getByRole('button', { name: '放大音频时间轴', exact: true }).click();
   assert.equal((await bounds()).end - (await bounds()).start, 5);
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
-  assert.equal((await bounds()).decoded, report.initial.decoded);
+  assert.equal((await bounds()).decoded, report.spectrum.decoded);
   const stage = page.locator('.audio-stage');
   const rect = await stage.boundingBox();
   await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);

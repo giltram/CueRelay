@@ -2,6 +2,7 @@ import type { AudioMetadata, PcmChunk } from './local-audio';
 import { AUDIO_CACHE_BYTES, AUDIO_SEGMENT_SECONDS, type AudioTile, type PcmSegment } from './analysis-types';
 import { ByteCache } from './byte-cache';
 import { waveformPeaks } from './waveform';
+import { analyzeSpectrum } from './spectrum';
 
 interface AudioReader {
   metadata: AudioMetadata;
@@ -15,6 +16,20 @@ export class AudioSegmentStore {
   decodedSegments = 0;
   get cacheBytes() { return this.cache.bytes; }
   constructor(private reader: AudioReader) {}
+
+  async withSpectrum(index: number, signal: AbortSignal): Promise<AudioSegmentEntry> {
+    const entry = await this.get(index, signal);
+    if (!entry.tile.spectrum) {
+      const previous = index > 0 ? (await this.get(index - 1, signal)).pcm : null;
+      const next = (await this.get(index + 1, signal)).pcm;
+      const spectrum = await analyzeSpectrum(entry.pcm, previous, next, signal);
+      signal.throwIfAborted();
+      entry.tile.spectrum = spectrum;
+      this.cache.put(index, entry, entry.pcm.channels.reduce((sum, data) => sum + data.byteLength, 0) +
+        entry.tile.peaks.byteLength + spectrum.energy.byteLength);
+    }
+    return entry;
+  }
 
   async get(index: number, signal: AbortSignal): Promise<AudioSegmentEntry> {
     signal.throwIfAborted();

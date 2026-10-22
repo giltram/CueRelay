@@ -25,7 +25,7 @@ async function drain() {
         const first = Math.floor(request.start / AUDIO_SEGMENT_SECONDS);
         const last = Math.ceil(request.end / AUDIO_SEGMENT_SECONDS);
         for (let index = first; index < last; index++) {
-          const entry = await store.get(index, controller.signal);
+          const entry = request.mode === 'spectrum' ? await store.withSpectrum(index, controller.signal) : await store.get(index, controller.signal);
           controller.signal.throwIfAborted();
           scope.postMessage({ type: 'tile', id: request.id, tile: entry.tile });
           // Let newer viewport / cancellation messages preempt cache hits and CPU work.

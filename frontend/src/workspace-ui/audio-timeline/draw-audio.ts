@@ -1,8 +1,9 @@
-import type { AudioTile } from '../../media/audio/analysis-types';
+import type { AudioDisplayMode, AudioTile } from '../../media/audio/analysis-types';
 import { formatTime } from '../../media/playback';
 import { rulerStep, type AudioViewport } from './viewport';
+import { drawSpectrum } from './draw-spectrum';
 
-export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport) {
+export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode) {
   const width = canvas.clientWidth; const height = canvas.clientHeight;
   const ratio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.max(1, Math.round(width * ratio)); canvas.height = Math.max(1, Math.round(height * ratio));
@@ -11,8 +12,9 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
   context.scale(ratio, ratio);
   context.fillStyle = '#f3f5f2'; context.fillRect(0, 0, width, height);
   const top = 22; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
+  if (mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top);
   context.strokeStyle = '#dce3db'; context.lineWidth = 1;
-  context.beginPath(); context.moveTo(0, mid); context.lineTo(width, mid); context.stroke();
+  if (mode === 'waveform') { context.beginPath(); context.moveTo(0, mid); context.lineTo(width, mid); context.stroke(); }
   context.fillStyle = '#63756a'; context.font = '11px ui-monospace, monospace';
   const step = rulerStep(view.span);
   for (let time = Math.ceil(view.start / step) * step; time <= view.start + view.span; time += step) {
@@ -20,6 +22,13 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
     context.fillText(formatTime(time * 1000), Math.min(x + 3, Math.max(0, width - 82)), 14);
     context.strokeStyle = '#dce3db';
     context.beginPath(); context.moveTo(x, 20); context.lineTo(x, height); context.stroke();
+  }
+  if (mode === 'spectrum') {
+    const high = tiles.find(t => t.spectrum)?.spectrum?.highHz || 8000;
+    context.fillStyle = '#63756a';
+    context.fillText(`${high / 1000} kHz`, 3, top + 12);
+    context.fillText('80 Hz', 3, height - 4);
+    return;
   }
   context.strokeStyle = '#265c47';
   context.beginPath();

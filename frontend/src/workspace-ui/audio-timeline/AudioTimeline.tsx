@@ -4,6 +4,7 @@ import { formatTime } from '../../media/playback';
 import { drawAudio } from './draw-audio';
 import { clampViewport, timeAtX, zoomViewport, type AudioViewport } from './viewport';
 import './audio-timeline.css';
+import type { AudioDisplayMode } from '../../media/audio/analysis-types';
 
 interface Props {
   file: File | null;
@@ -18,8 +19,9 @@ interface Props {
 export function AudioTimeline({ file, video, duration, currentTime, selectionId, selection, onSeek }: Props) {
   const seconds = duration / 1000;
   const [viewport, setViewport] = useState<AudioViewport>({ start: 0, span: 10 });
+  const [mode, setMode] = useState<AudioDisplayMode>('waveform');
   const view = clampViewport(viewport, seconds);
-  const analysis = useAudioAnalysis(file, view.start, view.start + view.span);
+  const analysis = useAudioAnalysis(file, view.start, view.start + view.span, mode);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const playhead = useRef<HTMLDivElement>(null);
@@ -35,8 +37,8 @@ export function AudioTimeline({ file, video, duration, currentTime, selectionId,
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (canvas.current) drawAudio(canvas.current, analysis.tiles, view);
-  }, [analysis.tiles, view.start, view.span, size]);
+    if (canvas.current) drawAudio(canvas.current, analysis.tiles, view, mode);
+  }, [analysis.tiles, view.start, view.span, size, mode]);
   useEffect(() => {
     if (!selectionId || !selection) return;
     setViewport(value => clampViewport({ ...value, start: selection.start / 1000 - value.span * 0.15 }, seconds));
@@ -98,9 +100,13 @@ export function AudioTimeline({ file, video, duration, currentTime, selectionId,
     </div>;
   };
   return <section className="audio-panel audio-timeline" aria-label="音频时间轴" data-state={analysis.status}
-    data-start={view.start} data-end={view.start + view.span} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
+    data-start={view.start} data-end={view.start + view.span} data-mode={mode} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
     <div className="audio-toolbar">
-      <h2>音频 <span>Waveform</span></h2>
+      <h2>音频</h2>
+      <div role="group" aria-label="音频显示模式">
+        <button aria-pressed={mode === 'waveform'} onClick={() => setMode('waveform')}>Waveform</button>
+        <button aria-pressed={mode === 'spectrum'} onClick={() => setMode('spectrum')}>Spectrum</button>
+      </div>
       <div role="group" aria-label="音频视窗">
         <button aria-label="缩小音频时间轴" disabled={!seconds} onClick={() => zoom(2)}>−</button>
         <button aria-label="放大音频时间轴" disabled={!seconds} onClick={() => zoom(0.5)}>+</button>
@@ -133,7 +139,7 @@ export function AudioTimeline({ file, video, duration, currentTime, selectionId,
         drag.current = null;
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}>
-      <canvas ref={canvas} aria-label="音频波形" />
+      <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越深能量越强'} />
       {marker('start')}{marker('end')}
       <div className="audio-playhead" ref={playhead} aria-label="视频播放头" hidden />
       {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频波形</p>}

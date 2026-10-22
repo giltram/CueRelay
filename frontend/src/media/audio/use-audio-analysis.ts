@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AudioTile, AudioWorkerRequest, AudioWorkerResponse } from './analysis-types';
+import type { AudioDisplayMode, AudioTile, AudioWorkerRequest, AudioWorkerResponse } from './analysis-types';
 
 interface AnalysisState {
   file: File | null;
@@ -8,16 +8,18 @@ interface AnalysisState {
   message: string;
   cacheBytes: number;
   decodedSegments: number;
+  viewKey: string;
 }
 
-export function useAudioAnalysis(file: File | null, start: number, end: number) {
+export function useAudioAnalysis(file: File | null, start: number, end: number, mode: AudioDisplayMode) {
   const worker = useRef<Worker | null>(null);
   const requestId = useRef(0);
   const [readyFile, setReadyFile] = useState<File | null>(null);
-  const [state, setState] = useState<AnalysisState>({ file: null, status: 'empty', tiles: [], message: '', cacheBytes: 0, decodedSegments: 0 });
+  const viewKey = `${start}:${end}:${mode}`;
+  const [state, setState] = useState<AnalysisState>({ file: null, status: 'empty', tiles: [], message: '', cacheBytes: 0, decodedSegments: 0, viewKey: '' });
   useEffect(() => {
     setReadyFile(null);
-    setState({ file, status: file ? 'opening' : 'empty', tiles: [], message: '', cacheBytes: 0, decodedSegments: 0 });
+    setState({ file, status: file ? 'opening' : 'empty', tiles: [], message: '', cacheBytes: 0, decodedSegments: 0, viewKey: '' });
     if (!file) return;
     let instance: Worker;
     try { instance = new Worker(new URL('./audio.worker.ts', import.meta.url), { type: 'module' }); }
@@ -43,9 +45,11 @@ export function useAudioAnalysis(file: File | null, start: number, end: number) 
   useEffect(() => {
     if (!file || readyFile !== file || !worker.current || end <= start) return;
     const id = ++requestId.current;
-    setState(s => ({ ...s, status: 'loading', message: '', tiles: s.tiles.filter(t => t.end > start && t.start < end) }));
-    worker.current.postMessage({ type: 'view', id, start, end } satisfies AudioWorkerRequest);
-  }, [file, readyFile, start, end]);
+    setState(s => ({ ...s, status: 'loading', viewKey, message: '', tiles: s.tiles.filter(t => t.end > start && t.start < end) }));
+    worker.current.postMessage({ type: 'view', id, start, end, mode } satisfies AudioWorkerRequest);
+  }, [file, readyFile, start, end, mode]);
   // Never show a previous file's analysis during the render before effect cleanup.
-  return state.file === file ? state : { ...state, status: 'opening' as const, tiles: [], message: '' };
+  if (state.file !== file) return { ...state, status: 'opening' as const, tiles: [], message: '' };
+  if (readyFile === file && file && end > start && state.viewKey !== viewKey) return { ...state, status: 'loading' as const };
+  return state;
 }

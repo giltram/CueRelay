@@ -30,3 +30,9 @@ LocalVideoPlayer 的 onFile 发布同一已选 File；EditorWorkbench 将 File�
 Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/max 桶保留约 0.5ms 的瞬态；渲染时按像素合并桶。反相声道不会因下混而消失。单个 ByteCache 以 PCM + 分析 typed arrays 的实际 byteLength 计费，上限 32 MiB；视图只保留当前窗口相交的分析 tiles（视窗最多 60 秒），不接收 PCM。没有多级缓存或全片扫描。
 
 每个 File 单独拥有 Worker；替换 / 卸载直接 terminate。视窗请求带递增 id，Worker 取消旧 readRange，UI 忽略旧 id；缓存命中循环也让出事件队列，避免旧视窗阻挡新请求。重计算和解码不在主线程。仅 video 播放，播放头读取 video.currentTime；手动平移暂时停止跟随，点击定位 / seeked 或「当前」恢复。
+
+## 频谱
+
+`spectrum.ts` 使用 fft.js 4.0.4（MIT，零运行时依赖），不用大型可视化框架。Hann STFT 的 FFT 长度按采样率选择最接近 43ms 的 2 次幂（512–8192），hop 为 FFT/4；使用绝对时间 hop 网格和相邻 PCM，避免 2 秒分段边缘重新起窗。每声道单独 FFT 后平均功率，避免反相下混抵消。频率线性映射 80Hz–min(8000Hz,Nyquist) 的 128 行；峰值功率按近似 -90..-15dBFS 映射到 8-bit 深浅，属于打轴辅助而非校准声学测量。
+
+两种模式共用 AudioTile 和同一个 PCM LRU，频谱仅在请求时计算；首尾窗最多多读相邻 2 秒段。谱图的 typed array 也计入同一 32 MiB 预算。FFT 每 16 列让出 Worker 事件队列并检查取消。UI 模式切换不重置坐标或播放器，ready 状态绑定 mode + start + end，避免新视窗暂时显示旧完成状态。
