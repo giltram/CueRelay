@@ -7,10 +7,12 @@ import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
 import { timingShortcut } from './timing-shortcuts';
+import { AudioTimeline } from './audio-timeline/AudioTimeline';
 
 export function EditorWorkbench() {
   const [document, setDocument] = useState<AssDocument | null>(null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [startText, setStartText] = useState('0:00:00.00');
@@ -149,6 +151,11 @@ export function EditorWorkbench() {
 
   const onVideo = useCallback((element: HTMLVideoElement | null) => setVideo(element), []);
   const outsideDuration = duration > 0 && document?.cues.some(cue => cue.end_ms > duration);
+  let audioSelection: { start: number; end: number } | null = null;
+  if (selected) {
+    try { audioSelection = { start: parseTime(startText), end: parseTime(endText) }; }
+    catch { /* A partially typed time has no drawable boundary; the editor retains its draft. */ }
+  }
 
   async function doImport(file: File) {
     setBusy(true); setPendingImport(null); setError('');
@@ -202,7 +209,7 @@ export function EditorWorkbench() {
       {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
 
       <ResizableWorkbench media={
-          <LocalVideoPlayer onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
+          <LocalVideoPlayer onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
             <button className="playback-button" aria-label="播放 / 暂停" title="播放 / 暂停（空格）"
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -212,11 +219,10 @@ export function EditorWorkbench() {
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
           </>} />
       } editor={<>
-          <section className="audio-panel" aria-labelledby="audio-heading">
-            <h2 id="audio-heading">音频</h2>
-            <p>波形 / 频谱区域预留</p>
-            <span>音频分析与识别功能尚未接入</span>
-          </section>
+          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime}
+            selectionId={selectedId} selection={audioSelection} onSeek={time => run(() => {
+              if (video) { setAudition(null); seekVideo(video, time); }
+            })} />
           <section className="cue-editor" aria-label="字幕编辑">
             <fieldset disabled={busy || !document}>
               <legend className="sr-only">字幕编辑</legend>

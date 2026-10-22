@@ -67,4 +67,4 @@ CUERELAY_AUDIT=1 npm run dev
 
 架构与未来模块边界见 [docs/architecture.md](docs/architecture.md)。本任务不继续登录、数据库、实时协作或恢复机制。
 
-本地音频分段提取的阶段 A 验证入口、浏览器测试命令和实测限制见 [音频实验记录](docs/experiments/local-audio.md)。目前尚未接入打轴页的波形 / 频谱；验证页只在开发服务器提供。
+本地音频分段提取的阶段 A 验证入口与大文件实测限制见 [音频提取记录](docs/experiments/local-audio.md)。波形已接入打轴页，交互、Worker 缓存及浏览器回归见 [音频时间轴记录](docs/experiments/audio-timeline.md)。

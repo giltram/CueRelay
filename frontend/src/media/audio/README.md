@@ -1,6 +1,6 @@
-# 本地音频提取（阶段 A）
+# 本地音频提取与分析
 
-`local-audio.ts` 是 `media` 下的独立叶子模块，仅依赖 Mediabunny；不依赖 React、工作区、字幕 DTO、后端或播放状态。当前尚未接入正式页面。
+`local-audio.ts` 是只依赖 Mediabunny 的提取叶子模块；`audio.worker.ts` 组合提取 / 分析 / 缓存；`use-audio-analysis.ts` 是 React 与 Worker 之间的适配层。媒体模块不依赖工作区、字幕 DTO 或后端。视图与坐标属于 `workspace-ui/audio-timeline`。
 
 ## 公共契约
 
@@ -23,4 +23,10 @@
 - `frontend/experiments/audio-probe.html`：开发服务器专用手动探针，同一 File 同时交给 video 和提取模块。显示 PCM / 读取统计，不输出 PCM 音频。
 - `frontend/browser-tests/local-audio.mjs`：FFmpeg 自制样本 + Playwright / Chrome 实际浏览器验证，包括 5 GiB 稀疏容器寻址；详见 [实验记录](../../../../docs/experiments/local-audio.md)。
 
-后续阶段 B 应让 LocalVideoPlayer 通过显式回调暴露同一个已选 File，音频任务由工作区编排。UI 仍使用现有视频时间（毫秒），仅在提取边界转成秒。选区仍由 EditorWorkbench 的时间草稿和 applyTimes 管理。尚未实现波形降采样、FFT、Worker 或 PCM / 分析缓存。
+## Worker 与视图接线
+
+LocalVideoPlayer 的 onFile 发布同一已选 File；EditorWorkbench 将 File、video、毫秒播放时间和选中字幕草稿传给 AudioTimeline。坐标和分析以秒为单位，仅在字幕 / 播放接口边界转换。文件不进入字幕 DTO 或 React 文档数据。
+
+Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/max 桶保留约 0.5ms 的瞬态；渲染时按像素合并桶。反相声道不会因下混而消失。单个 ByteCache 以 PCM + 分析 typed arrays 的实际 byteLength 计费，上限 32 MiB；视图只保留当前窗口相交的分析 tiles（视窗最多 60 秒），不接收 PCM。没有多级缓存或全片扫描。
+
+每个 File 单独拥有 Worker；替换 / 卸载直接 terminate。视窗请求带递增 id，Worker 取消旧 readRange，UI 忽略旧 id；缓存命中循环也让出事件队列，避免旧视窗阻挡新请求。重计算和解码不在主线程。仅 video 播放，播放头读取 video.currentTime；手动平移暂时停止跟随，点击定位 / seeked 或「当前」恢复。

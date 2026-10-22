@@ -5,13 +5,16 @@ interface Props {
   onTime: (milliseconds: number) => void;
   onDuration: (milliseconds: number) => void;
   onError: (message: string) => void;
+  onFile: (file: File | null) => void;
   controls: ReactNode;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, controls }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, controls }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [locked, setLocked] = useState(false);
+
+  useEffect(() => { onFile(file); return () => onFile(null); }, [file, onFile]);
 
   useEffect(() => {
     const video = ref.current!;

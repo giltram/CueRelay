@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { randomBytes } from 'node:crypto';
 
 const nonce = randomBytes(18).toString('base64');
+const apiTarget = process.env.CUERELAY_API_TARGET || 'http://127.0.0.1:8000';
 const headers = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -28,9 +29,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     headers,
-    proxy: { '/api': 'http://127.0.0.1:8000' },
+    proxy: { '/api': apiTarget },
   },
-  preview: { port: 5173, strictPort: true, headers, proxy: { '/api': 'http://127.0.0.1:8000' } },
+  preview: { port: 5173, strictPort: true, headers, proxy: { '/api': apiTarget } },
   worker: { format: 'es' },
   test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'browser-tests/**'] },
 });

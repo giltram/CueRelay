@@ -8,7 +8,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
-2026-10-23 已完成音频可视化的**阶段 A 技术验证**：`frontend/src/media/audio/local-audio.ts` 是只依赖 Mediabunny 的本地 MP4 分段 PCM 叶子模块，提供 open / readRange / dispose、时间戳保留、能力检测与取消。它尚未接入正式打轴页；`frontend/experiments/audio-probe.html` 仅用于开发验证，不属于生产入口。当前页面的音频占位保持不变。契约见 [audio README](../frontend/src/media/audio/README.md)，实测范围及大文件限制见 [阶段 A 记录](experiments/local-audio.md)。
+2026-10-23 音频阶段 B 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。阶段 A 的 `experiments/audio-probe.html` 仍是开发入口。契约见 [audio README](../frontend/src/media/audio/README.md)，A 的实测边界见 [实验记录](experiments/local-audio.md)。
 
 运行和全部验证命令见 [README](../README.md)。当前没有数据库、Models/Migrations、认证或 WebSocket。
 
@@ -21,7 +21,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 - `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
 - `workspace-ui/ResizableWorkbench.tsx` 拥有桌面分栏比例、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
 - `workspace-ui/workbench-sizing.ts` 唯一负责宽度边界：媒体栏最低 300px、编辑栏最低 480px，视频最大宽度由上方区域可用高度和 16:9 决定，避免继续扩宽后视频大小不再变化。空间不足时以保留编辑区为先。CSS 的 `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试。
-- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频预留区和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频区域仅是明确标注的占位，没有识别或波形数据。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
+- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频时间轴和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、0.5–60 秒视窗、滚轮缩放 / 水平滚动 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
 - `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 44px 给导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
 - 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间循环所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
