@@ -32,5 +32,5 @@ export default defineConfig({
   },
   preview: { port: 5173, strictPort: true, headers, proxy: { '/api': 'http://127.0.0.1:8000' } },
   worker: { format: 'es' },
-  test: { environment: 'node' },
+  test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'browser-tests/**'] },
 });

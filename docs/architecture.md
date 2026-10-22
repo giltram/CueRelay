@@ -4,7 +4,11 @@
 
 Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D-R1](decisions/0001-initial-architecture.md#d-r1)。本任务仅落地 M0/M1 的媒体 / ASS 有限切片，下文完整协作结构仍是未来设计，不代表已实现。未进入下一里程碑。
 
+2026-10-23 用户系统的待确认方案见 [user-system.md](user-system.md)，只记录下一切片的账号/会话接入设计；当前尚未实现认证或数据库。
+
 ## 当前可运行入口
+
+2026-10-23 已完成音频可视化的**阶段 A 技术验证**：`frontend/src/media/audio/local-audio.ts` 是只依赖 Mediabunny 的本地 MP4 分段 PCM 叶子模块，提供 open / readRange / dispose、时间戳保留、能力检测与取消。它尚未接入正式打轴页；`frontend/experiments/audio-probe.html` 仅用于开发验证，不属于生产入口。当前页面的音频占位保持不变。契约见 [audio README](../frontend/src/media/audio/README.md)，实测范围及大文件限制见 [阶段 A 记录](experiments/local-audio.md)。
 
 运行和全部验证命令见 [README](../README.md)。当前没有数据库、Models/Migrations、认证或 WebSocket。
 

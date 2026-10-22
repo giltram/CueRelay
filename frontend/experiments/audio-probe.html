@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>阶段 A：本地音频提取验证</title></head>
+<body>
+  <h1>阶段 A：本地音频提取验证</h1>
+  <p>开发验证入口。仅播放 video；分段 PCM 只做统计，不上传、不输出声音、不保留。</p>
+  <label>本地视频 <input id="file" type="file" accept="video/mp4"></label>
+  <p><video id="video" controls width="480"></video></p>
+  <label>开始（秒）<input id="start" type="number" value="0" min="0" step="0.01"></label>
+  <label>结束（秒）<input id="end" type="number" value="2" min="0" step="0.01"></label>
+  <button id="extract">提取区间</button><button id="dispose">释放音频源</button>
+  <pre id="result" role="status">请选择本地 MP4</pre>
+  <script type="module" src="./audio-probe.ts"></script>
+</body>
+</html>

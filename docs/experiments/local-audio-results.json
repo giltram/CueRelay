@@ -1,0 +1,405 @@
+{
+  "browser": "147.0.7727.101",
+  "files": {
+    "base.mp4": {
+      "bytes": 2487930,
+      "status": "ready",
+      "fileBytes": 2487930,
+      "openMs": 2.659999966621399,
+      "metadata": {
+        "codec": "mp4a.40.2",
+        "sampleRate": 48000,
+        "channels": 2,
+        "firstTimestamp": -0.021333333333333333,
+        "endTimestamp": 120
+      },
+      "reads": {
+        "bytesRead": 2097152,
+        "largestRead": 2097152,
+        "readCacheLimit": 8388608
+      }
+    },
+    "offset.mp4": {
+      "bytes": 280747,
+      "status": "ready",
+      "fileBytes": 280747,
+      "openMs": 2.409999966621399,
+      "metadata": {
+        "codec": "mp4a.40.2",
+        "sampleRate": 48000,
+        "channels": 2,
+        "firstTimestamp": 2.478666666666667,
+        "endTimestamp": 15.001333333333333
+      },
+      "reads": {
+        "bytesRead": 280747,
+        "largestRead": 280747,
+        "readCacheLimit": 8388608
+      }
+    },
+    "tail.mp4": {
+      "bytes": 2487930,
+      "status": "ready",
+      "fileBytes": 2487930,
+      "openMs": 2.240000009536743,
+      "metadata": {
+        "codec": "mp4a.40.2",
+        "sampleRate": 48000,
+        "channels": 2,
+        "firstTimestamp": -0.021333333333333333,
+        "endTimestamp": 120
+      },
+      "reads": {
+        "bytesRead": 456314,
+        "largestRead": 327680,
+        "readCacheLimit": 8388608
+      }
+    },
+    "sparse-5g.mp4": {
+      "bytes": 5371197050,
+      "status": "ready",
+      "fileBytes": 5371197050,
+      "openMs": 4.65500009059906,
+      "metadata": {
+        "codec": "mp4a.40.2",
+        "sampleRate": 48000,
+        "channels": 2,
+        "firstTimestamp": -0.021333333333333333,
+        "endTimestamp": 120
+      },
+      "reads": {
+        "bytesRead": 587386,
+        "largestRead": 131072,
+        "readCacheLimit": 8388608
+      }
+    },
+    "silent.mp4": {
+      "bytes": 44036,
+      "error": "视频没有音轨，可继续播放和编辑字幕",
+      "code": "no-audio"
+    },
+    "unsupported.mp4": {
+      "bytes": 755526,
+      "error": "当前浏览器无法通过 WebCodecs 解码此音轨，可继续播放和编辑字幕",
+      "code": "unsupported"
+    },
+    "broken.mp4": {
+      "bytes": 19,
+      "error": "音频提取暂仅支持可读取的 MP4 文件",
+      "code": "unreadable"
+    }
+  },
+  "ranges": [
+    {
+      "status": "extracted",
+      "start": 0,
+      "end": 2,
+      "first": 0,
+      "last": 2,
+      "frames": 96000,
+      "peak": 0.17640241980552673,
+      "pcmBytes": 768000,
+      "chunks": 94,
+      "elapsedMs": 45.0550000667572,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 1638400,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 100.123,
+      "end": 102.123,
+      "first": 100.123,
+      "last": 102.12299999999999,
+      "frames": 96000,
+      "peak": 0.13834917545318604,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 12.889999985694885,
+      "newReadBytes": 521850,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 5.321,
+      "end": 7.321,
+      "first": 5.321000000000001,
+      "last": 7.321,
+      "frames": 96000,
+      "peak": 0.12516634166240692,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 12.745000004768372,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 110.5,
+      "end": 112.5,
+      "first": 110.5,
+      "last": 112.5,
+      "frames": 96000,
+      "peak": 0.1369934380054474,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 12.81499993801117,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 10,
+      "end": 12,
+      "first": 10,
+      "last": 12,
+      "frames": 96000,
+      "peak": 0.12516702711582184,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 11.830000042915344,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 70,
+      "end": 72,
+      "first": 70,
+      "last": 72,
+      "frames": 96000,
+      "peak": 0.12518107891082764,
+      "pcmBytes": 768000,
+      "chunks": 94,
+      "elapsedMs": 12.06499993801117,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 70,
+      "end": 72,
+      "first": 70,
+      "last": 72,
+      "frames": 96000,
+      "peak": 0.12518107891082764,
+      "pcmBytes": 768000,
+      "chunks": 94,
+      "elapsedMs": 11.84499990940094,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 20,
+      "end": 22,
+      "first": 20,
+      "last": 22,
+      "frames": 96000,
+      "peak": 0.13834869861602783,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 10.379999995231628,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2160250,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 90,
+      "end": 92,
+      "first": 90,
+      "last": 92,
+      "frames": 96000,
+      "peak": 0.12518107891082764,
+      "pcmBytes": 768000,
+      "chunks": 95,
+      "elapsedMs": 13.495000004768372,
+      "newReadBytes": 458752,
+      "reads": {
+        "bytesRead": 2619002,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    },
+    {
+      "status": "extracted",
+      "start": 30,
+      "end": 32,
+      "first": 30,
+      "last": 32,
+      "frames": 96000,
+      "peak": 0.1251797080039978,
+      "pcmBytes": 768000,
+      "chunks": 94,
+      "elapsedMs": 12.370000004768372,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 2619002,
+        "largestRead": 1638400,
+        "readCacheLimit": 8388608
+      }
+    }
+  ],
+  "errors": [],
+  "uploads": [],
+  "playingDuringDecode": {
+    "paused": false,
+    "time": 35.005315,
+    "localBlob": true
+  },
+  "offset": {
+    "gap": {
+      "status": "extracted",
+      "start": 0,
+      "end": 1,
+      "first": null,
+      "last": null,
+      "frames": 0,
+      "peak": 0,
+      "pcmBytes": 0,
+      "chunks": 0,
+      "elapsedMs": 7.729999899864197,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 280747,
+        "largestRead": 280747,
+        "readCacheLimit": 8388608
+      }
+    },
+    "delayed": {
+      "status": "extracted",
+      "start": 2,
+      "end": 4,
+      "first": 2.478666666666667,
+      "last": 4,
+      "frames": 73024,
+      "peak": 0.17640241980552673,
+      "pcmBytes": 584192,
+      "chunks": 72,
+      "elapsedMs": 11.710000038146973,
+      "newReadBytes": 0,
+      "reads": {
+        "bytesRead": 280747,
+        "largestRead": 280747,
+        "readCacheLimit": 8388608
+      }
+    }
+  },
+  "sparse": {
+    "status": "extracted",
+    "start": 100,
+    "end": 102,
+    "first": 100,
+    "last": 102,
+    "frames": 96000,
+    "peak": 0.13834917545318604,
+    "pcmBytes": 768000,
+    "chunks": 95,
+    "elapsedMs": 9.740000009536743,
+    "newReadBytes": 2097152,
+    "reads": {
+      "bytesRead": 2684538,
+      "largestRead": 2097152,
+      "readCacheLimit": 8388608
+    }
+  },
+  "cancellation": {
+    "outcomes": [
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "AbortError",
+      "completed"
+    ],
+    "callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      235
+    ],
+    "canceledName": "AbortError",
+    "final": {
+      "pcmBytes": 768000,
+      "chunks": 95
+    },
+    "disposed": "AbortError"
+  },
+  "memory": {
+    "before": {
+      "usedSize": 8012744,
+      "totalSize": 8552448,
+      "embedderHeapUsedSize": 1339032,
+      "backingStorageSize": 8075058
+    },
+    "after": {
+      "usedSize": 8011252,
+      "totalSize": 8814592,
+      "embedderHeapUsedSize": 1343888,
+      "backingStorageSize": 8075023
+    },
+    "rounds": 30,
+    "work": {
+      "maxChunkBytes": 8192,
+      "totalPcmBytes": 57600000,
+      "reads": {
+        "bytesRead": 2422394,
+        "largestRead": 1966080,
+        "readCacheLimit": 8388608
+      }
+    }
+  },
+  "readFailure": "unreadable",
+  "date": "2026-10-23"
+}

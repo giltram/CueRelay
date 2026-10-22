@@ -66,3 +66,5 @@ CUERELAY_AUDIT=1 npm run dev
 合成样本检查、依赖 / 许可证、定位原始数据、Aegisub 抽检结果和真实片源人工步骤见 [实验记录](docs/experiments/media-ass.md)。**合成检查已执行不等于真实片源或熟练成员试用通过**。
 
 架构与未来模块边界见 [docs/architecture.md](docs/architecture.md)。本任务不继续登录、数据库、实时协作或恢复机制。
+
+本地音频分段提取的阶段 A 验证入口、浏览器测试命令和实测限制见 [音频实验记录](docs/experiments/local-audio.md)。目前尚未接入打轴页的波形 / 频谱；验证页只在开发服务器提供。
