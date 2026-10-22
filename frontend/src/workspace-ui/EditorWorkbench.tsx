@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
-import { allowsShortcut, formatTime, parseTime, seekVideo, snapTime, validateInterval } from '../media/playback';
+import { auditionRange, formatTime, parseTime, seekVideo, snapTime, validateInterval, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument } from '../project-data/ass-api';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
+import { timingShortcut } from './timing-shortcuts';
 
 export function EditorWorkbench() {
   const [document, setDocument] = useState<AssDocument | null>(null);
@@ -15,7 +16,8 @@ export function EditorWorkbench() {
   const [startText, setStartText] = useState('0:00:00.00');
   const [endText, setEndText] = useState('0:00:00.00');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [loop, setLoop] = useState<{ start: number; end: number } | null>(null);
+  const [audition, setAudition] = useState<RangePlayback | null>(null);
+  const loop = audition?.repeat ? audition : null;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
@@ -50,7 +52,7 @@ export function EditorWorkbench() {
   }
 
   function selectCue(cue: Cue) {
-    setSelectedId(cue.id); setStartText(formatTime(cue.start_ms)); setEndText(formatTime(cue.end_ms)); setLoop(null);
+    setSelectedId(cue.id); setStartText(formatTime(cue.start_ms)); setEndText(formatTime(cue.end_ms)); setAudition(null);
   }
 
   function locate(cue: Cue) {
@@ -62,14 +64,14 @@ export function EditorWorkbench() {
     if (!video || !duration) throw new Error('请先加载可播放的视频');
     const value = formatTime(snapTime(video.currentTime));
     if (which === 'start') setStartText(value); else setEndText(value);
-    setLoop(null);
+    setAudition(null);
   }
 
   function nudge(which: 'start' | 'end', delta: number) {
     const value = parseTime(which === 'start' ? startText : endText) + delta;
     if (value < 0 || value > 35_999_990) throw new Error('微调时间超出范围');
     if (which === 'start') setStartText(formatTime(value)); else setEndText(formatTime(value));
-    setLoop(null);
+    setAudition(null);
   }
 
   function createCue() {
@@ -77,7 +79,7 @@ export function EditorWorkbench() {
     const { start, end } = selectedTimes(parseTime(startText), parseTime(endText));
     const cue: Cue = { id: `new-${crypto.randomUUID()}`, start_ms: start, end_ms: end, text: '', style: document.styles[0] };
     setDocument({ ...document, cues: [...document.cues, cue] });
-    setSelectedId(cue.id); setLoop(null);
+    setSelectedId(cue.id); setAudition(null);
   }
 
   function updateCue(patch: Partial<Cue>) {
@@ -87,7 +89,7 @@ export function EditorWorkbench() {
 
   function applyTimes() {
     const { start, end } = selectedTimes(parseTime(startText), parseTime(endText));
-    updateCue({ start_ms: start, end_ms: end }); setLoop(null);
+    updateCue({ start_ms: start, end_ms: end }); setAudition(null);
   }
 
   async function togglePlayback() {
@@ -95,48 +97,45 @@ export function EditorWorkbench() {
     if (video.paused) await video.play(); else video.pause();
   }
 
+  async function startAudition(range: RangePlayback | null) {
+    if (!video || !duration) throw new Error('请先加载可播放的视频');
+    if (range) seekVideo(video, range.start); else video.pause();
+    setAudition(range);
+    if (!range) return; // The requested range may be entirely outside the video.
+    try { await video.play(); }
+    catch (reason) {
+      setAudition(current => current === range ? null : current);
+      throw reason;
+    }
+  }
+
+  async function playTiming(mode: AuditionMode) {
+    const range = auditionRange(mode, parseTime(startText), parseTime(endText), duration);
+    await startAudition(range ? { ...range, repeat: false } : null);
+  }
+
   async function startLoop() {
-    if (loop) { setLoop(null); video?.pause(); return; }
+    if (loop) { setAudition(null); video?.pause(); return; }
     if (!video) throw new Error('请先选择视频');
     const range = selectedTimes(parseTime(startText), parseTime(endText));
     if (range.end > duration) throw new Error('循环区间超过视频时长；字幕时间未被截断');
-    seekVideo(video, range.start);
-    await video.play();
-    setLoop(range);
+    await startAudition({ ...range, repeat: true });
   }
 
   useEffect(() => {
-    if (!video || !loop) return;
-    let frame = 0;
-    const tick = () => {
-      if (!video.paused && (video.currentTime * 1000 >= loop.end || video.currentTime * 1000 < loop.start)) {
-        video.currentTime = loop.start / 1000;
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    const ended = () => {
-      video.currentTime = loop.start / 1000;
-      void video.play().catch(reason => { setError(reason.message); setLoop(null); });
-    };
-    frame = requestAnimationFrame(tick);
-    video.addEventListener('ended', ended);
-    return () => { cancelAnimationFrame(frame); video.removeEventListener('ended', ended); };
-  }, [video, loop]);
+    if (!video || !audition) return;
+    return watchPlaybackRange(video, audition, () => setAudition(null), reason => setError(reason.message));
+  }, [video, audition]);
 
   useEffect(() => {
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
-      if (!allowsShortcut(event, composing.current) || busy || pendingImport) return;
-      const actions: Record<string, () => void | Promise<void>> = {
-        Space: togglePlayback, KeyI: () => capture('start'), KeyO: () => capture('end'),
-        KeyN: createCue, KeyL: startLoop,
-        KeyJ: () => nudge('start', -10), KeyK: () => nudge('start', 10),
-        KeyU: () => nudge('end', -10), KeyP: () => nudge('end', 10),
-        Enter: applyTimes,
-      };
-      const action = actions[event.code];
-      if (action) { event.preventDefault(); run(action); }
+      if (busy || pendingImport) return;
+      const shortcut = timingShortcut(event, composing.current);
+      if (!shortcut) return;
+      event.preventDefault();
+      run(shortcut === 'commit' ? applyTimes : () => playTiming(shortcut));
     };
     window.addEventListener('compositionstart', begin);
     window.addEventListener('compositionend', end);
@@ -156,7 +155,7 @@ export function EditorWorkbench() {
     try {
       const imported = await importAss(file);
       setHasImportedDocument(true);
-      setDocument(imported); setSelectedId(null); setLoop(null);
+      setDocument(imported); setSelectedId(null); setAudition(null);
       setStartText('0:00:00.00'); setEndText('0:00:00.00');
     } catch (reason) {
       setError(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
@@ -233,17 +232,17 @@ export function EditorWorkbench() {
                   <button className="text-button" disabled={!selected} onClick={() => {
                     if (document && selected) {
                       setDocument({ ...document, cues: document.cues.filter(cue => cue.id !== selected.id) });
-                      setSelectedId(null); setLoop(null);
+                      setSelectedId(null); setAudition(null);
                     }
                   }}>删除选中行</button>
                 </div>
               </div>
               <div className="time-points">
                 <TimePointControl label="入点" value={startText} captureKey="I" decreaseKey="J" increaseKey="K"
-                  onChange={value => { setStartText(value); setLoop(null); }}
+                  onChange={value => { setStartText(value); setAudition(null); }}
                   onCapture={() => run(() => capture('start'))} onNudge={delta => run(() => nudge('start', delta))} />
                 <TimePointControl label="出点" value={endText} captureKey="O" decreaseKey="U" increaseKey="P"
-                  onChange={value => { setEndText(value); setLoop(null); }}
+                  onChange={value => { setEndText(value); setAudition(null); }}
                   onCapture={() => run(() => capture('end'))} onNudge={delta => run(() => nudge('end', delta))} />
               </div>
               <div className="controls range-actions">

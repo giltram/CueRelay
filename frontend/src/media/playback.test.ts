@@ -33,7 +33,7 @@ describe('10ms timing contract', () => {
 });
 
 describe('shortcuts leave editing and IME alone', () => {
-  const base = { code: 'KeyL', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
+  const base = { code: 'KeyS', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
   it('only enables unmodified non-repeating keys outside controls', () => {
     expect(allowsShortcut(base, false)).toBe(true);
     for (const property of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey', 'repeat', 'isComposing']) {
@@ -42,17 +42,18 @@ describe('shortcuts leave editing and IME alone', () => {
     expect(allowsShortcut(base, true)).toBe(false);
     expect(allowsShortcut({ ...base, keyCode: 229 }, false)).toBe(false);
   });
-  it('ignores any event whose target or ancestor is an editing control', () => {
-    const target = { closest: () => ({ tagName: 'TEXTAREA' }) } as unknown as EventTarget;
-    expect(allowsShortcut({ ...base, target }, false)).toBe(false);
-  });
-  it('allows L after clicking a timing button without stealing its native activation', () => {
+  it.each(['input', 'textarea', 'select', '[contenteditable]:not([contenteditable="false"])', '[role="textbox"]', 'video'])(
+    'ignores an event inside %s', control => {
+      const target = { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget;
+      expect(allowsShortcut({ ...base, target }, false)).toBe(false);
+    });
+  it('allows timing letters after clicking a button without stealing its native activation', () => {
     // The target can be a nested kbd/span inside the focused button.
     const target = {
       closest: (selector: string) => selector.includes('button') ? { tagName: 'BUTTON' } : null,
     } as unknown as EventTarget;
-    expect(allowsShortcut({ ...base, target, code: 'KeyL' }, false)).toBe(true);
-    expect(allowsShortcut({ ...base, target, code: 'KeyP' }, false)).toBe(true);
+    expect(allowsShortcut({ ...base, target, code: 'KeyS' }, false)).toBe(true);
+    expect(allowsShortcut({ ...base, target, code: 'KeyG' }, false)).toBe(true);
     for (const code of ['Space', 'Enter', 'NumpadEnter']) {
       expect(allowsShortcut({ ...base, target, code }, false)).toBe(false);
     }
