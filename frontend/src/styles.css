@@ -1,0 +1,353 @@
+:root{
+  font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  color:#203331;
+  background:#f3f5f2;
+  font-synthesis:none;
+  font-size:14px;
+  line-height:1.6}
+  *{
+    box-sizing:border-box}
+    body{
+      margin:0}
+      button,input,textarea,select{
+        font:inherit}
+        button,.file-picker{
+          border:1px solid #cbd6ce;
+          background:#fff;
+          border-radius:7px;
+          padding:7px 12px;
+          color:#23453b;
+          cursor:pointer}
+          button:hover,.file-picker:hover{
+            background:#edf5ef;
+            border-color:#7a9a87}
+            button:disabled,input:disabled{
+              cursor:not-allowed;
+              opacity:.45}
+              button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{
+                outline:3px solid #83bca4;
+                outline-offset:2px}
+                .primary{
+                  background:#265c47;
+                  color:white;
+                  border-color:#265c47}
+                  .primary:hover{
+                    background:#1c4937;
+                    color:#fff}
+                    main{
+                      max-width:1600px;
+                      margin:auto;
+                      padding:26px 36px}
+                      header{
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        margin-bottom:22px}
+                        .brand{
+                          display:flex;
+                          gap:13px;
+                          align-items:center}
+                          .brand-mark{
+                            display:grid;
+                            place-items:center;
+                            width:44px;
+                            height:44px;
+                            border-radius:13px;
+                            background:#285c47;
+                            color:white;
+                            font-size:28px;
+                            font-weight:700}
+                            h1{
+                              font-size:25px;
+                              letter-spacing:-.8px;
+                              line-height:1.2;
+                              margin:0}
+                              header p{
+                                margin:4px 0 0;
+                                color:#6d7d74;
+                                font-size:12px}
+                                .badge{
+                                  font-size:12px;
+                                  border:1px solid #c4d3c9;
+                                  border-radius:30px;
+                                  padding:4px 12px;
+                                  color:#587163}
+                                  .storage-notice{
+                                    display:flex;
+                                    gap:18px;
+                                    padding:12px 17px;
+                                    background:#fff7df;
+                                    border:1px solid #e5d8ad;
+                                    border-radius:9px;
+                                    font-size:13px}
+                                    .storage-notice strong{
+                                      color:#796021;
+                                      white-space:nowrap}
+                                      .storage-notice span{
+                                        color:#786b4a}
+                                        .file-bar{
+                                          display:flex;
+                                          gap:10px;
+                                          align-items:center;
+                                          margin:18px 0}
+                                          .file-picker{
+                                            display:inline-flex;
+                                            align-items:center;
+                                            gap:8px;
+                                            position:relative}
+                                            .file-picker input{
+                                              position:absolute;
+                                              inset:0;
+                                              opacity:0;
+                                              width:100%;
+                                              cursor:pointer}
+                                              .file-picker:focus-within{
+                                                outline:3px solid #83bca4}
+                                                .workbench{
+                                                  display:grid;
+                                                  grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr);
+                                                  gap:22px;
+                                                  align-items:start}
+                                                  .media-column,.cue-editor,.cue-list{
+                                                    background:#fff;
+                                                    border:1px solid #dce3db;
+                                                    border-radius:12px}
+                                                    .player-section,.transport,.preview-settings,.cue-editor{
+                                                      padding:18px}
+                                                      .section-heading{
+                                                        display:flex;
+                                                        align-items:center;
+                                                        justify-content:space-between;
+                                                        gap:12px;
+                                                        margin-bottom:14px}
+                                                        h2{
+                                                          font-size:15px;
+                                                          margin:0}
+                                                          .section-heading>span{
+                                                            font-size:11px;
+                                                            color:#7b8c80}
+                                                            .filename{
+                                                              font-size:12px;
+                                                              margin-left:10px;
+                                                              color:#728176;
+                                                              overflow-wrap:anywhere}
+                                                              .video-stage{
+                                                                position:relative;
+                                                                margin-top:13px;
+                                                                background:#17231f;
+                                                                aspect-ratio:16/9;
+                                                                border-radius:8px;
+                                                                overflow:hidden;
+                                                                isolation:isolate}
+                                                                .video-stage video{
+                                                                  width:100%;
+                                                                  height:100%;
+                                                                  display:block}
+                                                                  .video-placeholder{
+                                                                    position:absolute;
+                                                                    inset:0;
+                                                                    pointer-events:none;
+                                                                    display:flex;
+                                                                    align-items:center;
+                                                                    justify-content:center;
+                                                                    flex-direction:column;
+                                                                    gap:6px;
+                                                                    color:#cbd9cc;
+                                                                    font-size:17px}
+                                                                    .video-placeholder span{
+                                                                      font-size:11px;
+                                                                      color:#859c8b}
+                                                                      .ass-canvas{
+                                                                        position:absolute;
+                                                                        pointer-events:none}
+                                                                        .hint{
+                                                                          font-size:12px;
+                                                                          color:#78877c;
+                                                                          margin:9px 0;
+                                                                          overflow-wrap:anywhere}
+                                                                          .transport{
+                                                                            border-top:1px solid #edf0eb;
+                                                                            padding-top:12px}
+                                                                            .time-display{
+                                                                              font:27px ui-monospace,SFMono-Regular,monospace;
+                                                                              letter-spacing:1px;
+                                                                              margin-bottom:14px;
+                                                                              color:#285b45}
+                                                                              .time-display small{
+                                                                                font-size:14px;
+                                                                                color:#92a095}
+                                                                                .controls{
+                                                                                  display:flex;
+                                                                                  flex-wrap:wrap;
+                                                                                  gap:7px;
+                                                                                  align-items:center}
+                                                                                  label{
+                                                                                    display:flex;
+                                                                                    flex-direction:column;
+                                                                                    gap:6px;
+                                                                                    font-size:12px;
+                                                                                    color:#63756a}
+                                                                                    input:not([type=file]),textarea,select{
+                                                                                      border:1px solid #ccd8ce;
+                                                                                      border-radius:6px;
+                                                                                      padding:8px 10px;
+                                                                                      background:#fcfdfb;
+                                                                                      color:#263f33;
+                                                                                      width:100%}
+                                                                                      input:not([type=file]){
+                                                                                        font-family:ui-monospace,SFMono-Regular,monospace}
+                                                                                        .controls label{
+                                                                                          flex-direction:row;
+                                                                                          align-items:center}
+                                                                                          .controls input{
+                                                                                            max-width:140px}
+                                                                                            .controls button{
+                                                                                              font-size:12px}
+                                                                                              .preview-settings{
+                                                                                                border-top:1px solid #edf0eb}
+                                                                                                .font-inputs{
+                                                                                                  display:grid;
+                                                                                                  grid-template-columns:1fr 1fr;
+                                                                                                  gap:12px;
+                                                                                                  margin-top:12px;
+                                                                                                  min-width:0}
+                                                                                                  .font-inputs input[type=file]{
+                                                                                                    max-width:100%;
+                                                                                                    font-size:11px}
+                                                                                                    fieldset{
+                                                                                                      border:0;
+                                                                                                      padding:0;
+                                                                                                      margin:0;
+                                                                                                      min-width:0}
+                                                                                                      .point-group{
+                                                                                                        padding:12px;
+                                                                                                        background:#f6f8f4;
+                                                                                                        border:1px solid #e3e9df;
+                                                                                                        border-radius:8px;
+                                                                                                        margin-bottom:12px}
+                                                                                                        .point-group label{
+                                                                                                          display:flex;
+                                                                                                          flex-direction:row;
+                                                                                                          align-items:center;
+                                                                                                          gap:15px;
+                                                                                                          margin-bottom:9px;
+                                                                                                          font-size:13px}
+                                                                                                          .point-group input{
+                                                                                                            font-size:20px;
+                                                                                                            letter-spacing:1px}
+                                                                                                            .point-group button{
+                                                                                                              flex:1;
+                                                                                                              padding:6px}
+                                                                                                              .editor-actions{
+                                                                                                                margin:16px 0 8px}
+                                                                                                                textarea{
+                                                                                                                  resize:vertical;
+                                                                                                                  font-size:16px;
+                                                                                                                  line-height:1.7;
+                                                                                                                  margin-bottom:10px}
+                                                                                                                  details{
+                                                                                                                    font-size:12px;
+                                                                                                                    border-top:1px solid #e3e9df;
+                                                                                                                    margin-top:17px;
+                                                                                                                    padding-top:13px;
+                                                                                                                    color:#708173}
+                                                                                                                    summary{
+                                                                                                                      cursor:pointer}
+                                                                                                                      details p{
+                                                                                                                        margin:6px 0}
+                                                                                                                        .cue-list{
+                                                                                                                          margin-top:22px;
+                                                                                                                          padding:18px}
+                                                                                                                          .count{
+                                                                                                                            background:#edf3ec;
+                                                                                                                            font-size:12px;
+                                                                                                                            padding:2px 7px;
+                                                                                                                            margin-left:5px;
+                                                                                                                            border-radius:8px;
+                                                                                                                            color:#64816a}
+                                                                                                                            .table-scroll{
+                                                                                                                              max-height:450px;
+                                                                                                                              overflow:auto}
+                                                                                                                              table{
+                                                                                                                                width:100%;
+                                                                                                                                border-collapse:collapse;
+                                                                                                                                text-align:left;
+                                                                                                                                font-size:12px}
+                                                                                                                                thead{
+                                                                                                                                  position:sticky;
+                                                                                                                                  top:0;
+                                                                                                                                  background:#f3f6f0;
+                                                                                                                                  z-index:1}
+                                                                                                                                  th{
+                                                                                                                                    font-weight:500;
+                                                                                                                                    color:#7b8d7d;
+                                                                                                                                    padding:9px 12px}
+                                                                                                                                    td{
+                                                                                                                                      padding:7px 12px;
+                                                                                                                                      border-bottom:1px solid #eef1ea}
+                                                                                                                                      tr.selected{
+                                                                                                                                        background:#edf6ee}
+                                                                                                                                        tr.playing td:first-child{
+                                                                                                                                          border-left:3px solid #498a63}
+                                                                                                                                          .row-number,.cue-text,.time-cell button{
+                                                                                                                                            background:none;
+                                                                                                                                            border-color:transparent;
+                                                                                                                                            text-align:left;
+                                                                                                                                            padding:2px 0}
+                                                                                                                                            .time-cell{
+                                                                                                                                              white-space:nowrap;
+                                                                                                                                              font-family:ui-monospace,monospace}
+                                                                                                                                              .cue-text{
+                                                                                                                                                font-size:14px;
+                                                                                                                                                white-space:pre-wrap;
+                                                                                                                                                overflow-wrap:anywhere;
+                                                                                                                                                min-width:160px;
+                                                                                                                                                width:100%}
+                                                                                                                                                .cue-text em{
+                                                                                                                                                  font-size:12px;
+                                                                                                                                                  color:#99a397}
+                                                                                                                                                  .empty{
+                                                                                                                                                    text-align:center;
+                                                                                                                                                    color:#9aa89a;
+                                                                                                                                                    padding:25px}
+                                                                                                                                                    .error,.warning,.confirm{
+                                                                                                                                                      padding:12px 15px;
+                                                                                                                                                      margin:12px 0;
+                                                                                                                                                      border-radius:7px;
+                                                                                                                                                      white-space:pre-wrap;
+                                                                                                                                                      font-size:13px}
+                                                                                                                                                      .error{
+                                                                                                                                                        background:#fff0ed;
+                                                                                                                                                        border:1px solid #eac2b8;
+                                                                                                                                                        color:#9b4535}
+                                                                                                                                                        .warning,.confirm{
+                                                                                                                                                          background:#fff6df;
+                                                                                                                                                          border:1px solid #e4d6a4;
+                                                                                                                                                          color:#806528}
+                                                                                                                                                          .confirm button{
+                                                                                                                                                            margin-left:8px}
+                                                                                                                                                            footer{
+                                                                                                                                                              color:#99a398;
+                                                                                                                                                              font-size:11px;
+                                                                                                                                                              padding-top:20px}
+                                                                                                                                                              .sr-only{
+                                                                                                                                                                position:absolute;
+                                                                                                                                                                width:1px;
+                                                                                                                                                                height:1px;
+                                                                                                                                                                overflow:hidden;
+                                                                                                                                                                clip:rect(0,0,0,0)}
+                                                                                                                                                                @media(max-width:1000px){
+                                                                                                                                                                  main{
+                                                                                                                                                                    padding:20px}
+                                                                                                                                                                    .workbench{
+                                                                                                                                                                      grid-template-columns:1fr}
+                                                                                                                                                                      .storage-notice{
+                                                                                                                                                                        flex-direction:column;
+                                                                                                                                                                        gap:3px}
+                                                                                                                                                                        .file-bar{
+                                                                                                                                                                          flex-wrap:wrap}
+                                                                                                                                                                          .font-inputs{
+                                                                                                                                                                            grid-template-columns:1fr}
+                                                                                                                                                                            .badge{
+                                                                                                                                                                              display:none}
+                                                                                                                                                                            }

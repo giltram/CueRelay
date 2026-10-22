@@ -1,0 +1,17 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+*.log
+.env
+# Local media and private validation inputs never belong in git.
+local-samples/
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.wav
+*.mp3

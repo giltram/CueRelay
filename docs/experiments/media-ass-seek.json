@@ -1,0 +1,149 @@
+{
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "cross_origin_isolated": true,
+  "logical_cores": 11,
+  "duration_ms": 310000,
+  "note": "frame_callback_ms 是浏览器呈现帧回调耗时，非目视画面稳定保证；delta_ms 是帧媒体时间减请求时间，真实参考帧误差需人工核对。",
+  "measurements": [
+    {
+      "requested_ms": 5740,
+      "seeked_ms": 19.594999969005585,
+      "frame_callback_ms": 20.680000007152557,
+      "frame_media_ms": 5720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 114240,
+      "seeked_ms": 10.504999995231628,
+      "frame_callback_ms": 13.914999961853027,
+      "frame_media_ms": 114240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 222730,
+      "seeked_ms": 12.044999957084656,
+      "frame_callback_ms": 16.25,
+      "frame_media_ms": 222720,
+      "delta_ms": -10
+    },
+    {
+      "requested_ms": 21240,
+      "seeked_ms": 13.439999997615814,
+      "frame_callback_ms": 17.01500004529953,
+      "frame_media_ms": 21240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 129740,
+      "seeked_ms": 16.384999990463257,
+      "frame_callback_ms": 17.59500002861023,
+      "frame_media_ms": 129720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 238240,
+      "seeked_ms": 8.944999992847443,
+      "frame_callback_ms": 9.745000004768372,
+      "frame_media_ms": 238240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 36740,
+      "seeked_ms": 11.714999973773956,
+      "frame_callback_ms": 13.48499995470047,
+      "frame_media_ms": 36720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 145240,
+      "seeked_ms": 17.319999992847443,
+      "frame_callback_ms": 18.10499995946884,
+      "frame_media_ms": 145240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 253740,
+      "seeked_ms": 16.194999992847443,
+      "frame_callback_ms": 16.99500000476837,
+      "frame_media_ms": 253720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 52240,
+      "seeked_ms": 10.385000050067902,
+      "frame_callback_ms": 5.415000021457672,
+      "frame_media_ms": 52240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 160740,
+      "seeked_ms": 12.439999997615814,
+      "frame_callback_ms": 13.300000011920929,
+      "frame_media_ms": 160720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 269240,
+      "seeked_ms": 15.199999988079071,
+      "frame_callback_ms": 16.194999992847443,
+      "frame_media_ms": 269240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 67740,
+      "seeked_ms": 16.865000009536743,
+      "frame_callback_ms": 17.5450000166893,
+      "frame_media_ms": 67720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 176240,
+      "seeked_ms": 8.980000019073486,
+      "frame_callback_ms": 9.895000040531158,
+      "frame_media_ms": 176240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 284740,
+      "seeked_ms": 12.519999980926514,
+      "frame_callback_ms": 13.719999969005585,
+      "frame_media_ms": 284720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 83240,
+      "seeked_ms": 14.844999969005585,
+      "frame_callback_ms": 16.57499998807907,
+      "frame_media_ms": 83240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 191730,
+      "seeked_ms": 18.72000002861023,
+      "frame_callback_ms": 19.535000026226044,
+      "frame_media_ms": 191720,
+      "delta_ms": -10
+    },
+    {
+      "requested_ms": 300240,
+      "seeked_ms": 10.724999964237213,
+      "frame_callback_ms": 14.995000004768372,
+      "frame_media_ms": 300240,
+      "delta_ms": 0
+    },
+    {
+      "requested_ms": 98740,
+      "seeked_ms": 14.379999995231628,
+      "frame_callback_ms": 16.7049999833107,
+      "frame_media_ms": 98720,
+      "delta_ms": -20
+    },
+    {
+      "requested_ms": 207240,
+      "seeked_ms": 14.299999952316284,
+      "frame_callback_ms": 15.745000004768372,
+      "frame_media_ms": 207240,
+      "delta_ms": 0
+    }
+  ]
+}
