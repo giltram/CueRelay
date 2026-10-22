@@ -37,6 +37,7 @@ export function seekVideo(video: HTMLVideoElement, milliseconds: number): void {
 }
 
 export interface ShortcutEvent {
+  code: string;
   target: EventTarget | null;
   isComposing: boolean;
   keyCode: number;
@@ -51,5 +52,10 @@ export interface ShortcutEvent {
 export function allowsShortcut(event: ShortcutEvent, composing: boolean): boolean {
   if (composing || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) return false;
   const element = event.target as { closest?: (selector: string) => unknown } | null;
-  return !element?.closest?.('input, textarea, select, button, [contenteditable]:not([contenteditable="false"]), [role="textbox"], video');
+  if (element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], video')) return false;
+  // Clicking a timing button keeps focus there. Letter shortcuts must continue
+  // working without blurring it, while native keyboard activation stays intact.
+  if (['Space', 'Enter', 'NumpadEnter'].includes(event.code) &&
+      element?.closest?.('button, [role="button"], a[href], summary')) return false;
+  return true;
 }

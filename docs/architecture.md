@@ -13,7 +13,9 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
 - `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：页面内存唯一拥有字幕状态、原件 File 和选中区间；编排 `project-data/ass-api.ts` 的字幕转换请求与防过期预览更新。前端不解析或生成 ASS。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；`SeekDiagnostics.tsx` 只测本地时钟和呈现帧元数据，不读取像素、不访问网络。
-- `ass-preview/AssPreview.tsx`：仅接收已验证的源文档、后端导出的预览文本及 video；封装 JASSUB Worker/WASM、用户本地字体和清理。没有 HTTP 客户端依赖。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
+- `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；辅助设置和实验工具默认折叠，不改变字幕数据或格式模块边界。
+- 工作区使用命名网格区域：桌面视频与辅助工具在左、编辑器在右；窄屏先展示紧凑视频和区间编辑，再展示辅助工具，滚动编辑时视频保持可见。断点切换复用同一个 video 和字幕画布。
+- `ass-preview/AssPreview.tsx`：仅接收已验证的源文档、后端导出的预览文本及 video；封装 JASSUB Worker/WASM、用户本地字体和清理。预览状态显式区分加载、就绪与错误；错误提示位于字体折叠项之外。没有 HTTP 客户端依赖。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
 当前依赖是 `application → http_api → ass_format → pysubs2`；前端 `App → workspace-ui → {project-data, media, ass-preview}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO；字体直接以 Uint8Array 给本地 Worker。预览与导出复用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。原件下载保留字节，编辑导出保留受支持语义。
 

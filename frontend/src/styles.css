@@ -1,353 +1,186 @@
-:root{
-  font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-  color:#203331;
-  background:#f3f5f2;
-  font-synthesis:none;
-  font-size:14px;
-  line-height:1.6}
-  *{
-    box-sizing:border-box}
-    body{
-      margin:0}
-      button,input,textarea,select{
-        font:inherit}
-        button,.file-picker{
-          border:1px solid #cbd6ce;
-          background:#fff;
-          border-radius:7px;
-          padding:7px 12px;
-          color:#23453b;
-          cursor:pointer}
-          button:hover,.file-picker:hover{
-            background:#edf5ef;
-            border-color:#7a9a87}
-            button:disabled,input:disabled{
-              cursor:not-allowed;
-              opacity:.45}
-              button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{
-                outline:3px solid #83bca4;
-                outline-offset:2px}
-                .primary{
-                  background:#265c47;
-                  color:white;
-                  border-color:#265c47}
-                  .primary:hover{
-                    background:#1c4937;
-                    color:#fff}
-                    main{
-                      max-width:1600px;
-                      margin:auto;
-                      padding:26px 36px}
-                      header{
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        margin-bottom:22px}
-                        .brand{
-                          display:flex;
-                          gap:13px;
-                          align-items:center}
-                          .brand-mark{
-                            display:grid;
-                            place-items:center;
-                            width:44px;
-                            height:44px;
-                            border-radius:13px;
-                            background:#285c47;
-                            color:white;
-                            font-size:28px;
-                            font-weight:700}
-                            h1{
-                              font-size:25px;
-                              letter-spacing:-.8px;
-                              line-height:1.2;
-                              margin:0}
-                              header p{
-                                margin:4px 0 0;
-                                color:#6d7d74;
-                                font-size:12px}
-                                .badge{
-                                  font-size:12px;
-                                  border:1px solid #c4d3c9;
-                                  border-radius:30px;
-                                  padding:4px 12px;
-                                  color:#587163}
-                                  .storage-notice{
-                                    display:flex;
-                                    gap:18px;
-                                    padding:12px 17px;
-                                    background:#fff7df;
-                                    border:1px solid #e5d8ad;
-                                    border-radius:9px;
-                                    font-size:13px}
-                                    .storage-notice strong{
-                                      color:#796021;
-                                      white-space:nowrap}
-                                      .storage-notice span{
-                                        color:#786b4a}
-                                        .file-bar{
-                                          display:flex;
-                                          gap:10px;
-                                          align-items:center;
-                                          margin:18px 0}
-                                          .file-picker{
-                                            display:inline-flex;
-                                            align-items:center;
-                                            gap:8px;
-                                            position:relative}
-                                            .file-picker input{
-                                              position:absolute;
-                                              inset:0;
-                                              opacity:0;
-                                              width:100%;
-                                              cursor:pointer}
-                                              .file-picker:focus-within{
-                                                outline:3px solid #83bca4}
-                                                .workbench{
-                                                  display:grid;
-                                                  grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr);
-                                                  gap:22px;
-                                                  align-items:start}
-                                                  .media-column,.cue-editor,.cue-list{
-                                                    background:#fff;
-                                                    border:1px solid #dce3db;
-                                                    border-radius:12px}
-                                                    .player-section,.transport,.preview-settings,.cue-editor{
-                                                      padding:18px}
-                                                      .section-heading{
-                                                        display:flex;
-                                                        align-items:center;
-                                                        justify-content:space-between;
-                                                        gap:12px;
-                                                        margin-bottom:14px}
-                                                        h2{
-                                                          font-size:15px;
-                                                          margin:0}
-                                                          .section-heading>span{
-                                                            font-size:11px;
-                                                            color:#7b8c80}
-                                                            .filename{
-                                                              font-size:12px;
-                                                              margin-left:10px;
-                                                              color:#728176;
-                                                              overflow-wrap:anywhere}
-                                                              .video-stage{
-                                                                position:relative;
-                                                                margin-top:13px;
-                                                                background:#17231f;
-                                                                aspect-ratio:16/9;
-                                                                border-radius:8px;
-                                                                overflow:hidden;
-                                                                isolation:isolate}
-                                                                .video-stage video{
-                                                                  width:100%;
-                                                                  height:100%;
-                                                                  display:block}
-                                                                  .video-placeholder{
-                                                                    position:absolute;
-                                                                    inset:0;
-                                                                    pointer-events:none;
-                                                                    display:flex;
-                                                                    align-items:center;
-                                                                    justify-content:center;
-                                                                    flex-direction:column;
-                                                                    gap:6px;
-                                                                    color:#cbd9cc;
-                                                                    font-size:17px}
-                                                                    .video-placeholder span{
-                                                                      font-size:11px;
-                                                                      color:#859c8b}
-                                                                      .ass-canvas{
-                                                                        position:absolute;
-                                                                        pointer-events:none}
-                                                                        .hint{
-                                                                          font-size:12px;
-                                                                          color:#78877c;
-                                                                          margin:9px 0;
-                                                                          overflow-wrap:anywhere}
-                                                                          .transport{
-                                                                            border-top:1px solid #edf0eb;
-                                                                            padding-top:12px}
-                                                                            .time-display{
-                                                                              font:27px ui-monospace,SFMono-Regular,monospace;
-                                                                              letter-spacing:1px;
-                                                                              margin-bottom:14px;
-                                                                              color:#285b45}
-                                                                              .time-display small{
-                                                                                font-size:14px;
-                                                                                color:#92a095}
-                                                                                .controls{
-                                                                                  display:flex;
-                                                                                  flex-wrap:wrap;
-                                                                                  gap:7px;
-                                                                                  align-items:center}
-                                                                                  label{
-                                                                                    display:flex;
-                                                                                    flex-direction:column;
-                                                                                    gap:6px;
-                                                                                    font-size:12px;
-                                                                                    color:#63756a}
-                                                                                    input:not([type=file]),textarea,select{
-                                                                                      border:1px solid #ccd8ce;
-                                                                                      border-radius:6px;
-                                                                                      padding:8px 10px;
-                                                                                      background:#fcfdfb;
-                                                                                      color:#263f33;
-                                                                                      width:100%}
-                                                                                      input:not([type=file]){
-                                                                                        font-family:ui-monospace,SFMono-Regular,monospace}
-                                                                                        .controls label{
-                                                                                          flex-direction:row;
-                                                                                          align-items:center}
-                                                                                          .controls input{
-                                                                                            max-width:140px}
-                                                                                            .controls button{
-                                                                                              font-size:12px}
-                                                                                              .preview-settings{
-                                                                                                border-top:1px solid #edf0eb}
-                                                                                                .font-inputs{
-                                                                                                  display:grid;
-                                                                                                  grid-template-columns:1fr 1fr;
-                                                                                                  gap:12px;
-                                                                                                  margin-top:12px;
-                                                                                                  min-width:0}
-                                                                                                  .font-inputs input[type=file]{
-                                                                                                    max-width:100%;
-                                                                                                    font-size:11px}
-                                                                                                    fieldset{
-                                                                                                      border:0;
-                                                                                                      padding:0;
-                                                                                                      margin:0;
-                                                                                                      min-width:0}
-                                                                                                      .point-group{
-                                                                                                        padding:12px;
-                                                                                                        background:#f6f8f4;
-                                                                                                        border:1px solid #e3e9df;
-                                                                                                        border-radius:8px;
-                                                                                                        margin-bottom:12px}
-                                                                                                        .point-group label{
-                                                                                                          display:flex;
-                                                                                                          flex-direction:row;
-                                                                                                          align-items:center;
-                                                                                                          gap:15px;
-                                                                                                          margin-bottom:9px;
-                                                                                                          font-size:13px}
-                                                                                                          .point-group input{
-                                                                                                            font-size:20px;
-                                                                                                            letter-spacing:1px}
-                                                                                                            .point-group button{
-                                                                                                              flex:1;
-                                                                                                              padding:6px}
-                                                                                                              .editor-actions{
-                                                                                                                margin:16px 0 8px}
-                                                                                                                textarea{
-                                                                                                                  resize:vertical;
-                                                                                                                  font-size:16px;
-                                                                                                                  line-height:1.7;
-                                                                                                                  margin-bottom:10px}
-                                                                                                                  details{
-                                                                                                                    font-size:12px;
-                                                                                                                    border-top:1px solid #e3e9df;
-                                                                                                                    margin-top:17px;
-                                                                                                                    padding-top:13px;
-                                                                                                                    color:#708173}
-                                                                                                                    summary{
-                                                                                                                      cursor:pointer}
-                                                                                                                      details p{
-                                                                                                                        margin:6px 0}
-                                                                                                                        .cue-list{
-                                                                                                                          margin-top:22px;
-                                                                                                                          padding:18px}
-                                                                                                                          .count{
-                                                                                                                            background:#edf3ec;
-                                                                                                                            font-size:12px;
-                                                                                                                            padding:2px 7px;
-                                                                                                                            margin-left:5px;
-                                                                                                                            border-radius:8px;
-                                                                                                                            color:#64816a}
-                                                                                                                            .table-scroll{
-                                                                                                                              max-height:450px;
-                                                                                                                              overflow:auto}
-                                                                                                                              table{
-                                                                                                                                width:100%;
-                                                                                                                                border-collapse:collapse;
-                                                                                                                                text-align:left;
-                                                                                                                                font-size:12px}
-                                                                                                                                thead{
-                                                                                                                                  position:sticky;
-                                                                                                                                  top:0;
-                                                                                                                                  background:#f3f6f0;
-                                                                                                                                  z-index:1}
-                                                                                                                                  th{
-                                                                                                                                    font-weight:500;
-                                                                                                                                    color:#7b8d7d;
-                                                                                                                                    padding:9px 12px}
-                                                                                                                                    td{
-                                                                                                                                      padding:7px 12px;
-                                                                                                                                      border-bottom:1px solid #eef1ea}
-                                                                                                                                      tr.selected{
-                                                                                                                                        background:#edf6ee}
-                                                                                                                                        tr.playing td:first-child{
-                                                                                                                                          border-left:3px solid #498a63}
-                                                                                                                                          .row-number,.cue-text,.time-cell button{
-                                                                                                                                            background:none;
-                                                                                                                                            border-color:transparent;
-                                                                                                                                            text-align:left;
-                                                                                                                                            padding:2px 0}
-                                                                                                                                            .time-cell{
-                                                                                                                                              white-space:nowrap;
-                                                                                                                                              font-family:ui-monospace,monospace}
-                                                                                                                                              .cue-text{
-                                                                                                                                                font-size:14px;
-                                                                                                                                                white-space:pre-wrap;
-                                                                                                                                                overflow-wrap:anywhere;
-                                                                                                                                                min-width:160px;
-                                                                                                                                                width:100%}
-                                                                                                                                                .cue-text em{
-                                                                                                                                                  font-size:12px;
-                                                                                                                                                  color:#99a397}
-                                                                                                                                                  .empty{
-                                                                                                                                                    text-align:center;
-                                                                                                                                                    color:#9aa89a;
-                                                                                                                                                    padding:25px}
-                                                                                                                                                    .error,.warning,.confirm{
-                                                                                                                                                      padding:12px 15px;
-                                                                                                                                                      margin:12px 0;
-                                                                                                                                                      border-radius:7px;
-                                                                                                                                                      white-space:pre-wrap;
-                                                                                                                                                      font-size:13px}
-                                                                                                                                                      .error{
-                                                                                                                                                        background:#fff0ed;
-                                                                                                                                                        border:1px solid #eac2b8;
-                                                                                                                                                        color:#9b4535}
-                                                                                                                                                        .warning,.confirm{
-                                                                                                                                                          background:#fff6df;
-                                                                                                                                                          border:1px solid #e4d6a4;
-                                                                                                                                                          color:#806528}
-                                                                                                                                                          .confirm button{
-                                                                                                                                                            margin-left:8px}
-                                                                                                                                                            footer{
-                                                                                                                                                              color:#99a398;
-                                                                                                                                                              font-size:11px;
-                                                                                                                                                              padding-top:20px}
-                                                                                                                                                              .sr-only{
-                                                                                                                                                                position:absolute;
-                                                                                                                                                                width:1px;
-                                                                                                                                                                height:1px;
-                                                                                                                                                                overflow:hidden;
-                                                                                                                                                                clip:rect(0,0,0,0)}
-                                                                                                                                                                @media(max-width:1000px){
-                                                                                                                                                                  main{
-                                                                                                                                                                    padding:20px}
-                                                                                                                                                                    .workbench{
-                                                                                                                                                                      grid-template-columns:1fr}
-                                                                                                                                                                      .storage-notice{
-                                                                                                                                                                        flex-direction:column;
-                                                                                                                                                                        gap:3px}
-                                                                                                                                                                        .file-bar{
-                                                                                                                                                                          flex-wrap:wrap}
-                                                                                                                                                                          .font-inputs{
-                                                                                                                                                                            grid-template-columns:1fr}
-                                                                                                                                                                            .badge{
-                                                                                                                                                                              display:none}
-                                                                                                                                                                            }
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-synthesis: none;
+  color: #203331;
+  background: #f3f5f2;
+  --surface: #fff;
+  --subtle: #f3f5f2;
+  --border: #dce3db;
+  --text-muted: #63756a;
+  --accent: #265c47;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, textarea, select { font: inherit; }
+button, .file-picker {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #cbd6ce;
+  border-radius: 6px;
+  color: #203331;
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+button:hover, .file-picker:hover { background: #edf5ef; border-color: #7a9a87; }
+button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: .45; cursor: not-allowed; }
+.file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, summary:focus-visible, .file-picker:focus-within { outline: 2px solid #7a9a87; outline-offset: 2px; }
+.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.primary:hover { background: #1c4937; border-color: #1c4937; }
+button[aria-pressed="true"] { color: var(--accent); background: #edf5ef; border-color: #7a9a87; }
+.text-button { border-color: transparent; color: var(--text-muted); background: transparent; }
+kbd { color: var(--text-muted); font: 11px ui-monospace, SFMono-Regular, monospace; }
+.primary kbd { color: inherit; opacity: .8; }
+label { display: flex; flex-direction: column; gap: 8px; color: var(--text-muted); font-size: 13px; }
+input:not([type="file"]), textarea, select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #cbd6ce;
+  border-radius: 6px;
+  background: var(--surface);
+  color: #203331;
+}
+input:not([type="file"]) { font-family: ui-monospace, SFMono-Regular, monospace; }
+input[type="file"] { max-width: 100%; font-size: 12px; }
+textarea { display: block; resize: vertical; line-height: 1.6; }
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
+h2 { font-size: 15px; font-weight: 600; }
+main { max-width: 1600px; margin: 0 auto; padding: 0 24px 32px; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; border-bottom: 1px solid var(--border); }
+.file-actions, .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.file-picker { position: relative; flex-direction: row; font-size: 14px; }
+.file-picker input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: inherit; }
+.document-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; padding: 12px 0; font-size: 12px; color: var(--text-muted); }
+.storage-notice strong { color: #203331; font-weight: 500; }
+.source-files { margin-left: auto; max-width: 100%; }
+.source-files button { display: block; margin-top: 8px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(420px, 1fr);
+  grid-template-areas: "player editor" "tools editor";
+  grid-template-rows: auto 1fr;
+  gap: 0 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  align-items: start;
+}
+.player-section { grid-area: player; min-width: 0; }
+.media-tools { grid-area: tools; min-width: 0; }
+.media-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.media-heading h2 { flex-shrink: 0; }
+.filename { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 12px; }
+.video-stage { position: relative; aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
+.video-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.video-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: #cbd9cc; pointer-events: none; }
+.video-placeholder span { font-size: 12px; color: #92a095; }
+.ass-canvas { position: absolute; pointer-events: none; }
+.hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.transport { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 16px 0; }
+.transport-position { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 12px; }
+.time-display { font: 20px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time-display span { font-size: 12px; color: var(--text-muted); }
+.jump-controls { display: flex; align-items: end; gap: 8px; }
+.jump-controls input { width: 140px; height: 34px; }
+.jump-controls label { gap: 4px; font-size: 12px; }
+.preview-settings, .seek-diagnostics, .shortcut-help { border-top: 1px solid var(--border); padding: 12px 0; }
+summary { cursor: pointer; font-size: 13px; }
+.setting-value { margin-left: 8px; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.font-inputs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.seek-diagnostics > button { margin-top: 12px; }
+.seek-diagnostics textarea { margin-top: 12px; font: 12px/1.5 ui-monospace, monospace; }
+.cue-editor { grid-area: editor; min-width: 0; border-left: 1px solid var(--border); padding-left: 24px; }
+.cue-editor > h2 { margin: 8px 0 16px; }
+.time-points { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.time-point input { font-size: 20px; font-variant-numeric: tabular-nums; padding: 8px; }
+.point-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; }
+.point-actions button { padding: 6px; font-size: 12px; gap: 4px; }
+.point-actions button:first-child { grid-column: 1 / -1; }
+.range-actions { gap: 8px; margin-top: 16px; }
+.range-actions button { flex: 1; padding: 6px 8px; }
+.subtitle-input { margin-top: 24px; }
+.subtitle-input textarea { font-size: 15px; min-height: 112px; }
+.cue-options { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 16px 0 24px; }
+.cue-options label { flex: 1; min-width: 120px; }
+.cue-options select { min-height: 34px; padding: 6px 8px; }
+.cue-options button { font-size: 12px; padding: 6px 8px; }
+.shortcut-list { margin: 16px 0; }
+.shortcut-list > div { display: grid; grid-template-columns: 112px 1fr; gap: 16px; margin-bottom: 8px; }
+.shortcut-list dt, .shortcut-list dd { margin: 0; font-size: 12px; }
+.cue-list { margin-top: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 16px; }
+.section-heading > span, .count { color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.count { margin-left: 8px; }
+.table-scroll { max-height: 384px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+thead { position: sticky; top: 0; z-index: 1; background: var(--subtle); }
+th { padding: 8px 16px; color: var(--text-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+td { padding: 8px 16px; border-top: 1px solid var(--border); }
+th:first-child, td:first-child { width: 56px; }
+th:last-child, td:last-child { width: 72px; }
+tr.selected { background: #edf5ef; }
+tr.playing td:first-child { box-shadow: inset 2px 0 var(--accent); }
+.row-number, .cue-text { border: 0; background: transparent; padding: 0; min-height: 28px; text-align: left; border-radius: 0; }
+.row-number { justify-content: start; color: var(--text-muted); }
+.row-number[aria-pressed="true"] { font-weight: 600; background: transparent; }
+.cue-text { display: block; width: 100%; min-width: 180px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cue-text em { font-size: 12px; color: var(--text-muted); font-style: normal; }
+.time-cell { width: 136px; white-space: nowrap; font: 12px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+.empty { padding: 24px 16px; font-size: 13px; color: var(--text-muted); }
+.error, .warning, .confirm { margin: 0 0 16px; padding: 12px 16px; border: 1px solid; border-radius: 6px; font-size: 13px; white-space: pre-wrap; }
+.error { background: #fff0ed; border-color: #eac2b8; color: #9b4535; }
+.warning, .confirm { background: #fff6df; border-color: #e4d6a4; color: #806528; }
+.confirm .controls { margin-top: 12px; }
+.preview-settings .error { margin: 12px 0 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 1040px) {
+  .workbench {
+    --compact-video-height: min(28svh, 224px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "player" "editor" "tools";
+    grid-template-rows: auto;
+    gap: 12px;
+  }
+  .player-section { position: sticky; top: 0; z-index: 2; padding-bottom: 8px; background: var(--surface); }
+  .player-section > .hint { display: none; }
+  .video-stage { height: var(--compact-video-height); aspect-ratio: auto; }
+  .cue-editor { border-left: 0; border-top: 1px solid var(--border); padding: 8px 0 0; }
+  .workbench :is(input, textarea, select, button, summary) { scroll-margin-top: calc(var(--compact-video-height) + 66px); }
+  .point-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .point-actions button:first-child { grid-column: auto; }
+}
+
+@media (max-width: 600px) {
+  main { padding: 0 16px 24px; }
+  .app-header { min-height: 64px; }
+  .document-bar { gap: 8px; }
+  .source-files { margin-left: 0; width: 100%; }
+  .workbench { padding: 12px; }
+  .font-inputs { grid-template-columns: minmax(0, 1fr); }
+  .time-points { gap: 8px; }
+  .time-point input { font-size: 16px; }
+  .point-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .point-actions button:first-child { grid-column: 1 / -1; }
+  .transport { gap: 16px; }
+  .jump-controls { width: 100%; }
+  .jump-controls label, .jump-controls input { flex: 1; width: 100%; }
+  .transport-position { gap: 12px; }
+  .range-actions button { flex: 1 0 auto; }
+  th, td { padding: 8px 12px; }
+  .media-heading { gap: 8px; }
+}
