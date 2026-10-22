@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
-import { SeekDiagnostics } from '../media/SeekDiagnostics';
 import { allowsShortcut, formatTime, parseTime, seekVideo, snapTime, validateInterval } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument } from '../project-data/ass-api';
-import { AssPreview } from '../ass-preview/AssPreview';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
+import { ResizableWorkbench } from './ResizableWorkbench';
 
 export function EditorWorkbench() {
   const [document, setDocument] = useState<AssDocument | null>(null);
@@ -15,16 +14,12 @@ export function EditorWorkbench() {
   const [duration, setDuration] = useState(0);
   const [startText, setStartText] = useState('0:00:00.00');
   const [endText, setEndText] = useState('0:00:00.00');
-  const [jumpText, setJumpText] = useState('0:00:00.00');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loop, setLoop] = useState<{ start: number; end: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [original, setOriginal] = useState<File | null>(null);
-  const [rejectedOriginal, setRejectedOriginal] = useState<File | null>(null);
+  const [hasImportedDocument, setHasImportedDocument] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
-  const [previewContent, setPreviewContent] = useState('');
-  const [previewError, setPreviewError] = useState('');
   const composing = useRef(false);
   const selected = document?.cues.find(cue => cue.id === selectedId);
 
@@ -35,28 +30,13 @@ export function EditorWorkbench() {
     return () => { active = false; };
   }, []);
 
-  // Orchestrate HTTP conversion here; the renderer never depends on the client.
-  useEffect(() => {
-    const controller = new AbortController();
-    setPreviewContent(''); setPreviewError('');
-    if (!document) return;
-    const timer = setTimeout(() => {
-      exportAss(document, controller.signal).then(content => {
-        if (!controller.signal.aborted) setPreviewContent(content);
-      }).catch(reason => {
-        if (!controller.signal.aborted) setPreviewError(reason.message);
-      });
-    }, 300);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [document]);
-
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
-      if (document && (document.cues.length > 0 || original)) { event.preventDefault(); event.returnValue = ''; }
+      if (document && (document.cues.length > 0 || hasImportedDocument)) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', guard);
     return () => window.removeEventListener('beforeunload', guard);
-  }, [document, original]);
+  }, [document, hasImportedDocument]);
 
   function run(action: () => void | Promise<void>) {
     setError('');
@@ -175,11 +155,10 @@ export function EditorWorkbench() {
     setBusy(true); setPendingImport(null); setError('');
     try {
       const imported = await importAss(file);
-      setOriginal(file); setRejectedOriginal(null);
+      setHasImportedDocument(true);
       setDocument(imported); setSelectedId(null); setLoop(null);
       setStartText('0:00:00.00'); setEndText('0:00:00.00');
     } catch (reason) {
-      setRejectedOriginal(file);
       setError(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
     }
     finally { setBusy(false); }
@@ -190,6 +169,7 @@ export function EditorWorkbench() {
       <header className="app-header">
         <h1>CueRelay</h1>
         <div className="file-actions" aria-label="字幕文件操作">
+          {busy && <span role="status">正在转换…</span>}
           <label className="file-picker">
             导入 ASS
             <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
@@ -210,18 +190,6 @@ export function EditorWorkbench() {
         </div>
       </header>
 
-      <div className="document-bar">
-        <p className="storage-notice"><strong>尚未持久保存</strong> · 关闭或刷新前请导出 ASS。</p>
-        {busy && <span role="status">正在转换…</span>}
-        {(original || rejectedOriginal) && (
-          <details className="source-files">
-            <summary>导入原件</summary>
-            {original && <button onClick={() => downloadFile(original, original.name)}>下载导入原件：{original.name}</button>}
-            {rejectedOriginal && <button onClick={() => downloadFile(rejectedOriginal, rejectedOriginal.name)}>下载被拒原件：{rejectedOriginal.name}</button>}
-          </details>
-        )}
-      </div>
-
       {pendingImport && (
         <div role="alert" className="confirm">
           <p>导入「{pendingImport.name}」将替换当前字幕，请先导出需要的修改。</p>
@@ -234,92 +202,69 @@ export function EditorWorkbench() {
       {error && <div className="error" role="alert">{error}</div>}
       {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
 
-      <div className="workbench">
-        <LocalVideoPlayer onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} />
-
-        <section className="cue-editor">
-          <h2>{selected ? '编辑字幕' : '采集区间'}</h2>
-          <fieldset disabled={busy || !document}>
-            <legend className="sr-only">字幕编辑</legend>
-            <div className="time-points">
-              <TimePointControl label="入点" value={startText} captureKey="I" decreaseKey="J" increaseKey="K"
-                onChange={value => { setStartText(value); setLoop(null); }}
-                onCapture={() => run(() => capture('start'))} onNudge={delta => run(() => nudge('start', delta))} />
-              <TimePointControl label="出点" value={endText} captureKey="O" decreaseKey="U" increaseKey="P"
-                onChange={value => { setEndText(value); setLoop(null); }}
-                onCapture={() => run(() => capture('end'))} onNudge={delta => run(() => nudge('end', delta))} />
-            </div>
-            <div className="controls range-actions">
-              <button aria-label="循环试听 [L]" aria-pressed={!!loop} onClick={() => run(startLoop)}>
-                {loop ? '停止循环' : '循环试听'} <kbd>L</kbd>
-              </button>
-              <button aria-label="应用时间 [Enter]" disabled={!selected} onClick={() => run(applyTimes)}>
-                应用时间 <kbd>Enter</kbd>
-              </button>
-              <button className="primary" aria-label="创建新行 [N]" onClick={() => run(createCue)}>
-                创建新行 <kbd>N</kbd>
-              </button>
-            </div>
-            <p className="hint">微调后应用到选中行，或按此区间创建新行。</p>
-
-            <label className="subtitle-input">
-              字幕文本
-              <textarea aria-label="字幕中文文本" rows={4} disabled={!selected} value={selected?.text || ''}
-                placeholder="先创建或选择一行字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
-            </label>
-            <p className="hint">换行会转为 ASS 的 \N。文本与样式即时写入本页，不支持的标签会阻止预览和导出。</p>
-            <div className="cue-options">
-              <label>样式
-                <select aria-label="字幕样式" disabled={!selected} value={selected?.style || document?.styles[0] || ''}
-                  onChange={event => run(() => updateCue({ style: event.target.value }))}>
-                  {document?.styles.map(style => <option key={style}>{style}</option>)}
-                </select>
-              </label>
-              <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
-              <button className="text-button" disabled={!selected} onClick={() => {
-                if (document && selected) {
-                  setDocument({ ...document, cues: document.cues.filter(cue => cue.id !== selected.id) });
-                  setSelectedId(null); setLoop(null);
-                }
-              }}>删除选中行</button>
-            </div>
-          </fieldset>
-          <details className="shortcut-help">
-            <summary>快捷键与时间说明</summary>
-            <dl className="shortcut-list">
-              <div><dt><kbd>Space</kbd></dt><dd>播放 / 暂停</dd></div>
-              <div><dt><kbd>I</kbd> / <kbd>O</kbd></dt><dd>采集入点 / 出点</dd></div>
-              <div><dt><kbd>J</kbd> / <kbd>K</kbd></dt><dd>入点 −10 / +10ms</dd></div>
-              <div><dt><kbd>U</kbd> / <kbd>P</kbd></dt><dd>出点 −10 / +10ms</dd></div>
-              <div><dt><kbd>L</kbd></dt><dd>开始 / 停止循环</dd></div>
-              <div><dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>创建新行 / 应用时间</dd></div>
-            </dl>
-            <p className="hint">点击操作按钮后仍可使用字母快捷键。空格、Enter 保留按钮的原生操作。输入框、视频控件和中文输入法组合输入期间不触发。</p>
-            <p className="hint">时间吸附到 10ms 网格；寻址不代表可靠逐帧，循环边界可能有延迟。字幕仅保存在本页，暂无自动保存或多人协作。</p>
-          </details>
-        </section>
-
-        <div className="media-tools">
-          <section className="transport" aria-label="播放控制">
-            <div className="transport-position">
-              <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
-              <button aria-label="播放 / 暂停" disabled={!duration} onClick={() => run(togglePlayback)}>
-                播放 / 暂停 <kbd>Space</kbd>
-              </button>
-            </div>
-            <div className="jump-controls">
-              <label>跳转时间<input aria-label="跳转时间" value={jumpText} onChange={event => setJumpText(event.target.value)} /></label>
-              <button onClick={() => run(() => {
-                if (!video) throw new Error('请先选择视频');
-                setLoop(null); video.pause(); seekVideo(video, parseTime(jumpText));
-              })}>定位时间</button>
-            </div>
+      <ResizableWorkbench media={
+          <LocalVideoPlayer onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
+            <button className="playback-button" aria-label="播放 / 暂停" title="播放 / 暂停（空格）"
+              disabled={!duration} onClick={() => run(togglePlayback)}>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M2 3v14l8-7zM12 3h2v14h-2zM16 3h2v14h-2z" />
+              </svg>
+            </button>
+            <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
+          </>} />
+      } editor={<>
+          <section className="audio-panel" aria-labelledby="audio-heading">
+            <h2 id="audio-heading">音频</h2>
+            <p>波形 / 频谱区域预留</p>
+            <span>音频分析与识别功能尚未接入</span>
           </section>
-          <AssPreview video={duration > 0 ? video : null} source={document?.source || null}
-            content={previewContent} conversionError={previewError} />
-          {!loop && <SeekDiagnostics video={video} duration={duration} />}
-        </div>
-      </div>
+          <section className="cue-editor" aria-label="字幕编辑">
+            <fieldset disabled={busy || !document}>
+              <legend className="sr-only">字幕编辑</legend>
+              <div className="editor-heading">
+                <div className="cue-options">
+                  <label>样式
+                    <select aria-label="字幕样式" disabled={!selected} value={selected?.style || document?.styles[0] || ''}
+                      onChange={event => run(() => updateCue({ style: event.target.value }))}>
+                      {document?.styles.map(style => <option key={style}>{style}</option>)}
+                    </select>
+                  </label>
+                  <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
+                  <button className="text-button" disabled={!selected} onClick={() => {
+                    if (document && selected) {
+                      setDocument({ ...document, cues: document.cues.filter(cue => cue.id !== selected.id) });
+                      setSelectedId(null); setLoop(null);
+                    }
+                  }}>删除选中行</button>
+                </div>
+              </div>
+              <div className="time-points">
+                <TimePointControl label="入点" value={startText} captureKey="I" decreaseKey="J" increaseKey="K"
+                  onChange={value => { setStartText(value); setLoop(null); }}
+                  onCapture={() => run(() => capture('start'))} onNudge={delta => run(() => nudge('start', delta))} />
+                <TimePointControl label="出点" value={endText} captureKey="O" decreaseKey="U" increaseKey="P"
+                  onChange={value => { setEndText(value); setLoop(null); }}
+                  onCapture={() => run(() => capture('end'))} onNudge={delta => run(() => nudge('end', delta))} />
+              </div>
+              <div className="controls range-actions">
+                <button aria-label="循环试听 [L]" aria-pressed={!!loop} onClick={() => run(startLoop)}>
+                  {loop ? '停止循环' : '循环试听'} <kbd>L</kbd>
+                </button>
+                <button aria-label="应用时间 [Enter]" disabled={!selected} onClick={() => run(applyTimes)}>
+                  应用时间 <kbd>Enter</kbd>
+                </button>
+                <button className="primary" aria-label="创建新行 [N]" onClick={() => run(createCue)}>
+                  创建新行 <kbd>N</kbd>
+                </button>
+              </div>
+              <label className="subtitle-input">
+                字幕文本
+                <textarea aria-label="字幕中文文本" rows={2} disabled={!selected} value={selected?.text || ''}
+                  placeholder="先创建或选择一行字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
+              </label>
+            </fieldset>
+          </section>
+      </>} />
       <CueTable cues={document?.cues || []} selectedId={selectedId} currentTime={currentTime}
         onSelect={selectCue} onLocate={cue => run(() => locate(cue))} />
     </main>

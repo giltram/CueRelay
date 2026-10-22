@@ -11,13 +11,16 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 - `backend/manage.py`、`application/{settings,urls,asgi}.py`：Django/DRF 本机组合根；`DATABASES = {}`，没有替代业务存储。
 - `ass_format`：纯格式公共入口 `parse_ass` / `serialize_ass` / `empty_document`，原始行锚点适配隔离 pysubs2 保留局限，见 [局部契约](../backend/ass_format/README.md)。
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
-- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：页面内存唯一拥有字幕状态、原件 File 和选中区间；编排 `project-data/ass-api.ts` 的字幕转换请求与防过期预览更新。前端不解析或生成 ASS。
-- `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；`SeekDiagnostics.tsx` 只测本地时钟和呈现帧元数据，不读取像素、不访问网络。
-- `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；辅助设置和实验工具默认折叠，不改变字幕数据或格式模块边界。
-- 工作区使用命名网格区域：桌面视频与辅助工具在左、编辑器在右；窄屏先展示紧凑视频和区间编辑，再展示辅助工具，滚动编辑时视频保持可见。断点切换复用同一个 video 和字幕画布。
-- `ass-preview/AssPreview.tsx`：仅接收已验证的源文档、后端导出的预览文本及 video；封装 JASSUB Worker/WASM、用户本地字体和清理。预览状态显式区分加载、就绪与错误；错误提示位于字体折叠项之外。没有 HTTP 客户端依赖。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
+- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：页面内存唯一拥有字幕状态和选中区间；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
+- `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。
+- `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
+- `workspace-ui/ResizableWorkbench.tsx` 拥有桌面分栏比例、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
+- `workspace-ui/workbench-sizing.ts` 唯一负责宽度边界：媒体栏最低 300px、编辑栏最低 480px，视频最大宽度由上方区域可用高度和 16:9 决定，避免继续扩宽后视频大小不再变化。空间不足时以保留编辑区为先。CSS 的 `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试。
+- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频预留区和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频区域仅是明确标注的占位，没有识别或波形数据。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
+- `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 44px 给导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
+- 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间循环所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
-当前依赖是 `application → http_api → ass_format → pysubs2`；前端 `App → workspace-ui → {project-data, media, ass-preview}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO；字体直接以 Uint8Array 给本地 Worker。预览与导出复用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。原件下载保留字节，编辑导出保留受支持语义。
+当前依赖是 `application → http_api → ass_format → pysubs2`；前端 `App → workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
 ## 1. 阅读路径与文档所有权
 
@@ -88,6 +91,8 @@ projects 内按具体职责组织聚焦文件：模型定义、权限、时间�
 
 ## 4. 前端模块与数据所有权
 
+下表为未来协作结构；ass-preview 当前已移除，恢复时需重新确认产品范围。当前依赖以文首可运行入口为准。
+
 | 模块 | 职责与接口 |
 | --- | --- |
 | contracts | HTTP/WS 的类型、错误类别与无副作用数据结构；不把后端 ORM 模型自动当成客户端模型 |
@@ -149,7 +154,7 @@ Alpha 期间保留项目全部业务历史与成功命令回执，不截断审�
 | 容器与文件访问 | 扩展名不能决定编码可播放；标准选片作基线，持久句柄只做增强。[媒体容器说明](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Containers)、[File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) |
 | 增量哈希 | SubtleCrypto.digest 不接受流式输入；推荐 Worker 顺序读取固定大小块，交给增量 SHA-256，不能散列各块再拼接摘要充当文件 SHA-256。hash-wasm 是支持分块输入的候选，需核验实际发行包及许可证。[MDN digest](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest)、[hash-wasm 官方仓库](https://github.com/Daninet/hash-wasm) |
 | 波形 | wavesurfer.js（BSD-3-Clause 候选）可评估显示与区间交互，不能当作长视频低内存解码方案；官方说明大音频整段解码存在内存风险，须验证本地分段解码/峰值方案。[官方仓库及 FAQ](https://github.com/katspaugh/wavesurfer.js) |
-| ASS 渲染 | 当前采用 JASSUB 2.5.23：本地 Worker/WASM、用户字体及跨源隔离路径已做合成检查；单线程降级未实测。wrapper、WASM 及传递依赖许可证不同，不能把整个发行包概括为 MIT，见实验记录。渲染能力不决定可编辑子集。[JASSUB](https://github.com/ThaUnknown/jassub)、[libass](https://github.com/libass/libass) |
+| ASS 渲染 | 历史验证采用 JASSUB 2.5.23，当前已按产品要求移除：本地 Worker/WASM、用户字体及跨源隔离路径已做合成检查；单线程降级未实测。wrapper、WASM 及传递依赖许可证不同，不能把整个发行包概括为 MIT，见实验记录。渲染能力不决定可编辑子集。[JASSUB](https://github.com/ThaUnknown/jassub)、[libass](https://github.com/libass/libass) |
 | ASS 格式 | pysubs2（MIT）可作为解析/测试候选，但不能未验证就承担原始数据保真；通过 ass_format 隔离依赖，必要时为严格子集做小型保留适配。[官方文档](https://pysubs2.readthedocs.io/en/latest/) |
 | Redis | 许可证与版本有关，不能把所有新版本都当成 BSD；M0 记录使用版本和许可路径。若不符合分发要求，再评估替代实现并实测 channels_redis，不能仅凭协议相似认定兼容。[Redis 许可证表](https://redis.io/legal/licenses/) |
 
