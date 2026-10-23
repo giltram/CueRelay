@@ -118,7 +118,12 @@ export interface ShortcutEvent {
 
 /** Structural check keeps this testable without a DOM or cross-window instanceof. */
 export function allowsShortcut(event: ShortcutEvent, composing: boolean): boolean {
-  if (event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) return false;
+  return !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && allowsShortcutFocus(event, composing);
+}
+
+/** Focus/IME filtering is independent of explicit modifier binding matching. */
+export function allowsShortcutFocus(event: ShortcutEvent, composing: boolean): boolean {
+  if (event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.repeat) return false;
   const element = event.target as { closest?: (selector: string) => unknown } | null;
   if (element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], video')) return false;
   // Clicking a timing button keeps focus there. Letter shortcuts must continue

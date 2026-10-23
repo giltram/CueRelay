@@ -1,86 +1,78 @@
-# 用户系统设计
+# 用户、组织和个人设置
 
-状态：2026-10-23 待确认方案；本轮只设计，不实现。依据当前代码与既有产品边界，先完成身份与登录闭环，随后接项目成员权限；音频处理仍延后。
+状态：2026-10-23 已实现固定权限方案 A。当前只有本地字幕工作区；登录或切换组织均不代表字幕已保存、上传或归属某组织。项目持久化、组织样式库、实时协作、编辑锁和恢复机制不在本切片。
 
-## 1. 推荐范围
+## 身份与权限
 
-采用 Django 内置认证能力、最小自定义 User、PostgreSQL 和数据库 Session，前端沿用同源 `/api` 代理。第一期面向内部字幕组，推荐管理员建号，不开放公开注册，不接邮件验证、第三方登录或独立身份服务。
+四个业务实体：
 
-第一期包含：登录、退出、刷新识别当前用户、修改显示名、修改本人密码；站点管理员通过 Django Admin 创建/停用账号及重置密码。成员忘记密码先由管理员处理。首位站点管理员通过管理命令创建，不在应用代码中放默认账号或密码。
-
-项目创建、项目成员管理与工种权限在下一切片接入，不为账号功能提前实现字幕持久化、实时锁或恢复代号。账号登录本身不代表字幕已经保存到服务器。
-
-## 2. 当前代码的接入前提
-
-- `application/settings.py` 当前 `DATABASES = {}`，没有 auth/session/CSRF 中间件，DRF 认证与权限均为空；本轮账号实现将首次引入数据库与迁移。
-- `App.tsx` 直接渲染 EditorWorkbench。字幕/时间草稿在组件内存，本地 File/Object URL 在 LocalVideoPlayer；不能因会话变化直接卸载这些组件。
-- `/api/ass/*` 是纯格式转换，没有用户或项目数据。它与未来带权限的项目导入/导出接口不是同一契约。
-
-## 3. 身份、数据与权限边界
-
-推荐 `accounts.User(AbstractUser)`：沿用用户名、密码摘要、活动状态和 Django 标准管理字段，只增加显示名；邮箱暂不作为必填项或登录凭证。不另建 UserProfile，不在 User 上增加“翻译/打轴/校对”字段。先设置 `AUTH_USER_MODEL` 再执行首次迁移，避免后续切换用户表。[Django 自定义用户文档](https://docs.djangoproject.com/en/5.2/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project)
-
-| 层次 | 负责什么 | 边界 |
-| --- | --- | --- |
-| 站点账号 | 身份、密码、显示名、账号停用 | accounts 所有；普通成员只改自身允许的字段 |
-| 站点管理员 | 建号、停用、重置密码 | Django Admin；不把项目管理员自动提升为 staff/superuser |
-| 项目成员 | 某用户能否访问某项目、具备哪些能力 | 后续 projects 所有，沿用 domain-model 的可叠加工种预设 |
-
-同一用户可在不同项目有不同能力。前端按钮显隐只是提示，服务端按项目成员关系鉴权；不能把“已登录”当成未来任意项目的访问许可。账号停用禁止后续认证请求，用户历史不靠硬删除清理。
-
-## 4. 登录与会话
-
-- 用户名/密码登录，复用 Django 密码校验、登录、退出及密码验证器，不自制密码算法或 Token 系统。
-- 使用 PostgreSQL 保存 User 与 Django Session，不为登录引入 Redis。Session ID 放 HttpOnly Cookie，不放 localStorage；建议默认有效期 7 天，第一期不增加“记住我”分支。
-- 延续同源访问。生产环境使用 HTTPS、Secure Cookie、SameSite=Lax；开发环境按本机 HTTP 单独配置。当前公开固定 SECRET_KEY 必须改为环境配置，不能用于真实账号环境。
-- 所有认证相关写请求校验 CSRF，登录本身也包括在内；登录后使用更新的 CSRF Token。DRF 的 SessionAuthentication 对匿名请求的默认行为不足以保护登录，登录入口要显式使用 Django 的 CSRF 保护。[DRF SessionAuthentication](https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication)、[Django CSRF](https://docs.djangoproject.com/en/5.2/howto/csrf/)
-- 登录失败统一反馈，做短期限速，不引入永久账号锁定或复杂风控。敏感响应不缓存，日志不记录密码、Cookie 或字幕正文。
-- 本人改密需要旧密码，成功后保留当前会话、使其他旧会话在后续校验时失效；复用 Django 的会话更新能力。[Django 改密与会话](https://docs.djangoproject.com/en/5.2/topics/auth/default/#session-invalidation-on-password-change)
-
-## 5. 最小接口
-
-以下为建议契约，不固定最终 JSON 的全部字段。
-
-| 接口 | 职责 |
+| 实体 | 字段与约束 |
 | --- | --- |
-| `GET /api/auth/session` | 返回当前用户或 null，并提供 CSRF 初始化；不返回其他账号信息 |
-| `POST /api/auth/login` | 校验凭证，建立会话，返回用户与更新后的 CSRF 信息 |
-| `POST /api/auth/logout` | 结束当前浏览器会话；不能通过 GET 退出 |
-| `PATCH /api/auth/me` | 修改本人显示名；禁止传入角色、staff、active 等管理字段 |
-| `POST /api/auth/password` | 校验旧密码并修改密码 |
+| accounts.User | AbstractUser + display_name（80 字符）；用户名登录，邮箱可空；Django 密码摘要与验证器；停用代替删除 |
+| Organization | id、name（1–100 字符）、created_at |
+| OrganizationMembership | organization、user 外键，role、joined_at；组织/用户联合唯一；数据库检查 role 仅 organizer/member |
+| PersonalSettings | user 一对一主键、shortcut_overrides JSON、updated_at；无组织字段，无记录时返回默认值，按需创建 |
 
-不单独建设账号管理前端 API，先复用 Django Admin。受保护 API 默认要求活动用户，只有会话初始化、登录等入口显式匿名可用。错误要区分 `authentication_required`、`permission_denied`、`csrf_failed`、`invalid_credentials`，不能把所有 HTTP 403 都理解为“登录过期”；DRF SessionAuthentication 的未认证拒绝本身也可能是 403。
+Django 自带 auth、Admin、contenttypes、session 等表正常保留。dev 使用 is_superuser；is_staff 仅提供 Admin 登录资格，不授予组织权限。organizer/member 属于成员关系，同一账号可以在不同组织拥有不同角色，不使用全局 Group 映射组织角色。
 
-推荐现有 `/api/ass/*` 第一阶段继续作为显式公开、无持久副作用的格式工具，使用独立访问策略，忽略账号身份，不读取项目数据，继续保留请求大小限制。这样会话失效仍可导出页面内字幕。后续 `/api/projects/...` 的导入/导出必须检查项目权限，不能继承此公开策略。若以后要求格式工具也仅限成员访问，再作为服务开放策略单独调整。
+member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、调整角色、移除成员。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
 
-## 6. 编辑页面的登录体验
+## 配置与 Admin
 
-初次进入：检查会话；未登录显示登录页，登录成功后进入编辑器，顶栏显示名称和账号菜单。个人设置只含显示名与改密，管理员另有管理入口。
+环境配置和启动命令见根 README / .env.example。PostgreSQL 是唯一业务数据库。AUTH_USER_MODEL 已在首次迁移前设置；仓库此前没有数据库配置或业务迁移，本任务没有重置已有数据库。
 
-正在编辑时：
+使用 createsuperuser 建立首位 dev，之后在 Django Admin 创建账号、重置密码或停用账号。账号删除操作关闭，User.delete 也拒绝硬删除。Admin 中创建组织时必须选择活动的初始 organizer，组织与成员关系同事务提交。组织删除关闭；成员表在 Admin 只读，成员变更使用应用界面/API。只有 dev 能访问这些模型的管理操作。
 
-1. 会话过期或另一标签页退出：保留已挂载的编辑器、本地视频与全部内存输入，停止需认证的操作，原位提示重新登录；不自动跳转或清空文档。
-2. 同一用户重新登录：继续当前工作，不重新加载空文档、不重建 video；刷新 CSRF 信息，不盲目重试密码修改等写操作。
-3. 切换到另一账号：不自动把旧账号的稿件归到新账号；先要求导出或明确放弃，再清理旧工作区并进入新账号。
-4. 主动退出：有编辑内容时，先提供导出/取消/明确放弃的选择；退出确认后才清理当前页面数据。不能依赖 beforeunload 保护 React 组件卸载。
+所有支持的成员写入经过 organizations.services；账号停用通过 application.identity_admin.save_account 协调。锁顺序是目标 User → 按 id 排序的 Organization。持有组织锁后重新鉴权、写入并验证至少一名活动 organizer，失败回滚。停用账号先锁该用户，再锁其全部组织并验证。创建组织/添加成员也先锁用户，避免停用与新增关系竞态。Admin 使用相同入口，无隐式信号。维护脚本必须调用这些入口；直接 QuerySet.update/delete、原始 SQL 不属于受支持的业务写入契约。
 
-当前尚无项目云端保存，因此无需为这次登录功能建设完整离线草稿系统。后续项目持久化再采用既有 realtime-protocol 的草稿/未决命令规则。
+## 会话与 HTTP
 
-## 7. 模块与实施顺序
+Session 存 PostgreSQL，Cookie 为 HttpOnly、SameSite=Lax，默认 7 天；生产 DEBUG=0 默认启用 Secure Cookie，开发 HTTP 需 DEBUG=1。SECRET_KEY 和连接信息只从环境读取，缺少密钥时拒绝启动。
 
-- `accounts`：User、Admin 注册、认证/个人资料操作与相关测试；不依赖 projects 或前端。
-- `http_api`：认证 HTTP 适配、输入白名单和错误映射，通过 accounts 公共入口处理账号操作。
-- `application`：PostgreSQL、认证/会话/CSRF 中间件、路由与环境配置。
-- 前端账号模块与 App：会话初始化、登录页、账号菜单和原位登录；不把账号逻辑放进 media 或 ass_format。EditorWorkbench 仅提供退出前的编辑状态/导出协作接口。
+Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿名登录。GET session 初始化 CSRF；登录旋转 CSRF，前端每次写请求读取当前 CSRF Cookie。敏感响应 no-store。改密校验旧密码并使用 Django update_session_auth_hash 保留当前会话；其他旧会话后续校验失效，停用账号也不能通过旧会话访问接口。
 
-建议下一 Coding Task 只实现上述账号闭环及页面接入：先建用户表和会话，再接接口与前端，最后验证编辑保护。完成后另做 ProjectMembership 与项目入口，不同时铺开团队、邀请邮件或实时协作。
+登录错误统一 invalid_credentials；每 IP 每进程十分钟内允许十次失败，达到阈值返回 429；不使用转发头判断 IP。该限速使用进程内 Django cache，重启会清空、多 worker 不共享，是第一版基本限速的明确限制。
 
-## 8. 验收
+| 接口 | 契约 |
+| --- | --- |
+| GET /api/auth/session | 当前安全用户字段或 null，csrf_token；匿名可访问 |
+| POST /api/auth/login | username、password；安全用户字段与新 csrf_token |
+| POST /api/auth/logout | 空 JSON；不能 GET 退出 |
+| PATCH /api/auth/me | 仅 display_name |
+| POST /api/auth/password | old_password、new_password |
+| GET /api/organizations | 当前可访问组织、该组织 role、can_manage |
+| GET/PATCH /api/organizations/{id} | 查看；PATCH 仅 name |
+| GET/POST /api/organizations/{id}/members | 查看；POST 仅准确 username |
+| PATCH/DELETE /api/organizations/{id}/members/{membership_id} | PATCH 仅 role；DELETE 空 JSON；成员关系必须属于 URL 组织 |
+| POST /api/organizations/{id}/leave | 空 JSON，退出本人关系 |
+| GET/PATCH /api/me/settings | GET 返回覆盖和共享默认值；PATCH 仅 shortcut_overrides，替换整份覆盖 |
 
-- 管理员可建号/停用/重置；普通用户不能修改他人资料或管理字段，停用账号的旧会话不能访问受保护接口。
-- 正确/错误密码、刷新保留登录、POST 退出、本人改密与其他旧会话失效均有测试。
-- 用真正启用 CSRF 检查的测试客户端验证匿名登录也拒绝缺失/错误 Token，区分认证、权限和 CSRF 错误。
-- 编辑中会话失效、双标签页退出、同账号重新登录不丢字幕/时间输入/视频；换账号与主动退出必须有明确的数据处理步骤。
-- ASS 格式转换及现有媒体、时间和快捷键回归继续通过；新增账号能力不改变视频本地处理边界。
+身份由 Session 决定；每次请求检查活动账号与目标组织。JSON 未知字段整体拒绝。错误格式为 `{error: {code, message}}`，区分 401 authentication_required/invalid_credentials、403 permission_denied/csrf_failed、400 invalid_request、404 not_found、429 rate_limited。前端额外带 X-CueRelay-User 进行账号一致性检查；Cookie 已被其他标签页换号时返回 409 account_changed，防止旧界面修改新账号资料。这个头不能授予权限。
 
-以上账号加入方式、用户名登录和公开格式工具策略为本轮推荐，尚未作为已获确认的产品变更；本轮未修改应用代码、安装依赖或执行迁移。
+/api/ass/* 单独声明 AllowAny 且不执行身份认证，只做有限格式转换，无持久副作用，不读取账号或组织，维持大小限制；会话过期仍可导出。其他新 DRF 接口默认 IsAuthenticated，身份 JSON 适配器也默认受保护。
+
+## 快捷键
+
+shared/timing-shortcuts.json 是默认动作、名称、绑定的唯一权威来源，Python 和 TypeScript 直接读取。稳定动作：commit、selection、before-start、after-end、first-500、last-500。
+
+覆盖一个动作会替换该动作全部别名（例如 commit 默认 G/Enter/NumpadEnter）；空数组禁用；删除该键恢复全部默认别名；保存与默认完全相同的列表会归一化移除覆盖。保存时对最终有效配置检查重复与跨动作冲突，包括恢复默认后产生的冲突。
+
+采用物理 KeyboardEvent.code，允许 KeyA–KeyZ、Digit0–Digit9、Enter、NumpadEnter、Space，以及 Shift+字母/数字；其他键和 Ctrl/Meta/Alt 组合一律视为不支持/保留组合。每动作至多四个绑定。设置界面可录制一个组合、填写逗号分隔多绑定、禁用及单项/全部恢复；恢复操作在保存后持久化。
+
+匹配修饰键与焦点/IME 过滤分开；精确匹配全部修饰键。输入框、contenteditable、video、IME、重复及已处理事件过滤保持不变；按钮/链接/summary 上 Space/Enter 保留原生激活。登录、设置（含录制）、成员管理和编辑保护弹窗打开时暂停工作区全局快捷键。
+
+## 编辑保护
+
+App 拥有账号/组织上下文，EditorWorkbench 暴露 hasContent/exportDraft。首次会话检查完成前不挂载编辑器；曾登录后的会话失效只改变账号提示，保留组件实例、字幕、未应用时间、选中行、本地 File/Object URL 与 video。每 30 秒、窗口重新聚焦/可见时重新检查会话；受保护请求返回 authentication_required/account_changed 也触发原位重新登录。一般权限或 CSRF 错误不会被误当成会话过期。
+
+同账号重新登录和普通会话刷新不改变编辑器 key。只有用户明确放弃后切换组织/账号，或退出并再次进入，才创建新工作区。有字幕、导入标记、时间输入、本地视频、转换中或待确认导入即要求处理；保护弹窗提供导出、取消、明确放弃。导出只含已应用字幕，弹窗明确提示先取消并应用需要保留的时间输入。导出不自动放弃，失败也保持当前稿件。
+
+另一标签页退出只使本页提示失效；另一标签页登录不同账号会进入明确的稿件处理步骤。前端会丢弃来自旧账号上下文的异步响应。组织切换只选择上下文，不自动上传、保存或转移字幕。
+
+## 验证入口
+
+后端：`python manage.py test ass_format http_api organizations`，含真实 CSRF 客户端、Admin 写入及 PostgreSQL 多连接竞争测试。前端：`npm run typecheck`、`npm run test -- --run`、`npm run build`。
+
+可执行 Chrome 浏览器测试：frontend/browser-tests/user-system.mjs。准备一个**新建的专用 cuerelay_browser PostgreSQL 数据库**，设置 PGDATABASE=cuerelay_browser、DJANGO_DEBUG=1、私有测试 DJANGO_SECRET_KEY、BROWSER_TEST_PASSWORD。在相同环境下运行 migrate，再从仓库根执行 `python backend/manage.py shell < backend/browser_tests/seed.py`（已有用户时拒绝播种）。启动该数据库的后端和 Vite，然后设置 USER_SYSTEM_URL 为 Vite 地址、BROWSER_TEST_PASSWORD 与播种一致，执行 `node frontend/browser-tests/user-system.mjs`。若使用不同端口，同步配置 Vite 代理与 Django 可信 CSRF Origin；不要中断其他实验进程。脚本创建合成视频、验证 UI/下载/DOM 实例保留并输出截图目录，需要本机 Chrome 与 FFmpeg。
+
+本任务实际结果见 [验收记录](experiments/user-system.md)。自动浏览器检查不代表真实成员制作验收或生产部署验收通过。

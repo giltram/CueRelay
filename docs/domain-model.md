@@ -4,13 +4,16 @@
 
 ## 1. 聚合边界与实体职责
 
-项目是协作、权限、时间基准、统一样式和持久变更顺序的边界。P0 每项目一个视频基准、一份共享 ASS 文档。以下是业务概念，不表示每个概念都必须独立建表。
+当前已实现的身份与组织边界见下表；项目实体及后续章节中的持久化、审核、租约均未实现。项目将来承担协作、时间基准、统一样式和持久变更顺序。P0 每项目一个视频基准、一份共享 ASS 文档。以下是业务概念，不表示每个概念都必须独立建表。
 
 | 概念 | 职责、关键数据与生命周期 |
 | --- | --- |
-| User | Django 身份体系的账号；项目权限来自成员关系，不把工种写进全局 User 类型 |
+| User（已实现） | accounts.User(AbstractUser)，display_name，用户名/标准密码摘要，is_active；dev=is_superuser，is_staff 仅表示 Admin 资格；停用代替删除 |
+| Organization（已实现） | name、created_at；dev 在 Admin 原子创建组织和初始活动 organizer |
+| OrganizationMembership（已实现） | 唯一 (organization,user)，role 仅 organizer/member；同账号多组织不同角色；组织至少一名活动 organizer |
+| PersonalSettings（已实现） | 与 User 一对一，快捷键覆盖和更新时间；账号共用，无 organization_id，无记录则使用共享默认配置 |
 | Project | 名称、active/archived、不可变媒体基准、`project_seq`、`style_revision`；创建→协作→归档。归档只读且使所有租约失效，P0 不硬删除项目 |
-| ProjectMembership | 唯一 `(project,user)`、能力集合；添加/调整/撤销都留痕。至少保留一名管理员，账号停用同样禁止访问 |
+| 项目访问（未实现） | 本切片不建立 ProjectMembership 或工种能力集合；以后按届时确认的项目契约实现，不从旧设计推定细粒度权限 |
 | MediaManifest | Project 内的值对象：完整 SHA-256、文件大小、时间原点约定和必要时长/分辨率；时长等是诊断信息。首次发布后不可替换，不保存路径或媒体字节 |
 | ProjectStyle | 项目内稳定 ID、唯一 ASS 样式名、受支持的 v4+ 样式字段；行引用它。使用中的样式不可删除；P0 不改已引用样式名，允许改样式参数 |
 | SubtitleCue | 稳定 ID、项目、开始/结束、原始 ASS 文本、样式 ID、Layer/Name/Margins 等已知字段、事件顺序、`cue_version`、`submitted_version`、软删除标记；空轴→草稿→提交→审核，可反复修改 |
@@ -23,8 +26,9 @@
 
 ```mermaid
 erDiagram
-    User ||--o{ ProjectMembership : joins
-    Project ||--|{ ProjectMembership : authorizes
+    User ||--o{ OrganizationMembership : joins
+    Organization ||--|{ OrganizationMembership : authorizes
+    User ||--o| PersonalSettings : configures
     Project ||--o{ ProjectStyle : defines
     Project ||--o{ SubtitleCue : contains
     ProjectStyle ||--o{ SubtitleCue : styles
@@ -38,7 +42,7 @@ MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外�
 
 ## 2. 时间、标识与版本
 
-- 项目创建是初始化事务：已认证创建者提交本地计算的媒体基准，服务器原子建立 Project、创建者管理员成员关系、默认样式及 seq=1 的创建事件/回执，style_revision 初始为 1；中途失败不暴露半个项目。之后所有项目操作遵循同一 Project 锁规则。
+- 项目创建是初始化事务：已认证创建者提交本地计算的媒体基准，服务器原子建立 Project、届时确认的创建者访问关系、默认样式及 seq=1 的创建事件/回执，style_revision 初始为 1；中途失败不暴露半个项目。之后所有项目操作遵循同一 Project 锁规则。
 - 时间是相对同一媒体时间原点的非负整数毫秒；P0 持久值须为 10ms 的整数倍，对应 ASS 百分秒。界面捕获播放位置时明确吸附到此网格，若产生零长度则拒绝，不能悄悄拉长。`start < end`；允许行间重叠。超过报告时长先警告，不基于可能不准确的元数据截断内容。
 - 行 ID 永不复用，显示行号不是 ID。时间列表按 `(start,end,event_order,id)` 排序；导出使用独立稳定的 `event_order` 保持 ASS 重叠/碰撞顺序，不能用界面时间排序擅自重排行文件。
 - `cue_version` 从 1 起；每次真正改变行字段、显式提交、删除/恢复加一。无变化保存是 no-op，不增加版本。审核决定自身不改 cue_version，而是追加 Review 和 ChangeEvent。
@@ -46,20 +50,17 @@ MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外�
 - `style_revision` 是项目全套样式和影响渲染的脚本设置版本；修改任一样式/这些设置递增一次。P0 保守使所有旧样式版本的审核失效，不逐行批量改版本。
 - `project_seq` 对所有持久项目变更连续递增：行、审核、样式、成员、归档、导入、显式管理员撤锁审计等。一次导入或未来拆并影响多对象，也只占一个序号。失败/no-op/普通租约申请续期释放及过期/在线心跳不增加序号。序号是传输游标，不是所有行的编辑前置条件。
 
-## 3. 权限
+## 3. 当前固定权限方案 A
 
-| 能力 | 可以执行 |
+| 身份 | 能力 |
 | --- | --- |
-| view | 读项目字幕、允许展示的历史、ASS 下载；仅活动成员，非公开链接 |
-| timing | 创建空轴，改时间；经版本与租约检查删除行 |
-| translate | 改译文并提交翻译 |
-| review | 对当前已提交版本批准或要求修改 |
-| manage_styles | 新增/修改项目样式、渲染设置 |
-| manage_project | 管理成员能力、归档、首次 ASS 导入、维护项目；不绕过业务约束 |
+| dev（User.is_superuser） | 站点管理；Admin 建号/停用/重置密码和创建组织；管理全部组织，不要求假成员关系 |
+| organizer（OrganizationMembership.role） | 仅本组织：查看、修改组织名、添加已有活动账号、调整固定角色、移除成员、退出 |
+| member（OrganizationMembership.role） | 查看本组织和成员、退出本组织；不按翻译/打轴/校对工种划分 |
 
-推荐预设：打轴=`view+timing`，翻译=`view+translate`，校对=`view+translate+review`（需改时间可追加 timing），管理员=全部。能力可叠加，管理员至少包含 view/manage_project；创建者初始拥有全部能力。P0 选择预定义样式要求 timing 或 translate，禁止跨项目样式引用；导入的已知辅助字段 P0 保留但不提供任意编辑。越权字段混在合法请求内也整体拒绝。
+组织角色不放在 User 或 Django Group。organizer 不能授予 dev、改站点管理字段、停用账号或管理其他组织。个人设置只属于本人账号；所有组织写入重查活动身份及目标组织权限，不能信任前端组织选择。
 
-同一行所有内容修改、删除、提交和审核均需要有效整行租约；创建新行不需要先锁不存在的行，创建后也不自动长期占用，方便翻译立即接手。管理员没有无条件覆盖他人行的权限，可显式撤销租约并留审计，再正常取锁/比版本。成员撤销立即使其租约不可用。允许具备相应能力的作者自审，不隐含双人规则。
+降级、移除、退出和关联账号停用均必须在组织行锁下保留至少一名活动 organizer；完整锁顺序、Admin 边界与 API 契约见 [user-system](user-system.md)。组织样式管理将归 organizer，但本轮不实现样式库或项目级权限矩阵。当前本地字幕无云端组织归属；切组织不会上传或转移字幕。后续审核/租约章节只描述未来数据流，不改变本切片的固定角色决定。
 
 ## 4. 提交与审核的派生状态
 

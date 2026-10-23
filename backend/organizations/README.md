@@ -1,0 +1,11 @@
+# organizations
+
+拥有 Organization、OrganizationMembership 和固定 organizer/member 角色。只依赖 accounts 的 User 身份模型及 Django；不依赖 application、HTTP、媒体或格式模块。
+
+公开写入口位于 services.py：create_organization、rename_organization、add_member、change_member；查询鉴权使用 require_access。账号生命周期协调使用公开 lock_user_organizations / ensure_organizer，调用方必须先持有目标 User 锁且处于事务中。
+
+锁顺序：目标 User → Organization（多组织按主键排序）；不在持有组织锁后获取用户锁。成员修改和账号停用均在组织锁下维护至少一名活动 organizer。创建组织和初始活动 organizer 原子提交。默认添加为 member；membership id 必须属于指定组织。
+
+所有支持的 API/Admin 写入必须经过这些入口。Admin 成员表只读，不允许删除组织。不要通过直接 ORM update/delete 或 SQL 实施业务变更。唯一关系和角色范围另有数据库约束。
+
+PostgreSQL 竞争测试：tests.py（多线程独立连接，同时降级/移除/退出/停用）。HTTP 越权、Admin 和约束测试：../http_api/test_identity.py。

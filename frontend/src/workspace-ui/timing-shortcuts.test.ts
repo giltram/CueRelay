@@ -37,3 +37,18 @@ describe('default timing shortcuts', () => {
     expect(timingShortcut({ ...base, code: 'KeyS', target }, false)).toBe('selection');
   });
 });
+
+// Overrides replace all aliases for one action; focus and IME checks still apply.
+describe('custom timing shortcuts', () => {
+  const overrides = { commit: ['Shift+KeyT'] };
+  it('requires the exact configured modifiers and replaces all default aliases', () => {
+    expect(timingShortcut({ ...base, code: 'KeyT', shiftKey: true }, false, overrides)).toBe('commit');
+    expect(timingShortcut({ ...base, code: 'KeyT' }, false, overrides)).toBeUndefined();
+    expect(timingShortcut({ ...base, code: 'KeyT', shiftKey: true, ctrlKey: true }, false, overrides)).toBeUndefined();
+    for (const code of ['KeyG', 'Enter', 'NumpadEnter']) expect(timingShortcut({ ...base, code }, false, overrides)).toBeUndefined();
+    expect(timingShortcut({ ...base, code: 'KeyT', shiftKey: true }, true, overrides)).toBeUndefined();
+    expect(timingShortcut({ ...base, code: 'KeyT', shiftKey: true, target: { closest: () => ({}) } as unknown as EventTarget }, false, overrides)).toBeUndefined();
+    expect(timingShortcut(base, false, { commit: [] })).toBeUndefined();
+    expect(timingShortcut(base, false, {})).toBe('commit');
+  });
+});

@@ -1,0 +1,196 @@
+from django.contrib import admin
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+from django.test import Client, TestCase
+from accounts.models import User, PersonalSettings
+from application.identity_admin import save_account
+from organizations.models import Organization, OrganizationMembership as Membership
+from organizations.services import create_organization, add_member, change_member
+
+PASSWORD = 'test-only-long-password-927!'
+
+
+class IdentityTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user('alice', password=PASSWORD, display_name='甲')
+        self.other = User.objects.create_user('bob', password=PASSWORD)
+        self.dev = User.objects.create_superuser('dev', password=PASSWORD)
+        self.client = Client(enforce_csrf_checks=True)
+        self.client.get('/api/auth/session')
+
+    def send(self, path, data=None, method='POST', client=None):
+        client = client or self.client
+        return getattr(client, method.lower())('/api' + path, data or {}, content_type='application/json',
+                                              HTTP_X_CSRFTOKEN=client.cookies['csrftoken'].value)
+
+    def login(self, user=None, client=None):
+        return self.send('/auth/login', {'username': (user or self.user).username, 'password': PASSWORD}, client=client)
+
+    def test_real_csrf_anonymous_login_and_rotation(self):
+        token = self.client.cookies['csrftoken'].value
+        for header in [{}, {'HTTP_X_CSRFTOKEN': 'x' * 32}]:
+            response = self.client.post('/api/auth/login', {'username': 'alice', 'password': PASSWORD}, content_type='application/json', **header)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()['error']['code'], 'csrf_failed')
+        result = self.login()
+        self.assertEqual(result.status_code, 200)
+        self.assertNotEqual(token, self.client.cookies['csrftoken'].value)
+        self.assertTrue(self.client.cookies['sessionid']['httponly'])
+        self.assertNotIn('password', result.json()['user'])
+        self.assertEqual(self.client.get('/api/auth/session').json()['user']['display_name'], '甲')
+        self.assertEqual(self.client.get('/api/auth/logout').status_code, 405)
+        self.assertEqual(self.send('/auth/logout').status_code, 200)
+        self.assertIsNone(self.client.get('/api/auth/session').json()['user'])
+        self.assertEqual(self.client.get('/api/me/settings').json()['error']['code'], 'authentication_required')
+
+    def test_invalid_credentials_limit_and_inactive_session(self):
+        for username in ['missing', 'alice']:
+            response = self.send('/auth/login', {'username': username, 'password': 'wrong'})
+            self.assertEqual(response.json()['error']['code'], 'invalid_credentials')
+        self.login()
+        self.user.is_active = False
+        save_account(self.user)
+        self.assertEqual(self.client.get('/api/organizations').status_code, 401)
+        self.assertIsNone(self.client.get('/api/auth/session').json()['user'])
+        for _ in range(10):
+            self.send('/auth/login', {'username': 'alice', 'password': 'wrong'})
+        self.assertEqual(self.send('/auth/login', {'username': 'alice', 'password': PASSWORD}).status_code, 429)
+
+    def test_profile_password_and_other_session_invalidation(self):
+        self.login()
+        other_client = Client(enforce_csrf_checks=True)
+        other_client.get('/api/auth/session'); self.login(client=other_client)
+        self.assertEqual(self.send('/auth/me', {'display_name': '中文名'}, 'PATCH').status_code, 200)
+        self.assertEqual(self.send('/auth/me', {'display_name': 'x', 'is_superuser': True}, 'PATCH').status_code, 400)
+        for values in [('bad', PASSWORD), (PASSWORD, '123')]:
+            self.assertEqual(self.send('/auth/password', dict(zip(['old_password', 'new_password'], values))).status_code, 400)
+        self.assertEqual(self.send('/auth/password', {'old_password': PASSWORD, 'new_password': PASSWORD + '-new'}).status_code, 200)
+        self.assertEqual(self.client.get('/api/auth/session').json()['user']['id'], self.user.pk)
+        self.assertIsNone(other_client.get('/api/auth/session').json()['user'])
+        # Missing CSRF is rejected even for already authenticated profile/password writes.
+        for path in ['me', 'password', 'logout']:
+            response = self.client.post('/api/auth/' + path, {}, content_type='application/json')
+            self.assertEqual(response.json()['error']['code'], 'csrf_failed')
+
+    def test_settings_isolation_restore_and_validation(self):
+        self.login()
+        initial = self.client.get('/api/me/settings').json()
+        self.assertEqual(initial['shortcut_overrides'], {})
+        self.assertFalse(PersonalSettings.objects.exists())
+        overrides = {'commit': ['Shift+KeyG', 'Enter', 'NumpadEnter']}
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH').json()['shortcut_overrides'], overrides)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], overrides)
+        for invalid in [{'missing': []}, {'commit': ['KeyS']}, {'commit': ['KeyZ', 'KeyZ']}, {'commit': ['Ctrl+KeyL']}, {'commit': ['Escape']}, {'commit': ['Shift+Space']}, {'commit': 'KeyG'}]:
+            self.assertEqual(self.send('/me/settings', {'shortcut_overrides': invalid}, 'PATCH').status_code, 400, invalid)
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': {}, 'user_id': self.other.pk}, 'PATCH').status_code, 400)
+        self.send('/me/settings', {'shortcut_overrides': {'commit': initial['defaults']['commit']['bindings']}}, 'PATCH')
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
+        self.login(self.other)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
+        self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
+
+    def test_roles_scope_fields_uniqueness_and_dev(self):
+        a = create_organization('A', self.user.pk)
+        b = create_organization('B', self.other.pk)
+        member = add_member(self.other, b.pk, self.user.username)
+        self.login()
+        orgs = self.client.get('/api/organizations').json()['organizations']
+        self.assertEqual([org['role'] for org in orgs], ['organizer', 'member'])
+        self.assertEqual(self.client.get(f'/api/organizations/{b.pk}/members').status_code, 200)
+        for suffix, data, method in [('', {'name': 'wrong'}, 'PATCH'), ('/members', {'username': 'dev'}, 'POST'), (f'/members/{member.pk}', {'role': 'organizer'}, 'PATCH')]:
+            self.assertEqual(self.send(f'/organizations/{b.pk}{suffix}', data, method).json()['error']['code'], 'permission_denied')
+        self.assertEqual(self.send(f'/organizations/{a.pk}', {'name': 'A2'}, 'PATCH').status_code, 200)
+        for data in [{'username': 'bob', 'is_staff': True}, {'user_id': self.other.pk}, {'username': 'bob', 'role': 'organizer'}]:
+            self.assertEqual(self.send(f'/organizations/{a.pk}/members', data).status_code, 400)
+        self.assertEqual(self.send(f'/organizations/{a.pk}/members', {'username': 'bob'}).status_code, 200)
+        self.assertEqual(self.send(f'/organizations/{a.pk}/members/{member.pk}', {'role': 'member'}, 'PATCH').status_code, 404)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Membership.objects.create(organization=b, user=self.user, role='member')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Membership.objects.create(organization=b, user=self.dev, role='dev')
+        self.send(f'/organizations/{a.pk}/members/{a.memberships.get(user=self.other).pk}', {}, 'DELETE')
+        self.assertTrue(User.objects.filter(pk=self.other.pk).exists())
+        self.assertTrue(Membership.objects.filter(pk=member.pk).exists())
+        stranger = User.objects.create_user('stranger', password=PASSWORD, is_staff=True)
+        self.login(stranger)
+        self.assertEqual(self.client.get(f'/api/organizations/{a.pk}').status_code, 403)
+        self.assertEqual(self.client.get('/api/organizations').json()['organizations'], [])
+        self.login(self.dev)
+        self.assertTrue(all(org['can_manage'] for org in self.client.get('/api/organizations').json()['organizations']))
+        self.assertFalse(Membership.objects.filter(user=self.dev).exists())
+        self.assertEqual(self.send(f'/organizations/{a.pk}', {'name': 'dev renamed'}, 'PATCH').status_code, 200)
+
+    def test_last_active_organizer_all_supported_entries(self):
+        org = create_organization('A', self.user.pk)
+        membership = org.memberships.get()
+        self.login()
+        for suffix, data, method in [(f'/members/{membership.pk}', {'role': 'member'}, 'PATCH'), (f'/members/{membership.pk}', {}, 'DELETE'), ('/leave', {}, 'POST')]:
+            self.assertEqual(self.send(f'/organizations/{org.pk}{suffix}', data, method).status_code, 400)
+            self.assertTrue(Membership.objects.filter(pk=membership.pk, role='organizer').exists())
+        self.user.is_active = False
+        with self.assertRaises(ValidationError):
+            save_account(self.user)
+        self.user.refresh_from_db(); self.assertTrue(self.user.is_active)
+        self.other.is_active = False; save_account(self.other)
+        with self.assertRaises(ValidationError):
+            create_organization('incomplete', self.other.pk)
+        self.assertFalse(Organization.objects.filter(name='incomplete').exists())
+        # Actual Admin POST must roll back deactivation and display an error.
+        self.client.force_login(self.dev)
+        response = self.send_admin_user_change(self.user)
+        self.assertEqual(response.status_code, 302)
+        self.user.refresh_from_db(); self.assertTrue(self.user.is_active)
+        request = type('Request', (), {'user': self.dev})()
+        self.assertFalse(admin.site._registry[User].has_delete_permission(request, self.user))
+        self.assertFalse(admin.site._registry[Membership].has_change_permission(request, membership))
+        with self.assertRaises(ValidationError): self.user.delete()
+
+    def send_admin_user_change(self, user):
+        return self.client.post(f'/admin/accounts/user/{user.pk}/change/', {
+            'username': user.username, 'display_name': user.display_name, 'first_name': '', 'last_name': '', 'email': '',
+            'date_joined_0': '2026-10-23', 'date_joined_1': '00:00:00', '_save': 'Save',
+        }, HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value)
+
+    def test_ass_remains_public_with_csrf_client_and_expired_session(self):
+        self.login(); self.send('/auth/logout')
+        empty = self.client.get('/api/ass/empty').json()['document']
+        self.assertEqual(self.client.post('/api/ass/export', {'document': empty}, content_type='application/json').status_code, 200)
+
+    def test_other_tab_account_switch_cannot_write_wrong_profile(self):
+        self.login(self.other)
+        response = self.client.patch('/api/auth/me', {'display_name': 'wrong-owner'}, content_type='application/json',
+            HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value, HTTP_X_CUERELAY_USER=str(self.user.pk))
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['error']['code'], 'account_changed')
+        self.other.refresh_from_db(); self.assertEqual(self.other.display_name, '')
+
+
+    def test_admin_creation_and_member_table_are_guarded(self):
+        self.client.force_login(self.dev)
+        response = self.client.post('/admin/organizations/organization/add/', {
+            'name': 'Admin 创建组织', 'initial_organizer': self.user.pk, '_save': 'Save',
+        }, HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value)
+        self.assertEqual(response.status_code, 302)
+        org = Organization.objects.get(name='Admin 创建组织')
+        self.assertEqual(org.memberships.get().user, self.user)
+        member = org.memberships.get()
+        response = self.client.post(f'/admin/organizations/organizationmembership/{member.pk}/change/', {
+            'role': 'member', '_save': 'Save',
+        }, HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value)
+        self.assertEqual(response.status_code, 403)
+        member.refresh_from_db(); self.assertEqual(member.role, 'organizer')
+        self.user.is_staff = True; self.user.save(update_fields=['is_staff'])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(f'/admin/accounts/user/{self.other.pk}/change/').status_code, 403)
+
+    def test_inactive_organizer_does_not_satisfy_last_organizer_rule(self):
+        org = create_organization('active rule', self.user.pk)
+        secondary = add_member(self.dev, org.pk, self.other.username)
+        change_member(self.dev, org.pk, secondary.pk, role='organizer')
+        self.other.is_active = False; save_account(self.other)
+        last = org.memberships.get(user=self.user)
+        with self.assertRaises(ValidationError):
+            change_member(self.dev, org.pk, last.pk, role='member')
+        self.assertTrue(Membership.objects.filter(pk=last.pk, role='organizer').exists())

@@ -1,7 +1,8 @@
 """Stateless JSON conversion endpoints. Only subtitle text enters this boundary."""
 from django.http import HttpResponse
 from django.core.exceptions import RequestDataTooBig
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from ass_format import AssError, empty_document as make_empty, parse_ass, serialize_ass
 
@@ -14,11 +15,15 @@ def _payload(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def empty_document(request):
     return Response({"document": make_empty()})
 
 
 @api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def import_ass(request):
     try:
         data = _payload(request)
@@ -32,6 +37,8 @@ def import_ass(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def export_ass(request):
     try:
         data = _payload(request)

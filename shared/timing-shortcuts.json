@@ -1,0 +1,8 @@
+{
+  "commit": {"label": "应用时间", "bindings": ["KeyG", "Enter", "NumpadEnter"]},
+  "selection": {"label": "单次播放选区", "bindings": ["KeyS", "Space"]},
+  "before-start": {"label": "播放入点前 500ms", "bindings": ["KeyQ"]},
+  "after-end": {"label": "播放出点后 500ms", "bindings": ["KeyW"]},
+  "first-500": {"label": "播放选区开头 500ms", "bindings": ["KeyE"]},
+  "last-500": {"label": "播放选区结尾 500ms", "bindings": ["KeyD"]}
+}

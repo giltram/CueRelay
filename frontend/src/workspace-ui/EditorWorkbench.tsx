@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
 import { auditionRange, formatTime, parseTime, seekVideo, snapTime, validateInterval, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
@@ -6,9 +6,20 @@ import { downloadFile, exportAss, importAss, loadEmptyDocument } from '../projec
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
-import { timingShortcut } from './timing-shortcuts';
+import { timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
 
-export function EditorWorkbench() {
+export interface WorkbenchHandle {
+  hasContent: () => boolean;
+  exportDraft: () => Promise<void>;
+}
+interface Props {
+  ref?: Ref<WorkbenchHandle>;
+  header?: ReactNode;
+  shortcutsPaused?: boolean;
+  shortcutOverrides?: ShortcutOverrides;
+}
+
+export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcutOverrides = {} }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,11 +45,11 @@ export function EditorWorkbench() {
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
-      if (document && (document.cues.length > 0 || hasImportedDocument)) { event.preventDefault(); event.returnValue = ''; }
+      if (document && (document.cues.length > 0 || hasImportedDocument || startText !== '0:00:00.00' || endText !== '0:00:00.00' || video?.getAttribute('src'))) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', guard);
     return () => window.removeEventListener('beforeunload', guard);
-  }, [document, hasImportedDocument]);
+  }, [document, hasImportedDocument, startText, endText, video]);
 
   function run(action: () => void | Promise<void>) {
     setError('');
@@ -131,8 +142,8 @@ export function EditorWorkbench() {
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
-      if (busy || pendingImport) return;
-      const shortcut = timingShortcut(event, composing.current);
+      if (busy || pendingImport || shortcutsPaused) return;
+      const shortcut = timingShortcut(event, composing.current, shortcutOverrides);
       if (!shortcut) return;
       event.preventDefault();
       run(shortcut === 'commit' ? applyTimes : () => playTiming(shortcut));
@@ -163,10 +174,18 @@ export function EditorWorkbench() {
     finally { setBusy(false); }
   }
 
+  async function exportDraft() {
+    if (!document) throw new Error('ASS 服务尚未就绪');
+    downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass');
+  }
+  const hasContent = () => Boolean(busy || pendingImport || video?.getAttribute('src') || hasImportedDocument || document?.cues.length || startText !== '0:00:00.00' || endText !== '0:00:00.00');
+  useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
+
   return (
     <main>
       <header className="app-header">
         <h1>CueRelay</h1>
+        {header}
         <div className="file-actions" aria-label="字幕文件操作">
           {busy && <span role="status">正在转换…</span>}
           <label className="file-picker">

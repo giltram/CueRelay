@@ -191,3 +191,23 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
   .time-display { font-size: 12px; }
   .time-display span { font-size: 11px; }
 }
+
+.account-toolbar { display: flex; align-items: center; gap: 8px; min-width: 0; margin-right: auto; }
+.account-toolbar select { max-width: 220px; padding: 6px 8px; }
+.login-page { display: flex; flex-direction: column; gap: 16px; max-width: 400px; margin: 12vh auto; padding: 24px; }
+.account-form { display: flex; flex-direction: column; gap: 12px; }
+.account-form form { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.account-dialog { width: min(720px, calc(100vw - 24px)); max-height: 85dvh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 20px; color: inherit; background: var(--surface); }
+.account-dialog::backdrop { background: rgb(23 35 31 / 35%); }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.account-dialog > .controls { margin: 12px 0; }
+.shortcut-row { display: flex; align-items: end; gap: 8px; }
+.shortcut-row label { flex: 1; }
+.session-notice, .app-message { position: fixed; bottom: 12px; left: 16px; right: 16px; z-index: 5; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+.app-message { bottom: 56px; }
+.app-message button { margin-left: 12px; }
+@media (max-width: 900px) {
+  .app-header { flex-wrap: wrap; padding: 8px 0; gap: 8px; }
+  .account-toolbar { flex-wrap: wrap; }
+  .account-toolbar select { max-width: 170px; }
+}
