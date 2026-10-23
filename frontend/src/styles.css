@@ -111,10 +111,6 @@ summary { cursor: pointer; font-size: 13px; }
 .time-points { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .time-point label { gap: 2px; font-size: 12px; }
 .time-point input { font-size: 16px; font-variant-numeric: tabular-nums; padding: 4px 8px; }
-.point-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
-.point-actions button { min-height: 28px; padding: 4px; font-size: 12px; gap: 4px; }
-.range-actions { gap: 8px; margin-top: 4px; }
-.range-actions button { flex: 1; padding: 4px 8px; }
 .subtitle-input { margin: 4px 0; gap: 2px; font-size: 12px; }
 .subtitle-input textarea { font-size: 14px; min-height: 48px; max-height: 160px; padding: 2px 8px; }
 .cue-options { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: end; gap: 8px; }
@@ -151,7 +147,6 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 
 @media (max-width: 1100px) and (min-width: 901px) {
   .workbench { --default-media-share: .36; }
-  .point-actions kbd { display: none; }
   .editor-heading { gap: 8px; }
 }
 
@@ -181,11 +176,8 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
   .workbench { padding: 12px; }
   .time-points { gap: 8px; }
   .time-point input { font-size: 16px; }
-  .point-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .point-actions button:first-child { grid-column: 1 / -1; }
   .editor-heading { flex-wrap: wrap; gap: 8px; }
   .cue-options { width: 100%; }
-  .range-actions button { flex: 1 0 auto; }
   .transport { gap: 6px; }
   .transport .file-picker { padding: 6px 8px; font-size: 12px; }
   .time-display { font-size: 12px; }

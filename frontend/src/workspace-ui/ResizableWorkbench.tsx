@@ -104,7 +104,6 @@ export function ResizableWorkbench({ media, editor }: Props) {
       aria-label="调整视频区域大小" aria-orientation="vertical" aria-controls={`${mediaId} ${editorId}`}
       aria-valuemin={bounds ? percent(bounds.minimum) : 0} aria-valuemax={bounds ? percent(bounds.maximum) : 100}
       aria-valuenow={percent(mediaWidth)} aria-valuetext={`视频区域宽度 ${Math.round(mediaWidth)} 像素`}
-      title="左右拖动调整视频大小；方向键微调，双击恢复默认"
       onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}
       onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={adjustWithKeyboard}
       onDoubleClick={() => setRequestedShare(null)} />

@@ -11,11 +11,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:audio-browser": "node browser-tests/local-audio.mjs",
+    "test:audio-timeline": "node browser-tests/audio-timeline.mjs",
+    "test:audio-lifecycle": "node browser-tests/audio-lifecycle.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",
+    "fft.js": "4.0.4",
     "mediabunny": "1.62.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

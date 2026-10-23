@@ -126,12 +126,12 @@ try {
   await page.getByLabel('确认新密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '修改密码', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
-  await page.getByLabel('应用时间绑定').fill('Shift+KeyT');
+  await page.getByLabel('提交并下一条绑定').fill('Shift+KeyT');
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
   await page.reload(); await page.getByRole('button', { name: '本地工作区', exact: true }).click(); await visible(page.locator('video')); await openSettings();
-  assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'Shift+KeyT');
+  assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'Shift+KeyT');
   await close('个人设置');
   const orgs = await request('/organizations');
   const orgB = orgs.organizations.find(org => org.role === 'member');
@@ -141,13 +141,13 @@ try {
   assert.equal(await page.getByLabel('添加成员', { exact: true }).count(), 0);
   assert.equal(await page.getByLabel('组织名称').count(), 0);
   await close('组织成员'); await openSettings();
-  assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'Shift+KeyT');
+  assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'Shift+KeyT');
   await page.getByRole('button', { name: '恢复默认', exact: true }).first().click();
-  assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
+  assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   assert.deepEqual((await request('/me/settings')).shortcut_overrides, {});
-  await page.getByLabel('应用时间绑定').fill('Shift+KeyT');
+  await page.getByLabel('提交并下一条绑定').fill('Shift+KeyT');
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
@@ -160,7 +160,8 @@ try {
   const start = page.getByRole('textbox', { name: '入点', exact: true });
   const end = page.getByRole('textbox', { name: '出点', exact: true });
   await start.fill('0:00:00.00'); await end.fill('0:00:02.00');
-  await page.getByRole('button', { name: '创建新行 [N]', exact: true }).click();
+  await page.locator('.audio-stage').focus(); await page.keyboard.press('Shift+KeyT');
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('会话保护稿件');
   await start.fill('0:00:00.30'); await end.fill('0:00:01.90');
   const snapshot = await preserveSnapshot();
@@ -220,6 +221,9 @@ try {
   assert.equal((await preserveSnapshot()).selected, snapshot.selected);
   await page.keyboard.press('Shift+KeyT');
   assert.notEqual((await preserveSnapshot()).selected, snapshot.selected);
+  assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '');
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '会话保护稿件');
   record('快捷键覆盖、未配置键无效、个人设置/录制/成员弹窗暂停全局快捷键');
 
   const orgA = orgs.organizations.find(org => org.role === 'organizer');
@@ -240,7 +244,8 @@ try {
   await hidden(dialog('切换组织'));
   await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:01.00');
-  await page.getByRole('button', { name: '创建新行 [N]', exact: true }).click();
+  await page.locator('.audio-stage').focus(); await page.keyboard.press('Shift+KeyT');
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('会话保护稿件');
   await page.getByRole('button', { name: '成员', exact: true }).click();
   await page.getByRole('row').filter({ hasText: '(browser-alice)' }).getByRole('button', { name: '移除' }).click();
@@ -262,7 +267,7 @@ try {
   await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await wait(() => document.querySelector('textarea').value === '');
   await page.getByRole('button', { name: '测试乙', exact: true }).click();
-  assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
+  assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
   await close('个人设置');
   record('换账号必须明确放弃、旧稿件不归新账号、个人设置隔离');
   await page.screenshot({ path: join(dir, 'workbench.png'), fullPage: true });

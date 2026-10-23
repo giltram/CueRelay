@@ -36,6 +36,34 @@ describe('default timing shortcuts', () => {
     expect(timingShortcut({ ...base, target }, false)).toBe('commit');
     expect(timingShortcut({ ...base, code: 'KeyS', target }, false)).toBe('selection');
   });
+
+  it('allows Enter and Space on boundary sliders while preserving their arrow keys', () => {
+    const target = { closest: (selector: string) => selector.includes('button') || selector === '[role="slider"]' ? {} : null } as unknown as EventTarget;
+    for (const [code, action] of [['Enter', 'commit'], ['NumpadEnter', 'commit'], ['Space', 'selection']]) {
+      expect(timingShortcut({ ...base, code, target }, false)).toBe(action);
+      expect(timingShortcut({ ...base, code, target, isComposing: true }, false)).toBeUndefined();
+      expect(timingShortcut({ ...base, code, target, defaultPrevented: true }, false)).toBeUndefined();
+    }
+    expect(timingShortcut({ ...base, code: 'ArrowRight', target }, false)).toBeUndefined();
+  });
+
+  it.each(['Delete', 'Backspace'])('deletes with Ctrl/Cmd + %s only outside editing controls', code => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+      const event = { ...base, code, [modifier]: true };
+      expect(timingShortcut(event, false)).toBe('delete-row');
+      for (const property of ['altKey', 'shiftKey', 'repeat', 'isComposing', 'defaultPrevented']) {
+        expect(timingShortcut({ ...event, [property]: true }, false)).toBeUndefined();
+      }
+      expect(timingShortcut(event, true)).toBeUndefined();
+      expect(timingShortcut({ ...event, keyCode: 229 }, false)).toBeUndefined();
+      for (const control of ['input', 'textarea', 'select', '[contenteditable]:not([contenteditable="false"])', '[role="textbox"]', 'video']) {
+        const target = { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget;
+        expect(timingShortcut({ ...event, target }, false)).toBeUndefined();
+      }
+    }
+    expect(timingShortcut({ ...base, code }, false)).toBeUndefined();
+    expect(timingShortcut({ ...base, code, ctrlKey: true, metaKey: true }, false)).toBeUndefined();
+  });
 });
 
 // Overrides replace all aliases for one action; focus and IME checks still apply.

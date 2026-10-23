@@ -2,12 +2,17 @@ import { useCallback, useEffect, useRef, useState, useImperativeHandle, type Ref
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
-import { auditionRange, formatTime, parseTime, seekVideo, snapTime, validateInterval, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
+import { auditionRange, formatTime, parseTime, seekVideo, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument } from '../project-data/ass-api';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
 import { timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
+import { commitTiming } from './commit-timing';
+import { deleteCue } from './delete-cue';
+import { initializeDocument } from './cue-defaults';
+import { AudioTimeline } from './audio-timeline/AudioTimeline';
+import type { AudioDisplayMode } from '../media/audio/analysis-types';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -29,13 +34,14 @@ interface Props {
 export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcutOverrides = {}, project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [audioMode, setAudioMode] = useState<AudioDisplayMode>('spectrum');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [startText, setStartText] = useState('0:00:00.00');
-  const [endText, setEndText] = useState('0:00:00.00');
+  const [endText, setEndText] = useState('0:00:02.00');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [audition, setAudition] = useState<RangePlayback | null>(null);
-  const loop = audition?.repeat ? audition : null;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
@@ -46,6 +52,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
   useEffect(() => { setSaveMessage(''); }, [document]);
   const canEdit = !readOnly && (!project || mediaVerified);
   const onVerifiedChange = useCallback((value: boolean) => setMediaVerified(value), []);
+  const [hasEdits, setHasEdits] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const composing = useRef(false);
   useEffect(() => { if (!visible) { video?.pause(); setAudition(null); } }, [visible, video]);
@@ -54,28 +61,29 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
   useEffect(() => {
     if (project) return;
     let active = true;
-    loadEmptyDocument().then(value => { if (active) setDocument(value); })
+    loadEmptyDocument().then(value => {
+      if (!active) return;
+      const initial = initializeDocument(value, () => `new-${crypto.randomUUID()}`);
+      setDocument(initial); selectCue(initial.cues[0]);
+    })
       .catch(() => { if (active) setError('无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
     return () => { active = false; };
   }, []);
 
+  const hasProtectedContent = Boolean(busy || pendingImport || mediaFile || project || hasImportedDocument || hasEdits);
+
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
-      if (document && (document.cues.length > 0 || hasImportedDocument || startText !== '0:00:00.00' || endText !== '0:00:00.00' || video?.getAttribute('src'))) { event.preventDefault(); event.returnValue = ''; }
+      if (hasProtectedContent) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', guard);
     return () => window.removeEventListener('beforeunload', guard);
-  }, [document, hasImportedDocument, startText, endText, video]);
+  }, [hasProtectedContent]);
 
   function run(action: () => void | Promise<void>) {
     setError('');
     try { void Promise.resolve(action()).catch(reason => setError(String(reason.message))); }
     catch (reason) { setError((reason as Error).message); }
-  }
-
-  function selectedTimes(start: number, end: number) {
-    validateInterval(start, end);
-    return { start, end };
   }
 
   function selectCue(cue: Cue) {
@@ -87,38 +95,36 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     selectCue(cue); video.pause(); seekVideo(video, cue.start_ms);
   }
 
-  function capture(which: 'start' | 'end') {
-    if (!video || !duration) throw new Error('请先加载可播放的视频');
-    const value = formatTime(snapTime(video.currentTime));
+  function changeTimeDraft(which: 'start' | 'end', value: string) {
     if (which === 'start') setStartText(value); else setEndText(value);
-    setAudition(null);
-  }
-
-  function nudge(which: 'start' | 'end', delta: number) {
-    const value = parseTime(which === 'start' ? startText : endText) + delta;
-    if (value < 0 || value > 35_999_990) throw new Error('微调时间超出范围');
-    if (which === 'start') setStartText(formatTime(value)); else setEndText(formatTime(value));
-    setAudition(null);
-  }
-
-  function createCue() {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
-    if (!document) throw new Error('ASS 服务尚未就绪');
-    const { start, end } = selectedTimes(parseTime(startText), parseTime(endText));
-    const cue: Cue = { id: `new-${crypto.randomUUID()}`, start_ms: start, end_ms: end, text: '', style: document.styles[0] };
-    setDocument({ ...document, cues: [...document.cues, cue] });
-    setSelectedId(cue.id); setAudition(null);
+    setAudition(null); setHasEdits(true);
   }
 
   function updateCue(patch: Partial<Cue>) {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document || !selected) throw new Error('请先选择一条字幕行');
     setDocument({ ...document, cues: document.cues.map(cue => cue.id === selected.id ? { ...cue, ...patch } : cue) });
+    setHasEdits(true);
   }
 
-  function applyTimes() {
-    const { start, end } = selectedTimes(parseTime(startText), parseTime(endText));
-    updateCue({ start_ms: start, end_ms: end }); setAudition(null);
+  function commitAndAdvance() {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!document) throw new Error('ASS 服务尚未就绪');
+    const result = commitTiming(document, selectedId, parseTime(startText), parseTime(endText), () => `new-${crypto.randomUUID()}`);
+    setDocument(result.document);
+    setHasEdits(true);
+    selectCue(result.selected);
+  }
+
+  function deleteSelectedCue() {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!document || !selected) return;
+    const result = deleteCue(document, selected.id);
+    setDocument(result.document); setHasEdits(true);
+    if (result.selected) selectCue(result.selected);
+    else {
+      setSelectedId(null); setStartText('0:00:00.00'); setEndText('0:00:00.00'); setAudition(null);
+    }
   }
 
   async function togglePlayback() {
@@ -143,14 +149,6 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     await startAudition(range ? { ...range, repeat: false } : null);
   }
 
-  async function startLoop() {
-    if (loop) { setAudition(null); video?.pause(); return; }
-    if (!video) throw new Error('请先选择视频');
-    const range = selectedTimes(parseTime(startText), parseTime(endText));
-    if (range.end > duration) throw new Error('循环区间超过视频时长；字幕时间未被截断');
-    await startAudition({ ...range, repeat: true });
-  }
-
   useEffect(() => {
     if (!video || !audition) return;
     return watchPlaybackRange(video, audition, () => setAudition(null), reason => setError(reason.message));
@@ -160,11 +158,11 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
-      if (busy || pendingImport || shortcutsPaused) return;
+      if (busy || pendingImport || shortcutsPaused || !visible) return;
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides);
-      if (!shortcut || (shortcut === 'commit' && !canEdit)) return;
+      if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row') && !canEdit)) return;
       event.preventDefault();
-      run(shortcut === 'commit' ? applyTimes : () => playTiming(shortcut));
+      run(shortcut === 'commit' ? commitAndAdvance : shortcut === 'delete-row' ? deleteSelectedCue : () => playTiming(shortcut));
     };
     window.addEventListener('compositionstart', begin);
     window.addEventListener('compositionend', end);
@@ -178,14 +176,24 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
 
   const onVideo = useCallback((element: HTMLVideoElement | null) => setVideo(element), []);
   const outsideDuration = duration > 0 && document?.cues.some(cue => cue.end_ms > duration);
+  let audioSelection: { start: number; end: number } | null = null;
+  if (document && (selected || document.cues.length === 0)) {
+    try { audioSelection = { start: parseTime(startText), end: parseTime(endText) }; }
+    catch { /* A partially typed time has no drawable boundary; the editor retains its draft. */ }
+  }
 
   async function doImport(file: File) {
     setBusy(true); setPendingImport(null); setError('');
     try {
       const imported = await importAss(file);
+      const initialized = initializeDocument(imported, () => `new-${crypto.randomUUID()}`);
       setHasImportedDocument(true);
-      setDocument(imported); setSelectedId(null); setAudition(null);
-      setStartText('0:00:00.00'); setEndText('0:00:00.00');
+      setHasEdits(false); setDocument(initialized);
+      if (!imported.cues.length) selectCue(initialized.cues[0]);
+      else {
+        setSelectedId(null); setAudition(null);
+        setStartText('0:00:00.00'); setEndText('0:00:00.00');
+      }
     } catch (reason) {
       setError(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
     }
@@ -206,11 +214,18 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     if (!document) throw new Error('ASS 服务尚未就绪');
     downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass');
   }
-  const hasContent = () => Boolean(busy || pendingImport || video?.getAttribute('src') || hasImportedDocument || document?.cues.length || startText !== '0:00:00.00' || endText !== '0:00:00.00');
+  const hasContent = () => hasProtectedContent;
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
 
   return (
-    <main>
+    <main tabIndex={-1} onClick={event => {
+      // Mouse activation returns to timing shortcuts; keyboard activation keeps
+      // native button focus. Boundary sliders retain focus for arrow-key edits.
+      const button = (event.target as Element).closest('button');
+      if (event.detail > 0 && button && button.getAttribute('role') !== 'slider') {
+        event.currentTarget.focus({ preventScroll: true });
+      }
+    }}>
       <header className="app-header">
         <h1>CueRelay</h1>
         {header}
@@ -220,13 +235,17 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
             <button onClick={onReload} disabled={busy}>重新加载项目</button>
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
+          <div className="audio-mode-switch" role="group" aria-label="音频显示模式">
+            <button aria-pressed={audioMode === 'waveform'} onClick={() => setAudioMode('waveform')}>Waveform</button>
+            <button aria-pressed={audioMode === 'spectrum'} onClick={() => setAudioMode('spectrum')}>Spectrum</button>
+          </div>
           {busy && <span role="status">正在转换…</span>}
           {!project && <label className="file-picker">
             导入 ASS
             <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
               const file = event.target.files?.[0];
               if (file) {
-                if (document?.cues.length) setPendingImport(file);
+                if (document?.cues.length && (hasEdits || hasImportedDocument)) setPendingImport(file);
                 else void doImport(file);
               }
               event.target.value = '';
@@ -256,8 +275,8 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
       {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
 
       <ResizableWorkbench media={
-          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
-            <button className="playback-button" aria-label="播放 / 暂停" title="播放 / 暂停（空格）"
+          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
+            <button className="playback-button" aria-label="播放 / 暂停"
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path d="M2 3v14l8-7zM12 3h2v14h-2zM16 3h2v14h-2z" />
@@ -266,11 +285,12 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
           </>} />
       } editor={<>
-          <section className="audio-panel" aria-labelledby="audio-heading">
-            <h2 id="audio-heading">音频</h2>
-            <p>波形 / 频谱区域预留</p>
-            <span>音频分析与识别功能尚未接入</span>
-          </section>
+          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode}
+            selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
+            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
+            onSeek={time => run(() => {
+              if (video) { setAudition(null); seekVideo(video, time); }
+            })} />
           <section className="cue-editor" aria-label="字幕编辑">
             <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">字幕编辑</legend>
@@ -283,37 +303,19 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
                     </select>
                   </label>
                   <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
-                  <button className="text-button" disabled={!selected} onClick={() => {
-                    if (document && selected) {
-                      setDocument({ ...document, cues: document.cues.filter(cue => cue.id !== selected.id) });
-                      setSelectedId(null); setAudition(null);
-                    }
-                  }}>删除选中行</button>
+                  <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>删除选中行</button>
                 </div>
               </div>
               <div className="time-points">
-                <TimePointControl label="入点" value={startText} captureKey="I" decreaseKey="J" increaseKey="K"
-                  onChange={value => { setStartText(value); setAudition(null); }}
-                  onCapture={() => run(() => capture('start'))} onNudge={delta => run(() => nudge('start', delta))} />
-                <TimePointControl label="出点" value={endText} captureKey="O" decreaseKey="U" increaseKey="P"
-                  onChange={value => { setEndText(value); setAudition(null); }}
-                  onCapture={() => run(() => capture('end'))} onNudge={delta => run(() => nudge('end', delta))} />
-              </div>
-              <div className="controls range-actions">
-                <button aria-label="循环试听 [L]" aria-pressed={!!loop} onClick={() => run(startLoop)}>
-                  {loop ? '停止循环' : '循环试听'} <kbd>L</kbd>
-                </button>
-                <button aria-label="应用时间 [Enter]" disabled={!selected} onClick={() => run(applyTimes)}>
-                  应用时间 <kbd>Enter</kbd>
-                </button>
-                <button className="primary" aria-label="创建新行 [N]" onClick={() => run(createCue)}>
-                  创建新行 <kbd>N</kbd>
-                </button>
+                <TimePointControl label="入点" value={startText}
+                  onChange={value => changeTimeDraft('start', value)} />
+                <TimePointControl label="出点" value={endText}
+                  onChange={value => changeTimeDraft('end', value)} />
               </div>
               <label className="subtitle-input">
                 字幕文本
                 <textarea aria-label="字幕中文文本" rows={2} disabled={!selected} value={selected?.text || ''}
-                  placeholder="先创建或选择一行字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
+                  placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
               </label>
             </fieldset>
           </section>

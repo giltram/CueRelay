@@ -1,17 +1,18 @@
 import defaults from '../../../shared/timing-shortcuts.json';
 import { allowsShortcutFocus, type AuditionMode, type ShortcutEvent } from '../media/playback';
 
-export type TimingShortcut = 'commit' | AuditionMode;
-export type ShortcutOverrides = Partial<Record<TimingShortcut, string[]>>;
+type ConfigurableShortcut = 'commit' | AuditionMode;
+export type TimingShortcut = ConfigurableShortcut | 'delete-row';
+export type ShortcutOverrides = Partial<Record<ConfigurableShortcut, string[]>>;
 export const shortcutDefaults = defaults;
-export const timingActions = Object.keys(defaults) as TimingShortcut[];
+export const timingActions = Object.keys(defaults) as ConfigurableShortcut[];
 
 export function bindingFor(event: Pick<ShortcutEvent, 'code' | 'shiftKey' | 'ctrlKey' | 'altKey' | 'metaKey'>): string {
   return `${event.ctrlKey ? 'Ctrl+' : ''}${event.metaKey ? 'Meta+' : ''}${event.altKey ? 'Alt+' : ''}${event.shiftKey ? 'Shift+' : ''}${event.code}`;
 }
 
 export function validateOverrides(overrides: ShortcutOverrides): string | undefined {
-  if (Object.keys(overrides).some(action => !timingActions.includes(action as TimingShortcut))) return '未知快捷键动作';
+  if (Object.keys(overrides).some(action => !timingActions.includes(action as ConfigurableShortcut))) return '未知快捷键动作';
   const used = new Set<string>();
   for (const action of timingActions) {
     const bindings = overrides[action] ?? defaults[action].bindings;
@@ -28,6 +29,8 @@ export function validateOverrides(overrides: ShortcutOverrides): string | undefi
 
 export function timingShortcut(event: ShortcutEvent, composing: boolean, overrides: ShortcutOverrides = {}): TimingShortcut | undefined {
   if (!allowsShortcutFocus(event, composing)) return;
+  // Fixed deletion binding stays outside the personal override contract.
+  if (['Delete', 'Backspace'].includes(event.code) && event.ctrlKey !== event.metaKey && !event.altKey && !event.shiftKey) return 'delete-row';
   const binding = bindingFor(event);
   return timingActions.find(action => (overrides[action] ?? defaults[action].bindings).includes(binding));
 }

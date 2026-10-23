@@ -7,13 +7,14 @@ interface Props {
   onTime: (milliseconds: number) => void;
   onDuration: (milliseconds: number) => void;
   onError: (message: string) => void;
+  onFile: (file: File | null) => void;
   controls: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: { file: File; sha256: string };
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const [file, setFile] = useState<File | null>(() => initialMedia && expectedMedia && matchesMedia(initialMedia.file, initialMedia.sha256, expectedMedia) ? initialMedia.file : null);
   const [locked, setLocked] = useState(false);
@@ -35,6 +36,8 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, control
     } catch (reason) { if (!task.signal.aborted) onError((reason as Error).message); }
     finally { if (verification.current === task) setChecking(false); }
   }
+
+  useEffect(() => { onFile(file); return () => onFile(null); }, [file, onFile]);
 
   useEffect(() => {
     const video = ref.current!;

@@ -9,3 +9,5 @@ ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、�
 归档只读；保存冲突保留字幕和时间草稿，重新加载需要明确放弃。项目保存仅包含已应用字幕，不含未应用时间、File 或视频；没有自动保存。文件完整匹配后才允许修改字幕。初始模板/样式只能在创建时选择，项目工作区不提供替换 ASS 导入。
 
 验证：media/file-hash.test.ts、frontend/browser-tests/projects.mjs。浏览器播种脚本 backend/browser_tests/seed_projects.py 只接受新建的 cuerelay_projects_browser 数据库。
+
+音频时间轴只接收已接受的同一 File 和只读字幕/草稿。边界点击只修改草稿，个人提交快捷键统一提交并下一行；项目保存仍只含已提交时间。新增固定删行组合键和边界回调遵守同一 canEdit/弹窗暂停保护。跨模块回归见 `frontend/browser-tests/main-audio-integration.mjs`。

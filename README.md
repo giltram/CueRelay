@@ -4,7 +4,7 @@
 
 ## 环境与启动
 
-Python 3.11.8、Node 26.4.0、npm 11.17.0、PostgreSQL 14+。前端依赖锁在 frontend/package-lock.json，后端在 backend/requirements.txt。音频实验保持独立，尚未接入正式打轴页。
+Python 3.11.8、Node 26.4.0、npm 11.17.0、PostgreSQL 14+。前端依赖锁在 frontend/package-lock.json，后端在 backend/requirements.txt。正式打轴页已集成本地音频波形与频谱。
 
 先准备自己管理的 PostgreSQL 数据库和用户；数据库用户需具有该数据库的迁移权限，运行 Django 测试还需 CREATEDB。项目不自动配置 Docker、部署或邮件服务。
 
@@ -77,4 +77,6 @@ npm run build
 
 用户系统可执行 Chrome 测试、专用测试数据库播种步骤见 [用户系统](docs/user-system.md)，实际执行结果及限制见 [验收记录](docs/experiments/user-system.md)。合成浏览器验证不代表真实片源或熟练成员试用通过。
 
-架构入口：[docs/architecture.md](docs/architecture.md)。音频阶段 A 的独立开发验证、测试和大文件限制见 [音频实验记录](docs/experiments/local-audio.md)；本任务未改变音频处理逻辑或依赖。历史媒体/ASS 实验见 [实验记录](docs/experiments/media-ass.md)。
+本地音频分段提取的阶段 A 验证入口与大文件实测限制见 [音频提取记录](docs/experiments/local-audio.md)。打轴页默认 Spectrum，顶栏可切换 Waveform / Spectrum；普通滚轮平移、Shift+滚轮缩放，也可拖动平移、点击定位和拖动入出点；拖动只改时间草稿，按 G / Enter（或个人覆盖键位）提交并进入下一行，末行自动续一条 2 秒空行。交互、Worker 缓存及浏览器回归见 [音频时间轴记录](docs/experiments/audio-timeline.md)。
+
+架构入口：[docs/architecture.md](docs/architecture.md)。本次 main/audio 集成状态、用户决定及验证见 [集成记录](docs/plans/main-audio-integration.md)。

@@ -8,7 +8,27 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
-2026-10-23 已完成音频可视化的**阶段 A 技术验证**：`frontend/src/media/audio/local-audio.ts` 是只依赖 Mediabunny 的本地 MP4 分段 PCM 叶子模块，提供 open / readRange / dispose、时间戳保留、能力检测与取消。它尚未接入正式打轴页；`frontend/experiments/audio-probe.html` 仅用于开发验证，不属于生产入口。当前页面的音频占位保持不变。契约见 [audio README](../frontend/src/media/audio/README.md)，实测范围及大文件限制见 [阶段 A 记录](experiments/local-audio.md)。
+2026-10-23 音频阶段 B–D 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值 / Hann STFT 分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、共享秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。Waveform / Spectrum 切换复用 PCM，不改变缩放、平移或播放头。边界拖动 / 键盘只更新工作区的 changeTimeDraft，commitAndAdvance 统一校验、提交并选择下一条。阶段 A 的 `experiments/audio-probe.html`、生命周期探针只用于开发。契约见 [audio README](../frontend/src/media/audio/README.md)，B–D 实测见 [时间轴记录](experiments/audio-timeline.md)，大文件边界见 [A 记录](experiments/local-audio.md)。
+
+显示模式由 EditorWorkbench 显式持有，默认 Spectrum；切换按钮暂放顶栏 ASS 操作旁，本次合并继续保留这一入口，显示偏好持久化留待独立产品任务。AudioTimeline 接收 mode，不拥有偏好持久化。原音频工具栏已移除，空间交给画布；普通滚轮平移、Shift+滚轮以指针为锚缩放（兼容浏览器将 Shift 滚轮改为水平 delta 的情况）。
+
+红色播放头支持拖动定位：AudioTimeline 在现有 pointer capture 中区分 pan / seek，复用既有 AudioViewport、timeAtX 和 onSeek；不直接持有或改写视频播放状态。定位拖动期间冻结视窗，字幕边界重叠时保留编辑优先级；边缘判断允许媒体定位的微秒舍入，契约见时间轴 README。
+
+Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBoundaryChange → changeTimeDraft 更新现有草稿，吸附 10ms。只在文档就绪、canEdit 通过、工作区可见、快捷键未暂停且无转换 / 待确认导入时提供回调；G / Enter 调用 commitAndAdvance。图内点击定时不 seek 视频，标尺和 Waveform 单击定位、播放头 / 边界拖动及左键拖动平移继续保留。标尺高度由 draw-ruler 导出的常量与绘制共用，没有新增时间状态或字幕副本。
+
+`workspace-ui/cue-defaults.ts` 在本地工作区加载或导入无行 ASS 时补一条 0–2 秒空文本字幕并选中，样式为文档第一项；已有行不改动。默认 2000ms 常量与连续打轴共用，后端空文档接口保持原样。EditorWorkbench 的 hasEdits 仅在真实时间草稿、文本 / 样式编辑、提交或删除时设为 true；未修改的默认行不触发离页 / 导入替换确认，导入标记仍受保护。删空不会强制重新插入，刷新后才重新初始化。
+
+空文档的时间草稿也传给 AudioTimeline，不再以已有选中行作为绘制入 / 出点的前提；删空后的 0 / 0 草稿可保留，只有提交才校验区间。工作区同时显式传入只读 cues；`AudioCueIntervals.tsx` 显示视窗内其他行的橙色入点 / 紫色出点虚线和底线，不持有历史副本、没有点击 / 拖动命中区。`cue-intervals.intervalPosition` / xAtTime 同时投影 Canvas 区间裁剪与 DOM 边界，裁剪处不生成假端点。当前行保留橙 / 紫可编辑实线与文字；BoundaryCaps 为两类边界提供共用的上下朝内三角，不增加命中区。`viewport.revealInterval` 仅在所选区间超出视窗时移动视窗，连续提交到已可见的下一条不会挤走前文。
+
+边界拖动按鼠标键区分：入点左键，出点右键；出点不拦截左键，因此共享时间点可直接左击设置下一条的入点草稿。边界的右键菜单只阻止默认菜单，不重复设置时间；两种拖动都沿用原草稿与校验。
+
+连续打轴由 `workspace-ui/commit-timing.ts` 纯函数负责：校验当前时间草稿、写回当前行，选择已有下一行；末尾才新增空文本行，起点等于本次出点、时长 2000ms、样式继承当前行。“创建新行”和“循环试听 / 提交并下一条”按钮行均已移除，保留 G / Enter 提交。页面默认行直接作为当前行写回；删除所有行后再从空草稿提交仍可创建当前行和下一条。非空文档未选择行时要求先选择，不隐式覆盖或追加。`cue-order.ts` 是 CueTable 与提交导航共同的时间排序规则，下一条取自提交前显示顺序，原始 ASS 事件数组顺序保持。新增行不会按视频时长截断；若超出既有 10 小时支持范围则整次操作拒绝，保留草稿与文档。测试见 cue-defaults / commit-timing 与 `browser-tests/commit-timing-checks.mjs`。
+
+Ctrl / Cmd + Delete（也接受 Backspace）经同一个 timingShortcut 分派为 delete-row；只对这一命令允许单个 Ctrl 或 Meta 修饰键，输入框 / IME / 重复保护复用 allowsShortcutFocus；可配置动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `delete-cue.ts`，删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 delete-cue / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
+
+时间轴顶部标尺复现 Aegisub 3.2.2 的八档刻度和时间前缀省略：`ruler.ts` 计算可见绝对时间刻度 / 测量避让，`draw-ruler.ts` 在既有 canvas 顶部绘制；`viewport.xAtTime` 统一标尺、频谱与覆盖线坐标。没有第二套视窗或滚动状态，缩放锚点和编辑交互继续由 AudioTimeline 持有。精确契约与测试入口见 [时间轴 README](../frontend/src/workspace-ui/audio-timeline/README.md#aegisub-标尺契约)。
+
+频谱显示沿用提取 / Hann STFT 和共享坐标，采用线性 0..Nyquist 与固定 -80..0dBFS 峰值幅度标度。`media/audio/spectrum.ts` 唯一拥有频带 / 能量契约；UI 的 `spectrum-pixels.ts` 负责峰值保留的纵向重采样与 normal / inactive / active 色表。normal 保留黑蓝青白；后两者参考 Aegisub Icy Blue HSL 参数，直接映射同一能量，而非叠加透明蓝色。draw-audio 先 normal，再按其他行联合区域重绘 inactive，最后当前时间草稿 active，重叠不累加；更改区间触发重绘，不触发分析 / 解码。draw-spectrum 的组件级 WeakMap 为每个 tile / 色表缓存一张目标物理高度图像，按需处理相交区域，DPR 变化时重建。波形共用区间背景，峰值绘制不变。深色样式限定音频区域；不更改全站主题、播放和字幕编辑入口。调查与验证见 [频谱显示记录](experiments/spectrum-display.md) 和 [区间配色记录](experiments/interval-rendering.md)。
 
 运行和全部验证命令见 [README](../README.md)。当前已有账号/组织数据库、迁移和 Session 认证；已有项目快照存储，尚无 WebSocket 或实时协作。
 
@@ -25,13 +45,13 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
 - `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。
-- `shared/timing-shortcuts.json` 唯一声明默认打轴键位，`workspace-ui/timing-shortcuts.ts` 负责有效覆盖、精确修饰键匹配及校验：G / Enter 提交，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `applyTimes`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，原有按钮及提示保持不变。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`watchPlaybackRange` 共用现有播放器观察单次停止与循环回绕，EditorWorkbench 只保留一个带 repeat 标记的试听状态，切换或结束时清理旧观察器。循环按钮仍保留原有超时长校验。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
-- `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
+- `shared/timing-shortcuts.json` 唯一声明可配置默认键位，`workspace-ui/timing-shortcuts.ts` 负责个人覆盖和固定删行组合键；默认 G / Enter 提交并下一条，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `commitAndAdvance`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，过时提示及时间采集 / 微调按钮已移除。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`watchPlaybackRange` 共用现有播放器观察区间，EditorWorkbench 只保留一个单次试听状态，切换或结束时清理旧观察器。循环按钮及其不可达的 startLoop 编排已移除，底层公共区间播放接口未改动。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
+- `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构输入控件，仅接收值与 onChange，区间状态和校验仍由 EditorWorkbench 编排；两组“当前时间 / −10ms / +10ms”按钮及其采集 / 微调回调已移除，边界滑块仍支持方向键微调。EditorWorkbench 的 main 只在鼠标点击普通按钮后接收焦点（tabIndex=-1、preventScroll），避免 Enter / Space 再次激活刚点击的按钮；键盘 / Tab 激活继续保留按钮原生行为，边界 role=slider 不转移焦点。AudioTimeline 左 / 右键操作显式聚焦 stage，右键设置出点不再遗留输入框焦点。`allowsShortcutFocus` 允许 slider 上的 Enter / Space，保留输入框 / 视频控件 / IME、修饰键、重复及 defaultPrevented 过滤；普通键盘焦点按钮 / 链接仍保留原生激活。回归见 `browser-tests/shortcut-focus-checks.mjs`。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
 - `workspace-ui/ResizableWorkbench.tsx` 拥有桌面分栏比例、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
 - `workspace-ui/workbench-sizing.ts` 唯一负责宽度边界：媒体栏最低 300px、编辑栏最低 480px，视频最大宽度由上方区域可用高度和 16:9 决定，避免继续扩宽后视频大小不再变化。空间不足时以保留编辑区为先。CSS 的 `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试。
-- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频预留区和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频区域仅是明确标注的占位，没有识别或波形数据。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
+- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频时间轴和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、频谱、0.5–60 秒视窗、滚轮平移 / Shift+滚轮缩放 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
 - `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 44px 给导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
-- 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间循环所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
+- 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
 当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui}`，`project-ui/workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
@@ -181,3 +201,9 @@ Alpha 期间保留项目全部业务历史与成功命令回执，不截断审�
 测试分层为纯格式/状态测试、PostgreSQL 事务竞争测试、HTTP/WS 契约与故障注入、浏览器端到端测试、真实用户打轴验收。按 [不变量](invariants.md) 建立测试索引，按 [里程碑](milestones.md) 把实时协作放到早期可测切片。所有数据修改入口都应被同一组业务测试覆盖，不为每种传输重复实现规则。
 
 首个切片已建立格式 / HTTP 契约 / 时间与快捷键测试，执行结果见实验记录；当前只检查实际模块的依赖方向，未来协作事务和恢复验证尚未执行。每个任务更新涉及的公共接口与架构说明，只在出现实际职责分离需求时提取新模块。
+
+## main / audio 集成约束
+
+2026-10-23：用户选择 audio 精简打轴工作流（提交并下一行、末行续行，移除旧采集/微调/循环/创建按钮）。保留 main 的账号/组织、个人快捷键和项目保存契约。固定 Ctrl/Cmd+Delete/Backspace 删行不进入个人设置覆盖表；shared 默认 commit 标签与实际行为一致。时间轴边界与提交/删除统一受 canEdit 保护，账号弹窗、隐藏或未验证片源时不能通过新交互修改草稿/字幕。
+
+EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 WorkbenchHandle.hasContent：忙碌、待确认导入、媒体、项目、成功导入和用户编辑均受保护；未修改的自动默认首行不触发保护。默认首行只用于本地空文档/空 ASS 导入，打开项目不隐式改写已保存快照。集成状态与验证见 [执行记录](plans/main-audio-integration.md)。
