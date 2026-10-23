@@ -5,6 +5,10 @@ import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './account-ui/Modal';
 import { MembersPanel } from './account-ui/MembersPanel';
 import { PersonalPanel } from './account-ui/PersonalPanel';
+import { ProjectsPanel } from './project-ui/ProjectsPanel';
+import { projectApi } from './project-data/projects-api';
+import type { ProjectDetail, ProjectSummary } from './contracts/projects';
+import type { AssDocument } from './contracts/subtitles';
 
 interface Transition { label: string; action: () => Promise<void> }
 
@@ -19,6 +23,8 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>({ shortcut_overrides: {} });
   const [settingsReady, setSettingsReady] = useState(false);
   const [generation, setGeneration] = useState(0);
+  const [view, setView] = useState<'projects' | 'workspace'>('projects');
+  const [workspace, setWorkspace] = useState<{ project?: ProjectDetail; initialMedia?: { file: File; sha256: string } } | null>(null);
   const [panel, setPanel] = useState<'login' | 'account' | 'members' | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
@@ -48,6 +54,7 @@ export default function App() {
     epoch.current++; expectUser(next.id);
     setUser(next); setOwner(next); ownerRef.current = next; setPanel(null); setMessage('');
     if (previous && previous.id !== next.id) {
+      setWorkspace(null); setView('projects');
       setGeneration(value => value + 1); setSettings({ shortcut_overrides: {} });
     }
     try { await loadContext(!previous || previous.id !== next.id); }
@@ -116,6 +123,7 @@ export default function App() {
     await api('/auth/logout', 'POST', {});
     epoch.current++;
     setUser(null); setOwner(null); ownerRef.current = null; expectUser(null);
+    setWorkspace(null); setView('projects');
     setSettings({ shortcut_overrides: {} }); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
   }
   const header = <div className="account-toolbar">
@@ -124,26 +132,81 @@ export default function App() {
       const id = Number(event.target.value);
       requestTransition('切换组织', async () => {
         await api(`/organizations/${id}`);
-        setOrganizationId(id); setGeneration(value => value + 1);
+        setOrganizationId(id); setWorkspace(null); setView('projects'); setGeneration(value => value + 1);
       });
     }}>
       {!organization && <option value={organizationId ?? ''}>{organizationId ? '原组织已不可访问' : '暂无组织'}</option>}
       {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {org.role || 'dev'}</option>)}
     </select>
+    <button disabled={!user} aria-pressed={view === 'projects'} onClick={() => setView('projects')}>项目</button>
+    {workspace && <button disabled={!user} aria-pressed={view === 'workspace'} onClick={() => setView('workspace')}>返回工作区</button>}
     {user ? <>
       {organization && <button onClick={() => setPanel('members')}>成员</button>}
       <button disabled={!settingsReady} onClick={() => setPanel('account')}>{user.display_name || user.username}{user.is_dev ? ' · dev' : ''}</button>
     </> : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason.message)); }}>重新登录</button>}
   </div>;
 
+  function openProject(project: ProjectSummary, video?: File, reload = false) {
+    if (!reload && workspace?.project?.id === project.id) {
+      setWorkspace(current => current?.project ? { ...current, project: { ...current.project, ...project } } : current);
+      setView('workspace'); return;
+    }
+    requestTransition(reload ? '重新加载项目' : '打开其他项目', async () => {
+      const detail = await projectApi(api, project.organization_id).get(project.id);
+      setWorkspace({ project: detail, ...(video ? { initialMedia: { file: video, sha256: detail.media.sha256 } } : {}) });
+      setGeneration(value => value + 1); setView('workspace');
+    });
+  }
+  function openLocal() {
+    if (workspace && !workspace.project) { setView('workspace'); return; }
+    requestTransition('进入本地工作区', async () => {
+      setWorkspace({}); setGeneration(value => value + 1); setView('workspace');
+    });
+  }
+  async function saveProject(document: AssDocument, revision: number) {
+    const project = workspace?.project;
+    if (!project) throw new Error('尚未打开项目。');
+    let summary: ProjectSummary;
+    try { summary = await projectApi(api, project.organization_id).save({ ...project, revision }, document); }
+    catch (reason) {
+      if ((reason as { code?: string }).code === 'project_archived') {
+        setWorkspace(current => current?.project?.id === project.id ? { ...current, project: { ...current.project, status: 'archived' } } : current);
+      }
+      throw reason;
+    }
+    setWorkspace(current => current?.project?.id === summary.id ? { ...current, project: { ...current.project, ...summary } } : current);
+    return summary;
+  }
+  useEffect(() => {
+    if (!workspace?.project || !user) return;
+    const current = workspace.project;
+    let active = true;
+    const check = () => {
+      void projectApi(api, current.organization_id).get(current.id).then(latest => {
+        // Observe archive state without adopting a revision or replacing local inputs.
+        if (active) setWorkspace(value => value?.project?.id === latest.id ? { ...value, project: { ...value.project, status: latest.status } } : value);
+      }).catch(reason => { if (active) setMessage(reason.message); });
+    };
+    const timer = window.setInterval(check, 30000);
+    window.addEventListener('focus', check);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); };
+  }, [workspace?.project?.id, user?.id, api]);
+
   if (initializing) return <div className="login-page"><p role="status">正在检查会话…</p></div>;
   return <>
-    {owner ? <EditorWorkbench key={generation} ref={workbench} header={header}
-      shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(panel || transition || !user || !settingsReady)} /> :
-      <div className="login-page"><h1>CueRelay</h1><p>内部账号由站点管理员创建。</p>
-        <LoginForm api={accountApi} onLogin={onLogin} /><button onClick={() => void observe()}>重新检查会话</button></div>}
+    {owner ? <>
+      {view === 'projects' && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
+        header={header} enabled={Boolean(user && settingsReady && !busy)} onOpen={openProject} onLocal={openLocal} onLifecycle={summary => setWorkspace(current => current?.project?.id === summary.id ? { ...current, project: { ...current.project, ...summary } } : current)} />}
+      {workspace && <div hidden={view !== 'workspace'}><EditorWorkbench key={generation} ref={workbench} header={view === 'workspace' ? header : null}
+        visible={view === 'workspace'} project={workspace.project} initialMedia={workspace.initialMedia}
+        readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user))}
+        onSave={workspace.project ? saveProject : undefined}
+        onReload={workspace.project ? () => openProject(workspace.project!, undefined, true) : undefined}
+        shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(view !== 'workspace' || panel || transition || !user || !settingsReady)} /></div>}
+    </> : <div className="login-page"><h1>CueRelay</h1><p>内部账号由站点管理员创建。</p>
+      <LoginForm api={accountApi} onLogin={onLogin} /></div>}
     {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}
-    {owner && user && organizations.length === 0 && <div className="session-notice">暂无组织。请联系 dev 或 organizer 添加成员；本地字幕尚未保存到服务器。</div>}
+    {owner && user && organizations.length === 0 && <div className="session-notice">暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</div>}
     {message && !transition && <div className="app-message" role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></div>}
     {owner && panel === 'login' && <Modal title="重新登录" onClose={() => setPanel(null)}>
       <LoginForm api={accountApi} onLogin={onLogin} expectedUsername={owner.username} />
@@ -160,7 +223,7 @@ export default function App() {
       <MembersPanel currentUserId={user.id} request={api} organization={organization} onChanged={() => void loadContext().catch(reason => setMessage(reason.message))} onLeave={() => {
         requestTransition('退出此组织', async () => {
           await api(`/organizations/${organization.id}/leave`, 'POST', {});
-          setOrganizationId(null); setGeneration(value => value + 1); await loadContext(true);
+          setOrganizationId(null); setWorkspace(null); setView('projects'); setGeneration(value => value + 1); await loadContext(true);
         }, true);
       }} />
     </Modal>}

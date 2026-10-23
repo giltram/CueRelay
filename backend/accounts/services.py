@@ -1,8 +1,10 @@
 """Public account/settings operations. No organization dependency."""
 from django.contrib.auth import update_session_auth_hash
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.views.decorators.debug import sensitive_variables
 from .models import User, PersonalSettings
 from .shortcuts import DEFAULTS, validate_overrides
 
@@ -23,7 +25,10 @@ def save_settings(user, overrides):
 
 
 @transaction.atomic
+@sensitive_variables()
 def change_password(request, old_password, new_password):
+    if max(len(old_password), len(new_password)) > settings.ACCOUNT_PASSWORD_MAX_LENGTH:
+        raise ValidationError('密码过长。')
     user = User.objects.select_for_update().get(pk=request.user.pk, is_active=True)
     if not user.check_password(old_password):
         raise ValidationError('旧密码不正确。')

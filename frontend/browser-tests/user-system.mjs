@@ -52,6 +52,7 @@ try {
   await login('browser-alice', 'wrong');
   await visible(page.getByText('用户名或密码不正确。', { exact: true }));
   await login();
+  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await visible(page.locator('video'));
   await wait(() => document.querySelector('#organization').selectedOptions[0].textContent.includes('organizer'));
   record('会话初始化、登录失败、登录后组织上下文');
@@ -89,7 +90,7 @@ try {
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
-  await page.reload(); await visible(page.locator('video')); await openSettings();
+  await page.reload(); await page.getByRole('button', { name: '本地工作区', exact: true }).click(); await visible(page.locator('video')); await openSettings();
   assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'Shift+KeyT');
   await close('个人设置');
   const orgs = await request('/organizations');
@@ -112,6 +113,7 @@ try {
   await close('个人设置');
   record('资料与改密、快捷键保存/恢复/刷新、跨组织共用、member 管理入口隐藏');
 
+  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(join(dir, 'local.mp4'));
   await wait(() => document.querySelector('video').readyState >= 1);
   // TimePointControl's label includes its input; use labels rather than internals.
@@ -196,6 +198,7 @@ try {
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(orgA.id));
   await dialog('切换组织').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await hidden(dialog('切换组织'));
+  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:01.00');
   await page.getByRole('button', { name: '创建新行 [N]', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('会话保护稿件');
@@ -216,6 +219,7 @@ try {
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '会话保护稿件');
   await dialog('切换到账号 browser-bob').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await hidden(dialog('切换到账号 browser-bob'));
+  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await wait(() => document.querySelector('textarea').value === '');
   await page.getByRole('button', { name: '测试乙', exact: true }).click();
   assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
@@ -226,7 +230,7 @@ try {
   await page.getByRole('button', { name: '测试乙', exact: true }).click();
   await page.getByRole('button', { name: '退出账号', exact: true }).click();
   await login('browser-empty');
-  await visible(page.getByText('暂无组织。请联系 dev 或 organizer 添加成员；本地字幕尚未保存到服务器。', { exact: true }));
+  await visible(page.getByText('暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。', { exact: true }));
   record('无组织空状态');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: browser.version(), checks, errors, artifacts: dir }, null, 2));

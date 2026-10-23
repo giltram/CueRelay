@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
+import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
 import { auditionRange, formatTime, parseTime, seekVideo, snapTime, validateInterval, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
@@ -17,10 +18,16 @@ interface Props {
   header?: ReactNode;
   shortcutsPaused?: boolean;
   shortcutOverrides?: ShortcutOverrides;
+  project?: ProjectDetail;
+  initialMedia?: { file: File; sha256: string };
+  readOnly?: boolean;
+  visible?: boolean;
+  onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
+  onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcutOverrides = {} }: Props) {
-  const [document, setDocument] = useState<AssDocument | null>(null);
+export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcutOverrides = {}, project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
+  const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -32,11 +39,20 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
+  const [savedRevision, setSavedRevision] = useState(project?.revision ?? 0);
+  const [savedDocument, setSavedDocument] = useState(project?.document);
+  const [mediaVerified, setMediaVerified] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  useEffect(() => { setSaveMessage(''); }, [document]);
+  const canEdit = !readOnly && (!project || mediaVerified);
+  const onVerifiedChange = useCallback((value: boolean) => setMediaVerified(value), []);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const composing = useRef(false);
+  useEffect(() => { if (!visible) { video?.pause(); setAudition(null); } }, [visible, video]);
   const selected = document?.cues.find(cue => cue.id === selectedId);
 
   useEffect(() => {
+    if (project) return;
     let active = true;
     loadEmptyDocument().then(value => { if (active) setDocument(value); })
       .catch(() => { if (active) setError('无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
@@ -86,6 +102,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
   }
 
   function createCue() {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document) throw new Error('ASS 服务尚未就绪');
     const { start, end } = selectedTimes(parseTime(startText), parseTime(endText));
     const cue: Cue = { id: `new-${crypto.randomUUID()}`, start_ms: start, end_ms: end, text: '', style: document.styles[0] };
@@ -94,6 +111,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
   }
 
   function updateCue(patch: Partial<Cue>) {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document || !selected) throw new Error('请先选择一条字幕行');
     setDocument({ ...document, cues: document.cues.map(cue => cue.id === selected.id ? { ...cue, ...patch } : cue) });
   }
@@ -144,7 +162,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     const keydown = (event: KeyboardEvent) => {
       if (busy || pendingImport || shortcutsPaused) return;
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides);
-      if (!shortcut) return;
+      if (!shortcut || (shortcut === 'commit' && !canEdit)) return;
       event.preventDefault();
       run(shortcut === 'commit' ? applyTimes : () => playTiming(shortcut));
     };
@@ -174,6 +192,16 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
     finally { setBusy(false); }
   }
 
+  async function saveProject() {
+    if (!document || !onSave || !canEdit) return;
+    setBusy(true); setSaveMessage('');
+    try {
+      const result = await onSave(document, savedRevision);
+      setSavedRevision(result.revision); setSavedDocument(document);
+      setSaveMessage('项目已保存。尚未应用的时间输入不包含在本次保存中。');
+    } finally { setBusy(false); }
+  }
+
   async function exportDraft() {
     if (!document) throw new Error('ASS 服务尚未就绪');
     downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass');
@@ -187,8 +215,13 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
         <h1>CueRelay</h1>
         {header}
         <div className="file-actions" aria-label="字幕文件操作">
+          {project && <>
+            <span className="workspace-project-name">{project.name}{readOnly ? ' · 已归档，只读' : ''}</span>
+            <button onClick={onReload} disabled={busy}>重新加载项目</button>
+            {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
+          </>}
           {busy && <span role="status">正在转换…</span>}
-          <label className="file-picker">
+          {!project && <label className="file-picker">
             导入 ASS
             <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
               const file = event.target.files?.[0];
@@ -198,7 +231,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
               }
               event.target.value = '';
             }} />
-          </label>
+          </label>}
           <button className="primary" disabled={busy || !document} onClick={() => run(async () => {
             if (!document) return;
             setBusy(true);
@@ -208,6 +241,8 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
         </div>
       </header>
 
+      {project && <p className="project-workspace-status" role="status">{readOnly ? '已归档项目仅可查看和导出。' : !mediaVerified ? '请选择与项目基准一致的本地视频；完整校验通过后可编辑和保存。' : document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。'}</p>}
+      {saveMessage && <p role="status">{saveMessage}</p>}
       {pendingImport && (
         <div role="alert" className="confirm">
           <p>导入「{pendingImport.name}」将替换当前字幕，请先导出需要的修改。</p>
@@ -221,7 +256,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
       {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
 
       <ResizableWorkbench media={
-          <LocalVideoPlayer onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
+          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
             <button className="playback-button" aria-label="播放 / 暂停" title="播放 / 暂停（空格）"
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -237,7 +272,7 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
             <span>音频分析与识别功能尚未接入</span>
           </section>
           <section className="cue-editor" aria-label="字幕编辑">
-            <fieldset disabled={busy || !document}>
+            <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">字幕编辑</legend>
               <div className="editor-heading">
                 <div className="cue-options">

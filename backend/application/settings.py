@@ -15,11 +15,12 @@ AUTH_USER_MODEL = 'accounts.User'
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-    'rest_framework', 'accounts', 'organizations', 'application.apps.ApplicationConfig',
+    'rest_framework', 'accounts', 'organizations', 'projects', 'application.apps.ApplicationConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.common.CommonMiddleware', 'http_api.auth_security.AuthenticationSecurityMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware',
 ]
 DATABASES = {'default': {
@@ -47,9 +48,23 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_FAILURE_VIEW = 'http_api.identity_views.csrf_failure'
 CSRF_TRUSTED_ORIGINS = [v for v in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if v]
+# All password login entry points must pass the first backend. The second path
+# stays configured so sessions created before this change still resolve users.
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.AccountBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+LOGIN_COOLOFF_SECONDS = 5 * 60
+# Fits two 1024-character passwords even with escaped non-BMP JSON characters.
+AUTH_REQUEST_MAX_BYTES = 32 * 1024
+ACCOUNT_PASSWORD_MAX_LENGTH = 1024
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'accounts.password_validation.MaximumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+     'OPTIONS': {'user_attributes': ['username', 'first_name', 'last_name', 'email', 'display_name']}},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 15}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]

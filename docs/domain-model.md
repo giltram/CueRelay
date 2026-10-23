@@ -4,7 +4,7 @@
 
 ## 1. 聚合边界与实体职责
 
-当前已实现的身份与组织边界见下表；项目实体及后续章节中的持久化、审核、租约均未实现。项目将来承担协作、时间基准、统一样式和持久变更顺序。P0 每项目一个视频基准、一份共享 ASS 文档。以下是业务概念，不表示每个概念都必须独立建表。
+当前已实现身份、组织和项目快照边界；后续章节中的实时协作、行级持久化、审核、租约与历史事件均未实现。项目当前承担固定时间基准、ASS 模板和显式保存的整文档快照，完整契约见 [projects](projects.md)。P0 每项目一个视频基准、一份共享 ASS 文档。以下是业务概念，不表示每个概念都必须独立建表。
 
 | 概念 | 职责、关键数据与生命周期 |
 | --- | --- |
@@ -12,8 +12,8 @@
 | Organization（已实现） | name、created_at；dev 在 Admin 原子创建组织和初始活动 organizer |
 | OrganizationMembership（已实现） | 唯一 (organization,user)，role 仅 organizer/member；同账号多组织不同角色；组织至少一名活动 organizer |
 | PersonalSettings（已实现） | 与 User 一对一，快捷键覆盖和更新时间；账号共用，无 organization_id，无记录则使用共享默认配置 |
-| Project | 名称、active/archived、不可变媒体基准、`project_seq`、`style_revision`；创建→协作→归档。归档只读且使所有租约失效，P0 不硬删除项目 |
-| 项目访问（未实现） | 本切片不建立 ProjectMembership 或工种能力集合；以后按届时确认的项目契约实现，不从旧设计推定细粒度权限 |
+| Project（快照切片已实现） | 组织、名称/说明、active/archived、不可变媒体基准、有限 ASS document JSON、revision、创建/更新/归档时间和操作者；显式保存、归档只读、可恢复，不硬删除。project_seq/style_revision/租约仍为未来设计 |
+| 项目访问（已实现） | 继承组织关系；member 查看并保存活动项目字幕，organizer 管理本组织元数据与生命周期，dev 管理所有组织；无 ProjectMembership 或工种权限集合 |
 | MediaManifest | Project 内的值对象：完整 SHA-256、文件大小、时间原点约定和必要时长/分辨率；时长等是诊断信息。首次发布后不可替换，不保存路径或媒体字节 |
 | ProjectStyle | 项目内稳定 ID、唯一 ASS 样式名、受支持的 v4+ 样式字段；行引用它。使用中的样式不可删除；P0 不改已引用样式名，允许改样式参数 |
 | SubtitleCue | 稳定 ID、项目、开始/结束、原始 ASS 文本、样式 ID、Layer/Name/Margins 等已知字段、事件顺序、`cue_version`、`submitted_version`、软删除标记；空轴→草稿→提交→审核，可反复修改 |
@@ -29,6 +29,7 @@ erDiagram
     User ||--o{ OrganizationMembership : joins
     Organization ||--|{ OrganizationMembership : authorizes
     User ||--o| PersonalSettings : configures
+    Organization ||--o{ Project : owns
     Project ||--o{ ProjectStyle : defines
     Project ||--o{ SubtitleCue : contains
     ProjectStyle ||--o{ SubtitleCue : styles
@@ -41,6 +42,8 @@ erDiagram
 MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外键布局在实现时再确定。Review/ChangeEvent 不因软删除而级联消失。ASS 注释事件不参与翻译、审核队列，但保留自身字段和事件次序。
 
 ## 2. 时间、标识与版本
+
+当前快照实现使用 revision：元数据/字幕/归档/恢复发生变化时单调加一，无变化不变；写入带当前版本，旧版本 409，不自动合并。Organization → Project 行锁下重新鉴权。下面 project_seq、cue_version、审核和历史规则为未来完整协作设计，不表示已有实现。
 
 - 项目创建是初始化事务：已认证创建者提交本地计算的媒体基准，服务器原子建立 Project、届时确认的创建者访问关系、默认样式及 seq=1 的创建事件/回执，style_revision 初始为 1；中途失败不暴露半个项目。之后所有项目操作遵循同一 Project 锁规则。
 - 时间是相对同一媒体时间原点的非负整数毫秒；P0 持久值须为 10ms 的整数倍，对应 ASS 百分秒。界面捕获播放位置时明确吸附到此网格，若产生零长度则拒绝，不能悄悄拉长。`start < end`；允许行间重叠。超过报告时长先警告，不基于可能不准确的元数据截断内容。
@@ -60,7 +63,7 @@ MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外�
 
 组织角色不放在 User 或 Django Group。organizer 不能授予 dev、改站点管理字段、停用账号或管理其他组织。个人设置只属于本人账号；所有组织写入重查活动身份及目标组织权限，不能信任前端组织选择。
 
-降级、移除、退出和关联账号停用均必须在组织行锁下保留至少一名活动 organizer；完整锁顺序、Admin 边界与 API 契约见 [user-system](user-system.md)。组织样式管理将归 organizer，但本轮不实现样式库或项目级权限矩阵。当前本地字幕无云端组织归属；切组织不会上传或转移字幕。后续审核/租约章节只描述未来数据流，不改变本切片的固定角色决定。
+降级、移除、退出和关联账号停用均必须在组织行锁下保留至少一名活动 organizer；完整锁顺序、Admin 边界与 API 契约见 [user-system](user-system.md)。组织样式管理将归 organizer，但本轮不实现样式库或项目级权限矩阵。独立本地工作区仍无云端组织归属；显式创建的项目属于其组织，切组织不会上传或转移已有本地字幕。后续审核/租约章节只描述未来数据流，不改变本切片的固定角色决定。
 
 ## 4. 提交与审核的派生状态
 

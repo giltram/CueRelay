@@ -1,6 +1,6 @@
 # 用户、组织和个人设置
 
-状态：2026-10-23 已实现固定权限方案 A。当前只有本地字幕工作区；登录或切换组织均不代表字幕已保存、上传或归属某组织。项目持久化、组织样式库、实时协作、编辑锁和恢复机制不在本切片。
+状态：2026-10-23 已实现固定权限方案 A。账号切片后已接入 [项目面板和手动快照保存](projects.md)。登录或切换组织本身不代表本地稿件已保存或归属某项目；组织样式库、实时协作、编辑锁和恢复机制仍未实现。
 
 ## 身份与权限
 
@@ -31,7 +31,7 @@ Session 存 PostgreSQL，Cookie 为 HttpOnly、SameSite=Lax，默认 7 天；生
 
 Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿名登录。GET session 初始化 CSRF；登录旋转 CSRF，前端每次写请求读取当前 CSRF Cookie。敏感响应 no-store。改密校验旧密码并使用 Django update_session_auth_hash 保留当前会话；其他旧会话后续校验失效，停用账号也不能通过旧会话访问接口。
 
-登录错误统一 invalid_credentials；每 IP 每进程十分钟内允许十次失败，达到阈值返回 429；不使用转发头判断 IP。该限速使用进程内 Django cache，重启会清空、多 worker 不共享，是第一版基本限速的明确限制。
+登录普通错误为 invalid_credentials；API/Admin 共用 accounts.AccountBackend，账号 15 分钟内失败 5 次进入固定 5 分钟冷却，429 rate_limited 带 Retry-After。PostgreSQL 行锁覆盖校验与计数，多 worker 共享状态，冷却期间不执行密码哈希也不延长锁定。不存在的账号同样处理，不暴露是否存在。原进程内 IP 缓存已移除；IP 限速留待 nginx。密码设置/修改/重置统一为 15–1024 字符，保留 Django 弱密码、相似性和纯数字限制；既有短密码仍可登录。详见 [安全与部署说明](account-security.md)。
 
 | 接口 | 契约 |
 | --- | --- |
@@ -67,11 +67,11 @@ App 拥有账号/组织上下文，EditorWorkbench 暴露 hasContent/exportDraft
 
 同账号重新登录和普通会话刷新不改变编辑器 key。只有用户明确放弃后切换组织/账号，或退出并再次进入，才创建新工作区。有字幕、导入标记、时间输入、本地视频、转换中或待确认导入即要求处理；保护弹窗提供导出、取消、明确放弃。导出只含已应用字幕，弹窗明确提示先取消并应用需要保留的时间输入。导出不自动放弃，失败也保持当前稿件。
 
-另一标签页退出只使本页提示失效；另一标签页登录不同账号会进入明确的稿件处理步骤。前端会丢弃来自旧账号上下文的异步响应。组织切换只选择上下文，不自动上传、保存或转移字幕。
+另一标签页退出只使本页提示失效；另一标签页登录不同账号会进入明确的稿件处理步骤。前端会丢弃来自旧账号上下文的异步响应。组织切换选择项目上下文，不自动上传、保存或转移已有本地字幕。项目仅在用户显式新建并确认初始化、或点击保存项目后写入快照。
 
 ## 验证入口
 
-后端：`python manage.py test ass_format http_api organizations`，含真实 CSRF 客户端、Admin 写入及 PostgreSQL 多连接竞争测试。前端：`npm run typecheck`、`npm run test -- --run`、`npm run build`。
+后端：`python manage.py test accounts ass_format http_api organizations`，含真实 CSRF 客户端、Admin 写入、账号防护及 PostgreSQL 多连接竞争测试。前端：`npm run typecheck`、`npm run test -- --run`、`npm run build`。
 
 可执行 Chrome 浏览器测试：frontend/browser-tests/user-system.mjs。准备一个**新建的专用 cuerelay_browser PostgreSQL 数据库**，设置 PGDATABASE=cuerelay_browser、DJANGO_DEBUG=1、私有测试 DJANGO_SECRET_KEY、BROWSER_TEST_PASSWORD。在相同环境下运行 migrate，再从仓库根执行 `python backend/manage.py shell < backend/browser_tests/seed.py`（已有用户时拒绝播种）。启动该数据库的后端和 Vite，然后设置 USER_SYSTEM_URL 为 Vite 地址、BROWSER_TEST_PASSWORD 与播种一致，执行 `node frontend/browser-tests/user-system.mjs`。若使用不同端口，同步配置 Vite 代理与 Django 可信 CSRF Origin；不要中断其他实验进程。脚本创建合成视频、验证 UI/下载/DOM 实例保留并输出截图目录，需要本机 Chrome 与 FFmpeg。
 

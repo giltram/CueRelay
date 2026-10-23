@@ -1,13 +1,13 @@
 """Session JSON boundary. Django CSRF middleware protects anonymous writes too."""
-import hashlib
 import json
 from functools import wraps
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
-from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError, RequestDataTooBig
 from django.http import JsonResponse, HttpResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from accounts import services as accounts
 from organizations import services as organizations
 from organizations.models import Organization, OrganizationMembership as Membership
@@ -64,6 +64,10 @@ def payload(request, fields):
 def string(value, max_length=150):
     if not isinstance(value, str) or len(value) > max_length:
         raise ValidationError('字段类型或长度无效。')
+    try:
+        value.encode()
+    except UnicodeError:
+        raise ValidationError('字段编码无效。')
     return value
 
 
@@ -73,23 +77,15 @@ def session(request):
 
 
 @endpoint(['POST'], anonymous=True)
+@sensitive_post_parameters()
+@sensitive_variables()
 def sign_in(request):
     data = payload(request, ['username', 'password'])
     username = string(data['username'])
-    password = string(data['password'], 1024)
-    # Basic per-process IP limit; no user directory or username-specific feedback.
-    key = 'login:' + hashlib.sha256(request.META.get('REMOTE_ADDR', '').encode()).hexdigest()
-    if cache.get(key, 0) >= 10:
-        return error('rate_limited', '登录尝试过多，请十分钟后重试。', 429)
+    password = string(data['password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
     user = authenticate(request, username=username, password=password)
     if user is None:
-        cache.add(key, 0, 600)
-        try:
-            cache.incr(key)
-        except ValueError:
-            cache.set(key, 1, 600)
         return error('invalid_credentials', '用户名或密码不正确。', 401)
-    cache.delete(key)
     login(request, user)
     return {'user': accounts.safe_user(user), 'csrf_token': get_token(request)}
 
@@ -110,9 +106,12 @@ def me(request):
 
 
 @endpoint(['POST'])
+@sensitive_post_parameters()
+@sensitive_variables()
 def password(request):
     data = payload(request, ['old_password', 'new_password'])
-    accounts.change_password(request, string(data['old_password'], 1024), string(data['new_password'], 1024))
+    accounts.change_password(request, string(data['old_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH),
+                             string(data['new_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH))
     return {'csrf_token': get_token(request)}
 
 

@@ -1,6 +1,6 @@
 # CueRelay
 
-面向字幕组的字幕工具，开发中。目前包含本地视频/ASS 编辑、账号、多组织成员和个人快捷键；字幕仍在页面内存中，没有云端项目保存。
+面向字幕组的字幕工具，开发中。目前包含本地视频/ASS 编辑、账号、多组织成员、个人快捷键和项目面板。项目可手动保存字幕快照，本地工作区仍只保留页面内存。
 
 ## 环境与启动
 
@@ -29,6 +29,8 @@ python manage.py runserver 127.0.0.1:8000
 
 AUTH_USER_MODEL 已在首次迁移前设置。仓库此前无数据库配置/业务迁移；若自行已有数据库或 auth_user 数据，不要重置或直接切换用户表，先单独制定兼容数据迁移。
 
+账号安全：新密码为 15–1024 字符，既有短密码仍可登录；API/Admin 共用 PostgreSQL 账号失败限制（5 次/15 分钟，固定冷却 5 分钟），返回 429 和 Retry-After。升级需应用 accounts.0002_loginattempt 迁移并重启全部后端；每日运行 `python manage.py clear_login_attempts` 清理旧状态。无需新增依赖。单 IP 限速留待 nginx；生产环境未验收。入口、参数、库选型与部署操作见 [账号安全](docs/account-security.md)。
+
 另一个终端：
 
 ```sh
@@ -40,6 +42,14 @@ npm run dev
 打开 [本地工作区](http://127.0.0.1:5173/)。Vite 同源 /api 代理到 Django。新账号由 dev 在 [Django Admin](http://127.0.0.1:8000/admin/) 创建；创建组织时选择一个活动账号作为初始 organizer，二者同事务建立。成员管理在工作区顶栏；组织成员表在 Admin 只读，账号通过停用处理退出。is_staff 不等于 dev，dev 对应 is_superuser。不开放注册或邮件邀请。
 
 一个账号可加入多组织，组织内固定 organizer/member；个人设置跨组织共用。无组织也可操作本地字幕。切组织仅改变上下文；有字幕、时间输入或本地视频时必须导出、取消或明确放弃。会话失效原位登录，同账号登录后继续原稿；刷新/关闭页面仍会失去内存内容，请及时导出。导出仅包含已应用的时间修改。
+
+## 项目面板
+
+登录后默认进入项目列表，可查看「进行中」「过去项目」，按名称搜索和分页。organizer 管理本组织项目，dev 管理所有组织；member 可查看项目并保存字幕，不能改项目信息或归档/恢复。
+
+新建项目填写名称/说明，选择本地视频完成完整 SHA-256 校验，再选择空字幕或合法 ASS，最终确认后原子创建。视频不上传。打开后点击「保存项目」持久化已应用字幕，旧版本冲突会保留输入；归档只读。浏览列表保留当前工作区，切换或重新加载先处理本地稿件。
+
+升级运行 `python manage.py migrate` 和前端 `npm ci`，并重启后端。新增 projects.0001_initial 表与 @noble/hashes 2.0.1（MIT），既有音频依赖保留。没有实时协作或自动保存，保存不含尚未应用的时间输入。详细边界与浏览器测试入口见 [项目契约](docs/projects.md)。
 
 ## ASS 边界
 
@@ -55,7 +65,7 @@ npm run dev
 source .venv/bin/activate
 cd backend
 python manage.py check
-python manage.py test ass_format http_api organizations
+python manage.py test accounts ass_format http_api organizations projects
 ```
 
 ```sh

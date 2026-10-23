@@ -4,22 +4,26 @@
 
 Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D-R1](decisions/0001-initial-architecture.md#d-r1)。当前落地媒体 / ASS 本地工作区及固定方案 A 的用户/多组织/个人设置切片。下文完整项目协作结构仍是未来设计，不代表已实现。
 
-2026-10-23 已实现 [用户系统与固定权限方案 A](user-system.md)：PostgreSQL、自定义 User、Django Session/CSRF、多组织 organizer/member、个人快捷键及内存编辑保护。账号/组织尚不关联云端项目；验收见 [用户系统记录](experiments/user-system.md)。
+2026-10-23 已实现 [用户系统与固定权限方案 A](user-system.md)：PostgreSQL、自定义 User、Django Session/CSRF、多组织 organizer/member、个人快捷键及内存编辑保护。账号/组织切片后已增量接入 [项目面板](projects.md)：项目初始化、固定视频基准、归档和手动字幕快照保存；验收见 [用户系统记录](experiments/user-system.md)。
 
 ## 当前可运行入口
 
 2026-10-23 已完成音频可视化的**阶段 A 技术验证**：`frontend/src/media/audio/local-audio.ts` 是只依赖 Mediabunny 的本地 MP4 分段 PCM 叶子模块，提供 open / readRange / dispose、时间戳保留、能力检测与取消。它尚未接入正式打轴页；`frontend/experiments/audio-probe.html` 仅用于开发验证，不属于生产入口。当前页面的音频占位保持不变。契约见 [audio README](../frontend/src/media/audio/README.md)，实测范围及大文件限制见 [阶段 A 记录](experiments/local-audio.md)。
 
-运行和全部验证命令见 [README](../README.md)。当前已有账号/组织数据库、迁移和 Session 认证；尚无字幕项目存储或 WebSocket。
+运行和全部验证命令见 [README](../README.md)。当前已有账号/组织数据库、迁移和 Session 认证；已有项目快照存储，尚无 WebSocket 或实时协作。
 
 - `backend/manage.py`、`application/{settings,urls,asgi}.py`：Django/DRF 组合根，PostgreSQL 与环境配置，默认受保护接口；`application/admin.py` 显式注册 dev 专用 Admin，`identity_admin.py` 协调账号停用与组织约束。
-- `accounts`：AbstractUser + display_name、PersonalSettings、本人密码/设置服务，见 [局部契约](../backend/accounts/README.md)。不依赖 organizations。
+- `accounts`：AbstractUser + display_name、PersonalSettings、本人密码/设置服务；AccountBackend + LoginAttempt 以 PostgreSQL 行锁共享账号登录限制，统一密码验证器设置 15–1024 字符。见 [局部契约](../backend/accounts/README.md) 与 [安全/部署契约](account-security.md)。不依赖 organizations 或 HTTP。
 - `organizations`：Organization、OrganizationMembership、固定角色鉴权、成员写入与事务约束，见 [局部契约](../backend/organizations/README.md)。依赖 accounts 的公开 User 身份；目标用户锁在组织锁之前，多组织按 id 锁定，维护至少一名活动 organizer。
 - `http_api/identity_views.py`：Session/登录/退出/本人资料密码/设置、组织及成员 JSON 适配。Django CSRF 中间件保护匿名登录和全部写入；身份从 Session 获取，白名单拒绝未知字段。与纯格式公开接口分离。
+- `http_api/auth_security.py`：在 CSRF 前限制现有密码入口的请求体和 Admin 密码长度；将认证 backend 的重试秒数转换为 API/Admin 共用的 429 JSON/Retry-After。实际密码校验和账号计数只由 accounts 拥有，不再使用进程内 IP 缓存。
+- `projects`：组织项目生命周期、固定媒体基准、有限 ASS 快照、revision 冲突保护，写入锁操作者 User → Organization → Project；契约见 [projects README](../backend/projects/README.md)，HTTP 适配在 `http_api/project_views.py`。
+- `project-ui/{ProjectsPanel,ProjectForm}.tsx`：列表、搜索/分页、创建/管理界面。App 组合导航并保留隐藏工作区，项目保存/重载经明确接口，见 [project-ui README](../frontend/src/project-ui/README.md)。
+- `media/{file-hash,file-hash.worker,media-manifest}.ts`：本地完整 SHA-256 与可播放/时长检查，Worker 分块且可取消；不读账号/组织、不上传视频。
 - `shared/timing-shortcuts.json`：后端和前端共同读取的默认键位唯一来源，个人设置仅保存覆盖。
 - `ass_format`：纯格式公共入口 `parse_ass` / `serialize_ass` / `empty_document`，原始行锚点适配隔离 pysubs2 保留局限，见 [局部契约](../backend/ass_format/README.md)。
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
-- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui 编排 Session、组织、设置和弹窗，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
+- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。
 - `shared/timing-shortcuts.json` 唯一声明默认打轴键位，`workspace-ui/timing-shortcuts.ts` 负责有效覆盖、精确修饰键匹配及校验：G / Enter 提交，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `applyTimes`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，原有按钮及提示保持不变。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`watchPlaybackRange` 共用现有播放器观察单次停止与循环回绕，EditorWorkbench 只保留一个带 repeat 标记的试听状态，切换或结束时清理旧观察器。循环按钮仍保留原有超时长校验。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
 - `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构展示控件，仅接收值及操作回调，区间状态和校验仍由 EditorWorkbench 编排。字母快捷键允许从按钮焦点继续使用；空格 / Enter 不接管按钮、链接或展开项的原生激活，输入框 / 视频控件 / IME 仍整体过滤。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
@@ -29,7 +33,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 - `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 44px 给导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
 - 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间循环所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
-当前后端依赖是 `application → http_api → {accounts, organizations, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, workspace-ui}`，`workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
+当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui}`，`project-ui/workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
 ## 1. 阅读路径与文档所有权
 

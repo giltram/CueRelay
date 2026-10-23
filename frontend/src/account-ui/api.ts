@@ -6,7 +6,7 @@ export interface Settings { shortcut_overrides: Overrides }
 export class ApiError extends Error {
   constructor(public code: string, message: string) { super(message); }
 }
-export type AccountRequest = <T>(path: string, method?: string, body?: unknown) => Promise<T>;
+export type AccountRequest = import('../contracts/http').JsonRequest;
 export type AccountApi = ReturnType<typeof createAccountApi>;
 
 /** One explicit client per App; identity never lives in shared module state. */

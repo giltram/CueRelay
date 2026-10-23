@@ -29,8 +29,8 @@ export function PersonalPanel({ request: api, user, settings, onSettings, onUser
       await api('/auth/password', 'POST', { old_password: oldPassword, new_password: newPassword });
       setOldPassword(''); setNewPassword('');
     }); }}>
-      <label>旧密码<input type="password" autoComplete="current-password" value={oldPassword} required onChange={event => setOldPassword(event.target.value)} /></label>
-      <label>新密码<input type="password" autoComplete="new-password" value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
+      <label>旧密码<input type="password" autoComplete="current-password" maxLength={1024} value={oldPassword} required onChange={event => setOldPassword(event.target.value)} /></label>
+      <label>新密码<input type="password" autoComplete="new-password" placeholder="至少 15 个字符" minLength={15} maxLength={1024} value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
       <button disabled={busy}>修改密码</button>
     </form>
     <h2>快捷键</h2>

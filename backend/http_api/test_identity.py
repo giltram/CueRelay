@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
@@ -13,7 +12,6 @@ PASSWORD = 'test-only-long-password-927!'
 
 class IdentityTests(TestCase):
     def setUp(self):
-        cache.clear()
         self.user = User.objects.create_user('alice', password=PASSWORD, display_name='甲')
         self.other = User.objects.create_user('bob', password=PASSWORD)
         self.dev = User.objects.create_superuser('dev', password=PASSWORD)
