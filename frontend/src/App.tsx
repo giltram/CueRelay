@@ -215,12 +215,11 @@ export default function App() {
       <div className="controls"><span>{user.username}</span>
         {user.is_dev && <a href={import.meta.env.DEV ? 'http://127.0.0.1:8000/admin/' : '/admin/'} target="_blank" rel="noreferrer">Django Admin</a>}
         <button onClick={() => requestTransition('退出账号', exit)}>退出账号</button>
-        <button onClick={() => requestTransition('切换账号', exit)}>切换账号</button>
       </div>
-      <PersonalPanel request={api} key={user.id} user={user} settings={settings} onSettings={setSettings} onUser={next => { setUser(next); setOwner(next); }} />
+      <PersonalPanel request={api} key={user.id} user={user} settings={settings} onSettings={setSettings} />
     </Modal>}
     {user && organization && panel === 'members' && <Modal title="组织成员" onClose={() => setPanel(null)}>
-      <MembersPanel currentUserId={user.id} request={api} organization={organization} onChanged={() => void loadContext().catch(reason => setMessage(reason.message))} onLeave={() => {
+      <MembersPanel currentUserId={user.id} isDev={user.is_dev} request={api} organization={organization} onChanged={() => void loadContext().catch(reason => setMessage(reason.message))} onLeave={() => {
         requestTransition('退出此组织', async () => {
           await api(`/organizations/${organization.id}/leave`, 'POST', {});
           setOrganizationId(null); setWorkspace(null); setView('projects'); setGeneration(value => value + 1); await loadContext(true);

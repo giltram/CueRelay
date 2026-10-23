@@ -15,7 +15,9 @@
 
 Django 自带 auth、Admin、contenttypes、session 等表正常保留。dev 使用 is_superuser；is_staff 仅提供 Admin 登录资格，不授予组织权限。organizer/member 属于成员关系，同一账号可以在不同组织拥有不同角色，不使用全局 Group 映射组织角色。
 
-member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、调整角色、移除成员。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
+member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、提升 member、移除 member；不能移除或降级其他 organizer，避免先降级再移除的绕过。本人仍可降级或退出，但必须满足最后活动 organizer 约束。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织及 organizer，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
+
+显示名由 dev 在 Django Admin 维护；个人设置只读展示，不提供本人资料写接口。成员移除先显示账号和组织的确认框，取消不发送移除请求；移除自己沿用退出组织的确认及本地稿件保护流程。
 
 ## 配置与 Admin
 
@@ -29,7 +31,7 @@ member 查看本组织及成员、退出自己所在组织。organizer 还可改
 
 Session 存 PostgreSQL，Cookie 为 HttpOnly、SameSite=Lax，默认 7 天；生产 DEBUG=0 默认启用 Secure Cookie，开发 HTTP 需 DEBUG=1。SECRET_KEY 和连接信息只从环境读取，缺少密钥时拒绝启动。
 
-Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿名登录。GET session 初始化 CSRF；登录旋转 CSRF，前端每次写请求读取当前 CSRF Cookie。敏感响应 no-store。改密校验旧密码并使用 Django update_session_auth_hash 保留当前会话；其他旧会话后续校验失效，停用账号也不能通过旧会话访问接口。
+Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿名登录。GET session 初始化 CSRF；登录旋转 CSRF，前端每次写请求读取当前 CSRF Cookie。敏感响应 no-store。改密要求旧密码、新密码和确认新密码，前后端均校验两份新密码完全一致；失败保留输入，成功清空三项。使用 Django update_session_auth_hash 保留当前会话；其他旧会话后续校验失效，停用账号也不能通过旧会话访问接口。个人设置保留退出账号入口，已移除重复的切换账号按钮。
 
 登录普通错误为 invalid_credentials；API/Admin 共用 accounts.AccountBackend，账号 15 分钟内失败 5 次进入固定 5 分钟冷却，429 rate_limited 带 Retry-After。PostgreSQL 行锁覆盖校验与计数，多 worker 共享状态，冷却期间不执行密码哈希也不延长锁定。不存在的账号同样处理，不暴露是否存在。原进程内 IP 缓存已移除；IP 限速留待 nginx。密码设置/修改/重置统一为 15–1024 字符，保留 Django 弱密码、相似性和纯数字限制；既有短密码仍可登录。详见 [安全与部署说明](account-security.md)。
 
@@ -38,8 +40,8 @@ Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿�
 | GET /api/auth/session | 当前安全用户字段或 null，csrf_token；匿名可访问 |
 | POST /api/auth/login | username、password；安全用户字段与新 csrf_token |
 | POST /api/auth/logout | 空 JSON；不能 GET 退出 |
-| PATCH /api/auth/me | 仅 display_name |
-| POST /api/auth/password | old_password、new_password |
+| GET /api/auth/me | 只读安全用户字段；PATCH 返回 405 |
+| POST /api/auth/password | old_password、new_password、new_password_confirmation；确认值必须一致 |
 | GET /api/organizations | 当前可访问组织、该组织 role、can_manage |
 | GET/PATCH /api/organizations/{id} | 查看；PATCH 仅 name |
 | GET/POST /api/organizations/{id}/members | 查看；POST 仅准确 username |

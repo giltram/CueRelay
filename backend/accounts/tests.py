@@ -41,14 +41,14 @@ class PasswordPolicyTests(TestCase):
         self.assertEqual(self.post('/api/auth/login', {'username': 'alice', 'password': 'oldshort'}).status_code, 200)
         for old, new in [('wrong', PASSWORD), ('oldshort', PASSWORD[:-1]), ('oldshort', 'x' * 1025)]:
             with self.subTest(old=old, length=len(new)):
-                self.assertEqual(self.post('/api/auth/password', {'old_password': old, 'new_password': new}).status_code, 400)
+                self.assertEqual(self.post('/api/auth/password', {'old_password': old, 'new_password': new, 'new_password_confirmation': new}).status_code, 400)
                 self.user.refresh_from_db()
                 self.assertTrue(self.user.check_password('oldshort'))
-        self.assertEqual(self.post('/api/auth/password', {'old_password': 'oldshort', 'new_password': PASSWORD}).status_code, 200)
+        self.assertEqual(self.post('/api/auth/password', {'old_password': 'oldshort', 'new_password': PASSWORD, 'new_password_confirmation': PASSWORD}).status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(PASSWORD))
         self.assertEqual(self.client.get('/api/auth/session').json()['user']['id'], self.user.pk)
-        self.assertEqual(self.post('/api/auth/password', {'old_password': PASSWORD, 'new_password': 'x' * 1024}).status_code, 200)
+        self.assertEqual(self.post('/api/auth/password', {'old_password': PASSWORD, 'new_password': 'x' * 1024, 'new_password_confirmation': 'x' * 1024}).status_code, 200)
 
     def test_validators_preserve_weak_numeric_and_identity_checks(self):
         validate_password(PASSWORD, self.user)
@@ -97,7 +97,7 @@ class PasswordPolicyTests(TestCase):
             self.assertEqual(self.post('/api/auth/login', {'username': 'alice', 'password': 'x' * 1025}).status_code, 400)
             self.assertEqual(self.post('/admin/login/', {'username': 'alice', 'password': 'x' * 1025}, json=False).status_code, 400)
             for path, kind in [('/api/auth/login', 'application/json'), ('/api/auth/password', 'application/json'), ('/admin/login/', 'application/x-www-form-urlencoded')]:
-                response = self.client.post(path, 'x' * 32769, content_type=kind)
+                response = self.client.post(path, 'x' * 49153, content_type=kind)
                 self.assertEqual(response.status_code, 413)
             check.assert_not_called()
 
@@ -107,7 +107,7 @@ class PasswordPolicyTests(TestCase):
         self.user.set_password(password)
         self.user.save(update_fields=['password'])
         self.client.force_login(self.user)
-        response = self.post('/api/auth/password', {'old_password': password, 'new_password': '\U0001f333' * 1024})
+        response = self.post('/api/auth/password', {'old_password': password, 'new_password': '\U0001f333' * 1024, 'new_password_confirmation': '\U0001f333' * 1024})
         self.assertEqual(response.status_code, 200)
 
     def test_malformed_unicode_is_rejected_without_password_hashing(self):

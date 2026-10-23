@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
 from accounts.models import User, PersonalSettings
@@ -56,15 +56,29 @@ class IdentityTests(TestCase):
             self.send('/auth/login', {'username': 'alice', 'password': 'wrong'})
         self.assertEqual(self.send('/auth/login', {'username': 'alice', 'password': PASSWORD}).status_code, 429)
 
-    def test_profile_password_and_other_session_invalidation(self):
+    def test_profile_is_read_only(self):
+        for actor in [self.user, self.other, self.dev]:
+            self.login(actor)
+            self.assertEqual(self.client.get('/api/auth/me').json()['user']['display_name'], actor.display_name)
+            self.assertEqual(self.send('/auth/me', {'display_name': '中文名'}, 'PATCH').status_code, 405)
+            actor.refresh_from_db()
+            self.assertNotEqual(actor.display_name, '中文名')
+
+    def test_password_confirmation_and_other_session_invalidation(self):
         self.login()
         other_client = Client(enforce_csrf_checks=True)
         other_client.get('/api/auth/session'); self.login(client=other_client)
-        self.assertEqual(self.send('/auth/me', {'display_name': '中文名'}, 'PATCH').status_code, 200)
-        self.assertEqual(self.send('/auth/me', {'display_name': 'x', 'is_superuser': True}, 'PATCH').status_code, 400)
         for values in [('bad', PASSWORD), (PASSWORD, '123')]:
-            self.assertEqual(self.send('/auth/password', dict(zip(['old_password', 'new_password'], values))).status_code, 400)
-        self.assertEqual(self.send('/auth/password', {'old_password': PASSWORD, 'new_password': PASSWORD + '-new'}).status_code, 200)
+            self.assertEqual(self.send('/auth/password', {'old_password': values[0], 'new_password': values[1], 'new_password_confirmation': values[1]}).status_code, 400)
+        for confirmation in [None, PASSWORD, 123, 'x' * 1025]:
+            data = {'old_password': PASSWORD, 'new_password': PASSWORD + '-new'}
+            if confirmation is not None:
+                data['new_password_confirmation'] = confirmation
+            self.assertEqual(self.send('/auth/password', data).status_code, 400)
+            self.user.refresh_from_db()
+            self.assertTrue(self.user.check_password(PASSWORD))
+            self.assertEqual(other_client.get('/api/auth/session').json()['user']['id'], self.user.pk)
+        self.assertEqual(self.send('/auth/password', {'old_password': PASSWORD, 'new_password': PASSWORD + '-new', 'new_password_confirmation': PASSWORD + '-new'}).status_code, 200)
         self.assertEqual(self.client.get('/api/auth/session').json()['user']['id'], self.user.pk)
         self.assertIsNone(other_client.get('/api/auth/session').json()['user'])
         # Missing CSRF is rejected even for already authenticated profile/password writes.
@@ -120,6 +134,28 @@ class IdentityTests(TestCase):
         self.assertFalse(Membership.objects.filter(user=self.dev).exists())
         self.assertEqual(self.send(f'/organizations/{a.pk}', {'name': 'dev renamed'}, 'PATCH').status_code, 200)
 
+    def test_organizers_cannot_remove_or_demote_each_other(self):
+        org = create_organization('peers', self.user.pk)
+        peer = add_member(self.dev, org.pk, self.other.username)
+        change_member(self.user, org.pk, peer.pk, role='organizer')
+        first = org.memberships.get(user=self.user)
+        for actor, target in [(self.user, peer), (self.other, first)]:
+            self.login(actor)
+            for data, method in [({}, 'DELETE'), ({'role': 'member'}, 'PATCH')]:
+                self.assertEqual(self.send(f'/organizations/{org.pk}/members/{target.pk}', data, method).status_code, 403)
+                target.refresh_from_db()
+                self.assertEqual(target.role, 'organizer')
+            with self.assertRaises(PermissionDenied):
+                change_member(actor, org.pk, target.pk)
+        # Leaving oneself remains supported; the last organizer is still protected.
+        self.assertEqual(self.send(f'/organizations/{org.pk}/leave').status_code, 200)
+        self.assertFalse(Membership.objects.filter(pk=peer.pk).exists())
+        peer = add_member(self.dev, org.pk, self.other.username)
+        change_member(self.dev, org.pk, peer.pk, role='organizer')
+        self.login(self.dev)
+        self.assertEqual(self.send(f'/organizations/{org.pk}/members/{peer.pk}', {}, 'DELETE').status_code, 200)
+        self.assertEqual(self.send(f'/organizations/{org.pk}/members/{first.pk}', {}, 'DELETE').status_code, 400)
+
     def test_last_active_organizer_all_supported_entries(self):
         org = create_organization('A', self.user.pk)
         membership = org.memberships.get()
@@ -156,13 +192,13 @@ class IdentityTests(TestCase):
         empty = self.client.get('/api/ass/empty').json()['document']
         self.assertEqual(self.client.post('/api/ass/export', {'document': empty}, content_type='application/json').status_code, 200)
 
-    def test_other_tab_account_switch_cannot_write_wrong_profile(self):
+    def test_other_tab_account_switch_cannot_write_wrong_settings(self):
         self.login(self.other)
-        response = self.client.patch('/api/auth/me', {'display_name': 'wrong-owner'}, content_type='application/json',
+        response = self.client.patch('/api/me/settings', {'shortcut_overrides': {'commit': []}}, content_type='application/json',
             HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value, HTTP_X_CUERELAY_USER=str(self.user.pk))
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()['error']['code'], 'account_changed')
-        self.other.refresh_from_db(); self.assertEqual(self.other.display_name, '')
+        self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
 
 
     def test_admin_creation_and_member_table_are_guarded(self):

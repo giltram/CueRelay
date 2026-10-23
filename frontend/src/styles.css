@@ -197,6 +197,8 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .login-page { display: flex; flex-direction: column; gap: 16px; max-width: 400px; margin: 12vh auto; padding: 24px; }
 .account-form { display: flex; flex-direction: column; gap: 12px; }
 .account-form form { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.member-form { display: grid; grid-template-columns: minmax(0, 1fr) 104px; align-items: end; gap: 8px; }
+.member-form input, .member-form button { height: 40px; }
 .account-dialog { width: min(720px, calc(100vw - 24px)); max-height: 85dvh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 20px; color: inherit; background: var(--surface); }
 .account-dialog::backdrop { background: rgb(23 35 31 / 35%); }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }

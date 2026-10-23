@@ -57,8 +57,8 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_FAILURE_LIMIT = 5
 LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
 LOGIN_COOLOFF_SECONDS = 5 * 60
-# Fits two 1024-character passwords even with escaped non-BMP JSON characters.
-AUTH_REQUEST_MAX_BYTES = 32 * 1024
+# Fits old/new/confirmation passwords even with escaped non-BMP JSON characters.
+AUTH_REQUEST_MAX_BYTES = 48 * 1024
 ACCOUNT_PASSWORD_MAX_LENGTH = 1024
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'accounts.password_validation.MaximumLengthValidator'},

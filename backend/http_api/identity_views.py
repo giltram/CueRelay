@@ -97,11 +97,8 @@ def sign_out(request):
     return {'user': None, 'csrf_token': get_token(request)}
 
 
-@endpoint(['PATCH'])
+@endpoint(['GET'])
 def me(request):
-    data = payload(request, ['display_name'])
-    request.user.display_name = string(data['display_name'], 80).strip()
-    request.user.save(update_fields=['display_name'])
     return {'user': accounts.safe_user(request.user)}
 
 
@@ -109,9 +106,13 @@ def me(request):
 @sensitive_post_parameters()
 @sensitive_variables()
 def password(request):
-    data = payload(request, ['old_password', 'new_password'])
+    data = payload(request, ['old_password', 'new_password', 'new_password_confirmation'])
+    new_password = string(data['new_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
+    confirmation = string(data['new_password_confirmation'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
+    if new_password != confirmation:
+        raise ValidationError('两次输入的新密码不一致。')
     accounts.change_password(request, string(data['old_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH),
-                             string(data['new_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH))
+                             new_password)
     return {'csrf_token': get_token(request)}
 
 

@@ -27,10 +27,10 @@ const login = async (username = 'browser-alice', pwd = password, target = page) 
   await target.getByLabel('密码', { exact: true }).fill(pwd);
   await target.getByRole('button', { name: '登录', exact: true }).click();
 };
-async function request(path, method = 'GET', data) {
-  await context.request.get('/api/auth/session');
-  const token = (await context.cookies()).find(cookie => cookie.name === 'csrftoken').value;
-  const response = await context.request.fetch('/api' + path, { method, data, headers: { 'X-CSRFToken': token } });
+async function request(path, method = 'GET', data, target = context) {
+  await target.request.get('/api/auth/session');
+  const token = (await target.cookies()).find(cookie => cookie.name === 'csrftoken').value;
+  const response = await target.request.fetch('/api' + path, { method, data, headers: { 'X-CSRFToken': token } });
   assert(response.ok(), `${method} ${path}: ${await response.text()}`);
   return response.json();
 }
@@ -61,29 +61,69 @@ try {
   await visible(page.getByLabel('browser-alice角色'));
   await page.getByLabel('browser-alice角色').selectOption('member');
   await visible(page.getByText('组织必须至少保留一名活动 organizer。', { exact: true }));
-  await page.getByLabel('准确用户名').fill('browser-empty');
-  await page.getByRole('button', { name: '添加已有账号' }).click();
+  for (const width of [1360, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [label, button] of [['组织名称', '保存名称'], ['添加成员', '添加']]) {
+      const inputBounds = await page.getByLabel(label, { exact: true }).boundingBox();
+      const buttonBounds = await page.getByRole('button', { name: button, exact: true }).boundingBox();
+      assert(Math.abs(inputBounds.y - buttonBounds.y) <= 1);
+      assert.equal(inputBounds.height, buttonBounds.height);
+    }
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: join(dir, `members-${width}.png`), fullPage: true });
+  }
+  await page.setViewportSize({ width: 1360, height: 900 });
+  assert.equal(await page.getByLabel('添加成员', { exact: true }).getAttribute('placeholder'), '请输入用户名');
+  await page.getByLabel('添加成员', { exact: true }).fill('browser-empty');
+  await page.getByRole('button', { name: '添加', exact: true }).click();
   await visible(page.getByLabel('browser-empty角色'));
   await page.getByLabel('browser-empty角色').selectOption('organizer');
-  await wait(() => document.querySelector('select[aria-label="browser-empty角色"]').value === 'organizer');
-  await page.getByLabel('browser-empty角色').selectOption('member');
+  await hidden(page.getByLabel('browser-empty角色'));
+  assert.equal(await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).count(), 0);
+  const organizationId = await page.getByLabel('当前组织', { exact: true }).inputValue();
+  const peer = (await request(`/organizations/${organizationId}/members`)).members.find(member => member.username === 'browser-empty');
+  const devContext = await browser.newContext({ baseURL });
+  try {
+    await request('/auth/login', 'POST', { username: 'browser-dev', password }, devContext);
+    await request(`/organizations/${organizationId}/members/${peer.id}`, 'PATCH', { role: 'member' }, devContext);
+  } finally { await devContext.close(); }
+  await close('组织成员');
+  await page.getByRole('button', { name: '成员', exact: true }).click();
+  await visible(page.getByLabel('browser-empty角色'));
   await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).click();
+  await visible(dialog('移除成员'));
+  await dialog('移除成员').getByRole('button', { name: '取消', exact: true }).click();
+  await visible(page.getByLabel('browser-empty角色'));
+  await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).click();
+  await dialog('移除成员').getByRole('button', { name: '确认移除', exact: true }).click();
   await hidden(page.getByLabel('browser-empty角色'));
   await close('组织成员');
-  record('成员添加、角色调整、移除、最后 organizer 保护');
+  record('成员表单桌面/窄屏对齐、添加、organizer 同级保护、移除确认/取消、最后 organizer 保护');
 
   await openSettings();
-  await page.getByRole('button', { name: '保存资料', exact: true }).click();
-  await visible(page.getByText('已保存', { exact: true }));
+  assert(await page.getByLabel('显示名', { exact: true }).evaluate(input => input.readOnly));
+  assert.equal(await page.getByRole('button', { name: '保存资料', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '切换账号', exact: true }).count(), 0);
+  await page.screenshot({ path: join(dir, 'personal-settings.png'), fullPage: true });
+  let passwordRequests = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/auth/password')) passwordRequests++; });
   await page.getByLabel('旧密码', { exact: true }).fill('wrong');
   await page.getByLabel('新密码', { exact: true }).fill(password + '-new');
+  await page.getByLabel('确认新密码', { exact: true }).fill(password + '-different');
+  await page.getByRole('button', { name: '修改密码', exact: true }).click();
+  await visible(page.getByText('两次输入的新密码不一致。', { exact: true }));
+  assert.equal(passwordRequests, 0);
+  assert.equal(await page.getByLabel('新密码', { exact: true }).inputValue(), password + '-new');
+  await page.getByLabel('确认新密码', { exact: true }).fill(password + '-new');
   await page.getByRole('button', { name: '修改密码', exact: true }).click();
   await visible(page.getByText('旧密码不正确。', { exact: true }));
   await page.getByLabel('旧密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '修改密码', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
+  for (const label of ['旧密码', '新密码', '确认新密码']) assert.equal(await page.getByLabel(label, { exact: true }).inputValue(), '');
   await page.getByLabel('旧密码', { exact: true }).fill(password + '-new');
   await page.getByLabel('新密码', { exact: true }).fill(password);
+  await page.getByLabel('确认新密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '修改密码', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await page.getByLabel('应用时间绑定').fill('Shift+KeyT');
@@ -98,7 +138,7 @@ try {
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(orgB.id));
   await page.getByRole('button', { name: '成员', exact: true }).click();
   await visible(dialog('组织成员'));
-  assert.equal(await page.getByLabel('准确用户名').count(), 0);
+  assert.equal(await page.getByLabel('添加成员', { exact: true }).count(), 0);
   assert.equal(await page.getByLabel('组织名称').count(), 0);
   await close('组织成员'); await openSettings();
   assert.equal(await page.getByLabel('应用时间绑定').inputValue(), 'Shift+KeyT');
@@ -111,7 +151,7 @@ try {
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
-  record('资料与改密、快捷键保存/恢复/刷新、跨组织共用、member 管理入口隐藏');
+  record('显示名只读/无切换账号、密码二次确认/错误/成功清空、快捷键保存/恢复/刷新、跨组织共用、member 管理入口隐藏');
 
   await page.getByRole('button', { name: '本地工作区', exact: true }).click();
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(join(dir, 'local.mp4'));

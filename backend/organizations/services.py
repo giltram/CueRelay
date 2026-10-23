@@ -69,8 +69,12 @@ def change_member(actor, organization_id, membership_id=None, *, role=None, leav
     target = query.get(user=actor) if leave else query.get(pk=membership_id)
     User.objects.select_for_update().get(pk=target.user_id)
     org = Organization.objects.select_for_update().get(pk=organization_id)
+    actor = User.objects.get(pk=actor.pk)
     require_access(actor, org, manage=not leave)
     target = Membership.objects.get(pk=target.pk, organization=org)
+    # Protect peers, including against demote-then-remove. Recheck under the org lock.
+    if not actor.is_superuser and target.role == 'organizer' and target.user_id != actor.pk:
+        raise PermissionDenied('organizer 不能移除或降级其他 organizer。')
     if role is None:
         target.delete()
     else:

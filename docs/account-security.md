@@ -34,7 +34,7 @@
 
 ## 输入和日志
 
-`http_api.auth_security.AuthenticationSecurityMiddleware` 在 CSRF 解析前，为 API 登录/改密、Admin 登录/本人改密/创建用户/成员重置限制请求体 32 KiB。该预算可容纳两份 1024 字符密码的 JSON surrogate 转义或表单编码。超限返回 413 too_large；密码字段超过 1024 返回 400，发生在哈希之前。通用请求体仍使用既有的 Django 3 MiB 限制，不改变 ASS 契约。
+`http_api.auth_security.AuthenticationSecurityMiddleware` 在 CSRF 解析前，为 API 登录/改密、Admin 登录/本人改密/创建用户/成员重置限制请求体 48 KiB。该预算可容纳旧密码、新密码及确认新密码三份 1024 字符密码的 JSON surrogate 转义或表单编码。超限返回 413 too_large；密码字段超过 1024 返回 400，发生在哈希之前。API 改密必须提交一致的 new_password / new_password_confirmation，缺失或不一致不写密码、不改变会话。通用请求体仍使用既有的 Django 3 MiB 限制，不改变 ASS 契约。
 
 accounts.security 日志只记录事件和账号摘要：login_limited 为 WARNING，login_failed/login_succeeded 为 INFO（启用该级别才输出）。不记录原始用户名、密码、请求体、认证头或完整凭证；不建立永久登录历史表。JSON 登录/改密函数及认证 backend 标记敏感变量，Admin 密码 POST 标记敏感字段。运维日志采集也不得额外开启请求体/凭证记录。
 

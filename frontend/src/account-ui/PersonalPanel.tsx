@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { type AccountRequest, type Settings, type User } from './api';
 import { bindingFor, shortcutDefaults, timingActions, validateOverrides, type ShortcutOverrides, type TimingShortcut } from '../workspace-ui/timing-shortcuts';
 
-export function PersonalPanel({ request: api, user, settings, onSettings, onUser }: {
+export function PersonalPanel({ request: api, user, settings, onSettings }: {
   request: AccountRequest;
-  user: User; settings: Settings; onSettings: (settings: Settings) => void; onUser: (user: User) => void;
+  user: User; settings: Settings; onSettings: (settings: Settings) => void;
 }) {
-  const [name, setName] = useState(user.display_name);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
   const [overrides, setOverrides] = useState<ShortcutOverrides>(settings.shortcut_overrides);
   const [recording, setRecording] = useState<TimingShortcut | null>(null);
   const [message, setMessage] = useState('');
@@ -19,18 +19,15 @@ export function PersonalPanel({ request: api, user, settings, onSettings, onUser
     finally { setBusy(false); }
   }
   return <div className="account-form">
+    <label>显示名<input value={user.display_name} readOnly /></label>
     <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
-      const result = await api<{ user: User }>('/auth/me', 'PATCH', { display_name: name }); onUser(result.user);
-    }); }}>
-      <label>显示名<input value={name} maxLength={80} onChange={event => setName(event.target.value)} /></label>
-      <button disabled={busy}>保存资料</button>
-    </form>
-    <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
-      await api('/auth/password', 'POST', { old_password: oldPassword, new_password: newPassword });
-      setOldPassword(''); setNewPassword('');
+      if (newPassword !== confirmation) throw new Error('两次输入的新密码不一致。');
+      await api('/auth/password', 'POST', { old_password: oldPassword, new_password: newPassword, new_password_confirmation: confirmation });
+      setOldPassword(''); setNewPassword(''); setConfirmation('');
     }); }}>
       <label>旧密码<input type="password" autoComplete="current-password" maxLength={1024} value={oldPassword} required onChange={event => setOldPassword(event.target.value)} /></label>
       <label>新密码<input type="password" autoComplete="new-password" placeholder="至少 15 个字符" minLength={15} maxLength={1024} value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
+      <label>确认新密码<input type="password" autoComplete="new-password" placeholder="再次输入新密码" minLength={15} maxLength={1024} value={confirmation} required onChange={event => setConfirmation(event.target.value)} /></label>
       <button disabled={busy}>修改密码</button>
     </form>
     <h2>快捷键</h2>

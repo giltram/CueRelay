@@ -13,7 +13,7 @@ describe('session API boundary', () => {
     client.expectUser(7);
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ user: { id: 7 } }) });
     vi.stubGlobal('fetch', fetch);
-    await client.request('/auth/me', 'PATCH', { display_name: '中文' });
+    await client.request('/me/settings', 'PATCH', { shortcut_overrides: {} });
     expect(fetch.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', cache: 'no-store',
       headers: { 'X-CSRFToken': 'rotated-token', 'X-CueRelay-User': '7' } });
   });
