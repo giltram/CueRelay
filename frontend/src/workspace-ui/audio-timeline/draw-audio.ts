@@ -1,29 +1,24 @@
 import type { AudioDisplayMode, AudioTile, SpectrumTile } from '../../media/audio/analysis-types';
-import { formatTime } from '../../media/playback';
-import { rulerStep, type AudioViewport } from './viewport';
+import type { AudioViewport } from './viewport';
 import { drawSpectrum } from './draw-spectrum';
+import { drawRuler } from './draw-ruler';
 
 export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode,
   spectrumImages: WeakMap<SpectrumTile, HTMLCanvasElement>) {
-  const width = canvas.clientWidth; const height = canvas.clientHeight;
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  // Preserve fractional CSS dimensions so canvas and percentage-based overlays agree.
+  const { width, height } = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.max(1, Math.round(width * ratio)); canvas.height = Math.max(1, Math.round(height * ratio));
   const context = canvas.getContext('2d');
-  if (!context || !view.span) return;
-  context.scale(ratio, ratio);
+  if (!context || !width || !height) return;
+  context.scale(canvas.width / width, canvas.height / height);
   context.fillStyle = '#f3f5f2'; context.fillRect(0, 0, width, height);
   const top = 22; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
-  if (mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages);
+  if (view.span && mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages);
   context.strokeStyle = '#dce3db'; context.lineWidth = 1;
   if (mode === 'waveform') { context.beginPath(); context.moveTo(0, mid); context.lineTo(width, mid); context.stroke(); }
   context.fillStyle = '#63756a'; context.font = '11px ui-monospace, monospace';
-  const step = rulerStep(view.span);
-  for (let time = Math.ceil(view.start / step) * step; time <= view.start + view.span; time += step) {
-    const x = (time - view.start) / view.span * width;
-    context.fillText(formatTime(time * 1000), Math.min(x + 3, Math.max(0, width - 82)), 14);
-    context.strokeStyle = '#dce3db';
-    context.beginPath(); context.moveTo(x, 20); context.lineTo(x, height); context.stroke();
-  }
+  drawRuler(context, view, width, top);
   if (mode === 'spectrum') {
     const high = tiles.find(t => t.spectrum)?.spectrum?.highHz || 8000;
     context.fillStyle = '#63756a';

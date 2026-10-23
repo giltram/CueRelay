@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { formatTime } from '../../media/playback';
-import { boundaryTime, timeAtX, type AudioViewport } from './viewport';
+import { boundaryTime, timeAtX, xAtTime, type AudioViewport } from './viewport';
 
 interface Props {
   point: 'start' | 'end';
@@ -13,7 +13,7 @@ interface Props {
 /** Updates the existing editor draft; committing still goes through its original applyTimes action. */
 export function AudioBoundary({ point, value, duration, view, onChange }: Props) {
   const dragging = useRef(false);
-  const position = (value / 1000 - view.start) / view.span * 100;
+  const position = xAtTime(value / 1000, 100, view);
   if (!view.span || position < 0 || position > 100) return null;
   const name = point === 'start' ? '入点' : '出点';
   return <button type="button" role="slider" className={`audio-boundary ${point}`} style={{ left: `${position}%` }}

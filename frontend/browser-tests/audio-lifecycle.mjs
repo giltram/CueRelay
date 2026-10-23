@@ -57,7 +57,7 @@ try {
 
   // Actual fixed-file editor: a missing audio track must leave video and subtitle editing usable.
   await page.goto(base);
-  await page.waitForFunction(() => !document.querySelector('.file-actions button').disabled);
+  await page.waitForFunction(() => !document.querySelector('.file-actions button.primary').disabled);
   await page.getByLabel('导入本地视频').setInputFiles(path('no-audio.mp4'));
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'error');
   assert((await page.locator('.audio-message').textContent()).includes('没有音轨'));

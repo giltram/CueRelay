@@ -8,11 +8,13 @@ import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
 import { timingShortcut } from './timing-shortcuts';
 import { AudioTimeline } from './audio-timeline/AudioTimeline';
+import type { AudioDisplayMode } from '../media/audio/analysis-types';
 
 export function EditorWorkbench() {
   const [document, setDocument] = useState<AssDocument | null>(null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [audioMode, setAudioMode] = useState<AudioDisplayMode>('spectrum');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [startText, setStartText] = useState('0:00:00.00');
@@ -178,6 +180,11 @@ export function EditorWorkbench() {
       <header className="app-header">
         <h1>CueRelay</h1>
         <div className="file-actions" aria-label="字幕文件操作">
+          {/* Temporary location until the account branch adds personal display preferences. */}
+          <div className="audio-mode-switch" role="group" aria-label="音频显示模式">
+            <button aria-pressed={audioMode === 'waveform'} onClick={() => setAudioMode('waveform')}>Waveform</button>
+            <button aria-pressed={audioMode === 'spectrum'} onClick={() => setAudioMode('spectrum')}>Spectrum</button>
+          </div>
           {busy && <span role="status">正在转换…</span>}
           <label className="file-picker">
             导入 ASS
@@ -222,7 +229,7 @@ export function EditorWorkbench() {
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
           </>} />
       } editor={<>
-          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime}
+          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode}
             selectionId={selectedId} selection={audioSelection}
             onBoundaryChange={!busy && !pendingImport && selected ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
             onSeek={time => run(() => {

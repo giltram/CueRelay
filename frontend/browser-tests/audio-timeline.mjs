@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { checkRuler, observeRuler } from './ruler-checks.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'cuerelay-timeline-'));
 const file = join(dir, 'speech-like.mp4');
@@ -22,17 +23,27 @@ page.on('request', request => {
 });
 const report = { browser: browser.version(), errors, mediaUploads };
 try {
+  await observeRuler(page);
   await page.goto(process.env.AUDIO_TIMELINE_URL || 'http://127.0.0.1:5176/');
   await page.getByRole('button', { name: '导出 ASS', exact: true }).waitFor();
-  await page.waitForFunction(() => !document.querySelector('.file-actions button').disabled);
+  await page.waitForFunction(() => !document.querySelector('.file-actions button.primary').disabled);
+  assert.equal(await page.getByRole('button', { name: 'Spectrum', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('.app-header .audio-mode-switch').count(), 1);
+  assert.equal(await page.locator('.audio-toolbar').count(), 0);
   await page.getByLabel('导入本地视频').setInputFiles(file);
   const timeline = page.getByRole('region', { name: '音频时间轴' });
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
   const bounds = async () => timeline.evaluate(el => ({ start: Number(el.dataset.start), end: Number(el.dataset.end), decoded: Number(el.dataset.decodedSegments), cache: Number(el.dataset.cacheBytes) }));
   report.initial = await bounds();
   assert.equal(report.initial.end, 10);
-  assert.equal(report.initial.decoded, 5);
+  assert.equal(report.initial.decoded, 6); // Default Spectrum includes one STFT edge neighbor.
+  assert.equal(await timeline.getAttribute('data-mode'), 'spectrum');
+  const panelRect = await timeline.boundingBox();
+  const canvasRect = await page.locator('.audio-stage').boundingBox();
+  assert(canvasRect.y - panelRect.y <= 2); // Removed toolbar height now belongs to the canvas.
   assert(report.initial.cache > 0 && report.initial.cache <= 32 * 1024 ** 2);
+  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   // Read pixels to confirm real waveform peaks and silent sections were drawn, without synthetic placeholder data.
   report.wavePixels = await page.locator('.audio-stage canvas').evaluate(canvas => {
     const context = canvas.getContext('2d');
@@ -69,17 +80,29 @@ try {
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   assert.equal((await bounds()).decoded, report.spectrum.decoded);
 
-  await page.getByRole('button', { name: '放大音频时间轴', exact: true }).click();
-  assert.equal((await bounds()).end - (await bounds()).start, 5);
-  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
-  assert.equal((await bounds()).decoded, report.spectrum.decoded);
   const stage = page.locator('.audio-stage');
   const rect = await stage.boundingBox();
   await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await page.keyboard.down('Shift');
+  await page.mouse.wheel(0, -Math.log(2) / 0.004);
+  await page.keyboard.up('Shift');
+  await page.waitForTimeout(100);
+  const firstZoom = await bounds();
+  assert(Math.abs(firstZoom.end - firstZoom.start - 5) < 0.01);
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
+  assert.equal((await bounds()).decoded, report.spectrum.decoded);
+  await page.mouse.wheel(0, 100);
+  await page.waitForTimeout(100);
+  const panned = await bounds();
+  assert(panned.start > firstZoom.start);
+  assert(Math.abs((panned.end - panned.start) - (firstZoom.end - firstZoom.start)) < 0.001);
+  await page.keyboard.down('Shift');
   await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Shift');
   await page.waitForTimeout(100);
   const zoomed = await bounds();
-  assert(zoomed.end - zoomed.start < 5);
+  assert(zoomed.end - zoomed.start < panned.end - panned.start);
+  report.wheel = { firstZoom, panned, zoomed };
   await page.mouse.move(rect.x + rect.width * 0.7, rect.y + rect.height / 2);
   await page.mouse.down(); await page.mouse.move(rect.x + rect.width * 0.2, rect.y + rect.height / 2, { steps: 8 }); await page.mouse.up();
   assert((await bounds()).start > zoomed.start);
@@ -121,6 +144,7 @@ try {
   await startHandle.focus(); await page.keyboard.press('KeyG');
   assert.equal(await page.locator('.cue-list tbody tr').first().locator('.time-cell').first().textContent(), '0:00:01.50');
   report.boundary = { afterDrag: await inputTime.inputValue(), committed: true };
+  report.ruler = await checkRuler(page, dir);
 
   // Repeated viewport changes while Spectrum is computing must leave the newest request visible.
   await page.evaluate(() => {

@@ -10,15 +10,27 @@ export function zoomViewport(view: AudioViewport, factor: number, anchor: number
   return clampViewport({ start: view.start + (view.span - span) * Math.max(0, Math.min(1, anchor)), span }, duration);
 }
 
+export function wheelViewport(view: AudioViewport,
+  event: { deltaX: number; deltaY: number; deltaMode: number; shiftKey: boolean },
+  width: number, anchor: number, duration: number): AudioViewport {
+  const visible = clampViewport(view, duration);
+  // Some browsers remap Shift+vertical wheel to deltaX; accept either dominant axis.
+  const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  const delta = raw * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width : 1);
+  if (event.shiftKey) return zoomViewport(visible, Math.exp(Math.max(-0.7, Math.min(0.7, delta * 0.004))), anchor, duration);
+  return clampViewport({ ...visible, start: visible.start + delta / Math.max(1, width) * visible.span }, duration);
+}
+
 export function timeAtX(x: number, width: number, view: AudioViewport): number {
   return view.start + Math.max(0, Math.min(1, x / Math.max(1, width))) * view.span;
+}
+
+/** Shared by the ruler, spectrum and DOM overlays; offscreen times stay offscreen. */
+export function xAtTime(seconds: number, width: number, view: AudioViewport): number {
+  return view.span > 0 ? (seconds - view.start) / view.span * width : 0;
 }
 
 /** Existing subtitle edits use a 10ms grid. Never drag past a fractional media end. */
 export function boundaryTime(seconds: number, durationMs: number): number {
   return Math.max(0, Math.min(35_999_990, Math.floor(durationMs / 10) * 10, Math.round(seconds * 100) * 10));
-}
-
-export function rulerStep(span: number): number {
-  return [0.1, 0.2, 0.5, 1, 2, 5, 10, 20].find(step => span / step <= 10) || 20;
 }

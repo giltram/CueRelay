@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundaryTime, clampViewport, timeAtX, zoomViewport } from './viewport';
+import { boundaryTime, clampViewport, timeAtX, wheelViewport, zoomViewport } from './viewport';
 
 describe('shared audio time coordinates', () => {
   it('clamps zoom and pan to video bounds, including short or absent media', () => {
@@ -24,5 +24,20 @@ describe('shared audio time coordinates', () => {
     expect(boundaryTime(-1, 10000)).toBe(0);
     expect(boundaryTime(12, 9996)).toBe(9990);
     expect(boundaryTime(36000, 36000000)).toBe(35_999_990);
+  });
+  it('pans with ordinary vertical or horizontal wheel without changing zoom', () => {
+    const view = { start: 10, span: 10 };
+    expect(wheelViewport(view, { deltaX: 0, deltaY: 100, deltaMode: 0, shiftKey: false }, 1000, 0.5, 120))
+      .toEqual({ start: 11, span: 10 });
+    expect(wheelViewport(view, { deltaX: -100, deltaY: 2, deltaMode: 0, shiftKey: false }, 1000, 0.5, 120))
+      .toEqual({ start: 9, span: 10 });
+  });
+  it('zooms only with Shift and preserves the pointer anchor for either wheel axis', () => {
+    const view = { start: 10, span: 10 };
+    const vertical = wheelViewport(view, { deltaX: 0, deltaY: -100, deltaMode: 0, shiftKey: true }, 1000, 0.3, 120);
+    const horizontal = wheelViewport(view, { deltaX: -100, deltaY: 0, deltaMode: 0, shiftKey: true }, 1000, 0.3, 120);
+    expect(horizontal).toEqual(vertical);
+    expect(vertical.span).toBeLessThan(view.span);
+    expect(timeAtX(300, 1000, vertical)).toBeCloseTo(timeAtX(300, 1000, view));
   });
 });

@@ -1,5 +1,5 @@
 import type { AudioTile, SpectrumTile } from '../../media/audio/analysis-types';
-import type { AudioViewport } from './viewport';
+import { xAtTime, type AudioViewport } from './viewport';
 
 /** Functional energy map using the existing green palette: light silence, dark strong energy. */
 export function drawSpectrum(context: CanvasRenderingContext2D, tile: AudioTile, view: AudioViewport, width: number, height: number, top: number,
@@ -22,7 +22,7 @@ export function drawSpectrum(context: CanvasRenderingContext2D, tile: AudioTile,
     buffer.getContext('2d')!.putImageData(image, 0, 0);
     images.set(spectrum, buffer);
   }
-  const x = (firstTimestamp - stepSeconds / 2 - view.start) / view.span * width;
+  const x = xAtTime(firstTimestamp - stepSeconds / 2, width, view);
   context.save();
   // Adjacent tiles share the same hop grid, including the half-hop over their PCM edges.
   context.imageSmoothingEnabled = false;
