@@ -66,7 +66,8 @@ try {
   await page.locator('video').evaluate(video => video.pause());
   await page.getByRole('textbox', { name: '入点', exact: true }).fill('0:00:01.00');
   await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:02.00');
-  await page.getByRole('button', { name: '创建新行 [N]', exact: true }).click();
-  assert.equal(await page.locator('.cue-list tbody tr').count(), 1);
+  await page.locator('.audio-stage').focus(); await page.keyboard.press('KeyG');
+  assert.equal(await page.locator('.cue-list tbody tr').count(), 2);
+  assert.deepEqual(await page.locator('.cue-list tbody tr').nth(1).locator('.time-cell').allTextContents(), ['0:00:02.00', '0:00:04.00']);
   console.log(JSON.stringify({ browser: browser.version(), unmounted, cleared, noAudioVideoAndEditing: true, errors }, null, 2));
 } finally { await browser.close(); }

@@ -33,7 +33,9 @@ Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/m
 
 ## 频谱
 
-`spectrum.ts` 使用 fft.js 4.0.4（MIT，零运行时依赖），不用大型可视化框架。Hann STFT 的 FFT 长度按采样率选择最接近 43ms 的 2 次幂（512–8192），hop 为 FFT/4；使用绝对时间 hop 网格和相邻 PCM，避免 2 秒分段边缘重新起窗。每声道单独 FFT 后平均功率，避免反相下混抵消。频率线性映射 80Hz–min(8000Hz,Nyquist) 的 128 行；峰值功率按近似 -90..-15dBFS 映射到 8-bit 深浅，属于打轴辅助而非校准声学测量。
+`spectrum.ts` 使用 fft.js 4.0.4（MIT，零运行时依赖），不用大型可视化框架。Hann STFT 的 FFT 长度按采样率选择最接近 43ms 的 2 次幂（512–8192），hop 为 FFT/4；48kHz 时为 2048 / 512。使用绝对时间 hop 网格和相邻 PCM，避免 2 秒分段边缘重新起窗。每声道单独 FFT 后平均功率，避免反相下混抵消。频率线性映射 0Hz–Nyquist，行数为 min(512, FFT/2)，低频行在前；每行聚合覆盖 FFT bins 的峰值，并包含 DC / Nyquist 端点。
+
+单边峰值幅度功率以 Hann coherent gain 校正：普通 bin 用 4|X|²/sum(window)²，DC / Nyquist 用 |X|²/sum(window)²；声道间取平均，再做 10log10。固定 -80..0dBFS 映射至 0..255，阈值以下为零，不按帧或文件增益归一化。该值是打轴显示的峰值幅度标度，不是功率谱密度、RMS 或校准声学测量。颜色与目标显示高度的重采样属于 UI 模块，不进入 Worker。与 Aegisub 的幅度压缩不同，保留 Hann 的泄漏控制；调查依据与验证见 [频谱显示记录](../../../../docs/experiments/spectrum-display.md)。
 
 两种模式共用 AudioTile 和同一个 PCM LRU，频谱仅在请求时计算；首尾窗最多多读相邻 2 秒段。谱图的 typed array 也计入同一 32 MiB 预算。FFT 每 16 列让出 Worker 事件队列并检查取消。UI 模式切换不重置坐标或播放器，ready 状态绑定 mode + start + end，避免新视窗暂时显示旧完成状态。
 

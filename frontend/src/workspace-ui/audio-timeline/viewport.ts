@@ -10,6 +10,13 @@ export function zoomViewport(view: AudioViewport, factor: number, anchor: number
   return clampViewport({ start: view.start + (view.span - span) * Math.max(0, Math.min(1, anchor)), span }, duration);
 }
 
+/** Keep context when the next selected subtitle is already entirely visible. */
+export function revealInterval(view: AudioViewport, start: number, end: number, duration: number): AudioViewport {
+  const visible = clampViewport(view, duration);
+  if (start >= visible.start && end <= visible.start + visible.span) return visible;
+  return clampViewport({ ...visible, start: start - visible.span * 0.15 }, duration);
+}
+
 export function wheelViewport(view: AudioViewport,
   event: { deltaX: number; deltaY: number; deltaMode: number; shiftKey: boolean },
   width: number, anchor: number, duration: number): AudioViewport {

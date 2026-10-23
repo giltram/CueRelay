@@ -5,11 +5,16 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { checkRuler, observeRuler } from './ruler-checks.mjs';
+import { checkPlayhead } from './playhead-checks.mjs';
+import { checkBoundaryClicks } from './boundary-click-checks.mjs';
+import { checkCommitTiming } from './commit-timing-checks.mjs';
+import { checkShortcutFocus } from './shortcut-focus-checks.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'cuerelay-timeline-'));
-const file = join(dir, 'speech-like.mp4');
+const file = join(dir, 'tones-and-silence.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i',
-  'testsrc2=size=160x90:rate=10:duration=45', '-f', 'lavfi', '-i', 'sine=frequency=1000:sample_rate=48000:duration=45',
+  'testsrc2=size=160x90:rate=10:duration=45', '-f', 'lavfi', '-i',
+  'aevalsrc=0.125*sin(2*PI*1000*t)+0.06*sin(2*PI*3000*t)+0.03*sin(2*PI*12000*t):s=48000:d=45',
   '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '35', '-pix_fmt', 'yuv420p',
   '-af', "volume='if(lt(mod(t,4),2),1,0)':eval=frame,pan=stereo|c0=c0|c1=-1*c0", '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -27,6 +32,8 @@ try {
   await page.goto(process.env.AUDIO_TIMELINE_URL || 'http://127.0.0.1:5176/');
   await page.getByRole('button', { name: '导出 ASS', exact: true }).waitFor();
   await page.waitForFunction(() => !document.querySelector('.file-actions button.primary').disabled);
+  report.commitTiming = await checkCommitTiming(browser, page.url(), file);
+  report.shortcutFocus = await checkShortcutFocus(browser, page.url(), file);
   assert.equal(await page.getByRole('button', { name: 'Spectrum', exact: true }).getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('.app-header .audio-mode-switch').count(), 1);
   assert.equal(await page.locator('.audio-toolbar').count(), 0);
@@ -42,6 +49,7 @@ try {
   const canvasRect = await page.locator('.audio-stage').boundingBox();
   assert(canvasRect.y - panelRect.y <= 2); // Removed toolbar height now belongs to the canvas.
   assert(report.initial.cache > 0 && report.initial.cache <= 32 * 1024 ** 2);
+  report.newCueClickTiming = await checkBoundaryClicks(page);
   await page.getByRole('button', { name: 'Waveform', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   // Read pixels to confirm real waveform peaks and silent sections were drawn, without synthetic placeholder data.
@@ -50,12 +58,14 @@ try {
     const ratio = canvas.width / canvas.clientWidth;
     const pixels = context.getImageData(0, Math.round(30 * ratio), canvas.width, canvas.height - Math.round(30 * ratio)).data;
     let ink = 0;
-    for (let i = 0; i < pixels.length; i += 4) if (pixels[i] < 100 && pixels[i + 1] < 130 && pixels[i + 2] < 110) ink++;
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i] > 50 && pixels[i + 1] > 150 && pixels[i + 2] > 180) ink++;
     return ink;
   });
   assert(report.wavePixels > 100);
   await page.screenshot({ path: join(dir, 'waveform.png') });
   report.screenshot = join(dir, 'waveform.png');
+  report.waveformStageScreenshot = join(dir, 'waveform-stage.png');
+  await page.locator('.audio-stage').screenshot({ path: report.waveformStageScreenshot });
 
   const beforeSpectrum = await bounds();
   await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
@@ -67,15 +77,26 @@ try {
   assert(report.spectrum.decoded <= beforeSpectrum.decoded + 1);
   await page.screenshot({ path: join(dir, 'spectrum.png') });
   report.spectrumScreenshot = join(dir, 'spectrum.png');
+  report.spectrumStageScreenshot = join(dir, 'spectrum-stage.png');
+  await page.locator('.audio-stage').screenshot({ path: report.spectrumStageScreenshot });
   report.spectrumPixels = await page.locator('.audio-stage canvas').evaluate(canvas => {
-    const context = canvas.getContext('2d'); const scale = canvas.width / canvas.clientWidth;
-    const height = canvas.height - 22 * scale;
-    const row = 22 * scale + height * (1 - (1000 - 80) / (8000 - 80));
-    const loud = context.getImageData(Math.round(canvas.width * 0.1), Math.round(row), 1, 1).data;
-    const quiet = context.getImageData(Math.round(canvas.width * 0.3), Math.round(row), 1, 1).data;
-    return { loud: [...loud], quiet: [...quiet] };
+    const context = canvas.getContext('2d');
+    const top = 22 * canvas.height / canvas.getBoundingClientRect().height;
+    const height = canvas.height - top;
+    const sample = (position, frequency) => {
+      const row = Math.round(top + height * (1 - frequency / 24000));
+      const pixels = context.getImageData(Math.round(canvas.width * position), row - 1, 1, 3).data;
+      const colors = Array.from({ length: 3 }, (_, i) => [...pixels.slice(i * 4, i * 4 + 4)]);
+      return colors.sort((a, b) => b[0] + b[1] + b[2] - a[0] - a[1] - a[2])[0];
+    };
+    return { loud: sample(0.1, 1000), quiet: sample(0.3, 1000),
+      tones: [1000, 3000, 12000].map(hz => ({ hz, color: sample(0.1, hz) })), upperSilence: sample(0.3, 20000), selectedSilence: sample(0.1, 20000) };
   });
-  assert(report.spectrumPixels.loud[0] < report.spectrumPixels.quiet[0] - 50);
+  assert(report.spectrumPixels.loud[1] > report.spectrumPixels.quiet[1] + 100);
+  assert.deepEqual(report.spectrumPixels.quiet, [8, 8, 12, 255]);
+  assert.deepEqual(report.spectrumPixels.upperSilence, [8, 8, 12, 255]);
+  assert.deepEqual(report.spectrumPixels.selectedSilence, [64, 32, 96, 255]);
+  for (const tone of report.spectrumPixels.tones) assert(tone.color[2] > 100);
   await page.getByRole('button', { name: 'Waveform', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   assert.equal((await bounds()).decoded, report.spectrum.decoded);
@@ -120,8 +141,10 @@ try {
   const paused = await page.locator('video').evaluate(video => video.currentTime);
   await page.waitForTimeout(100);
   assert(Math.abs(await page.locator('video').evaluate(video => video.currentTime) - paused) < 0.02);
+  report.playheadDrag = await checkPlayhead(page, bounds);
 
   await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+  await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕入点 0:00:01.20', { exact: true }).waitFor();
   await page.getByLabel('字幕出点 0:00:03.40', { exact: true }).waitFor();
@@ -143,7 +166,29 @@ try {
   assert.equal(await inputTime.inputValue(), '0:00:01.50');
   await startHandle.focus(); await page.keyboard.press('KeyG');
   assert.equal(await page.locator('.cue-list tbody tr').first().locator('.time-cell').first().textContent(), '0:00:01.50');
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   report.boundary = { afterDrag: await inputTime.inputValue(), committed: true };
+  await page.locator('video').evaluate(video => { video.currentTime = 1.5; });
+  await page.waitForFunction(() => {
+    const boundary = document.querySelector('.audio-boundary.start')?.getBoundingClientRect();
+    const playhead = document.querySelector('.audio-playhead')?.getBoundingClientRect();
+    return boundary && playhead && Math.abs(boundary.x - playhead.x) < 1;
+  });
+  report.boundaryWinsOverPlayhead = await startHandle.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return !!document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('.audio-boundary');
+  });
+  assert(report.boundaryWinsOverPlayhead);
+  report.overlayColors = await page.evaluate(() => ({
+    stage: getComputedStyle(document.querySelector('.audio-stage')).backgroundColor,
+    playhead: getComputedStyle(document.querySelector('.audio-playhead'), '::after').backgroundColor,
+    start: getComputedStyle(document.querySelector('.audio-boundary.start'), '::after').backgroundColor,
+    end: getComputedStyle(document.querySelector('.audio-boundary.end'), '::after').backgroundColor,
+  }));
+  assert.equal(report.overlayColors.stage, 'rgb(8, 8, 12)');
+  assert.equal(report.overlayColors.start, 'rgb(255, 184, 107)');
+  assert.equal(report.overlayColors.end, 'rgb(222, 140, 255)');
+  report.selectedCueClickTiming = await checkBoundaryClicks(page, true);
   report.ruler = await checkRuler(page, dir);
 
   // Repeated viewport changes while Spectrum is computing must leave the newest request visible.
@@ -170,11 +215,13 @@ try {
   assert(report.stress.cache <= 32 * 1024 ** 2);
   assert(report.stress.maxHeartbeatGapMs < 500);
   const countBefore = await page.locator('.cue-list tbody tr').count();
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('音频回归测试');
   await page.locator('h1').click();
   await page.keyboard.press('KeyG');
   assert.equal(await page.locator('.cue-list tbody tr').count(), countBefore);
-  assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '音频回归测试');
+  assert.equal(await page.locator('.cue-list tbody tr').first().locator('.cue-text').textContent(), '音频回归测试');
+  assert.equal(await page.getByRole('button', { name: '选择第 2 行', exact: true }).getAttribute('aria-pressed'), 'true');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出 ASS', exact: true }).click();
   assert.equal((await download).suggestedFilename(), 'cuerelay.ass');

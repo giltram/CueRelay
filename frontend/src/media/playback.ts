@@ -117,13 +117,15 @@ export interface ShortcutEvent {
 }
 
 /** Structural check keeps this testable without a DOM or cross-window instanceof. */
-export function allowsShortcut(event: ShortcutEvent, composing: boolean): boolean {
-  if (event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.repeat) return false;
+export function allowsShortcut(event: ShortcutEvent, composing: boolean, allowCommandModifier = false): boolean {
+  if (event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 ||
+      (!allowCommandModifier && (event.ctrlKey || event.metaKey)) || event.altKey || event.shiftKey || event.repeat) return false;
   const element = event.target as { closest?: (selector: string) => unknown } | null;
   if (element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], video')) return false;
-  // Clicking a timing button keeps focus there. Letter shortcuts must continue
-  // working without blurring it, while native keyboard activation stays intact.
+  // Preserve native activation for keyboard-focused controls. A slider has no
+  // Enter/Space activation; boundary sliders use those keys for timing actions.
   if (['Space', 'Enter', 'NumpadEnter'].includes(event.code) &&
-      element?.closest?.('button, [role="button"], a[href], summary')) return false;
+      element?.closest?.('button, [role="button"], a[href], summary') &&
+      !element.closest?.('[role="slider"]')) return false;
   return true;
 }

@@ -1,26 +1,25 @@
 import type { AudioTile, SpectrumTile } from '../../media/audio/analysis-types';
 import { xAtTime, type AudioViewport } from './viewport';
+import { spectrumPixels, type SpectrumStyle } from './spectrum-pixels';
 
-/** Functional energy map using the existing green palette: light silence, dark strong energy. */
+export type SpectrumImageCache = WeakMap<SpectrumTile, Partial<Record<SpectrumStyle, HTMLCanvasElement>>>;
+
+/** Cached opaque spectrum pixels; coordinates and DPR belong to the existing audio canvas. */
 export function drawSpectrum(context: CanvasRenderingContext2D, tile: AudioTile, view: AudioViewport, width: number, height: number, top: number,
-  images: WeakMap<SpectrumTile, HTMLCanvasElement>) {
+  images: SpectrumImageCache, style: SpectrumStyle = 'normal') {
   const spectrum = tile.spectrum;
   if (!spectrum) return;
-  const { columns, rows, energy, firstTimestamp, stepSeconds } = spectrum;
-  let buffer = images.get(spectrum);
-  if (!buffer) {
-    const image = context.createImageData(columns, rows);
-    for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
-      const level = energy[row * columns + column] / 255;
-      const pixel = ((rows - row - 1) * columns + column) * 4;
-      image.data[pixel] = Math.round(243 - 227 * level);
-      image.data[pixel + 1] = Math.round(245 - 199 * level);
-      image.data[pixel + 2] = Math.round(242 - 204 * level);
-      image.data[pixel + 3] = 255;
-    }
-    buffer = document.createElement('canvas'); buffer.width = columns; buffer.height = rows;
+  const { columns, firstTimestamp, stepSeconds } = spectrum;
+  const pixelHeight = Math.max(1, Math.round((height - top) * context.getTransform().d));
+  let variants = images.get(spectrum);
+  if (!variants) { variants = {}; images.set(spectrum, variants); }
+  let buffer = variants[style];
+  if (!buffer || buffer.height !== pixelHeight) {
+    const image = context.createImageData(columns, pixelHeight);
+    image.data.set(spectrumPixels(spectrum, pixelHeight, style));
+    buffer ??= document.createElement('canvas'); buffer.width = columns; buffer.height = pixelHeight;
     buffer.getContext('2d')!.putImageData(image, 0, 0);
-    images.set(spectrum, buffer);
+    variants[style] = buffer;
   }
   const x = xAtTime(firstTimestamp - stepSeconds / 2, width, view);
   context.save();

@@ -18,3 +18,42 @@
 - 字幕 textarea 输入 `gsqwed ` 和 Enter 只编辑字幕，播放器保持暂停；旧 I/O/J/K/U/P/L/N 不改变时间、字幕行数或循环状态。
 
 真实中文输入法组合输入仅有自动化事件过滤测试，本次未做人工输入法验收；原生 video 的播放边界观察仍依赖浏览器帧调度，不宣称音频采样级精度。
+
+## 连续打轴更新（2026-10-23）
+
+上述为初版快捷键验收；当前 G / Enter 已从仅应用时间改为提交并下一条。参照 Aegisub 3.2.2 的 audio/commit → Next(LINE) → grid/line/next/create：已有下一行则选中；末尾新增空行，沿用刚提交的出点、2000ms 默认时长及样式。页面移除独立“创建新行”，原应用时间按钮统一为“提交并下一条”。空项目首次提交创建本次定时行和下一条空行；非空项目未选择时要求先选行。
+
+`commit-timing.ts` 纯函数返回新文档与下一选中行，EditorWorkbench 复用原状态和 selectCue；表格与导航共用 `cue-order.ts` 的稳定时间排序（提交前顺序），不改变原始 ASS 事件顺序。新增行超出支持时间范围时整次拒绝，不缩短默认时长；字幕超过媒体时长仍使用原提示，不截断时间。
+
+已执行：
+
+- `npm run test -- --run`：11 个文件、130 项通过；新增 12 项覆盖空项目、已有下一行、末尾新增 / 连续提交、样式 / 文本保留、稳定显示顺序、非法时间、缺失选择和时间上限。
+- `npm run build`（含 TypeScript 检查）与 `git diff --check` 通过。
+- `npm run test:audio-timeline`：Chrome 147 完整通过；新增隔离页面用真实 Spectrum 左 / 右键选点，验证 G、Enter、数字键盘 Enter 连续提交、2 秒空行、Emphasis 样式继承、已有行不被覆盖、非法草稿保留和输入框 Enter 不提交。原边界拖动、播放头、滚轮 / 缩放、标尺 / DPR、窄屏、导出与分析压力检查均通过；没有页面异常或媒体上传。
+- `npm run test:audio-lifecycle`：无音轨视频仍能播放、编辑并提交进入下一空行，Worker 卸载 / 清空计数匹配，没有页面异常。
+
+浏览器旧回归原先假定 G 后仍选中当前行，已更新为显式重新选择并等待已有视窗跟随完成。未修改后端、播放入口、焦点 / IME 过滤或音频坐标与渲染逻辑。
+
+## 鼠标操作后的快捷键焦点修复（2026-10-23）
+
+修复前用独立 Chrome 页面复现：鼠标选择第 1 行后 Enter 不选择第 2 行；先聚焦出点输入框再右击频谱，activeElement 仍为该 INPUT。前者由普通按钮的 Enter / Space 原生激活规则引起，后者因右键 preventDefault 后没有转移焦点，字母快捷键被输入框保护过滤。边界元素虽然 role=slider，原 button 标签也曾使 Enter / Space 被普通按钮规则过滤。
+
+局部修复：鼠标点击普通按钮后聚焦工作区 main，不改变滚动位置；键盘点击 detail=0 保持按钮原生激活。音频 stage 的左 / 右键操作显式聚焦；边界滑块保留自身焦点及方向键微调，并允许 Enter / Space 打轴动作。输入框、video、IME、修饰键、重复与 defaultPrevented 过滤保持。删除入 / 出点两组“当前时间 / −10ms / +10ms”按钮、无调用的工作区 capture / nudge 和对应 CSS；没有修改后端或字幕提交状态模型。
+
+已执行 `npm run test -- --run`（11 文件、131 项）、`npm run build`（含 TypeScript 检查）、`npm run test:audio-timeline` 和 `git diff --check`，均通过。新增 `shortcut-focus-checks.mjs` 在隔离真实页面验证：鼠标选行后直接 Enter、模式按钮后直接 Space 试听、Tab / Enter / Space 原生按钮激活、输入框后右击再 G、滑块方向键 / Space / Enter、文字换行与模拟 composition 保护，以及六个按钮已删除。原标尺 / DPR、缩放平移、播放头、字幕边界与导出回归同时通过，无页面异常或媒体上传。真实中文输入法仍需人工验收；不宣称所有浏览器焦点行为已覆盖。
+
+## 删除快捷键与字幕区间（2026-10-23）
+
+修复原因：EditorWorkbench 仅在 selected 存在时传出音频草稿，导致空文档第一次选点虽然更新输入框却没有标记；AudioTimeline 也只接收当前草稿，缺少其他字幕的显示数据。现在空文档草稿也直接传出；只读 cues 显式传入背景区间投影，共用 xAtTime，无新历史状态或渲染器。蓝色背景区间与当前橙 / 紫边界区分，覆盖层不响应鼠标。已可见的下一行不再重置视窗，仅超出视窗时 revealInterval 跟随。
+
+新增 Ctrl / Cmd + Delete（兼容 Backspace）删除当前行，按钮和快捷键共用 deleteCue 纯状态变更。按当前显示顺序选择下一行或上一行，删空时归零草稿。修饰键只针对 delete-row 放行，输入框 / IME / 重复 / 已消费事件及忙碌 / 待确认导入继续过滤；不影响 G / Enter / 试听键位。剩余 ASS 顺序、文本与样式保持。
+
+已执行 `npm run test -- --run`（13 文件、142 项）、`npm run build`（含 TypeScript）、`npm run test:audio-timeline`、`git diff --check` 和 browser script 语法检查，均通过。新增单元测试覆盖删除相邻选择 / 清空、修饰键和编辑控件保护、背景区间裁剪 / 共享端点 / 空媒体及可见区间保留视窗。Chrome 147 实测首条在 1.2s 左击后立刻出现入点、2.4s 右击出现出点，连续两次提交后保留 1.2–2.4 / 2.4–5.1s 背景区间；滚轮 / Shift 缩放仍对齐，背景上点击仍能设点。验证 Ctrl+Delete、Cmd+Backspace、Cmd+Delete、删空后无操作，以及输入框 / composition / 待确认导入不删行。原焦点、播放头、边界拖动、标尺 / DPR、导出及窄屏回归仍通过，无页面异常或媒体上传。
+
+## 默认空行与精简操作区（2026-10-23）
+
+页面启动与导入无行 ASS 时由 cue-defaults.ts 补一条 0–2 秒、空文本、文档默认样式的字幕并选中；与连续打轴共用默认时长常量。已有字幕（包括原本零时长的行）不被改写；删除所有行后保留空文档，刷新再初始化。编辑器移除“循环试听 / 提交并下一条 G / Enter”按钮行、对应 CSS 和不可达循环编排；G / Enter 及 S / Space / Q / W / E / D 保留。
+
+新增显式 hasEdits，只在用户编辑草稿 / 文本 / 样式、提交或删除时置位，与既有导入标记共同控制离页与替换确认，避免默认空行造成无修改也提示。已修改内容和导入内容继续保护。
+
+已执行 `npm run test -- --run`（14 文件、146 项）、`npm run build`、`npm run test:audio-timeline`、`npm run test:audio-lifecycle`、`git diff --check`，均通过。浏览器在未修改状态下真实刷新无 beforeunload 对话框，只有一条 0–2 秒选中空字幕；加载视频后标记位于 0 / 2 秒，编辑时间不会提前写回默认行，G 只新增一条后继行。验证导入空 ASS 也补默认行，编辑草稿恢复离页保护，首次导入已有字幕无需替换确认，原历史区间、删除 / 焦点保护、缩放 / 标尺 / DPR、播放头、无音轨编辑及 Worker 清理仍通过。测试前发现 5176 开发服务已停止，恢复独立测试服务后执行通过；5177 预览服务无需重启。

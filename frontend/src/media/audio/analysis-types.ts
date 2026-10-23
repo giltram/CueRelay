@@ -12,7 +12,7 @@ export interface SpectrumTile {
   highHz: number;
   columns: number;
   rows: number;
-  /** Row-major energy, low frequencies first; -90..-15 dBFS mapped to 0..255. */
+  /** Row-major energy, low frequencies first; fixed -80..0 dBFS peak amplitude mapped to 0..255. */
   energy: Uint8Array;
 }
 

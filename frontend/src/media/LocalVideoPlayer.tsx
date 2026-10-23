@@ -59,9 +59,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
     </div>
     <div className="transport" role="group" aria-label="视频导入与播放控制">
       {controls}
-      <label className="file-picker" title={locked
-        ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。`
-        : '视频仅在本机播放，不会上传。'}>导入视频
+      <label className="file-picker">导入视频
         <input aria-label="导入本地视频" type="file" accept="video/*,.mkv" disabled={locked} onChange={e => {
           const picked = e.target.files?.[0];
           if (picked) { setFile(picked); onError(''); }

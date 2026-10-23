@@ -14,7 +14,8 @@ export async function analyzeSpectrum(
   const firstFrame = Math.ceil(segment.start * rate / hop) * hop;
   const firstOffset = firstFrame - Math.round(segment.start * rate);
   const columns = Math.ceil((frames - firstOffset) / hop);
-  const rows = 128; const lowHz = 80; const highHz = Math.min(8000, rate / 2);
+  // Match Aegisub's linear full-band view; retain enough rows for tall/HiDPI canvases.
+  const rows = Math.min(512, size / 2); const lowHz = 0; const highHz = rate / 2;
   const energy = new Uint8Array(columns * rows);
   const window = Float64Array.from({ length: size }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (size - 1)));
   const coherentGain = window.reduce((sum, value) => sum + value, 0);
@@ -22,7 +23,7 @@ export async function analyzeSpectrum(
   const output = new Float64Array(size * 2);
   const power = new Float64Array(size / 2 + 1);
   const fft = new FFT(size);
-  const maxBin = Math.min(size / 2, Math.ceil(highHz * size / rate));
+  const maxBin = size / 2;
   for (let column = 0; column < columns; column++) {
     if (column % 16 === 0) { await yieldControl(); signal.throwIfAborted(); }
     power.fill(0);
@@ -35,17 +36,20 @@ export async function analyzeSpectrum(
         input[i] = (value || 0) * window[i];
       }
       fft.realTransform(output, input);
-      for (let bin = 1; bin <= maxBin; bin++) {
-        power[bin] += (output[bin * 2] ** 2 + output[bin * 2 + 1] ** 2) * 4 / coherentGain ** 2 / segment.channels.length;
+      for (let bin = 0; bin <= maxBin; bin++) {
+        // DC and Nyquist have no negative-frequency partner in a one-sided spectrum.
+        const factor = bin === 0 || bin === size / 2 ? 1 : 4;
+        power[bin] += (output[bin * 2] ** 2 + output[bin * 2 + 1] ** 2) * factor / coherentGain ** 2 / segment.channels.length;
       }
     }
     for (let row = 0; row < rows; row++) {
-      const low = Math.max(1, Math.floor((lowHz + (highHz - lowHz) * row / rows) * size / rate));
-      const high = Math.min(maxBin + 1, Math.max(low + 1, Math.ceil((lowHz + (highHz - lowHz) * (row + 1) / rows) * size / rate)));
+      const low = Math.ceil(row / rows * maxBin);
+      const high = row === rows - 1 ? maxBin + 1 : Math.ceil((row + 1) / rows * maxBin);
       let peak = 0;
       for (let bin = low; bin < high; bin++) peak = Math.max(peak, power[bin]);
       const db = 10 * Math.log10(Math.max(1e-12, peak));
-      energy[row * columns + column] = Math.round(Math.max(0, Math.min(1, (db + 90) / 75)) * 255);
+      // Fixed -80..0 dBFS peak-amplitude scale, never normalized per frame or file.
+      energy[row * columns + column] = Math.round(Math.max(0, Math.min(1, (db + 80) / 80)) * 255);
     }
   }
   signal.throwIfAborted();

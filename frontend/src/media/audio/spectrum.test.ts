@@ -45,6 +45,52 @@ describe('speech spectrogram STFT', () => {
     expect(result.highHz).toBe(4000);
     expect(Math.abs(loudestHz(result) - 1000)).toBeLessThan(50);
   });
+  it('normalizes the Nyquist endpoint like a bin-centered tone of the same peak amplitude', async () => {
+    const reference = tone(0, 2, 1000, 8000);
+    reference.channels[0] = Float32Array.from(reference.channels[0], value => value / 8);
+    const nyquist = { ...reference, channels: [Float32Array.from({ length: 16000 }, (_, i) => (i % 2 ? -1 : 1) / 32)] };
+    const peak = (tile: SpectrumTile) => Math.max(...Array.from({ length: tile.rows }, (_, row) => tile.energy[row * tile.columns + 50]));
+    const normal = await analyzeSpectrum(reference, null, null, signal(), yieldNow);
+    const endpoint = await analyzeSpectrum(nyquist, null, null, signal(), yieldNow);
+    expect(Math.abs(peak(normal) - peak(endpoint))).toBeLessThanOrEqual(1);
+  });
+  it.each([8000, 44100, 48000])('has a fixed calibrated level at %sHz sample rate without per-frame normalization', async rate => {
+    const size = rate === 8000 ? 512 : 2048;
+    for (const amplitude of [0.5, 0.05, 0.005, 0.00005]) {
+      const segment = tone(0, 0.5, rate * 40 / size, rate);
+      segment.channels[0] = Float32Array.from(segment.channels[0], value => value * amplitude / 0.25);
+      const tile = await analyzeSpectrum(segment, null, null, signal(), yieldNow);
+      const column = Math.floor(tile.columns / 2);
+      const peak = Math.max(...Array.from({ length: tile.rows }, (_, row) => tile.energy[row * tile.columns + column]));
+      const expected = Math.round(Math.max(0, (20 * Math.log10(amplitude) + 80) / 80) * 255);
+      expect(Math.abs(peak - expected)).toBeLessThanOrEqual(1);
+      expect(tile.lowHz).toBe(0); expect(tile.highHz).toBe(rate / 2);
+      expect(tile.rows).toBeLessThanOrEqual(size / 2);
+    }
+  });
+  it('keeps known multiple frequencies, including energy above the former 8kHz cutoff', async () => {
+    const frequencies = [937.5, 3000, 12000];
+    const channels = [Float32Array.from({ length: 48000 }, (_, i) => frequencies.reduce((sum, hz) => sum + 0.1 * Math.sin(2 * Math.PI * hz * i / 48000), 0))];
+    const tile = await analyzeSpectrum({ start: 0, end: 1, sampleRate: 48000, channels }, null, null, signal(), yieldNow);
+    const column = Math.floor(tile.columns / 2);
+    for (const hz of frequencies) {
+      const row = Math.floor(hz / tile.highHz * tile.rows);
+      expect(tile.energy[row * tile.columns + column]).toBeGreaterThan(185); // ~-20dBFS, not clipped to white.
+    }
+    const unused = Math.floor(6000 / tile.highHz * tile.rows);
+    expect(tile.energy[unused * tile.columns + column]).toBe(0);
+  });
+  it('preserves real silence and onset/offset within half a window rather than stretching it through the tile', async () => {
+    const segment = tone(0, 2, 1000);
+    segment.channels[0].fill(0, 0, 24000); segment.channels[0].fill(0, 48000);
+    const tile = await analyzeSpectrum(segment, null, null, signal(), yieldNow);
+    for (let column = 0; column < tile.columns; column++) {
+      const time = tile.firstTimestamp + column * tile.stepSeconds;
+      const peak = Math.max(...Array.from({ length: tile.rows }, (_, row) => tile.energy[row * tile.columns + column]));
+      if (time < 0.47 || time > 1.03) expect(peak).toBe(0);
+      if (time > 0.53 && time < 0.97) expect(peak).toBeGreaterThan(200);
+    }
+  });
   it('allows cancellation between FFT batches', async () => {
     const controller = new AbortController();
     await expect(analyzeSpectrum(tone(0, 2, 1000), null, null, controller.signal, async () => controller.abort()))

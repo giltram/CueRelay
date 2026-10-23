@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundaryTime, clampViewport, timeAtX, wheelViewport, zoomViewport } from './viewport';
+import { boundaryTime, clampViewport, revealInterval, timeAtX, wheelViewport, zoomViewport } from './viewport';
 
 describe('shared audio time coordinates', () => {
   it('clamps zoom and pan to video bounds, including short or absent media', () => {
@@ -24,6 +24,12 @@ describe('shared audio time coordinates', () => {
     expect(boundaryTime(-1, 10000)).toBe(0);
     expect(boundaryTime(12, 9996)).toBe(9990);
     expect(boundaryTime(36000, 36000000)).toBe(35_999_990);
+  });
+  it('keeps previous subtitle context unless a selected interval needs revealing', () => {
+    expect(revealInterval({ start: 0, span: 10 }, 2.4, 4.4, 45)).toEqual({ start: 0, span: 10 });
+    expect(revealInterval({ start: 0, span: 10 }, 12, 14, 45)).toEqual({ start: 10.5, span: 10 });
+    expect(revealInterval({ start: 20, span: 5 }, 1, 4, 45)).toEqual({ start: 0.25, span: 5 });
+    expect(revealInterval({ start: 30, span: 10 }, 44, 46, 45)).toEqual({ start: 35, span: 10 });
   });
   it('pans with ordinary vertical or horizontal wheel without changing zoom', () => {
     const view = { start: 10, span: 10 };

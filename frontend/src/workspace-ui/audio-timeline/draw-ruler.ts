@@ -1,6 +1,8 @@
 import { rulerInterval, rulerLabels, rulerTicks } from './ruler';
 import type { AudioViewport } from './viewport';
 
+export const AUDIO_RULER_HEIGHT = 22;
+
 /** Draws into the existing audio canvas, sharing its viewport and DPR transform. */
 export function drawRuler(context: CanvasRenderingContext2D, view: AudioViewport, width: number, height: number) {
   context.save();

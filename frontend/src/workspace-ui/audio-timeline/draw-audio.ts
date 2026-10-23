@@ -1,10 +1,14 @@
-import type { AudioDisplayMode, AudioTile, SpectrumTile } from '../../media/audio/analysis-types';
-import type { AudioViewport } from './viewport';
-import { drawSpectrum } from './draw-spectrum';
-import { drawRuler } from './draw-ruler';
+import type { AudioDisplayMode, AudioTile } from '../../media/audio/analysis-types';
+import type { Cue } from '../../contracts/subtitles';
+import { xAtTime, type AudioViewport } from './viewport';
+import { drawSpectrum, type SpectrumImageCache } from './draw-spectrum';
+import { AUDIO_RULER_HEIGHT, drawRuler } from './draw-ruler';
+import { intervalPosition, visibleCueIntervals } from './cue-intervals';
+import { spectrumColor, type SpectrumStyle } from './spectrum-pixels';
 
 export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode,
-  spectrumImages: WeakMap<SpectrumTile, HTMLCanvasElement>) {
+  spectrumImages: SpectrumImageCache, cues: readonly Cue[], selectedId: string | null,
+  selection: { start: number; end: number } | null) {
   // Preserve fractional CSS dimensions so canvas and percentage-based overlays agree.
   const { width, height } = canvas.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
@@ -12,21 +16,44 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
   const context = canvas.getContext('2d');
   if (!context || !width || !height) return;
   context.scale(canvas.width / width, canvas.height / height);
-  context.fillStyle = '#f3f5f2'; context.fillRect(0, 0, width, height);
-  const top = 22; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
+  context.fillStyle = '#08080c'; context.fillRect(0, 0, width, height);
+  const top = AUDIO_RULER_HEIGHT; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
   if (view.span && mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages);
-  context.strokeStyle = '#dce3db'; context.lineWidth = 1;
+  const inactive = visibleCueIntervals(cues, selectedId, view);
+  const active = selection ? intervalPosition(selection.start, selection.end, view) : null;
+  const paintRegions = (style: SpectrumStyle, regions: readonly { left: number; width: number }[]) => {
+    if (!regions.length) return;
+    context.save(); context.beginPath();
+    // A single clip path forms a union: overlapping subtitles never add brightness.
+    for (const region of regions) context.rect(region.left / 100 * width, top, region.width / 100 * width, height - top);
+    context.clip();
+    context.fillStyle = `rgb(${spectrumColor(0, style).join(',')})`; context.fillRect(0, top, width, height - top);
+    if (mode === 'spectrum') for (const tile of tiles) {
+      const spectrum = tile.spectrum;
+      if (!spectrum) continue;
+      const left = xAtTime(spectrum.firstTimestamp - spectrum.stepSeconds / 2, 100, view);
+      const right = left + spectrum.columns * spectrum.stepSeconds / view.span * 100;
+      if (regions.some(region => left < region.left + region.width && right > region.left)) {
+        drawSpectrum(context, tile, view, width, height, top, spectrumImages, style);
+      }
+    }
+    context.restore();
+  };
+  paintRegions('inactive', inactive);
+  if (active) paintRegions('active', [active]);
+  context.strokeStyle = '#27344c'; context.lineWidth = 1;
   if (mode === 'waveform') { context.beginPath(); context.moveTo(0, mid); context.lineTo(width, mid); context.stroke(); }
-  context.fillStyle = '#63756a'; context.font = '11px ui-monospace, monospace';
+  context.fillStyle = '#9bbce0'; context.font = '11px ui-monospace, monospace';
   drawRuler(context, view, width, top);
   if (mode === 'spectrum') {
-    const high = tiles.find(t => t.spectrum)?.spectrum?.highHz || 8000;
-    context.fillStyle = '#63756a';
-    context.fillText(`${high / 1000} kHz`, 3, top + 12);
-    context.fillText('80 Hz', 3, height - 4);
+    const spectrum = tiles.find(t => t.spectrum)?.spectrum;
+    if (spectrum) {
+      context.fillText(`${spectrum.highHz / 1000} kHz`, 3, top + 12);
+      context.fillText(`${spectrum.lowHz} Hz`, 3, height - 4);
+    }
     return;
   }
-  context.strokeStyle = '#265c47';
+  context.strokeStyle = '#81d4fa';
   context.beginPath();
   // One amplitude span per CSS pixel, combining source peak bins rather than dropping transients.
   for (let x = 0; x < width; x++) {
