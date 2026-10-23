@@ -43,8 +43,8 @@ async function api(path, method = 'GET', body, requestContext = context) {
   assert(response.ok(), `${method} ${path}: ${await response.text()}`);
   return response.json();
 }
-const row = name => page.locator('.project-table tbody tr').filter({ has: page.getByRole('button', { name, exact: true }) });
-async function toList() { await page.getByRole('button', { name: '项目', exact: true }).click(); await shown(page.getByRole('heading', { name: '项目', exact: true })); }
+const row = name => page.locator('.project-table tbody tr').filter({ has: page.getByRole('link', { name, exact: true }) });
+async function toList() { await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); }); await shown(page.getByRole('heading', { name: '项目', exact: true })); }
 async function manage(name, action) {
   await row(name).locator('summary').click();
   await row(name).getByRole('button', { name: action, exact: true }).click();
@@ -90,7 +90,7 @@ try {
     return { src: window.__projectVideo.src, start: document.querySelector('input[aria-label="入点"]').value, text: document.querySelector('textarea').value };
   });
   await toList();
-  await page.getByRole('button', { name: '返回工作区', exact: true }).click();
+  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
   assert.deepEqual(await page.evaluate(() => ({ src: document.querySelector('video').src, start: document.querySelector('input[aria-label="入点"]').value, text: document.querySelector('textarea').value })), before);
   assert(await page.evaluate(() => document.querySelector('video') === window.__projectVideo));
   await toList();
@@ -114,7 +114,7 @@ try {
   await page.screenshot({ path: join(artifacts, 'projects-active.png'), fullPage: true });
   check('浏览列表保留同一个 video 与时间草稿；搜索及管理冲突保留输入后显式刷新');
 
-  await page.getByRole('button', { name: '返回工作区', exact: true }).click();
+  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
   await page.getByRole('button', { name: '保存项目', exact: true }).click();
   await shown(page.getByRole('alert').filter({ hasText: '项目已被其他操作更新' }));
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '尚未保存的本地修改');
@@ -143,7 +143,7 @@ try {
   await hidden(modal('归档项目'));
   await page.getByRole('tab', { name: '过去项目', exact: true }).click();
   await shown(row(renamed));
-  await row(renamed).getByRole('button', { name: '只读查看', exact: true }).click();
+  await row(renamed).getByRole('link', { name: '只读查看', exact: true }).click();
   await shown(page.getByText('已归档项目仅可查看和导出。', { exact: true }));
   assert(await page.getByLabel('字幕中文文本').isDisabled());
   assert.equal(await page.getByRole('button', { name: '保存项目', exact: true }).count(), 0);
@@ -160,10 +160,10 @@ try {
   const orgOptions = await memberPage.locator('#organization option').allTextContents();
   const memberOrg = organizations.find(value => value.id === org.id);
   await memberPage.getByLabel('当前组织', { exact: true }).selectOption(String(memberOrg.id));
-  await memberPage.getByRole('button', { name: renamed, exact: true }).waitFor();
+  await memberPage.getByRole('link', { name: renamed, exact: true }).waitFor();
   assert.equal(await memberPage.getByRole('button', { name: '新建项目', exact: true }).count(), 0);
   assert.equal(await memberPage.locator('summary').count(), 0);
-  await memberPage.getByRole('button', { name: '打开', exact: true }).first().click();
+  await memberPage.getByRole('row').filter({ has: memberPage.getByRole('link', { name: renamed, exact: true }) }).getByRole('link', { name: '打开', exact: true }).click();
   await memberPage.getByLabel('导入本地视频', { exact: true }).setInputFiles(join(artifacts, 'video.mp4'));
   await memberPage.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await memberPage.getByLabel('字幕中文文本').fill('普通成员的字幕修改');
@@ -173,7 +173,7 @@ try {
   check('member 无项目管理入口，校验片源后仍能保存字幕');
 
   // Session logout must retain even a hidden project workspace and all draft input.
-  await page.getByRole('button', { name: '返回工作区', exact: true }).click();
+  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
   await api('/auth/logout', 'POST', {});
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await shown(modal('重新登录'));
@@ -187,16 +187,16 @@ try {
   const second = (await api(base, 'POST', { name: title + ' 第二项目', description: '', media: detail.media, source: null })).project;
   // Refresh the panel list without touching the retained workspace.
   await page.getByLabel('搜索项目', { exact: true }).fill(title);
-  await row(second.name).getByRole('button', { name: '打开', exact: true }).click();
+  await row(second.name).getByRole('link', { name: '打开', exact: true }).click();
   await shown(modal('打开其他项目'));
   await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  await page.getByRole('button', { name: '返回工作区', exact: true }).click();
+  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '重新加载后保存');
   await toList();
   // Reloading the whole browser reads only explicitly saved server state.
   page.on('dialog', dialog => dialog.accept());
   await page.reload();
-  await row(renamed).getByRole('button', { name: '打开', exact: true }).click();
+  await row(renamed).getByRole('link', { name: '打开', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '普通成员的字幕修改');
   assert(await page.getByLabel('字幕中文文本').isDisabled());

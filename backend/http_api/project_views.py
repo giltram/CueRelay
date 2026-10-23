@@ -23,7 +23,7 @@ def project_endpoint(methods):
 
 
 def person(user):
-    return {'username': user.username, 'display_name': user.display_name} if user else None
+    return {'username': user.username} if user else None
 
 
 def project_data(project, detail=False):

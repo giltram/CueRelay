@@ -129,7 +129,7 @@ def organization_data(org, actor):
 
 
 def member_data(member):
-    return {'id': member.pk, 'username': member.user.username, 'display_name': member.user.display_name,
+    return {'id': member.pk, 'username': member.user.username,
             'role': member.role, 'is_active': member.user.is_active, 'user_id': member.user_id}
 
 

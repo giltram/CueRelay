@@ -8,7 +8,7 @@
 
 | 概念 | 职责、关键数据与生命周期 |
 | --- | --- |
-| User（已实现） | accounts.User(AbstractUser)，display_name，用户名/标准密码摘要，is_active；dev=is_superuser，is_staff 仅表示 Admin 资格；停用代替删除 |
+| User（已实现） | accounts.User(AbstractUser)，username 用于登录和显示，标准密码摘要，is_active；dev=is_superuser，is_staff 仅表示 Admin 资格；停用代替删除 |
 | Organization（已实现） | name、created_at；dev 在 Admin 原子创建组织和初始活动 organizer |
 | OrganizationMembership（已实现） | 唯一 (organization,user)，role 仅 organizer/member；同账号多组织不同角色；组织至少一名活动 organizer |
 | PersonalSettings（已实现） | 与 User 一对一，快捷键覆盖和更新时间；账号共用，无 organization_id，无记录则使用共享默认配置 |

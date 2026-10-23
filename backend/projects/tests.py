@@ -69,6 +69,16 @@ class ProjectContractTests(TestCase):
         for invalid in ['page=0', 'page=x', 'status=done', 'organization_id=2']:
             self.assertEqual(self.client.get(self.base + '?' + invalid).status_code, 400)
 
+    def test_actor_payloads_only_contain_username(self):
+        detail = self.client.get(self.base + f'/{self.project.pk}').json()['project']
+        self.assertEqual(detail['updated_by'], {'username': self.organizer.username})
+        self.assertIsNone(detail['archived_by'])
+        archived = self.send(f'/{self.project.pk}/archive', {'revision': detail['revision']}).json()['project']
+        self.assertEqual(archived['archived_by'], {'username': self.organizer.username})
+        summary = self.client.get(self.base + '?status=archived').json()['projects'][0]
+        self.assertEqual(summary['updated_by'], {'username': self.organizer.username})
+        self.assertEqual(summary['archived_by'], {'username': self.organizer.username})
+
     def test_member_can_read_and_save_but_cannot_manage(self):
         self.client.force_login(self.member)
         self.assertEqual(self.client.get(self.base).status_code, 200)

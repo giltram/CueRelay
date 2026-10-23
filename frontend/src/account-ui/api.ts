@@ -1,6 +1,6 @@
-export interface User { id: number; username: string; display_name: string; is_dev: boolean }
+export interface User { id: number; username: string; is_dev: boolean }
 export interface Organization { id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean }
-export interface Member { id: number; user_id: number; username: string; display_name: string; role: 'organizer' | 'member'; is_active: boolean }
+export interface Member { id: number; user_id: number; username: string; role: 'organizer' | 'member'; is_active: boolean }
 export type Overrides = Partial<Record<import('../workspace-ui/timing-shortcuts').TimingShortcut, string[]>>;
 export interface Settings { shortcut_overrides: Overrides }
 export class ApiError extends Error {

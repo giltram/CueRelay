@@ -6,9 +6,12 @@ import { Modal } from './account-ui/Modal';
 import { MembersPanel } from './account-ui/MembersPanel';
 import { PersonalPanel } from './account-ui/PersonalPanel';
 import { ProjectsPanel } from './project-ui/ProjectsPanel';
-import { projectApi } from './project-data/projects-api';
-import type { ProjectDetail, ProjectSummary } from './contracts/projects';
-import type { AssDocument } from './contracts/subtitles';
+import { useNavigation } from './navigation/use-navigation';
+import { RouteLink } from './navigation/RouteLink';
+import { HomeLink } from './navigation/HomeLink';
+import { RouteStatus } from './navigation/RouteStatus';
+import { routeOrganization, routePath, type Route } from './navigation/routes';
+import { useWorkspace } from './app-workspace/use-workspace';
 
 interface Transition { label: string; action: () => Promise<void> }
 
@@ -19,12 +22,9 @@ export default function App() {
   const [owner, setOwner] = useState<User | null>(null);
   const ownerRef = useRef(owner); ownerRef.current = owner;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [organizationId, setOrganizationId] = useState<number | null>(null);
+  const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings>({ shortcut_overrides: {} });
   const [settingsReady, setSettingsReady] = useState(false);
-  const [generation, setGeneration] = useState(0);
-  const [view, setView] = useState<'projects' | 'workspace'>('projects');
-  const [workspace, setWorkspace] = useState<{ project?: ProjectDetail; initialMedia?: { file: File; sha256: string } } | null>(null);
   const [panel, setPanel] = useState<'login' | 'account' | 'members' | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
@@ -32,11 +32,25 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const workbench = useRef<WorkbenchHandle>(null);
   const epoch = useRef(0);
+  const bypassNavigation = useRef(false);
+  const { route, navigate } = useNavigation(requestNavigation);
+  const routeRef = useRef(route); routeRef.current = route;
   const [accountApi] = useState(() => createAccountApi(() => {
     epoch.current++; setUser(null); setPanel('login');
   }));
   const { request: api, session, expectUser } = accountApi;
+  const workspaceState = useWorkspace(route, api, Boolean(user && settingsReady), owner?.id, setMessage);
+  const { workspace, visible } = workspaceState;
+  const organizationId = routeOrganization(route) ?? selectedOrganizationId;
   const organization = organizations.find(org => org.id === organizationId);
+  const isList = route.kind === 'projects' || route.kind === 'entry';
+
+  // Only already-approved account changes and canonical entry redirects bypass
+  // the route guard. User navigation always enters requestNavigation.
+  const navigateApproved = useCallback((next: Route, replace = false) => {
+    bypassNavigation.current = true;
+    try { navigate(next, replace); } finally { bypassNavigation.current = false; }
+  }, [navigate]);
 
   const loadContext = useCallback(async (selectInitial = false) => {
     const version = epoch.current;
@@ -45,7 +59,7 @@ export default function App() {
     ]);
     if (epoch.current !== version) return;
     setOrganizations(orgs.organizations); setSettings(preferences); setSettingsReady(true);
-    if (selectInitial) setOrganizationId(orgs.organizations[0]?.id ?? null);
+    if (selectInitial) setOrganizationId(routeOrganization(routeRef.current) ?? orgs.organizations[0]?.id ?? null);
   }, [api]);
 
   const accept = useCallback(async (next: User) => {
@@ -54,12 +68,12 @@ export default function App() {
     epoch.current++; expectUser(next.id);
     setUser(next); setOwner(next); ownerRef.current = next; setPanel(null); setMessage('');
     if (previous && previous.id !== next.id) {
-      setWorkspace(null); setView('projects');
-      setGeneration(value => value + 1); setSettings({ shortcut_overrides: {} });
+      workspaceState.clear(); setSettings({ shortcut_overrides: {} });
+      navigateApproved({ kind: 'entry' }, true);
     }
     try { await loadContext(!previous || previous.id !== next.id); }
     catch (reason) { setMessage((reason as Error).message); }
-  }, [loadContext, expectUser]);
+  }, [loadContext, expectUser, workspaceState.clear, navigateApproved]);
 
   const observe = useCallback(async () => {
     if (transitionRef.current) return;
@@ -95,14 +109,48 @@ export default function App() {
     };
   }, [observe]);
 
+  useEffect(() => {
+    const requested = routeOrganization(route);
+    if (requested !== undefined) setOrganizationId(requested);
+    if (!user || !settingsReady) return;
+    if (route.kind === 'entry') {
+      if (!organizations.some(org => org.id === selectedOrganizationId)) setOrganizationId(organizations[0]?.id ?? null);
+    } else if (route.kind === 'projects' && route.organizationId === undefined) {
+      const id = organizations.some(org => org.id === selectedOrganizationId) ? selectedOrganizationId : organizations[0]?.id;
+      const target: Route = { kind: 'projects', ...(id ? { organizationId: id } : {}) };
+      if (routePath(route) !== routePath(target)) navigateApproved(target, true);
+    } else if (route.kind !== 'not-found' && window.location.pathname !== routePath(route)) {
+      navigateApproved(route, true);
+    }
+  }, [route, user, settingsReady, organizations, selectedOrganizationId, navigateApproved]);
+
   function requestTransition(label: string, action: () => Promise<void>, always = false) {
+    if (transitionRef.current) return;
     setPanel(null); setMessage('');
-    if (always || workbench.current?.hasContent()) setTransition({ label, action });
-    else void execute(action);
+    if (always || workbench.current?.hasContent()) {
+      const next = { label, action }; transitionRef.current = next; setTransition(next);
+    } else void execute(action);
+  }
+  function requestNavigation(next: Route, commit: () => void) {
+    if (bypassNavigation.current) { commit(); return; }
+    if (transitionRef.current) return;
+    const nextOrganization = routeOrganization(next);
+    const changesOrganization = nextOrganization !== undefined && nextOrganization !== organizationId;
+    const changesWorkspace = next.kind === 'project'
+      ? workspace?.project?.id !== next.projectId || workspace.project.organization_id !== next.organizationId
+      : next.kind === 'local' && Boolean(workspace?.project);
+    const replaceWorkspace = changesOrganization || changesWorkspace;
+    const action = async () => {
+      if (replaceWorkspace) workspaceState.clear();
+      if (nextOrganization !== undefined) setOrganizationId(nextOrganization);
+      commit();
+    };
+    if (replaceWorkspace) requestTransition(changesOrganization ? '切换组织' : next.kind === 'local' ? '进入本地工作区' : '打开其他项目', action);
+    else void action();
   }
   async function execute(action: () => Promise<void>) {
     setBusy(true); setMessage('');
-    try { await action(); setTransition(null); }
+    try { await action(); transitionRef.current = null; setTransition(null); }
     catch (reason) { setMessage((reason as Error).message); }
     finally { setBusy(false); }
   }
@@ -123,87 +171,52 @@ export default function App() {
     await api('/auth/logout', 'POST', {});
     epoch.current++;
     setUser(null); setOwner(null); ownerRef.current = null; expectUser(null);
-    setWorkspace(null); setView('projects');
+    workspaceState.clear(); navigateApproved({ kind: 'entry' }, true);
     setSettings({ shortcut_overrides: {} }); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
   }
+  const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
+  const workspaceRoute: Route = workspace?.project
+    ? { kind: 'project', organizationId: workspace.project.organization_id, projectId: workspace.project.id } : { kind: 'local' };
   const header = <div className="account-toolbar">
     <label className="sr-only" htmlFor="organization">当前组织</label>
     <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
-      const id = Number(event.target.value);
-      requestTransition('切换组织', async () => {
-        await api(`/organizations/${id}`);
-        setOrganizationId(id); setWorkspace(null); setView('projects'); setGeneration(value => value + 1);
-      });
+      navigate({ kind: 'projects', organizationId: Number(event.target.value) });
     }}>
       {!organization && <option value={organizationId ?? ''}>{organizationId ? '原组织已不可访问' : '暂无组织'}</option>}
       {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {org.role || 'dev'}</option>)}
     </select>
-    <button disabled={!user} aria-pressed={view === 'projects'} onClick={() => setView('projects')}>项目</button>
-    {workspace && <button disabled={!user} aria-pressed={view === 'workspace'} onClick={() => setView('workspace')}>返回工作区</button>}
+    <RouteLink className="button-link" route={listRoute} navigate={navigate} target={visible ? '_blank' : undefined} rel={visible ? 'noopener noreferrer' : undefined}
+      aria-current={isList ? 'page' : undefined}>项目列表</RouteLink>
+    {workspace && !visible && <RouteLink className="button-link" route={workspaceRoute} navigate={navigate}>返回工作区</RouteLink>}
     {user ? <>
       {organization && <button onClick={() => setPanel('members')}>成员</button>}
-      <button disabled={!settingsReady} onClick={() => setPanel('account')}>{user.display_name || user.username}{user.is_dev ? ' · dev' : ''}</button>
+      <button disabled={!settingsReady} onClick={() => setPanel('account')}>{user.username}{user.is_dev ? ' · dev' : ''}</button>
     </> : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason.message)); }}>重新登录</button>}
   </div>;
-
-  function openProject(project: ProjectSummary, video?: File, reload = false) {
-    if (!reload && workspace?.project?.id === project.id) {
-      setWorkspace(current => current?.project ? { ...current, project: { ...current.project, ...project } } : current);
-      setView('workspace'); return;
-    }
-    requestTransition(reload ? '重新加载项目' : '打开其他项目', async () => {
-      const detail = await projectApi(api, project.organization_id).get(project.id);
-      setWorkspace({ project: detail, ...(video ? { initialMedia: { file: video, sha256: detail.media.sha256 } } : {}) });
-      setGeneration(value => value + 1); setView('workspace');
-    });
-  }
-  function openLocal() {
-    if (workspace && !workspace.project) { setView('workspace'); return; }
-    requestTransition('进入本地工作区', async () => {
-      setWorkspace({}); setGeneration(value => value + 1); setView('workspace');
-    });
-  }
-  async function saveProject(document: AssDocument, revision: number) {
-    const project = workspace?.project;
-    if (!project) throw new Error('尚未打开项目。');
-    let summary: ProjectSummary;
-    try { summary = await projectApi(api, project.organization_id).save({ ...project, revision }, document); }
-    catch (reason) {
-      if ((reason as { code?: string }).code === 'project_archived') {
-        setWorkspace(current => current?.project?.id === project.id ? { ...current, project: { ...current.project, status: 'archived' } } : current);
-      }
-      throw reason;
-    }
-    setWorkspace(current => current?.project?.id === summary.id ? { ...current, project: { ...current.project, ...summary } } : current);
-    return summary;
-  }
-  useEffect(() => {
-    if (!workspace?.project || !user) return;
-    const current = workspace.project;
-    let active = true;
-    const check = () => {
-      void projectApi(api, current.organization_id).get(current.id).then(latest => {
-        // Observe archive state without adopting a revision or replacing local inputs.
-        if (active) setWorkspace(value => value?.project?.id === latest.id ? { ...value, project: { ...value.project, status: latest.status } } : value);
-      }).catch(reason => { if (active) setMessage(reason.message); });
-    };
-    const timer = window.setInterval(check, 30000);
-    window.addEventListener('focus', check);
-    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); };
-  }, [workspace?.project?.id, user?.id, api]);
+  const projectLoad = workspaceState.projectLoad;
 
   if (initializing) return <div className="login-page"><p role="status">正在检查会话…</p></div>;
   return <>
     {owner ? <>
-      {view === 'projects' && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
-        header={header} enabled={Boolean(user && settingsReady && !busy)} onOpen={openProject} onLocal={openLocal} onLifecycle={summary => setWorkspace(current => current?.project?.id === summary.id ? { ...current, project: { ...current.project, ...summary } } : current)} />}
-      {workspace && <div hidden={view !== 'workspace'}><EditorWorkbench key={generation} ref={workbench} header={view === 'workspace' ? header : null}
-        visible={view === 'workspace'} project={workspace.project} initialMedia={workspace.initialMedia}
-        readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user))}
-        onSave={workspace.project ? saveProject : undefined}
-        onReload={workspace.project ? () => openProject(workspace.project!, undefined, true) : undefined}
-        shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(view !== 'workspace' || panel || transition || !user || !settingsReady)} /></div>}
-    </> : <div className="login-page"><h1>CueRelay</h1><p>内部账号由站点管理员创建。</p>
+      {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
+        header={header} enabled={Boolean(user && settingsReady && !busy)} navigate={navigate}
+        unavailableOrganization={organizationId !== null && !organization}
+        onCreate={open => requestTransition('新建项目', async () => { workspaceState.clear(); open(); })}
+        onCreated={(project, video) => {
+          workspaceState.adoptCreated(project, video);
+          navigateApproved({ kind: 'project', organizationId: project.organization_id, projectId: project.id });
+        }} onLifecycle={workspaceState.updateSummary} />}
+      {(route.kind === 'not-found' || route.kind === 'project' && projectLoad?.status !== 'ready') &&
+        <RouteStatus header={header} loading={route.kind === 'project' && projectLoad?.status === 'loading'}
+          notFound={route.kind === 'not-found'} error={projectLoad?.error} organizationId={routeOrganization(route)} navigate={navigate}
+          retry={route.kind === 'project' ? workspaceState.retry : undefined} exportDraft={workspace ? () => void exportDraft() : undefined} />}
+      {workspace && <div hidden={!visible}><EditorWorkbench key={workspace.generation} ref={workbench} header={visible ? header : null} title={<HomeLink navigate={navigate} />}
+        visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
+        readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
+        onSave={workspace.project ? workspaceState.save : undefined}
+        onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
+        shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
+    </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>
       <LoginForm api={accountApi} onLogin={onLogin} /></div>}
     {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}
     {owner && user && organizations.length === 0 && <div className="session-notice">暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</div>}
@@ -213,16 +226,16 @@ export default function App() {
     </Modal>}
     {user && panel === 'account' && <Modal title="个人设置" onClose={() => setPanel(null)}>
       <div className="controls"><span>{user.username}</span>
-        {user.is_dev && <a href={import.meta.env.DEV ? 'http://127.0.0.1:8000/admin/' : '/admin/'} target="_blank" rel="noreferrer">Django Admin</a>}
+        {user.is_dev && <a className="button-link" href="/admin/" target="_blank" rel="noreferrer">Django Admin</a>}
         <button onClick={() => requestTransition('退出账号', exit)}>退出账号</button>
       </div>
-      <PersonalPanel request={api} key={user.id} user={user} settings={settings} onSettings={setSettings} />
+      <PersonalPanel request={api} key={user.id} settings={settings} onSettings={setSettings} />
     </Modal>}
     {user && organization && panel === 'members' && <Modal title="组织成员" onClose={() => setPanel(null)}>
       <MembersPanel currentUserId={user.id} isDev={user.is_dev} request={api} organization={organization} onChanged={() => void loadContext().catch(reason => setMessage(reason.message))} onLeave={() => {
         requestTransition('退出此组织', async () => {
           await api(`/organizations/${organization.id}/leave`, 'POST', {});
-          setOrganizationId(null); setWorkspace(null); setView('projects'); setGeneration(value => value + 1); await loadContext(true);
+          setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true); await loadContext(true);
         }, true);
       }} />
     </Modal>}
@@ -231,7 +244,7 @@ export default function App() {
       <p>导出后仍会停留在此处，确认下载后再明确放弃。</p>
       <div className="controls">
         <button disabled={busy} onClick={() => void exportDraft()}>导出 ASS</button>
-        <button disabled={busy} onClick={() => { setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>取消</button>
+        <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>取消</button>
         <button disabled={busy} onClick={() => void execute(transition.action)}>明确放弃并继续</button>
       </div>
       {message && <p role="status">{message}</p>}

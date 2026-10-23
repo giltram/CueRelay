@@ -59,7 +59,7 @@ class PasswordPolicyTests(TestCase):
                 with self.assertRaises(ValidationError) as result:
                     validate_password(candidate, self.user)
                 self.assertIn(code, [error.code for error in result.exception.error_list])
-        for attribute in ['username', 'first_name', 'last_name', 'email', 'display_name']:
+        for attribute in ['username', 'first_name', 'last_name', 'email']:
             user = User(**{attribute: PASSWORD + '@example.com' if attribute == 'email' else PASSWORD})
             with self.subTest(attribute=attribute):
                 with self.assertRaises(ValidationError) as result:

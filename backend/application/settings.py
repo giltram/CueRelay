@@ -63,7 +63,7 @@ ACCOUNT_PASSWORD_MAX_LENGTH = 1024
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'accounts.password_validation.MaximumLengthValidator'},
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-     'OPTIONS': {'user_attributes': ['username', 'first_name', 'last_name', 'email', 'display_name']}},
+     'OPTIONS': {'user_attributes': ['username', 'first_name', 'last_name', 'email']}},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 15}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},

@@ -51,7 +51,7 @@ try {
   await page.getByLabel('用户名', { exact: true }).fill('project-organizer');
   await page.getByLabel('密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '登录', exact: true }).click();
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).waitFor();
   assert.equal(await guarded(), false);
   // App transitions must agree with beforeunload about the untouched default row.
@@ -62,7 +62,7 @@ try {
   assert.equal(await modal('切换组织').count(), 0);
   const org = organizations.find(value => value.role === 'organizer');
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(org.id));
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(videoFile);
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
   assert.equal(await guarded(), true);
@@ -76,9 +76,9 @@ try {
     media: { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), duration_ms: 8000 },
     source: readFileSync('backend/ass_format/fixtures/basic.ass', 'utf8') })).project;
   const path = `${base}/${project.id}`;
-  await page.getByRole('button', { name: '项目', exact: true }).click();
+  await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.getByLabel('搜索项目', { exact: true }).fill(project.name);
-  await page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('button', { name: '打开', exact: true }).click();
+  await page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('link', { name: '打开', exact: true }).click();
   await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   const original = await rowTimes(0);
@@ -103,7 +103,7 @@ try {
   let saved = (await api(path)).project;
   assert.equal(saved.document.cues[0].start_ms, 1200);
   assert.equal(saved.document.cues[0].end_ms, 3400);
-  await page.getByRole('button', { name: '项目管理员', exact: true }).click();
+  await page.getByRole('button', { name: 'project-organizer', exact: true }).click();
   await page.getByLabel('提交并下一条绑定').fill('Shift+KeyT');
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await page.getByText('已保存', { exact: true }).waitFor();
@@ -127,9 +127,9 @@ try {
     window.__integrationVideo = document.querySelector('video');
     return { src: window.__integrationVideo.src, start: document.querySelector('input[aria-label="入点"]').value };
   });
-  await page.getByRole('button', { name: '项目', exact: true }).click();
+  await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.keyboard.press('Control+Delete'); await page.keyboard.press('Shift+KeyT');
-  await page.getByRole('button', { name: '返回工作区', exact: true }).click();
+  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
   assert.equal(await page.locator('video').evaluate(video => video === window.__integrationVideo), true);
   assert.equal(await page.locator('video').getAttribute('src'), snapshot.src);
   assert.equal(await start.inputValue(), snapshot.start);

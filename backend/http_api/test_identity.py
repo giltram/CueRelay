@@ -12,7 +12,7 @@ PASSWORD = 'test-only-long-password-927!'
 
 class IdentityTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user('alice', password=PASSWORD, display_name='甲')
+        self.user = User.objects.create_user('alice', password=PASSWORD)
         self.other = User.objects.create_user('bob', password=PASSWORD)
         self.dev = User.objects.create_superuser('dev', password=PASSWORD)
         self.client = Client(enforce_csrf_checks=True)
@@ -37,7 +37,7 @@ class IdentityTests(TestCase):
         self.assertNotEqual(token, self.client.cookies['csrftoken'].value)
         self.assertTrue(self.client.cookies['sessionid']['httponly'])
         self.assertNotIn('password', result.json()['user'])
-        self.assertEqual(self.client.get('/api/auth/session').json()['user']['display_name'], '甲')
+        self.assertEqual(self.client.get('/api/auth/session').json()['user'], {'id': self.user.pk, 'username': 'alice', 'is_dev': False})
         self.assertEqual(self.client.get('/api/auth/logout').status_code, 405)
         self.assertEqual(self.send('/auth/logout').status_code, 200)
         self.assertIsNone(self.client.get('/api/auth/session').json()['user'])
@@ -59,10 +59,24 @@ class IdentityTests(TestCase):
     def test_profile_is_read_only(self):
         for actor in [self.user, self.other, self.dev]:
             self.login(actor)
-            self.assertEqual(self.client.get('/api/auth/me').json()['user']['display_name'], actor.display_name)
+            self.assertEqual(self.client.get('/api/auth/me').json()['user'], {'id': actor.pk, 'username': actor.username, 'is_dev': actor.is_superuser})
             self.assertEqual(self.send('/auth/me', {'display_name': '中文名'}, 'PATCH').status_code, 405)
             actor.refresh_from_db()
-            self.assertNotEqual(actor.display_name, '中文名')
+            self.assertNotIn('display_name', {field.name for field in actor._meta.fields})
+
+    def test_members_and_admin_use_username_without_display_name(self):
+        org = create_organization('Username organization', self.user.pk)
+        self.login()
+        members = self.client.get(f'/api/organizations/{org.pk}/members').json()['members']
+        self.assertEqual(members, [{
+            'id': org.memberships.get().pk, 'user_id': self.user.pk,
+            'username': 'alice', 'role': 'organizer', 'is_active': True,
+        }])
+        self.client.force_login(self.dev)
+        for path in ['/admin/accounts/user/add/', f'/admin/accounts/user/{self.user.pk}/change/']:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, 'name="display_name"')
 
     def test_password_confirmation_and_other_session_invalidation(self):
         self.login()
@@ -183,7 +197,7 @@ class IdentityTests(TestCase):
 
     def send_admin_user_change(self, user):
         return self.client.post(f'/admin/accounts/user/{user.pk}/change/', {
-            'username': user.username, 'display_name': user.display_name, 'first_name': '', 'last_name': '', 'email': '',
+            'username': user.username, 'first_name': '', 'last_name': '', 'email': '',
             'date_joined_0': '2026-10-23', 'date_joined_1': '00:00:00', '_save': 'Save',
         }, HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value)
 

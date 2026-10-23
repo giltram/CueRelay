@@ -10,6 +10,7 @@ const headers = {
   // Restrict the app and its workers to local resources, including user blobs.
   'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ws://127.0.0.1:5173; media-src blob:; font-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'`,
 };
+const proxy = { '/api': apiTarget, '/admin': apiTarget, '/static': apiTarget };
 
 export default defineConfig({
   plugins: [react(), {
@@ -29,9 +30,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     headers,
-    proxy: { '/api': apiTarget },
+    proxy,
   },
-  preview: { port: 5173, strictPort: true, headers, proxy: { '/api': apiTarget } },
+  preview: { port: 5173, strictPort: true, headers, proxy },
   worker: { format: 'es' },
   test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'browser-tests/**'] },
 });

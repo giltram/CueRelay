@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { type AccountRequest, type Settings, type User } from './api';
+import { type AccountRequest, type Settings } from './api';
 import { bindingFor, shortcutDefaults, timingActions, validateOverrides, type ShortcutOverrides, type TimingShortcut } from '../workspace-ui/timing-shortcuts';
 
-export function PersonalPanel({ request: api, user, settings, onSettings }: {
+export function PersonalPanel({ request: api, settings, onSettings }: {
   request: AccountRequest;
-  user: User; settings: Settings; onSettings: (settings: Settings) => void;
+  settings: Settings; onSettings: (settings: Settings) => void;
 }) {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -19,7 +19,6 @@ export function PersonalPanel({ request: api, user, settings, onSettings }: {
     finally { setBusy(false); }
   }
   return <div className="account-form">
-    <label>显示名<input value={user.display_name} readOnly /></label>
     <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
       if (newPassword !== confirmation) throw new Error('两次输入的新密码不一致。');
       await api('/auth/password', 'POST', { old_password: oldPassword, new_password: newPassword, new_password_confirmation: confirmation });

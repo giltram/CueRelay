@@ -33,17 +33,17 @@ Ctrl / Cmd + Delete（也接受 Backspace）经同一个 timingShortcut 分派�
 运行和全部验证命令见 [README](../README.md)。当前已有账号/组织数据库、迁移和 Session 认证；已有项目快照存储，尚无 WebSocket 或实时协作。
 
 - `backend/manage.py`、`application/{settings,urls,asgi}.py`：Django/DRF 组合根，PostgreSQL 与环境配置，默认受保护接口；`application/admin.py` 显式注册 dev 专用 Admin，`identity_admin.py` 协调账号停用与组织约束。
-- `accounts`：AbstractUser + display_name、PersonalSettings、本人密码/设置服务；AccountBackend + LoginAttempt 以 PostgreSQL 行锁共享账号登录限制，统一密码验证器设置 15–1024 字符。见 [局部契约](../backend/accounts/README.md) 与 [安全/部署契约](account-security.md)。不依赖 organizations 或 HTTP。
+- `accounts`：AbstractUser（username 同时用于登录和显示）、PersonalSettings、本人密码/设置服务；AccountBackend + LoginAttempt 以 PostgreSQL 行锁共享账号登录限制，统一密码验证器设置 15–1024 字符。见 [局部契约](../backend/accounts/README.md) 与 [安全/部署契约](account-security.md)。不依赖 organizations 或 HTTP。
 - `organizations`：Organization、OrganizationMembership、固定角色鉴权、成员写入与事务约束，见 [局部契约](../backend/organizations/README.md)。依赖 accounts 的公开 User 身份；目标用户锁在组织锁之前，多组织按 id 锁定，维护至少一名活动 organizer。
-- `http_api/identity_views.py`：Session/登录/退出/本人只读身份、密码/设置、组织及成员 JSON 适配。显示名仅由 dev 在 Admin 维护；改密要求两份新密码一致。organizer 不能移除或降级其他 organizer，由 organizations.services 在组织锁内重查；dev 仍受最后活动 organizer 约束。Django CSRF 中间件保护匿名登录和全部写入；身份从 Session 获取，白名单拒绝未知字段。与纯格式公开接口分离。
+- `http_api/identity_views.py`：Session/登录/退出/本人只读身份、密码/设置、组织及成员 JSON 适配。身份、成员和项目操作者统一显示 username，无自定义显示名；改密要求两份新密码一致。organizer 不能移除或降级其他 organizer，由 organizations.services 在组织锁内重查；dev 仍受最后活动 organizer 约束。Django CSRF 中间件保护匿名登录和全部写入；身份从 Session 获取，白名单拒绝未知字段。与纯格式公开接口分离。
 - `http_api/auth_security.py`：在 CSRF 前限制现有密码入口的请求体和 Admin 密码长度；将认证 backend 的重试秒数转换为 API/Admin 共用的 429 JSON/Retry-After。实际密码校验和账号计数只由 accounts 拥有，不再使用进程内 IP 缓存。
 - `projects`：组织项目生命周期、固定媒体基准、有限 ASS 快照、revision 冲突保护，写入锁操作者 User → Organization → Project；契约见 [projects README](../backend/projects/README.md)，HTTP 适配在 `http_api/project_views.py`。
-- `project-ui/{ProjectsPanel,ProjectForm}.tsx`：列表、搜索/分页、创建/管理界面。App 组合导航并保留隐藏工作区，项目保存/重载经明确接口，见 [project-ui README](../frontend/src/project-ui/README.md)。
+- `project-ui/{ProjectsPanel,ProjectForm}.tsx`：列表、搜索/分页、创建/管理界面。App 组合 navigation 和 app-workspace，项目保存/重载经明确接口，见 [project-ui README](../frontend/src/project-ui/README.md)。
 - `media/{file-hash,file-hash.worker,media-manifest}.ts`：本地完整 SHA-256 与可播放/时长检查，Worker 分块且可取消；不读账号/组织、不上传视频。
 - `shared/timing-shortcuts.json`：后端和前端共同读取的默认键位唯一来源，个人设置仅保存覆盖。
 - `ass_format`：纯格式公共入口 `parse_ass` / `serialize_ass` / `empty_document`，原始行锚点适配隔离 pysubs2 保留局限，见 [局部契约](../backend/ass_format/README.md)。
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
-- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
+- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，navigation 统一页面 URL/历史，app-workspace 持有保留实例和项目加载，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。
 - `shared/timing-shortcuts.json` 唯一声明可配置默认键位，`workspace-ui/timing-shortcuts.ts` 负责个人覆盖和固定删行组合键；默认 G / Enter 提交并下一条，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `commitAndAdvance`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，过时提示及时间采集 / 微调按钮已移除。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`watchPlaybackRange` 共用现有播放器观察区间，EditorWorkbench 只保留一个单次试听状态，切换或结束时清理旧观察器。循环按钮及其不可达的 startLoop 编排已移除，底层公共区间播放接口未改动。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
 - `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构输入控件，仅接收值与 onChange，区间状态和校验仍由 EditorWorkbench 编排；两组“当前时间 / −10ms / +10ms”按钮及其采集 / 微调回调已移除，边界滑块仍支持方向键微调。EditorWorkbench 的 main 只在鼠标点击普通按钮后接收焦点（tabIndex=-1、preventScroll），避免 Enter / Space 再次激活刚点击的按钮；键盘 / Tab 激活继续保留按钮原生行为，边界 role=slider 不转移焦点。AudioTimeline 左 / 右键操作显式聚焦 stage，右键设置出点不再遗留输入框焦点。`allowsShortcutFocus` 允许 slider 上的 Enter / Space，保留输入框 / 视频控件 / IME、修饰键、重复及 defaultPrevented 过滤；普通键盘焦点按钮 / 链接仍保留原生激活。回归见 `browser-tests/shortcut-focus-checks.mjs`。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
@@ -53,7 +53,7 @@ Ctrl / Cmd + Delete（也接受 Backspace）经同一个 timingShortcut 分派�
 - `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 44px 给导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
 - 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
-当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui}`，`project-ui/workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
+当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, navigation, app-workspace}`，`project-ui → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
 ## 1. 阅读路径与文档所有权
 
@@ -207,3 +207,11 @@ Alpha 期间保留项目全部业务历史与成功命令回执，不截断审�
 2026-10-23：用户选择 audio 精简打轴工作流（提交并下一行、末行续行，移除旧采集/微调/循环/创建按钮）。保留 main 的账号/组织、个人快捷键和项目保存契约。固定 Ctrl/Cmd+Delete/Backspace 删行不进入个人设置覆盖表；shared 默认 commit 标签与实际行为一致。时间轴边界与提交/删除统一受 canEdit 保护，账号弹窗、隐藏或未验证片源时不能通过新交互修改草稿/字幕。
 
 EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 WorkbenchHandle.hasContent：忙碌、待确认导入、媒体、项目、成功导入和用户编辑均受保护；未修改的自动默认首行不触发保护。默认首行只用于本地空文档/空 ASS 导入，打开项目不隐式改写已保存快照。集成状态与验证见 [执行记录](plans/main-audio-integration.md)。
+
+## 前端导航与工作区生命周期
+
+首页 `/` 保持根地址并展示当前可访问组织的项目列表，所有页面的 CueRelay 标题经 navigation.HomeLink 返回首页；EditorWorkbench 通过 title 插槽接收链接，保持 workspace-ui 不依赖 navigation。回首页只隐藏保留实例，后退或返回同工作区继续原稿。
+
+2026-10-24：页面路径由 [navigation](../frontend/src/navigation/README.md) 唯一定义，采用原生 History API 和真实链接。App 根据目标资源是否替换当前实例编排保护；popstate 先恢复已提交历史条目，取消不改页面，确认重放原跨度。入口默认组织只用于 `/` 和 `/projects`，登录、刷新、直接访问不能覆盖显式组织/项目地址。工作区新开列表不改变本页 visible，同页返回列表才隐藏并暂停。
+
+[app-workspace](../frontend/src/app-workspace/README.md) 负责单个保留实例、指定资源加载、创建 File 交接、保存/重载和归档/撤权观察。只有新项目/组织/账号或明确重载更换实例；同项目重返和轮询只观察归档，不替换内存文档/revision。字幕与草稿仍归 EditorWorkbench，File/Object URL 归 LocalVideoPlayer，底层不依赖导航。没有 Storage 草稿或标签页同步。部署和验证见 [运行契约](frontend-deployment.md) 与 [导航记录](experiments/frontend-navigation.md)。

@@ -38,7 +38,7 @@ export function MembersPanel({ request: api, currentUserId, isDev, organization,
     </>}
     <table><thead><tr><th>账号</th><th>角色</th><th>操作</th></tr></thead><tbody>
       {members.map(member => <tr key={member.id}>
-        <td>{member.display_name || member.username} ({member.username}){!member.is_active && ' · 已停用'}</td>
+        <td>{member.username}{!member.is_active && ' · 已停用'}</td>
         <td>{canManageMember(member) ? <select aria-label={`${member.username}角色`} disabled={busy} value={member.role} onChange={event => {
           void run(() => api(`${base}/members/${member.id}`, 'PATCH', { role: event.target.value }));
         }}><option value="organizer">organizer</option><option value="member">member</option></select> : member.role}</td>
@@ -52,7 +52,7 @@ export function MembersPanel({ request: api, currentUserId, isDev, organization,
     {error && !removing && <p className="error" role="alert">{error}</p>}
     {removing && <Modal title="移除成员" onClose={() => { if (!busy) setRemoving(null); }}>
       <div className="account-form">
-        <p>确认将 {removing.display_name || removing.username}（{removing.username}）移出 {organization.name}？该账号将失去此组织的访问权限。</p>
+        <p>确认将 {removing.username} 移出 {organization.name}？该账号将失去此组织的访问权限。</p>
         <div className="controls">
           <button disabled={busy} onClick={() => setRemoving(null)}>取消</button>
           <button disabled={busy} onClick={() => void run(async () => {

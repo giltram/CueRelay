@@ -38,8 +38,6 @@ class DevOnlyAdmin:
 
 @admin.register(User)
 class AccountAdmin(DevOnlyAdmin, UserAdmin):
-    fieldsets = UserAdmin.fieldsets + (('显示资料', {'fields': ('display_name',)}),)
-    add_fieldsets = UserAdmin.add_fieldsets + (('显示资料', {'fields': ('display_name',)}),)
     actions = None
 
     def save_model(self, request, obj, form, change):

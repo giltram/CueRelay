@@ -8,7 +8,7 @@
 
 | 实体 | 字段与约束 |
 | --- | --- |
-| accounts.User | AbstractUser + display_name（80 字符）；用户名登录，邮箱可空；Django 密码摘要与验证器；停用代替删除 |
+| accounts.User | AbstractUser；username 同时用于登录和显示，邮箱可空；Django 密码摘要与验证器；停用代替删除 |
 | Organization | id、name（1–100 字符）、created_at |
 | OrganizationMembership | organization、user 外键，role、joined_at；组织/用户联合唯一；数据库检查 role 仅 organizer/member |
 | PersonalSettings | user 一对一主键、shortcut_overrides JSON、updated_at；无组织字段，无记录时返回默认值，按需创建 |
@@ -17,7 +17,7 @@ Django 自带 auth、Admin、contenttypes、session 等表正常保留。dev 使
 
 member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、提升 member、移除 member；不能移除或降级其他 organizer，避免先降级再移除的绕过。本人仍可降级或退出，但必须满足最后活动 organizer 约束。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织及 organizer，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
 
-显示名由 dev 在 Django Admin 维护；个人设置只读展示，不提供本人资料写接口。成员移除先显示账号和组织的确认框，取消不发送移除请求；移除自己沿用退出组织的确认及本地稿件保护流程。
+账号只使用 username，不再有独立显示名；个人设置不展示重复身份字段，不提供本人资料写接口。Session/本人 DTO 仅含 id、username、is_dev；成员及项目操作者同样只提供 username。成员移除先显示账号和组织的确认框，取消不发送移除请求；移除自己沿用退出组织的确认及本地稿件保护流程。
 
 ## 配置与 Admin
 
@@ -75,6 +75,10 @@ App 拥有账号/组织上下文，EditorWorkbench 暴露 hasContent/exportDraft
 
 后端：`python manage.py test accounts ass_format http_api organizations`，含真实 CSRF 客户端、Admin 写入、账号防护及 PostgreSQL 多连接竞争测试。前端：`npm run typecheck`、`npm run test -- --run`、`npm run build`。
 
-可执行 Chrome 浏览器测试：frontend/browser-tests/user-system.mjs。准备一个**新建的专用 cuerelay_browser PostgreSQL 数据库**，设置 PGDATABASE=cuerelay_browser、DJANGO_DEBUG=1、私有测试 DJANGO_SECRET_KEY、BROWSER_TEST_PASSWORD。在相同环境下运行 migrate，再从仓库根执行 `python backend/manage.py shell < backend/browser_tests/seed.py`（已有用户时拒绝播种）。启动该数据库的后端和 Vite，然后设置 USER_SYSTEM_URL 为 Vite 地址、BROWSER_TEST_PASSWORD 与播种一致，执行 `node frontend/browser-tests/user-system.mjs`。若使用不同端口，同步配置 Vite 代理与 Django 可信 CSRF Origin；不要中断其他实验进程。脚本创建合成视频、验证 UI/下载/DOM 实例保留并输出截图目录，需要本机 Chrome 与 FFmpeg。
+可执行 Chrome 浏览器测试：frontend/browser-tests/user-system.mjs。准备一个**新建的专用 cuerelay_browser 或 cuerelay_users_browser_<数字后缀> PostgreSQL 数据库**，设置 PGDATABASE=cuerelay_browser、DJANGO_DEBUG=1、私有测试 DJANGO_SECRET_KEY、BROWSER_TEST_PASSWORD。在相同环境下运行 migrate，再从仓库根执行 `python backend/manage.py shell < backend/browser_tests/seed.py`（已有用户时拒绝播种）。启动该数据库的后端和 Vite，然后设置 USER_SYSTEM_URL 为 Vite 地址、BROWSER_TEST_PASSWORD 与播种一致，执行 `node frontend/browser-tests/user-system.mjs`。若使用不同端口，同步配置 Vite 代理与 Django 可信 CSRF Origin；不要中断其他实验进程。脚本创建合成视频、验证 UI/下载/DOM 实例保留并输出截图目录，需要本机 Chrome 与 FFmpeg。
 
 本任务实际结果见 [验收记录](experiments/user-system.md)。自动浏览器检查不代表真实成员制作验收或生产部署验收通过。
+
+## 用户名统一显示升级
+
+2026-10-24：移除显示名设计，升级执行 accounts.0003_remove_user_display_name。该迁移删除旧显示名数据，不改用户名、账号 ID、密码、组织关系、会话、项目或快捷键。历史迁移保留用于旧库升级；回退迁移只能恢复空字段，不能恢复旧显示名。部署时停止旧后端，执行 `python backend/manage.py migrate`，再同时发布/重启新的后端与前端。API 不再返回 display_name；不存在兼容占位字段或第二套名称回退。当前开发环境的升级和验证结果见 [用户名验证记录](experiments/username-only.md)。

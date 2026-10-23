@@ -34,7 +34,7 @@ async function request(path, method = 'GET', data, target = context) {
   assert(response.ok(), `${method} ${path}: ${await response.text()}`);
   return response.json();
 }
-async function openSettings() { await page.getByRole('button', { name: '测试甲', exact: true }).click(); await visible(dialog('个人设置')); }
+async function openSettings() { await page.getByRole('button', { name: 'browser-alice', exact: true }).click(); await visible(dialog('个人设置')); }
 async function close(title) { await dialog(title).getByRole('button', { name: '关闭', exact: true }).click(); }
 async function preserveSnapshot() {
   return page.evaluate(() => ({
@@ -52,7 +52,7 @@ try {
   await login('browser-alice', 'wrong');
   await visible(page.getByText('用户名或密码不正确。', { exact: true }));
   await login();
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await visible(page.locator('video'));
   await wait(() => document.querySelector('#organization').selectedOptions[0].textContent.includes('organizer'));
   record('会话初始化、登录失败、登录后组织上下文');
@@ -79,7 +79,7 @@ try {
   await visible(page.getByLabel('browser-empty角色'));
   await page.getByLabel('browser-empty角色').selectOption('organizer');
   await hidden(page.getByLabel('browser-empty角色'));
-  assert.equal(await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).count(), 0);
+  assert.equal(await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'browser-empty', exact: true }) }).getByRole('button', { name: '移除' }).count(), 0);
   const organizationId = await page.getByLabel('当前组织', { exact: true }).inputValue();
   const peer = (await request(`/organizations/${organizationId}/members`)).members.find(member => member.username === 'browser-empty');
   const devContext = await browser.newContext({ baseURL });
@@ -90,18 +90,18 @@ try {
   await close('组织成员');
   await page.getByRole('button', { name: '成员', exact: true }).click();
   await visible(page.getByLabel('browser-empty角色'));
-  await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'browser-empty', exact: true }) }).getByRole('button', { name: '移除' }).click();
   await visible(dialog('移除成员'));
   await dialog('移除成员').getByRole('button', { name: '取消', exact: true }).click();
   await visible(page.getByLabel('browser-empty角色'));
-  await page.getByRole('row').filter({ hasText: '(browser-empty)' }).getByRole('button', { name: '移除' }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'browser-empty', exact: true }) }).getByRole('button', { name: '移除' }).click();
   await dialog('移除成员').getByRole('button', { name: '确认移除', exact: true }).click();
   await hidden(page.getByLabel('browser-empty角色'));
   await close('组织成员');
   record('成员表单桌面/窄屏对齐、添加、organizer 同级保护、移除确认/取消、最后 organizer 保护');
 
   await openSettings();
-  assert(await page.getByLabel('显示名', { exact: true }).evaluate(input => input.readOnly));
+  assert.equal(await page.getByLabel('显示名', { exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '保存资料', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '切换账号', exact: true }).count(), 0);
   await page.screenshot({ path: join(dir, 'personal-settings.png'), fullPage: true });
@@ -130,7 +130,7 @@ try {
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
-  await page.reload(); await page.getByRole('button', { name: '本地工作区', exact: true }).click(); await visible(page.locator('video')); await openSettings();
+  await page.reload(); await visible(page.locator('video')); await openSettings();
   assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'Shift+KeyT');
   await close('个人设置');
   const orgs = await request('/organizations');
@@ -151,9 +151,9 @@ try {
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await visible(page.getByText('已保存', { exact: true }));
   await close('个人设置');
-  record('显示名只读/无切换账号、密码二次确认/错误/成功清空、快捷键保存/恢复/刷新、跨组织共用、member 管理入口隐藏');
+  record('仅用户名/无显示名及切换账号、密码二次确认/错误/成功清空、快捷键保存/恢复/刷新、跨组织共用、member 管理入口隐藏');
 
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(join(dir, 'local.mp4'));
   await wait(() => document.querySelector('video').readyState >= 1);
   // TimePointControl's label includes its input; use labels rather than internals.
@@ -169,7 +169,7 @@ try {
   await page.evaluate(() => { window.__testVideo = document.querySelector('video'); window.__testTimeInput = document.querySelector('input[aria-label="入点"]'); });
   const sibling = await context.newPage();
   await sibling.goto('/');
-  await sibling.getByRole('button', { name: '测试甲', exact: true }).click();
+  await sibling.getByRole('button', { name: 'browser-alice', exact: true }).click();
   await sibling.getByRole('button', { name: '退出账号', exact: true }).click();
   await sibling.getByRole('button', { name: '登录', exact: true }).waitFor();
   await sibling.close();
@@ -216,7 +216,7 @@ try {
   await page.keyboard.press('Shift+KeyT');
   assert.deepEqual(await preserveSnapshot(), snapshot);
   await close('组织成员');
-  await page.locator('h1').click();
+  await page.locator('main').focus();
   await page.keyboard.press('KeyG');
   assert.equal((await preserveSnapshot()).selected, snapshot.selected);
   await page.keyboard.press('Shift+KeyT');
@@ -242,13 +242,13 @@ try {
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(orgA.id));
   await dialog('切换组织').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await hidden(dialog('切换组织'));
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:01.00');
   await page.locator('.audio-stage').focus(); await page.keyboard.press('Shift+KeyT');
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('会话保护稿件');
   await page.getByRole('button', { name: '成员', exact: true }).click();
-  await page.getByRole('row').filter({ hasText: '(browser-alice)' }).getByRole('button', { name: '移除' }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'browser-alice', exact: true }) }).getByRole('button', { name: '移除' }).click();
   await visible(dialog('退出此组织'));
   await dialog('退出此组织').getByRole('button', { name: '取消', exact: true }).click();
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '会话保护稿件');
@@ -264,15 +264,15 @@ try {
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '会话保护稿件');
   await dialog('切换到账号 browser-bob').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await hidden(dialog('切换到账号 browser-bob'));
-  await page.getByRole('button', { name: '本地工作区', exact: true }).click();
+  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
   await wait(() => document.querySelector('textarea').value === '');
-  await page.getByRole('button', { name: '测试乙', exact: true }).click();
+  await page.getByRole('button', { name: 'browser-bob', exact: true }).click();
   assert.equal(await page.getByLabel('提交并下一条绑定').inputValue(), 'KeyG, Enter, NumpadEnter');
   await close('个人设置');
   record('换账号必须明确放弃、旧稿件不归新账号、个人设置隔离');
   await page.screenshot({ path: join(dir, 'workbench.png'), fullPage: true });
   // No-organization state is explicit and still permits local format tooling.
-  await page.getByRole('button', { name: '测试乙', exact: true }).click();
+  await page.getByRole('button', { name: 'browser-bob', exact: true }).click();
   await page.getByRole('button', { name: '退出账号', exact: true }).click();
   await login('browser-empty');
   await visible(page.getByText('暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。', { exact: true }));

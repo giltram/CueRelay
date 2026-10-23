@@ -1,6 +1,6 @@
 # accounts
 
-拥有 User 身份、本人密码、PersonalSettings。User 与 services 中 safe_user、settings_for、save_settings、change_password 是公开契约；shortcuts 读取根 shared JSON 并验证覆盖。无组织、HTTP、媒体或格式依赖。display_name 仅由 dev 在 Admin 维护，个人界面/API 只读。HTTP 改密边界先校验新密码与确认值一致，再调用 change_password 验证旧密码及密码策略。
+拥有 User 身份、本人密码、PersonalSettings。User 与 services 中 safe_user、settings_for、save_settings、change_password 是公开契约；shortcuts 读取根 shared JSON 并验证覆盖。无组织、HTTP、媒体或格式依赖。账号统一以 username 登录和显示；safe_user 仅返回 id、username、is_dev，不再提供独立显示名。HTTP 改密边界先校验新密码与确认值一致，再调用 change_password 验证旧密码及密码策略。
 
 不隐式创建设置记录，不保存明文密码。账号角色只使用 Django is_superuser；组织角色不在本模块。账号停用的跨组织协调入口由 application.identity_admin 拥有；不在此反向导入 organizations。
 
@@ -8,4 +8,6 @@ backends.AccountBackend 是统一的 Django 密码登录入口，继承 ModelBac
 
 password_validation.MaximumLengthValidator 与 Django 验证器共同拥有 15–1024 字符密码策略；change_password 在哈希前再次检查长度，并验证旧密码。登录不应用新密码长度下限。LoginAttempt 不注册 Admin，不保存密码；management/commands/clear_login_attempts.py 供每日清理至少 24 小时未更新的状态。
 
-测试：tests.py 覆盖密码/API/Admin/滑动窗口/冷却/独立连接并发和异步认证；../http_api/test_identity.py 覆盖 CSRF、会话及设置。首次迁移在 migrations/0001_initial.py；新增登录状态为 0002_loginattempt.py。必须在首次 migrate 前配置 AUTH_USER_MODEL。
+测试：tests.py 覆盖密码/API/Admin/滑动窗口/冷却/独立连接并发和异步认证；../http_api/test_identity.py 覆盖 CSRF、会话及设置。首次迁移在 migrations/0001_initial.py；新增登录状态为 0002_loginattempt.py；0003_remove_user_display_name.py 删除旧显示名列及其数据，保留账号主键、密码和关联。必须在首次 migrate 前配置 AUTH_USER_MODEL。
+
+test_migrations.py 验证 0002 旧账号升级后密码、会话、设置、成员与项目关联保留；旧显示名不会恢复或迁移成第二个名称字段。

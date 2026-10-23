@@ -4,7 +4,7 @@
 
 ## 密码入口与规则
 
-`application/settings.py` 的 `AUTH_PASSWORD_VALIDATORS` 是设置密码的统一策略：15–1024 个字符；不要求大小写、数字或符号组合；保留 Django 常见密码、纯数字、用户属性相似性检查。相似性覆盖 username、first_name、last_name、email 和自定义 display_name。
+`application/settings.py` 的 `AUTH_PASSWORD_VALIDATORS` 是设置密码的统一策略：15–1024 个字符；不要求大小写、数字或符号组合；保留 Django 常见密码、纯数字、用户属性相似性检查。相似性覆盖 Django 标准字段 username、first_name、last_name、email；自定义显示名已移除。
 
 | 实际入口 | 验证与权限 |
 | --- | --- |

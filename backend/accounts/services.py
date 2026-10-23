@@ -10,7 +10,7 @@ from .shortcuts import DEFAULTS, validate_overrides
 
 
 def safe_user(user):
-    return {'id': user.pk, 'username': user.username, 'display_name': user.display_name, 'is_dev': user.is_superuser}
+    return {'id': user.pk, 'username': user.username, 'is_dev': user.is_superuser}
 
 
 def settings_for(user):

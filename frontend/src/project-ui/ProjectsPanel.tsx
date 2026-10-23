@@ -5,10 +5,15 @@ import { Modal } from '../account-ui/Modal';
 import type { ProjectDetail, ProjectPage, ProjectSummary } from '../contracts/projects';
 import { projectApi } from '../project-data/projects-api';
 import { ProjectForm } from './ProjectForm';
+import { RouteLink } from '../navigation/RouteLink';
+import { HomeLink } from '../navigation/HomeLink';
+import type { Route } from '../navigation/routes';
 
-export function ProjectsPanel({ organization, request, header, enabled, onOpen, onLocal, onLifecycle }: {
+export function ProjectsPanel({ organization, request, header, enabled, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
   organization: Organization | undefined; request: JsonRequest; header: ReactNode; enabled: boolean;
-  onOpen: (project: ProjectSummary, video?: File) => void; onLocal: () => void; onLifecycle: (project: ProjectSummary) => void;
+  navigate: (route: Route) => void; onCreate: (open: () => void) => void;
+  onCreated: (project: ProjectDetail, video?: File) => void; onLifecycle: (project: ProjectSummary) => void;
+  unavailableOrganization?: boolean;
 }) {
   const [status, setStatus] = useState<'active' | 'archived'>('active');
   const [search, setSearch] = useState('');
@@ -46,15 +51,15 @@ export function ProjectsPanel({ organization, request, header, enabled, onOpen, 
   function saved(project: ProjectDetail, video?: File) {
     const opening = form === 'new';
     setForm(null); setRefresh(value => value + 1);
-    if (opening) onOpen(project, video);
+    if (opening) onCreated(project, video);
   }
-  const person = (user: { display_name: string; username: string } | null) => user?.display_name || user?.username || '—';
+  const person = (user: { username: string } | null) => user?.username || '—';
   const date = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
   return <main className="projects-page">
-    <header className="app-header"><h1>CueRelay</h1>{header}</header>
+    <header className="app-header"><h1><HomeLink navigate={navigate} /></h1>{header}</header>
     <div className="project-heading"><h2>项目</h2><div className="controls">
-      <button disabled={!enabled} onClick={onLocal}>本地工作区</button>
-      {organization?.can_manage && <button className="primary" disabled={!enabled} onClick={() => setForm('new')}>新建项目</button>}
+      <RouteLink className="button-link" route={{ kind: 'local' }} navigate={navigate}>本地工作区</RouteLink>
+      {organization?.can_manage && <button className="primary" disabled={!enabled} onClick={() => onCreate(() => setForm('new'))}>新建项目</button>}
     </div></div>
     {organization ? <>
       <div className="project-filters">
@@ -69,12 +74,12 @@ export function ProjectsPanel({ organization, request, header, enabled, onOpen, 
       {!error && data && <div className="project-table-scroll"><table className="project-table"><thead><tr>
         <th>项目</th><th>{status === 'active' ? '最近更新' : '归档时间'}</th><th>{status === 'active' ? '更新者' : '归档人'}</th><th>操作</th>
       </tr></thead><tbody>{data.projects.map(project => <tr key={project.id}>
-        <td><button className="project-name" disabled={!enabled || busy} onClick={() => onOpen(project)}>{project.name}</button>
+        <td><RouteLink className="project-name" route={{ kind: 'project', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{project.name}</RouteLink>
           {project.description && <p className="project-description">{project.description}</p>}</td>
         <td>{date(status === 'active' ? project.updated_at : project.archived_at)}</td>
         <td>{person(status === 'active' ? project.updated_by : project.archived_by)}</td>
         <td><div className="controls">
-          <button disabled={!enabled || busy} onClick={() => onOpen(project)}>{status === 'active' ? '打开' : '只读查看'}</button>
+          <RouteLink className="button-link" route={{ kind: 'project', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{status === 'active' ? '打开' : '只读查看'}</RouteLink>
           {organization.can_manage && <details className="project-management"><summary>管理</summary><div className="controls">
             {status === 'active' && <button disabled={!enabled || busy} onClick={() => { setForm(project); }}>编辑信息</button>}
             <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? '归档项目' : '恢复项目'}</button>
@@ -90,7 +95,11 @@ export function ProjectsPanel({ organization, request, header, enabled, onOpen, 
         <button disabled={loading || page === 1} onClick={() => setPage(value => value - 1)}>上一页</button>
         <button disabled={loading || !data.has_more} onClick={() => setPage(value => value + 1)}>下一页</button>
       </div></div>}
-    </> : <p className="empty">暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。</p>}
+    </> : <div className="empty"><p role={unavailableOrganization ? 'alert' : undefined}>{unavailableOrganization
+      ? '指定组织不存在或无权访问，请选择可访问的组织。'
+      : '暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。'}</p>
+      {unavailableOrganization && <RouteLink route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
+    </div>}
     {form && organization && <ProjectForm api={api} organization={organization} project={form === 'new' ? undefined : form} onClose={() => setForm(null)} onSaved={saved} />}
     {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} onClose={busy ? undefined : () => setConfirm(null)}>
       <p>{confirm.status === 'active' ? `归档「${confirm.name}」后所有成员只能查看和导出，尚未保存的稿件不会自动提交。` : `恢复「${confirm.name}」后，组织成员可以继续工作。`}</p>

@@ -25,7 +25,7 @@ python manage.py createsuperuser
 python manage.py runserver 127.0.0.1:8000
 ```
 
-.env 被 Git 忽略，不提交真实密钥。默认生产模式使用 Secure Cookie；本机 HTTP 必须在 .env 设置 DJANGO_DEBUG=1。Session 存数据库，7 天，HttpOnly Cookie；CSRF 可信开发 Origin 见示例。环境文件由 shell 显式加载，不隐式读取。部署时使用 HTTPS、DEBUG=0，配置实际 ALLOWED_HOSTS 和必要的可信 Origin；生产服务器与静态文件部署不在本任务范围。
+.env 被 Git 忽略，不提交真实密钥。默认生产模式使用 Secure Cookie；本机 HTTP 必须在 .env 设置 DJANGO_DEBUG=1。Session 存数据库，7 天，HttpOnly Cookie；CSRF 可信开发 Origin 见示例。环境文件由 shell 显式加载，不隐式读取。部署时使用 HTTPS、DEBUG=0，配置实际 ALLOWED_HOSTS 和必要的可信 Origin；生产路径回退与 API/Admin 隔离示例见 [前端部署](docs/frontend-deployment.md)，实际生产发布尚需按部署环境验收。
 
 AUTH_USER_MODEL 已在首次迁移前设置。仓库此前无数据库配置/业务迁移；若自行已有数据库或 auth_user 数据，不要重置或直接切换用户表，先单独制定兼容数据迁移。
 
@@ -39,7 +39,7 @@ npm ci
 npm run dev
 ```
 
-打开 [本地工作区](http://127.0.0.1:5173/)。Vite 同源 /api 代理到 Django。新账号由 dev 在 [Django Admin](http://127.0.0.1:8000/admin/) 创建；创建组织时选择一个活动账号作为初始 organizer，二者同事务建立。成员管理在工作区顶栏；组织成员表在 Admin 只读，账号通过停用处理退出。is_staff 不等于 dev，dev 对应 is_superuser。不开放注册或邮件邀请。
+打开 [应用入口](http://127.0.0.1:5173/) 或 [本地工作区](http://127.0.0.1:5173/workspace/local)。Vite 同源 /api、/admin、/static 代理到 Django。新账号由 dev 在 [Django Admin](http://127.0.0.1:8000/admin/) 创建；创建组织时选择一个活动账号作为初始 organizer，二者同事务建立。成员管理在工作区顶栏；组织成员表在 Admin 只读，账号通过停用处理退出。is_staff 不等于 dev，dev 对应 is_superuser。不开放注册或邮件邀请。
 
 一个账号可加入多组织，组织内固定 organizer/member；个人设置跨组织共用。无组织也可操作本地字幕。切组织仅改变上下文；有字幕、时间输入或本地视频时必须导出、取消或明确放弃。会话失效原位登录，同账号登录后继续原稿；刷新/关闭页面仍会失去内存内容，请及时导出。导出仅包含已应用的时间修改。
 
@@ -47,7 +47,7 @@ npm run dev
 
 登录后默认进入项目列表，可查看「进行中」「过去项目」，按名称搜索和分页。organizer 管理本组织项目，dev 管理所有组织；member 可查看项目并保存字幕，不能改项目信息或归档/恢复。
 
-新建项目填写名称/说明，选择本地视频完成完整 SHA-256 校验，再选择空字幕或合法 ASS，最终确认后原子创建。视频不上传。打开后点击「保存项目」持久化已应用字幕，旧版本冲突会保留输入；归档只读。浏览列表保留当前工作区，切换或重新加载先处理本地稿件。
+新建项目填写名称/说明，选择本地视频完成完整 SHA-256 校验，再选择空字幕或合法 ASS，最终确认后原子创建。视频不上传。打开后点击「保存项目」持久化已应用字幕，旧版本冲突会保留输入；归档只读。工作区「项目列表」默认新开标签页，原页字幕、视频和播放状态保留。同页通过前进/回退浏览列表保留当前实例，切换或重新加载先处理本地稿件。
 
 升级运行 `python manage.py migrate` 和前端 `npm ci`，并重启后端。新增 projects.0001_initial 表与 @noble/hashes 2.0.1（MIT），既有音频依赖保留。没有实时协作或自动保存，保存不含尚未应用的时间输入。详细边界与浏览器测试入口见 [项目契约](docs/projects.md)。
 
@@ -80,3 +80,15 @@ npm run build
 本地音频分段提取的阶段 A 验证入口与大文件实测限制见 [音频提取记录](docs/experiments/local-audio.md)。打轴页默认 Spectrum，顶栏可切换 Waveform / Spectrum；普通滚轮平移、Shift+滚轮缩放，也可拖动平移、点击定位和拖动入出点；拖动只改时间草稿，按 G / Enter（或个人覆盖键位）提交并进入下一行，末行自动续一条 2 秒空行。交互、Worker 缓存及浏览器回归见 [音频时间轴记录](docs/experiments/audio-timeline.md)。
 
 架构入口：[docs/architecture.md](docs/architecture.md)。本次 main/audio 集成状态、用户决定及验证见 [集成记录](docs/plans/main-audio-integration.md)。
+
+## 页面 URL 与导航
+
+组织项目列表：`/organizations/:organizationId/projects`；项目工作区：`/organizations/:organizationId/projects/:projectId/workspace`；本地工作区：`/workspace/local`。项目名称和打开/只读查看可复制链接或原生新开标签页；创建后新增历史记录进入项目，回退回到列表。登录后继续原请求地址，直接访问/刷新加载指定项目的已保存快照，并要求重新选片校验。URL 不保存未保存稿件或视频，新标签页不会复制工作区现场。无组织入口为 `/projects`。
+
+点击左上角 CueRelay 返回 `/` 首页，根地址保持不变，展示当前可访问组织的项目列表；保留已有工作区，返回后可以继续原稿。
+
+开发/生产路径回退、Nginx 示例、隔离数据库播种和 `frontend/browser-tests/navigation.mjs` 的运行方式见 [前端部署与导航验证](docs/frontend-deployment.md)。实际验证结果见 [导航记录](docs/experiments/frontend-navigation.md)。
+
+## 账号名称
+
+账号统一使用 username 登录和显示，没有独立显示名。升级需执行 `python backend/manage.py migrate` 应用 accounts.0003_remove_user_display_name，并同步更新前后端；旧显示名数据会删除，账号 ID、密码、组织关系、项目和快捷键保留。详见 [用户系统升级说明](docs/user-system.md#用户名统一显示升级)。

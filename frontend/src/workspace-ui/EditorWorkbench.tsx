@@ -21,6 +21,7 @@ export interface WorkbenchHandle {
 interface Props {
   ref?: Ref<WorkbenchHandle>;
   header?: ReactNode;
+  title?: ReactNode;
   shortcutsPaused?: boolean;
   shortcutOverrides?: ShortcutOverrides;
   project?: ProjectDetail;
@@ -31,7 +32,7 @@ interface Props {
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcutOverrides = {}, project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -227,11 +228,11 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
       }
     }}>
       <header className="app-header">
-        <h1>CueRelay</h1>
+        <h1>{title ?? 'CueRelay'}</h1>
         {header}
         <div className="file-actions" aria-label="字幕文件操作">
           {project && <>
-            <span className="workspace-project-name">{project.name}{readOnly ? ' · 已归档，只读' : ''}</span>
+            <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? ' · 已归档，只读' : ' · 暂不可编辑' : ''}</span>
             <button onClick={onReload} disabled={busy}>重新加载项目</button>
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
@@ -260,7 +261,9 @@ export function EditorWorkbench({ ref, header, shortcutsPaused = false, shortcut
         </div>
       </header>
 
-      {project && <p className="project-workspace-status" role="status">{readOnly ? '已归档项目仅可查看和导出。' : !mediaVerified ? '请选择与项目基准一致的本地视频；完整校验通过后可编辑和保存。' : document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。'}</p>}
+      {project && <p className="project-workspace-status" role="status">{readOnly
+        ? project.status === 'archived' ? '已归档项目仅可查看和导出。' : '当前无法验证项目访问权限，仅可查看和导出。请重新登录或检查组织权限。'
+        : !mediaVerified ? '请选择与项目基准一致的本地视频；完整校验通过后可编辑和保存。' : document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。'}</p>}
       {saveMessage && <p role="status">{saveMessage}</p>}
       {pendingImport && (
         <div role="alert" className="confirm">

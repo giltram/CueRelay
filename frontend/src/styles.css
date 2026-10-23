@@ -14,8 +14,11 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; }
-button, input, textarea, select { font: inherit; }
-button, .file-picker {
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.brand-link, .brand-link:hover { color: inherit; text-decoration: none; }
+button, .button-link, input, textarea, select { font: inherit; }
+button, .button-link, .file-picker {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -30,14 +33,15 @@ button, .file-picker {
   white-space: nowrap;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
-button:hover, .file-picker:hover { background: #edf5ef; border-color: #7a9a87; }
+button:hover, .button-link:hover, .file-picker:hover { background: #edf5ef; border-color: #7a9a87; }
+.button-link, .button-link:hover { text-decoration: none; }
 button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: .45; cursor: not-allowed; }
 .file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, textarea:focus-visible,
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
 select:focus-visible, summary:focus-visible, .file-picker:focus-within { outline: 2px solid #7a9a87; outline-offset: 2px; }
 .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .primary:hover { background: #1c4937; border-color: #1c4937; }
-button[aria-pressed="true"] { color: var(--accent); background: #edf5ef; border-color: #7a9a87; }
+button[aria-pressed="true"], .button-link[aria-current="page"] { color: var(--accent); background: #edf5ef; border-color: #7a9a87; }
 .text-button { border-color: transparent; color: var(--text-muted); background: transparent; }
 kbd { color: var(--text-muted); font: 11px ui-monospace, SFMono-Regular, monospace; }
 .primary kbd { color: inherit; opacity: .8; }
