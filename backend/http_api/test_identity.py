@@ -104,6 +104,7 @@ class IdentityTests(TestCase):
         self.login()
         initial = self.client.get('/api/me/settings').json()
         self.assertEqual(initial['shortcut_overrides'], {})
+        self.assertEqual(initial['audio_display_mode'], 'spectrum')
         self.assertFalse(PersonalSettings.objects.exists())
         overrides = {'commit': ['Shift+KeyG', 'Enter', 'NumpadEnter']}
         self.assertEqual(self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH').json()['shortcut_overrides'], overrides)
@@ -116,6 +117,33 @@ class IdentityTests(TestCase):
         self.login(self.other)
         self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
         self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
+
+    def test_audio_display_settings_are_partial_validated_and_account_scoped(self):
+        self.login()
+        overrides = {'commit': ['Shift+KeyT']}
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH').status_code, 200)
+        changed = self.send('/me/settings', {'audio_display_mode': 'waveform'}, 'PATCH').json()
+        self.assertEqual(changed['audio_display_mode'], 'waveform')
+        self.assertEqual(changed['shortcut_overrides'], overrides)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PersonalSettings.objects.filter(user=self.user).update(audio_display_mode='invalid')
+        self.assertEqual(self.client.get('/api/me/settings').json()['audio_display_mode'], 'waveform')
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': {}}, 'PATCH').json()['audio_display_mode'], 'waveform')
+        for invalid in ['Waveform', 'unknown', '', None, True, 1, [], {}]:
+            response = self.send('/me/settings', {'audio_display_mode': invalid, 'shortcut_overrides': overrides}, 'PATCH')
+            self.assertEqual(response.status_code, 400, invalid)
+            current = self.client.get('/api/me/settings').json()
+            self.assertEqual(current['audio_display_mode'], 'waveform')
+            self.assertEqual(current['shortcut_overrides'], {})
+        for invalid in [{}, {'audio_display_mode': 'spectrum', 'user_id': self.other.pk}]:
+            self.assertEqual(self.send('/me/settings', invalid, 'PATCH').status_code, 400)
+        self.login(self.other)
+        self.assertEqual(self.client.get('/api/me/settings').json()['audio_display_mode'], 'spectrum')
+        self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
+        self.login()
+        restored = self.send('/me/settings', {'audio_display_mode': 'spectrum', 'shortcut_overrides': overrides}, 'PATCH').json()
+        self.assertEqual(restored['audio_display_mode'], 'spectrum')
+        self.assertEqual(restored['shortcut_overrides'], overrides)
 
     def test_roles_scope_fields_uniqueness_and_dev(self):
         a = create_organization('A', self.user.pk)

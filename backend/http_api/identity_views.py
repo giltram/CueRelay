@@ -49,14 +49,17 @@ def endpoint(methods, anonymous=False):
     return decorate
 
 
-def payload(request, fields):
+def payload(request, fields, partial=False):
     if request.content_type != 'application/json':
         raise ValidationError('请使用 JSON 请求。')
     try:
         value = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
         raise ValidationError('无效的 JSON。')
-    if not isinstance(value, dict) or set(value) != set(fields):
+    if not isinstance(value, dict):
+        raise ValidationError('请提交 JSON 对象。')
+    actual, allowed = set(value), set(fields)
+    if (partial and (not actual or not actual <= allowed)) or (not partial and actual != allowed):
         raise ValidationError('仅接受字段：' + ', '.join(fields))
     return value
 
@@ -119,7 +122,7 @@ def password(request):
 @endpoint(['GET', 'PATCH'])
 def personal_settings(request):
     if request.method == 'PATCH':
-        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides'])['shortcut_overrides'])
+        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides', 'audio_display_mode'], partial=True))
     return accounts.settings_for(request.user)
 
 

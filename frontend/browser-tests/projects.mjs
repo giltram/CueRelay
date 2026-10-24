@@ -1,3 +1,4 @@
+import { sameTab } from './link-navigation.mjs';
 // Real project browser flows. Prepare backend/browser_tests/seed_projects.py first.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
@@ -60,7 +61,6 @@ try {
   await page.getByRole('button', { name: '新建项目', exact: true }).click();
   await page.getByLabel('项目名称', { exact: true }).fill(title);
   await page.getByLabel('项目说明', { exact: true }).fill('项目面板集成测试');
-  await modal('新建项目').getByRole('button', { name: '下一步', exact: true }).click();
   await page.getByLabel('基准视频', { exact: true }).setInputFiles(join(artifacts, 'video.mp4'));
   await shown(page.getByText(/完整校验通过/));
   await page.getByLabel('初始字幕', { exact: true }).selectOption('import');
@@ -90,7 +90,7 @@ try {
     return { src: window.__projectVideo.src, start: document.querySelector('input[aria-label="入点"]').value, text: document.querySelector('textarea').value };
   });
   await toList();
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await sameTab(row(title).getByRole('link', { name: '打开', exact: true }));
   assert.deepEqual(await page.evaluate(() => ({ src: document.querySelector('video').src, start: document.querySelector('input[aria-label="入点"]').value, text: document.querySelector('textarea').value })), before);
   assert(await page.evaluate(() => document.querySelector('video') === window.__projectVideo));
   await toList();
@@ -114,7 +114,8 @@ try {
   await page.screenshot({ path: join(artifacts, 'projects-active.png'), fullPage: true });
   check('浏览列表保留同一个 video 与时间草稿；搜索及管理冲突保留输入后显式刷新');
 
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await page.getByLabel('搜索项目', { exact: true }).fill(renamed);
+  await sameTab(row(renamed).getByRole('link', { name: '打开', exact: true }));
   await page.getByRole('button', { name: '保存项目', exact: true }).click();
   await shown(page.getByRole('alert').filter({ hasText: '项目已被其他操作更新' }));
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '尚未保存的本地修改');
@@ -143,7 +144,7 @@ try {
   await hidden(modal('归档项目'));
   await page.getByRole('tab', { name: '过去项目', exact: true }).click();
   await shown(row(renamed));
-  await row(renamed).getByRole('link', { name: '只读查看', exact: true }).click();
+  await sameTab(row(renamed).getByRole('link', { name: '只读查看', exact: true }));
   await shown(page.getByText('已归档项目仅可查看和导出。', { exact: true }));
   assert(await page.getByLabel('字幕中文文本').isDisabled());
   assert.equal(await page.getByRole('button', { name: '保存项目', exact: true }).count(), 0);
@@ -163,7 +164,7 @@ try {
   await memberPage.getByRole('link', { name: renamed, exact: true }).waitFor();
   assert.equal(await memberPage.getByRole('button', { name: '新建项目', exact: true }).count(), 0);
   assert.equal(await memberPage.locator('summary').count(), 0);
-  await memberPage.getByRole('row').filter({ has: memberPage.getByRole('link', { name: renamed, exact: true }) }).getByRole('link', { name: '打开', exact: true }).click();
+  await sameTab(memberPage.getByRole('row').filter({ has: memberPage.getByRole('link', { name: renamed, exact: true }) }).getByRole('link', { name: '打开', exact: true }));
   await memberPage.getByLabel('导入本地视频', { exact: true }).setInputFiles(join(artifacts, 'video.mp4'));
   await memberPage.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await memberPage.getByLabel('字幕中文文本').fill('普通成员的字幕修改');
@@ -173,7 +174,8 @@ try {
   check('member 无项目管理入口，校验片源后仍能保存字幕');
 
   // Session logout must retain even a hidden project workspace and all draft input.
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await page.getByLabel('搜索项目', { exact: true }).fill(renamed);
+  await sameTab(row(renamed).getByRole('link', { name: '打开', exact: true }));
   await api('/auth/logout', 'POST', {});
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await shown(modal('重新登录'));
@@ -187,16 +189,17 @@ try {
   const second = (await api(base, 'POST', { name: title + ' 第二项目', description: '', media: detail.media, source: null })).project;
   // Refresh the panel list without touching the retained workspace.
   await page.getByLabel('搜索项目', { exact: true }).fill(title);
-  await row(second.name).getByRole('link', { name: '打开', exact: true }).click();
+  await sameTab(row(second.name).getByRole('link', { name: '打开', exact: true }));
   await shown(modal('打开其他项目'));
   await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await page.getByLabel('搜索项目', { exact: true }).fill(renamed);
+  await sameTab(row(renamed).getByRole('link', { name: '打开', exact: true }));
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '重新加载后保存');
   await toList();
   // Reloading the whole browser reads only explicitly saved server state.
   page.on('dialog', dialog => dialog.accept());
   await page.reload();
-  await row(renamed).getByRole('link', { name: '打开', exact: true }).click();
+  await sameTab(row(renamed).getByRole('link', { name: '打开', exact: true }));
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '普通成员的字幕修改');
   assert(await page.getByLabel('字幕中文文本').isDisabled());

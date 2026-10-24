@@ -10,6 +10,7 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [overrides, setOverrides] = useState<ShortcutOverrides>(settings.shortcut_overrides);
+  const [audioMode, setAudioMode] = useState(settings.audio_display_mode);
   const [recording, setRecording] = useState<TimingShortcut | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,17 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
       <label>新密码<input type="password" autoComplete="new-password" placeholder="至少 15 个字符" minLength={15} maxLength={1024} value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
       <label>确认新密码<input type="password" autoComplete="new-password" placeholder="再次输入新密码" minLength={15} maxLength={1024} value={confirmation} required onChange={event => setConfirmation(event.target.value)} /></label>
       <button disabled={busy}>修改密码</button>
+    </form>
+    <h2>音频显示</h2>
+    <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
+      const result = await api<Settings>('/me/settings', 'PATCH', { audio_display_mode: audioMode });
+      setAudioMode(result.audio_display_mode); onSettings(result);
+    }); }}>
+      <label>音频显示模式<select aria-label="音频显示模式" value={audioMode} disabled={busy} onChange={event => setAudioMode(event.target.value as Settings['audio_display_mode'])}>
+        <option value="spectrum">Spectrum（频谱）</option><option value="waveform">Waveform（波形）</option>
+      </select></label>
+      <p>保存后切回工作区即可生效。</p>
+      <button disabled={busy}>保存显示设置</button>
     </form>
     <h2>快捷键</h2>
     <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持 Shift+字母/数字，其他修饰键为保留组合。</p>

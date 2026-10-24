@@ -1,3 +1,4 @@
+import { setAudioMode } from './audio-settings.mjs';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 
@@ -24,7 +25,7 @@ export async function observeRuler(page) {
 
 export async function checkRuler(page, directory) {
   const originalMode = await page.locator('.audio-timeline').getAttribute('data-mode');
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   const stage = page.locator('.audio-stage');
   const canvas = stage.locator('canvas');
@@ -106,7 +107,7 @@ export async function checkRuler(page, directory) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await settle();
   await setSpan(original.span); await setStart(original.start);
-  if (originalMode === 'waveform') await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  if (originalMode === 'waveform') await setAudioMode(page, 'waveform');
   for (const result of [report.reference, report.pan, report.zoomIn, report.zoomOut, report.narrow]) {
     result.tickCount = result.ticks.length;
     delete result.ticks;

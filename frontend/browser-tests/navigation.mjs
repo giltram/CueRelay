@@ -1,3 +1,5 @@
+import { setAudioMode } from './audio-settings.mjs';
+import { sameTab } from './link-navigation.mjs';
 // Native browser navigation against real Session/CSRF/project APIs. No media uploads.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
@@ -72,12 +74,11 @@ try {
   const otherOrg = organizations.find(value => value.id !== org.id);
   const listPath = `/organizations/${org.id}/projects`;
   await page.waitForURL(new URL('/', baseURL).href);
-  await page.getByRole('link', { name: '项目列表', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: '项目列表', exact: true }));
   await page.waitForURL('**' + listPath);
   const title = `导航 ${Date.now()}`;
   await page.getByRole('button', { name: '新建项目', exact: true }).click();
   await page.getByLabel('项目名称', { exact: true }).fill(title);
-  await modal('新建项目').getByRole('button', { name: '下一步', exact: true }).click();
   await page.getByLabel('基准视频', { exact: true }).setInputFiles(videoFile);
   await page.getByText(/完整校验通过/).waitFor();
   await page.getByLabel('初始字幕', { exact: true }).selectOption('import');
@@ -92,7 +93,7 @@ try {
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await workspace(page).fill('导航未保存字幕');
   await page.getByLabel('入点', { exact: true }).fill('0:00:00.30');
-  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await setAudioMode(page, 'waveform');
   await page.locator('video').evaluate(video => { video.currentTime = 1.25; });
   await page.waitForFunction(() => Math.abs(document.querySelector('video').currentTime - 1.25) < 0.01);
   await page.evaluate(() => {
@@ -104,6 +105,23 @@ try {
   assert.deepEqual(Object.keys(await page.evaluate(() => history.state)), ['cueRelayNavigation']);
   record('创建后进入项目 URL，创建时的 File 直接启用编辑；历史仅含导航标记');
 
+  await sameTab(page.getByRole('link', { name: '设置', exact: true }));
+  await page.waitForURL(`**/organizations/${org.id}/settings/personal`);
+  await page.getByRole('heading', { name: '个人设置', exact: true }).waitFor();
+  assert.equal(await modal('打开其他项目').count(), 0);
+  assert(await page.locator('video').isHidden());
+  await page.keyboard.press('KeyG'); await page.keyboard.press('Control+Delete');
+  assert.deepEqual(await draftSnapshot(), snapshot);
+  await sameTab(page.getByRole('link', { name: '组织设置', exact: true }));
+  await page.waitForURL(`**/organizations/${org.id}/settings`);
+  await page.getByLabel('组织名称', { exact: true }).waitFor();
+  await page.goBack(); await page.getByRole('heading', { name: '个人设置', exact: true }).waitFor();
+  await page.goBack(); await workspace(page).waitFor();
+  assert.equal(new URL(page.url()).pathname, projectPath);
+  assert.deepEqual(await draftSnapshot(), snapshot);
+  assert.equal(await page.locator('video').evaluate(video => video.currentTime), 1.25);
+  record('设置为独立个人/组织 URL；浏览设置不要求放弃，隐藏工作区暂停快捷键，回退保留节点/视频/字幕/时间草稿');
+
   const home = page.getByRole('link', { name: 'CueRelay', exact: true });
   assert.equal(await home.getAttribute('href'), '/');
   await home.click(); await page.waitForURL(new URL('/', baseURL).href);
@@ -114,6 +132,8 @@ try {
   record('点击 CueRelay 返回并保持 / 首页，浏览器回退恢复原工作区和未保存草稿');
 
   await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
+  assert.equal(await page.getByRole('link', { name: '返回工作区', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('link', { name: '设置', exact: true }).getAttribute('href'), `/organizations/${org.id}/settings/personal`);
   await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
   assert.equal(await modal('打开其他项目').count(), 0);
   assert(await page.locator('video').evaluate(video => video.paused));
@@ -124,7 +144,7 @@ try {
   await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
   const titleLink = page.getByRole('link', { name: title, exact: true });
   assert.equal(await titleLink.getAttribute('href'), projectPath);
-  await titleLink.click(); await workspace(page).waitFor({ state: 'visible' });
+  await sameTab(titleLink); await workspace(page).waitFor({ state: 'visible' });
   assert.deepEqual(await draftSnapshot(), snapshot);
   record('回退回列表、前进和点击同项目均保留 video、播放位置、草稿、选择和显示模式');
 
@@ -149,7 +169,7 @@ try {
   assert.equal(await middleTab.locator('video').getAttribute('src'), null);
   const modifierTab = await newTab(tabProjectLink, { modifiers: ['ControlOrMeta'] });
   await workspace(modifierTab).waitFor(); assert(await workspace(modifierTab).isDisabled());
-  await listTab.getByRole('row').filter({ has: tabProjectLink }).getByRole('link', { name: '打开', exact: true }).click();
+  await sameTab(listTab.getByRole('row').filter({ has: tabProjectLink }).getByRole('link', { name: '打开', exact: true }));
   await workspace(listTab).waitFor();
   assert(await workspace(listTab).isDisabled());
   await listTab.reload(); await workspace(listTab).waitFor();
@@ -176,32 +196,73 @@ try {
   await direct.goto(otherPath); await login(direct);
   await workspace(direct).waitFor();
   assert.equal(new URL(direct.url()).pathname, otherPath);
-  assert.equal(await direct.getByLabel('当前组织', { exact: true }).inputValue(), String(otherOrg.id));
+  assert.equal(await direct.getByLabel('当前组织', { exact: true }).count(), 0);
   await direct.reload(); await workspace(direct).waitFor();
   assert.equal(new URL(direct.url()).pathname, otherPath);
   await fresh.close();
   record('未登录直达非默认组织项目，登录后继续原地址，刷新不退回默认组织');
+
+  const settingsContext = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+  const settingsPage = await settingsContext.newPage(); watch(settingsPage);
+  const orgSettingsPath = `/organizations/${otherOrg.id}/settings`;
+  await settingsPage.goto(orgSettingsPath); await login(settingsPage);
+  await settingsPage.getByRole('heading', { name: '组织设置', exact: true }).waitFor();
+  await settingsPage.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
+  assert.equal(new URL(settingsPage.url()).pathname, orgSettingsPath);
+  assert.equal(await settingsPage.getByLabel('当前组织', { exact: true }).count(), 0);
+  assert.equal(await settingsPage.getByLabel('组织名称', { exact: true }).count(), 0);
+  assert.equal(await settingsPage.getByLabel('添加成员', { exact: true }).count(), 0);
+  await settingsPage.reload();
+  await settingsPage.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
+  assert.equal(new URL(settingsPage.url()).pathname, orgSettingsPath);
+  await settingsPage.goto(`/organizations/${org.id}/settings`);
+  await settingsPage.getByLabel('组织名称', { exact: true }).waitFor();
+  await settingsPage.setViewportSize({ width: 390, height: 844 });
+  assert(await settingsPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await settingsPage.screenshot({ path: join(artifacts, 'organization-settings-mobile.png'), fullPage: true });
+  await sameTab(settingsPage.getByRole('link', { name: '个人设置', exact: true }));
+  await settingsPage.getByLabel('旧密码', { exact: true }).waitFor();
+  assert(await settingsPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await settingsPage.screenshot({ path: join(artifacts, 'personal-settings-mobile.png'), fullPage: true });
+  const settingsTabPromise = settingsContext.waitForEvent('page');
+  await settingsPage.getByRole('link', { name: '个人设置', exact: true }).click({ button: 'middle' });
+  const settingsTab = await settingsTabPromise; watch(settingsTab);
+  await settingsTab.getByLabel('旧密码', { exact: true }).waitFor();
+  assert.equal(await settingsTab.locator('video').count(), 0);
+  await settingsTab.goto('/organizations/999999999/settings');
+  await settingsTab.getByText('组织不存在或无权访问。', { exact: true }).waitFor();
+  assert.equal(new URL(settingsTab.url()).pathname, '/organizations/999999999/settings');
+  assert.equal(await settingsTab.getByLabel('组织名称', { exact: true }).count(), 0);
+  await settingsTab.getByRole('button', { name: '重新加载组织', exact: true }).click();
+  await sameTab(settingsTab.getByRole('link', { name: '项目列表', exact: true }));
+  await settingsTab.getByRole('heading', { name: '项目', exact: true }).waitFor();
+  await settingsContext.close();
+  record('设置直达登录/刷新保持显式组织；新标签页独立、member 无管理入口、无权/不存在有提示，个人/组织设置窄屏无横向溢出');
 
   // Establish two different project history entries, then guard a pop traversal.
   await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
   const second = (await api(listPath, 'POST', { name: title + ' 第二', description: '', media: detail.media, source: null })).project;
   await page.getByLabel('搜索项目', { exact: true }).fill(second.name);
   const secondLink = page.getByRole('link', { name: second.name, exact: true });
-  await secondLink.click(); await modal('打开其他项目').waitFor();
+  await sameTab(secondLink); await modal('打开其他项目').waitFor();
   assert.equal(new URL(page.url()).pathname, listPath);
   await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
   assert.equal(new URL(page.url()).pathname, listPath);
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await page.getByLabel('搜索项目', { exact: true }).fill(title);
+  await sameTab(page.getByRole('link', { name: title, exact: true }));
   await workspace(page).waitFor(); assert.deepEqual(await draftSnapshot(), snapshot);
+  assert.equal(await page.getByLabel('当前组织', { exact: true }).count(), 0);
+  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(otherOrg.id));
   await modal('切换组织').waitFor();
   await modal('切换组织').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, projectPath);
+  assert.equal(new URL(page.url()).pathname, '/');
   assert.equal(await page.getByLabel('当前组织', { exact: true }).inputValue(), String(org.id));
+  await page.goBack(); await workspace(page).waitFor();
   await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.waitForURL('**' + listPath);
   await page.getByLabel('搜索项目', { exact: true }).fill(second.name);
-  await page.getByRole('link', { name: second.name, exact: true }).click();
+  await sameTab(page.getByRole('link', { name: second.name, exact: true }));
   await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   const secondPath = `${listPath}/${second.id}/workspace`;
   await page.waitForURL('**' + secondPath); await workspace(page).waitFor();
@@ -236,7 +297,7 @@ try {
   await modal('新建项目').waitFor();
   assert.equal(await page.getByLabel('项目名称', { exact: true }).count(), 0);
   await modal('新建项目').getByRole('button', { name: '取消', exact: true }).click();
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: second.name, exact: true }));
   await workspace(page).waitFor(); assert.equal(page.url(), protectedPath);
   // Isolate the native cancelled-navigation probe from history traversal tests.
   const reloadContext = await browser.newContext({ baseURL, storageState: await context.storageState() });
@@ -294,9 +355,9 @@ try {
   let received;
   const requested = new Promise(resolve => { received = resolve; });
   await errorsTab.route('**/api' + failedPath, async route => { received(); await held; await route.continue(); });
-  await errorsTab.getByRole('link', { name: second.name, exact: true }).click();
+  await sameTab(errorsTab.getByRole('link', { name: second.name, exact: true }));
   await requested;
-  await errorsTab.getByRole('link', { name: '返回项目列表', exact: true }).click();
+  await sameTab(errorsTab.getByRole('link', { name: '返回项目列表', exact: true }));
   await errorsTab.getByRole('heading', { name: '项目', exact: true }).waitFor();
   const completed = errorsTab.waitForResponse(response => new URL(response.url()).pathname === '/api' + failedPath);
   release(); await completed;
@@ -332,16 +393,21 @@ try {
   assert.equal(await local.getByLabel('字幕中文文本').inputValue(), '本地会话保护草稿');
   await login(local, 'project-empty'); await modal('重新登录', local).waitFor({ state: 'hidden' });
   assert(await local.locator('video').evaluate(video => video === window.__localSessionVideo));
-  await local.getByRole('button', { name: 'project-empty', exact: true }).click();
+  await sameTab(local.getByRole('link', { name: '设置', exact: true }));
+  await local.getByRole('heading', { name: '个人设置', exact: true }).waitFor();
+  assert.equal(await local.getByRole('link', { name: '组织设置', exact: true }).count(), 0);
+  await local.getByText('暂无可用组织。请联系管理员添加成员后使用组织设置。', { exact: true }).waitFor();
   await local.getByRole('button', { name: '退出账号', exact: true }).click();
   await modal('退出账号', local).getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(new URL(local.url()).pathname, '/settings');
+  await local.goBack(); await workspace(local).waitFor();
   assert.equal(new URL(local.url()).pathname, '/workspace/local');
   assert.equal(await local.getByLabel('字幕中文文本').inputValue(), '本地会话保护草稿');
   await localContext.close();
   record('无组织本地入口明确；同账号恢复、取消跨账号切换/退出均保留本地草稿与 video');
 
   // These requests prove the development/preview fallback does not swallow API/Admin.
-  for (const path of [projectPath, listPath, '/workspace/local']) {
+  for (const path of [projectPath, listPath, '/workspace/local', '/settings', `/organizations/${org.id}/settings`]) {
     const response = await context.request.get(path);
     assert.equal(response.status(), 200); assert((await response.text()).includes('<div id="root">'));
   }

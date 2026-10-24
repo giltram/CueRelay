@@ -14,7 +14,6 @@ export function ProjectForm({ organization, api, project, onClose, onSaved }: {
   const [latestMessage, setLatestMessage] = useState('');
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
-  const [step, setStep] = useState(1);
   const [media, setMedia] = useState<MediaManifest | null>(null);
   const selectedFile = useRef<File | undefined>(undefined);
   const [fileName, setFileName] = useState('');
@@ -40,18 +39,15 @@ export function ProjectForm({ organization, api, project, onClose, onSaved }: {
   return <Modal title={project ? '编辑项目' : '新建项目'} onClose={busy ? undefined : onClose}>
     <form className="account-form" onSubmit={event => {
       event.preventDefault(); setError('');
-      if (!project && step === 1) { setStep(2); return; }
       if (!project && (!media || (mode === 'import' && source === null))) { setError('请完成视频校验并选择初始字幕。'); return; }
       setBusy(true);
       void (project ? api.update(baseProject!, name, description) : api.create({ name, description, media: media!, source: mode === 'empty' ? null : source }))
         .then(value => onSaved(value, project ? undefined : selectedFile.current)).catch(reason => setError(reason.message)).finally(() => setBusy(false));
     }}>
       <p>所属组织：{organization.name}</p>
-      {(step === 1 || project) ? <>
-        <label>项目名称<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
-        <label>项目说明<textarea disabled={busy} value={description} maxLength={2000} rows={3} onChange={event => setDescription(event.target.value)} /></label>
-      </> : <>
-        <h2>{name}</h2>
+      <label>项目名称<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
+      <label>项目说明<textarea aria-label="项目说明" disabled={busy} value={description} maxLength={2000} rows={3} onChange={event => setDescription(event.target.value)} /></label>
+      {!project && <>
         <p>每个项目绑定一个固定视频和一份 ASS。只发送摘要和字幕，视频保留在本机。</p>
         <label>基准视频<input type="file" accept="video/*,.mkv" disabled={busy} onChange={event => {
           const file = event.target.files?.[0]; if (file) void inspect(file); event.target.value = '';
@@ -80,10 +76,9 @@ export function ProjectForm({ organization, api, project, onClose, onSaved }: {
       {latestMessage && <p role="status">{latestMessage}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="controls">
-        {!project && step === 2 && <button type="button" disabled={busy} onClick={() => setStep(1)}>上一步</button>}
         <button type="button" disabled={busy} onClick={onClose}>取消</button>
-        <button className="primary" disabled={busy || baseProject?.status === 'archived' || (!project && step === 2 && (!media || (mode === 'import' && source === null)))}>
-          {busy ? '处理中…' : project ? '保存修改' : step === 1 ? '下一步' : '创建并打开'}
+        <button className="primary" disabled={busy || baseProject?.status === 'archived' || (!project && (!media || (mode === 'import' && source === null)))}>
+          {busy ? '处理中…' : project ? '保存修改' : '创建并打开'}
         </button>
       </div>
     </form>

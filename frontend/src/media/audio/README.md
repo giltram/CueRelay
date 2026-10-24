@@ -40,3 +40,5 @@ Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/m
 两种模式共用 AudioTile 和同一个 PCM LRU，频谱仅在请求时计算；首尾窗最多多读相邻 2 秒段。谱图的 typed array 也计入同一 32 MiB 预算。FFT 每 16 列让出 Worker 事件队列并检查取消。UI 模式切换不重置坐标或播放器，ready 状态绑定 mode + start + end，避免新视窗暂时显示旧完成状态。
 
 最终集成回归：`test:audio-timeline` 验证正式页面与生产包；`test:audio-lifecycle` 用开发专用 hook 探针验证快速换片 / 卸载，另在正式页面验证无音轨不阻断视频与字幕。探针允许换片仅用于测试，不改变生产页面原有的成功选片固定规则。资源验证计数指 terminate 调用，不等同于操作系统级原生内存审计。
+
+AudioDisplayMode 仅是分析请求/输出的类型契约；个人偏好的保存和读取属于 accounts/account-ui/App。media 不访问账号或浏览器 Storage，受控 mode 改变时沿用同一个 File/Worker/PCM 缓存。

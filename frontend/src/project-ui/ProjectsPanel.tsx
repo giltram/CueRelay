@@ -49,17 +49,17 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
     return () => { sequence.current++; };
   }, [api, organization, status, query, page, refresh, enabled]);
   function saved(project: ProjectDetail, video?: File) {
-    const opening = form === 'new';
+    const creating = form === 'new';
     setForm(null); setRefresh(value => value + 1);
-    if (opening) onCreated(project, video);
+    if (creating) onCreated(project, video);
   }
   const person = (user: { username: string } | null) => user?.username || '—';
   const date = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
   return <main className="projects-page">
     <header className="app-header"><h1><HomeLink navigate={navigate} /></h1>{header}</header>
     <div className="project-heading"><h2>项目</h2><div className="controls">
-      <RouteLink className="button-link" route={{ kind: 'local' }} navigate={navigate}>本地工作区</RouteLink>
-      {organization?.can_manage && <button className="primary" disabled={!enabled} onClick={() => onCreate(() => setForm('new'))}>新建项目</button>}
+      <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>本地工作区</RouteLink>
+      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setForm('new'))}>新建项目</button>}
     </div></div>
     {organization ? <>
       <div className="project-filters">
@@ -98,9 +98,10 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
     </> : <div className="empty"><p role={unavailableOrganization ? 'alert' : undefined}>{unavailableOrganization
       ? '指定组织不存在或无权访问，请选择可访问的组织。'
       : '暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。'}</p>
-      {unavailableOrganization && <RouteLink route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
+      {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
     </div>}
-    {form && organization && <ProjectForm api={api} organization={organization} project={form === 'new' ? undefined : form} onClose={() => setForm(null)} onSaved={saved} />}
+    {organization && form && <ProjectForm api={api} organization={organization} project={form === 'new' ? undefined : form}
+      onClose={() => setForm(null)} onSaved={saved} />}
     {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} onClose={busy ? undefined : () => setConfirm(null)}>
       <p>{confirm.status === 'active' ? `归档「${confirm.name}」后所有成员只能查看和导出，尚未保存的稿件不会自动提交。` : `恢复「${confirm.name}」后，组织成员可以继续工作。`}</p>
       {error && <p className="error" role="alert">{error}</p>}

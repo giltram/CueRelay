@@ -17,8 +17,8 @@ export function RouteStatus({ header, loading, error, notFound, organizationId, 
     {error && <p>{error.message}</p>}
     <div className="controls">
       {!loading && retry && <button onClick={retry}>重试加载</button>}
-      <RouteLink className="button-link" route={{ kind: 'projects', organizationId }} navigate={navigate}>返回项目列表</RouteLink>
-      {organizationId !== undefined && <RouteLink className="button-link" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
+      <RouteLink className="button-link" target="_self" route={{ kind: 'projects', organizationId }} navigate={navigate}>返回项目列表</RouteLink>
+      {organizationId !== undefined && <RouteLink className="button-link" target="_self" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
       {exportDraft && <button onClick={exportDraft}>导出保留的工作区 ASS</button>}
     </div>
   </main>;

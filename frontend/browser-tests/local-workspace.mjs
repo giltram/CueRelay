@@ -1,3 +1,4 @@
+import { sameTab } from './link-navigation.mjs';
 /** Enter the authenticated app's local editor with disposable browser credentials. */
 export async function enterLocalWorkspace(page) {
   const local = page.getByRole('link', { name: '本地工作区', exact: true });
@@ -11,7 +12,7 @@ export async function enterLocalWorkspace(page) {
     await login.click();
   }
   await local.or(video).waitFor();
-  if (await local.isVisible()) await local.click();
+  if (await local.isVisible()) await sameTab(local);
   await page.waitForFunction(() => document.querySelector('.file-actions button.primary')?.disabled === false);
 }
 

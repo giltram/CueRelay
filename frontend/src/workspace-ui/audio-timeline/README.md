@@ -2,7 +2,7 @@
 
 `AudioTimeline` 只接收 File、既有 video、毫秒时间 / 时长、只读 cues、字幕草稿与动作回调，不持有字幕文档或历史副本，不自行播放声音。
 
-显示模式是受控 mode 属性，由 EditorWorkbench 默认设为 Spectrum，暂在顶栏 ASS 导入导出旁切换；后续计划迁至个人设置，不在此组件持久化。音频区域不再有标题 / 模式 / 缩放 / 当前工具栏，原高度全部给画布。普通滚轮（纵向或横向）平移，Shift+滚轮缩放；wheelViewport 统一指针锚点、边界约束与 deltaMode 单位。
+显示模式是受控 mode 属性，由 App 的账号设置经 EditorWorkbench 传入，默认 Spectrum；选择和显式保存入口位于个人设置的「音频显示」，工作区不提供切换器。mode 更新只改变分析/绘制请求，不重置坐标、File、video 或已有 PCM；本组件不请求账号设置或持久化偏好。音频区域不再有标题 / 模式 / 缩放 / 当前工具栏，原高度全部给画布。普通滚轮（纵向或横向）平移，Shift+滚轮缩放；wheelViewport 统一指针锚点、边界约束与 deltaMode 单位。
 
 Spectrum 本体（22px 标尺以下）左键单击设置入点草稿，右键按下设置出点草稿并阻止原生右键菜单；坐标复用 timeAtX / boundaryTime，吸附到既有 10ms 网格。右键使用 PointerEvent 的小数坐标，contextmenu 仅负责阻止菜单，避免该 MouseEvent 坐标取整引起一格偏差。左键移动超过 3px 仍为平移，不会顺带设置入点。播放头 / 入点边界的左键拖动优先，出点边界仅右键拖动，标尺与 Waveform 仍单击定位视频。
 

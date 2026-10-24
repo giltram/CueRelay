@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
-import { createAccountApi, type Organization, type Settings, type User } from './account-ui/api';
+import { createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './account-ui/Modal';
-import { MembersPanel } from './account-ui/MembersPanel';
-import { PersonalPanel } from './account-ui/PersonalPanel';
+import { SettingsPage } from './account-ui/SettingsPage';
 import { ProjectsPanel } from './project-ui/ProjectsPanel';
 import { useNavigation } from './navigation/use-navigation';
 import { RouteLink } from './navigation/RouteLink';
@@ -23,9 +22,9 @@ export default function App() {
   const ownerRef = useRef(owner); ownerRef.current = owner;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
-  const [settings, setSettings] = useState<Settings>({ shortcut_overrides: {} });
+  const [settings, setSettings] = useState<Settings>(createDefaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
-  const [panel, setPanel] = useState<'login' | 'account' | 'members' | null>(null);
+  const [panel, setPanel] = useState<'login' | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
   const [message, setMessage] = useState('');
@@ -44,6 +43,7 @@ export default function App() {
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
   const organization = organizations.find(org => org.id === organizationId);
   const isList = route.kind === 'projects' || route.kind === 'entry';
+  const isSettings = route.kind === 'settings' || route.kind === 'organization-settings';
 
   // Only already-approved account changes and canonical entry redirects bypass
   // the route guard. User navigation always enters requestNavigation.
@@ -68,7 +68,7 @@ export default function App() {
     epoch.current++; expectUser(next.id);
     setUser(next); setOwner(next); ownerRef.current = next; setPanel(null); setMessage('');
     if (previous && previous.id !== next.id) {
-      workspaceState.clear(); setSettings({ shortcut_overrides: {} });
+      workspaceState.clear(); setSettings(createDefaultSettings());
       navigateApproved({ kind: 'entry' }, true);
     }
     try { await loadContext(!previous || previous.id !== next.id); }
@@ -172,26 +172,22 @@ export default function App() {
     epoch.current++;
     setUser(null); setOwner(null); ownerRef.current = null; expectUser(null);
     workspaceState.clear(); navigateApproved({ kind: 'entry' }, true);
-    setSettings({ shortcut_overrides: {} }); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
+    setSettings(createDefaultSettings()); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
   }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
-  const workspaceRoute: Route = workspace?.project
-    ? { kind: 'project', organizationId: workspace.project.organization_id, projectId: workspace.project.id } : { kind: 'local' };
   const header = <div className="account-toolbar">
-    <label className="sr-only" htmlFor="organization">当前组织</label>
+    {isList && <><label className="sr-only" htmlFor="organization">当前组织</label>
     <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
       navigate({ kind: 'projects', organizationId: Number(event.target.value) });
     }}>
       {!organization && <option value={organizationId ?? ''}>{organizationId ? '原组织已不可访问' : '暂无组织'}</option>}
       {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {org.role || 'dev'}</option>)}
-    </select>
-    <RouteLink className="button-link" route={listRoute} navigate={navigate} target={visible ? '_blank' : undefined} rel={visible ? 'noopener noreferrer' : undefined}
+    </select></>}
+    <RouteLink className="button-link" route={listRoute} navigate={navigate}
       aria-current={isList ? 'page' : undefined}>项目列表</RouteLink>
-    {workspace && !visible && <RouteLink className="button-link" route={workspaceRoute} navigate={navigate}>返回工作区</RouteLink>}
-    {user ? <>
-      {organization && <button onClick={() => setPanel('members')}>成员</button>}
-      <button disabled={!settingsReady} onClick={() => setPanel('account')}>{user.username}{user.is_dev ? ' · dev' : ''}</button>
-    </> : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason.message)); }}>重新登录</button>}
+    {user ? <RouteLink className="button-link" route={{ kind: 'settings', organizationId: organizationId ?? undefined }} navigate={navigate}
+      aria-current={isSettings ? 'page' : undefined}>设置</RouteLink>
+      : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason.message)); }}>重新登录</button>}
   </div>;
   const projectLoad = workspaceState.projectLoad;
 
@@ -206,6 +202,20 @@ export default function App() {
           workspaceState.adoptCreated(project, video);
           navigateApproved({ kind: 'project', organizationId: project.organization_id, projectId: project.id });
         }} onLifecycle={workspaceState.updateSummary} />}
+      {isSettings && <SettingsPage user={user ?? owner} organization={organization}
+        section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
+        enabled={Boolean(user && settingsReady && !busy && !transition)} ready={settingsReady}
+        request={api} settings={settings} navigate={navigate} onSettings={setSettings}
+        onExit={() => requestTransition('退出账号', exit)}
+        onRetry={() => void loadContext().catch(reason => setMessage(reason.message))}
+        onChanged={() => void loadContext().catch(reason => setMessage(reason.message))}
+        onLeave={() => {
+          if (!organization) return;
+          requestTransition('退出此组织', async () => {
+            await api(`/organizations/${organization.id}/leave`, 'POST', {});
+            setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true); await loadContext(true);
+          }, true);
+        }} />}
       {(route.kind === 'not-found' || route.kind === 'project' && projectLoad?.status !== 'ready') &&
         <RouteStatus header={header} loading={route.kind === 'project' && projectLoad?.status === 'loading'}
           notFound={route.kind === 'not-found'} error={projectLoad?.error} organizationId={routeOrganization(route)} navigate={navigate}
@@ -215,7 +225,7 @@ export default function App() {
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
-        shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
+        audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
     </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>
       <LoginForm api={accountApi} onLogin={onLogin} /></div>}
     {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}
@@ -223,21 +233,6 @@ export default function App() {
     {message && !transition && <div className="app-message" role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></div>}
     {owner && panel === 'login' && <Modal title="重新登录" onClose={() => setPanel(null)}>
       <LoginForm api={accountApi} onLogin={onLogin} expectedUsername={owner.username} />
-    </Modal>}
-    {user && panel === 'account' && <Modal title="个人设置" onClose={() => setPanel(null)}>
-      <div className="controls"><span>{user.username}</span>
-        {user.is_dev && <a className="button-link" href="/admin/" target="_blank" rel="noreferrer">Django Admin</a>}
-        <button onClick={() => requestTransition('退出账号', exit)}>退出账号</button>
-      </div>
-      <PersonalPanel request={api} key={user.id} settings={settings} onSettings={setSettings} />
-    </Modal>}
-    {user && organization && panel === 'members' && <Modal title="组织成员" onClose={() => setPanel(null)}>
-      <MembersPanel currentUserId={user.id} isDev={user.is_dev} request={api} organization={organization} onChanged={() => void loadContext().catch(reason => setMessage(reason.message))} onLeave={() => {
-        requestTransition('退出此组织', async () => {
-          await api(`/organizations/${organization.id}/leave`, 'POST', {});
-          setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true); await loadContext(true);
-        }, true);
-      }} />
     </Modal>}
     {transition && <Modal title={transition.label}>
       <p>继续将放弃当前本地字幕、尚未应用的时间输入和视频。导出包含已应用的字幕；请取消后应用需要保留的时间输入，再导出。</p>

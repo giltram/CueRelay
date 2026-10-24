@@ -1,3 +1,4 @@
+import { setAudioMode } from './audio-settings.mjs';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 
@@ -13,7 +14,7 @@ export async function checkBoundaryClicks(page, selected = false) {
   const rowTimes = () => page.locator('.cue-list tbody tr').first().locator('.time-cell').allTextContents();
   const saved = selected ? await rowTimes() : null;
   const videoTime = await readTime();
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   await page.evaluate(() => {
     window.__lastTimingContextMenu = null;
@@ -102,6 +103,6 @@ export async function checkBoundaryClicks(page, selected = false) {
     await stage.focus(); await page.keyboard.press('KeyG'); assert.deepEqual(await rowTimes(), saved);
     await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   }
-  if (originalMode === 'waveform') await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  if (originalMode === 'waveform') await setAudioMode(page, 'waveform');
   return { start: '0:00:01.80', end: '0:00:02.80', selected, videoUnchanged: true, draftOnlyUntilCommit: true };
 }

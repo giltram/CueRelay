@@ -1,7 +1,7 @@
 import type { AnchorHTMLAttributes, MouseEvent } from 'react';
 import { routePath, type Route } from './routes';
 
-export function RouteLink({ route, navigate, onClick, ...props }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
+export function RouteLink({ route, navigate, onClick, target = '_blank', rel = target === '_blank' ? 'noopener noreferrer' : undefined, ...props }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
   route: Route; navigate: (route: Route) => void;
 }) {
   function click(event: MouseEvent<HTMLAnchorElement>) {
@@ -10,5 +10,5 @@ export function RouteLink({ route, navigate, onClick, ...props }: Omit<AnchorHTM
       (event.currentTarget.target && event.currentTarget.target !== '_self') || event.currentTarget.hasAttribute('download')) return;
     event.preventDefault(); navigate(route);
   }
-  return <a {...props} href={routePath(route)} onClick={click} />;
+  return <a {...props} target={target} rel={rel} href={routePath(route)} onClick={click} />;
 }

@@ -1,3 +1,4 @@
+import { setAudioMode } from './audio-settings.mjs';
 import assert from 'node:assert/strict';
 
 /** Real pointer capture, seek callbacks and video time; no test hooks in the product. */
@@ -44,7 +45,7 @@ export async function checkPlayhead(page, bounds) {
   report.rightEdge = await dragTo(1.2);
   report.leftEdge = await dragTo(-0.2);
   report.cancel = await dragTo(0.5, true);
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   await page.locator('video').evaluate(video => video.play());
   report.playing = await dragTo(0.55);
@@ -53,6 +54,6 @@ export async function checkPlayhead(page, bounds) {
   await page.waitForFunction(() => Number(document.querySelector('.audio-timeline').dataset.end) === 45);
   report.mediaEnd = await dragTo(1.2);
   assert.equal(await readTime(), 45);
-  if (originalMode === 'waveform') await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  if (originalMode === 'waveform') await setAudioMode(page, 'waveform');
   return report;
 }

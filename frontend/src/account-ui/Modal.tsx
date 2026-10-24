@@ -9,6 +9,8 @@ export function Modal({ title, children, onClose }: { title: string; children: R
     return () => { dialog.close(); previous?.focus(); };
   }, []);
   return <dialog className="account-dialog" ref={ref} aria-label={title} onCancel={event => {
+    // File inputs also emit a bubbling cancel event when their picker closes.
+    if (event.target !== event.currentTarget) return;
     event.preventDefault(); onClose?.();
   }}>
     <div className="dialog-heading"><h2>{title}</h2>{onClose && <button onClick={onClose}>关闭</button>}</div>

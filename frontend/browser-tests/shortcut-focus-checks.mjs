@@ -27,8 +27,8 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     assert.equal(await selected(2), 'true');
     assert.equal(await rows.count(), 2);
 
-    // A mouse toolbar click must not swallow Space or activate that button again.
-    await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+    // A mouse action must return focus to the editor so Space plays the selection.
+    await page.getByRole('button', { name: '定位选中行', exact: true }).click();
     await page.keyboard.press('Space');
     await page.waitForFunction(() => !document.querySelector('video').paused);
     assert.equal(await page.locator('.audio-timeline').getAttribute('data-mode'), 'spectrum');
@@ -38,14 +38,13 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     });
 
     // Tab-navigation still focuses buttons; Enter/Space keep native activation.
-    await page.getByRole('button', { name: 'Waveform', exact: true }).focus();
-    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Waveform');
+    await page.getByRole('button', { name: '定位选中行', exact: true }).focus();
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), '定位选中行');
     await page.keyboard.press('Enter');
-    assert.equal(await page.locator('.audio-timeline').getAttribute('data-mode'), 'waveform');
+    assert.equal(await selected(2), 'true');
     assert.equal(await activeTag(), 'BUTTON');
     await page.keyboard.press('Space');
     assert.equal(await page.locator('video').evaluate(video => video.paused), true);
-    await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
 
     // Right-clicking the spectrum must leave a formerly focused time input.
     await end.focus();

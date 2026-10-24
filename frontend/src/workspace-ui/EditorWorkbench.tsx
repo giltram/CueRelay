@@ -24,6 +24,7 @@ interface Props {
   title?: ReactNode;
   shortcutsPaused?: boolean;
   shortcutOverrides?: ShortcutOverrides;
+  audioMode?: AudioDisplayMode;
   project?: ProjectDetail;
   initialMedia?: { file: File; sha256: string };
   readOnly?: boolean;
@@ -32,11 +33,10 @@ interface Props {
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [audioMode, setAudioMode] = useState<AudioDisplayMode>('spectrum');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [startText, setStartText] = useState('0:00:00.00');
@@ -131,6 +131,15 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   async function togglePlayback() {
     if (!video || !duration) throw new Error('请先加载可播放的视频');
     if (video.paused) await video.play(); else video.pause();
+  }
+
+  function seekPlayback(time: number) {
+    run(() => {
+      if (!video || !duration) return;
+      setAudition(null);
+      seekVideo(video, time);
+      setCurrentTime(video.currentTime * 1000);
+    });
   }
 
   async function startAudition(range: RangePlayback | null) {
@@ -229,17 +238,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     }}>
       <header className="app-header">
         <h1>{title ?? 'CueRelay'}</h1>
-        {header}
         <div className="file-actions" aria-label="字幕文件操作">
           {project && <>
             <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? ' · 已归档，只读' : ' · 暂不可编辑' : ''}</span>
             <button onClick={onReload} disabled={busy}>重新加载项目</button>
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
-          <div className="audio-mode-switch" role="group" aria-label="音频显示模式">
-            <button aria-pressed={audioMode === 'waveform'} onClick={() => setAudioMode('waveform')}>Waveform</button>
-            <button aria-pressed={audioMode === 'spectrum'} onClick={() => setAudioMode('spectrum')}>Spectrum</button>
-          </div>
           {busy && <span role="status">正在转换…</span>}
           {!project && <label className="file-picker">
             导入 ASS
@@ -259,6 +263,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
             finally { setBusy(false); }
           })}>导出 ASS</button>
         </div>
+        {header}
       </header>
 
       {project && <p className="project-workspace-status" role="status">{readOnly
@@ -278,7 +283,8 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
 
       <ResizableWorkbench media={
-          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError} controls={<>
+          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
+            currentTime={currentTime} duration={duration} onSeek={seekPlayback} controls={<>
             <button className="playback-button" aria-label="播放 / 暂停"
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -291,9 +297,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
           <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode}
             selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
             onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
-            onSeek={time => run(() => {
-              if (video) { setAudition(null); seekVideo(video, time); }
-            })} />
+            onSeek={seekPlayback} />
           <section className="cue-editor" aria-label="字幕编辑">
             <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">字幕编辑</legend>
@@ -324,7 +328,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
           </section>
       </>} />
       <CueTable cues={document?.cues || []} selectedId={selectedId} currentTime={currentTime}
-        onSelect={selectCue} onLocate={cue => run(() => locate(cue))} />
+        onSelect={selectCue} />
     </main>
   );
 }

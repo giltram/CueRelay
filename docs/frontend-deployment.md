@@ -27,7 +27,7 @@ npm run preview
 
 | 请求 | 预期 |
 | --- | --- |
-| 组织列表、项目 workspace、本地 workspace 深路径 | 前端 HTML；资源以绝对根路径加载 |
+| 组织列表、项目 workspace、本地 workspace、`/settings`、组织 settings、带组织的 personal/local 深路径（旧 projects/new 地址规范到列表） | 前端 HTML；资源以绝对根路径加载 |
 | `/api/not-a-route` | Django 404，不能返回前端 HTML |
 | `/admin/login/` | Django Admin 登录页 |
 | `/static/admin/css/base.css` | Admin CSS |
@@ -43,8 +43,13 @@ python backend/manage.py migrate
 python backend/manage.py shell < backend/browser_tests/seed_projects.py
 # 启动连接该库的 Django 和 Vite 后，从仓库根执行
 PROJECTS_URL=http://127.0.0.1:5173 node frontend/browser-tests/navigation.mjs
+PROJECTS_URL=http://127.0.0.1:5173 node frontend/browser-tests/tab-navigation.mjs
 # 改为 preview 地址即可对构建产物执行同一回归
 # 也可从 frontend 执行 PROJECTS_URL=... npm run test:navigation
 ```
 
 需要已安装的 Chrome、FFmpeg 和 frontend/package-lock.json 对应依赖。测试使用合成 MP4、真实 Session/权限/项目 API；503 和延迟响应用浏览器请求拦截注入。输出截图与检查结果到系统临时目录。该验证不代替生产代理、真实片源或其他浏览器验收。实际执行结果见 [导航验证记录](experiments/frontend-navigation.md)。
+
+`tab-navigation.mjs` 验证普通点击的默认新标签页规则、仅列表可换组织、非默认组织上下文、新建当前页弹窗复用本页 File，以及原工作区不暂停。其余历史/稿件保护脚本通过 link-navigation.sameTab 显式使用当前页，继续覆盖原有保护边界。浏览器允许新标签页是原生链接行为，无自动弹窗或跨窗口文件传输。
+
+创建弹窗回归：复用一次性项目测试库，在仓库根执行 `PROJECTS_URL=... node frontend/browser-tests/project-form.mjs`，或从 frontend 执行 `npm run test:project-form`。覆盖 input cancel 冒泡、空选片、单页字段、焦点恢复、失败重试、当前标签页/历史和 File 复用；不自动操作原生 macOS Finder 窗口。

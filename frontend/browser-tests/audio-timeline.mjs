@@ -1,3 +1,4 @@
+import { setAudioMode } from './audio-settings.mjs';
 import { openLocalWorkspace } from './local-workspace.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
@@ -35,8 +36,9 @@ try {
   await page.waitForFunction(() => !document.querySelector('.file-actions button.primary').disabled);
   report.commitTiming = await checkCommitTiming(browser, page.url(), file);
   report.shortcutFocus = await checkShortcutFocus(browser, page.url(), file);
-  assert.equal(await page.getByRole('button', { name: 'Spectrum', exact: true }).getAttribute('aria-pressed'), 'true');
-  assert.equal(await page.locator('.app-header .audio-mode-switch').count(), 1);
+  await setAudioMode(page, 'spectrum');
+  assert.equal(await page.getByRole('button', { name: /^(Spectrum|Waveform)$/, exact: true }).count(), 0);
+  assert.equal(await page.locator('.app-header .audio-mode-switch').count(), 0);
   assert.equal(await page.locator('.audio-toolbar').count(), 0);
   await page.getByLabel('导入本地视频').setInputFiles(file);
   const timeline = page.getByRole('region', { name: '音频时间轴' });
@@ -51,7 +53,7 @@ try {
   assert(canvasRect.y - panelRect.y <= 2); // Removed toolbar height now belongs to the canvas.
   assert(report.initial.cache > 0 && report.initial.cache <= 32 * 1024 ** 2);
   report.newCueClickTiming = await checkBoundaryClicks(page);
-  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await setAudioMode(page, 'waveform');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   // Read pixels to confirm real waveform peaks and silent sections were drawn, without synthetic placeholder data.
   report.wavePixels = await page.locator('.audio-stage canvas').evaluate(canvas => {
@@ -69,7 +71,7 @@ try {
   await page.locator('.audio-stage').screenshot({ path: report.waveformStageScreenshot });
 
   const beforeSpectrum = await bounds();
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   report.spectrum = await bounds();
   assert.equal(report.spectrum.start, beforeSpectrum.start);
@@ -98,7 +100,7 @@ try {
   assert.deepEqual(report.spectrumPixels.upperSilence, [8, 8, 12, 255]);
   assert.deepEqual(report.spectrumPixels.selectedSilence, [64, 32, 96, 255]);
   for (const tone of report.spectrumPixels.tones) assert(tone.color[2] > 100);
-  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await setAudioMode(page, 'waveform');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   assert.equal((await bounds()).decoded, report.spectrum.decoded);
 
@@ -193,6 +195,7 @@ try {
   report.ruler = await checkRuler(page, dir);
 
   // Repeated viewport changes while Spectrum is computing must leave the newest request visible.
+  await setAudioMode(page, 'spectrum');
   await page.evaluate(() => {
     window.__audioPerf = { maxGap: 0, previous: performance.now(), tasks: [] };
     window.__audioPerf.timer = setInterval(() => {
@@ -203,7 +206,6 @@ try {
     window.__audioPerf.observer = new PerformanceObserver(list => window.__audioPerf.tasks.push(...list.getEntries().map(entry => entry.duration)));
     window.__audioPerf.observer.observe({ type: 'longtask', buffered: false });
   });
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
   await stage.focus();
   for (let i = 0; i < 30; i++) await page.keyboard.press(i % 3 === 0 ? 'ArrowLeft' : 'ArrowRight');
   const latest = await bounds();
@@ -218,7 +220,7 @@ try {
   const countBefore = await page.locator('.cue-list tbody tr').count();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕中文文本').fill('音频回归测试');
-  await page.locator('h1').click();
+  await page.locator('main:visible').focus();
   await page.keyboard.press('KeyG');
   assert.equal(await page.locator('.cue-list tbody tr').count(), countBefore);
   assert.equal(await page.locator('.cue-list tbody tr').first().locator('.cue-text').textContent(), '音频回归测试');
@@ -227,7 +229,7 @@ try {
   await page.getByRole('button', { name: '导出 ASS', exact: true }).click();
   assert.equal((await download).suggestedFilename(), 'cuerelay.ass');
   await page.setViewportSize({ width: 800, height: 900 });
-  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await setAudioMode(page, 'waveform');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   const mobile = await stage.boundingBox();
   assert(mobile.width > 100 && mobile.height >= 64);
@@ -239,7 +241,7 @@ try {
     await largePage.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
     report.largeFile = await largePage.locator('.audio-timeline').evaluate(el => ({ ...el.dataset }));
     assert(Number(report.largeFile.cacheBytes) <= 32 * 1024 ** 2);
-    await largePage.getByRole('button', { name: 'Spectrum', exact: true }).click();
+    await setAudioMode(largePage, 'spectrum');
     await largePage.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
     await largePage.close();
   }

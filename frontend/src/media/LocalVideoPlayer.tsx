@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MediaManifest } from '../contracts/projects';
 import { hashFile, matchesMedia } from './media-manifest';
+import { formatTime } from './playback';
 
 interface Props {
   onVideo: (video: HTMLVideoElement | null) => void;
@@ -8,14 +9,18 @@ interface Props {
   onDuration: (milliseconds: number) => void;
   onError: (message: string) => void;
   onFile: (file: File | null) => void;
+  currentTime: number;
+  duration: number;
+  onSeek: (milliseconds: number) => void;
   controls: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: { file: File; sha256: string };
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(() => initialMedia && expectedMedia && matchesMedia(initialMedia.file, initialMedia.sha256, expectedMedia) ? initialMedia.file : null);
   const [locked, setLocked] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -57,7 +62,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
 
   return <section className="player-section">
     <div className="video-stage">
-      <video ref={ref} controls playsInline preload="metadata"
+      <video ref={ref} playsInline preload="metadata"
         onLoadedMetadata={e => {
           const duration = e.currentTarget.duration;
           if (!Number.isFinite(duration) || duration <= 0 || duration >= 36000) {
@@ -81,18 +86,21 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
         }} />
       {!file && <div className="video-placeholder">导入本地视频<span>视频不会上传</span></div>}
     </div>
+    <input className="video-progress" type="range" aria-label="视频进度"
+      min={0} max={duration || 1} step="any" value={Math.min(currentTime, duration)}
+      aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
+      disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
     <div className="transport" role="group" aria-label="视频导入与播放控制">
       {controls}
       {checking && <><span role="status">校验 {Math.round(progress * 100)}%</span><button onClick={() => { verification.current?.abort(); setChecking(false); }}>取消校验</button></>}
-      <label className="file-picker" title={locked
+      <button type="button" className="file-picker" disabled={locked || checking} onClick={() => fileInput.current?.click()} title={locked
         ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。`
-        : '视频仅在本机播放，不会上传。'}>导入视频
-        <input aria-label="导入本地视频" type="file" accept="video/*,.mkv" disabled={locked || checking} onChange={e => {
-          const picked = e.target.files?.[0];
-          if (picked) void chooseFile(picked);
-          e.target.value = '';
-        }} />
-      </label>
+        : undefined}>导入视频</button>
+      <input ref={fileInput} hidden aria-label="导入本地视频" type="file" accept="video/*,.mkv" disabled={locked || checking} onChange={e => {
+        const picked = e.target.files?.[0];
+        if (picked) void chooseFile(picked);
+        e.target.value = '';
+      }} />
     </div>
   </section>;
 }

@@ -11,13 +11,25 @@
 | accounts.User | AbstractUser；username 同时用于登录和显示，邮箱可空；Django 密码摘要与验证器；停用代替删除 |
 | Organization | id、name（1–100 字符）、created_at |
 | OrganizationMembership | organization、user 外键，role、joined_at；组织/用户联合唯一；数据库检查 role 仅 organizer/member |
-| PersonalSettings | user 一对一主键、shortcut_overrides JSON、updated_at；无组织字段，无记录时返回默认值，按需创建 |
+| PersonalSettings | user 一对一主键、shortcut_overrides JSON、audio_display_mode（waveform/spectrum，默认 spectrum）、updated_at；无组织字段，无记录时返回默认值，按需创建 |
 
 Django 自带 auth、Admin、contenttypes、session 等表正常保留。dev 使用 is_superuser；is_staff 仅提供 Admin 登录资格，不授予组织权限。organizer/member 属于成员关系，同一账号可以在不同组织拥有不同角色，不使用全局 Group 映射组织角色。
 
 member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、提升 member、移除 member；不能移除或降级其他 organizer，避免先降级再移除的绕过。本人仍可降级或退出，但必须满足最后活动 organizer 约束。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织及 organizer，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
 
 账号只使用 username，不再有独立显示名；个人设置不展示重复身份字段，不提供本人资料写接口。Session/本人 DTO 仅含 id、username、is_dev；成员及项目操作者同样只提供 username。成员移除先显示账号和组织的确认框，取消不发送移除请求；移除自己沿用退出组织的确认及本地稿件保护流程。
+
+## 设置页面
+
+项目列表右上角「设置」是普通真实链接，默认新开 `/organizations/:organizationId/settings/personal`；无组织时使用 `/settings`。工作区也保留同一设置入口。页面左侧个人/组织分类链接同样新开标签页，组织设置为 `/organizations/:organizationId/settings`，包含组织名称及成员管理。组织选择只放在项目列表，设置页和工作区不提供组织下拉框。
+
+未登录直达设置页保持目标 URL，登录后继续打开；显式组织无权访问或不存在时显示状态和重新加载入口，保留项目列表链接，不静默换到默认组织。无组织仍可修改个人设置，组织设置入口禁用。member 继续可浏览成员及退出，管理动作由既有服务端权限控制。
+
+默认进入设置新开标签页，不隐藏、不主动暂停原工作区，也不要求放弃。只有同文档历史浏览设置才隐藏并暂停工作区，回退可恢复字幕、时间输入、视频和播放位置。默认同项目链接也使用独立新标签页，不能恢复来源页草稿。「返回工作区」按钮已移除。切换组织、账号、退出及移除自己仍由 App 查询保留实例并提供原有保护。设置表单沿用显式保存，离开页面不自动保存尚未提交的密码或快捷键输入。
+
+个人设置的「音频显示」选择 Spectrum（频谱）或 Waveform（波形），点击「保存显示设置」后按账号持久化，默认 Spectrum。工作区顶栏不再提供切换按钮。回到原工作区标签页时沿用既有 focus/visibilitychange 设置检查应用；停留页面也会由 30 秒检查取得新值，不新增实时通信。应用偏好不重建 video、编辑器、时间轴或音频 Worker，不改变字幕、时间草稿、播放位置或视窗。
+
+显示设置与快捷键分别保存，仅更新提交字段，因此不会把另一页的显示模式/快捷键覆盖成旧值。失败保留本页选择且不向工作区应用失败值；修改但未保存仍沿用旧偏好。
 
 ## 配置与 Admin
 
@@ -47,7 +59,7 @@ Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿�
 | GET/POST /api/organizations/{id}/members | 查看；POST 仅准确 username |
 | PATCH/DELETE /api/organizations/{id}/members/{membership_id} | PATCH 仅 role；DELETE 空 JSON；成员关系必须属于 URL 组织 |
 | POST /api/organizations/{id}/leave | 空 JSON，退出本人关系 |
-| GET/PATCH /api/me/settings | GET 返回覆盖和共享默认值；PATCH 仅 shortcut_overrides，替换整份覆盖 |
+| GET/PATCH /api/me/settings | GET 返回 shortcut_overrides、audio_display_mode 和共享快捷键默认值；PATCH 接受这两个设置字段的非空子集，未提交字段保持；提交 shortcut_overrides 时替换整份覆盖 |
 
 身份由 Session 决定；每次请求检查活动账号与目标组织。JSON 未知字段整体拒绝。错误格式为 `{error: {code, message}}`，区分 401 authentication_required/invalid_credentials、403 permission_denied/csrf_failed、400 invalid_request、404 not_found、429 rate_limited。前端额外带 X-CueRelay-User 进行账号一致性检查；Cookie 已被其他标签页换号时返回 409 account_changed，防止旧界面修改新账号资料。这个头不能授予权限。
 
@@ -61,7 +73,7 @@ shared/timing-shortcuts.json 是默认动作、名称、绑定的唯一权威来
 
 采用物理 KeyboardEvent.code，允许 KeyA–KeyZ、Digit0–Digit9、Enter、NumpadEnter、Space，以及 Shift+字母/数字；其他键和 Ctrl/Meta/Alt 组合一律视为不支持/保留组合。每动作至多四个绑定。设置界面可录制一个组合、填写逗号分隔多绑定、禁用及单项/全部恢复；恢复操作在保存后持久化。
 
-匹配修饰键与焦点/IME 过滤分开；精确匹配全部修饰键。输入框、contenteditable、video、IME、重复及已处理事件过滤保持不变；按钮/链接/summary 上 Space/Enter 保留原生激活。登录、设置（含录制）、成员管理和编辑保护弹窗打开时暂停工作区全局快捷键。
+匹配修饰键与焦点/IME 过滤分开；精确匹配全部修饰键。输入框、contenteditable、video、IME、重复及已处理事件过滤保持不变；按钮/链接/summary 上 Space/Enter 保留原生激活。登录及编辑保护弹窗打开、或浏览个人设置（含录制）/组织设置页面时暂停工作区全局快捷键。
 
 ## 编辑保护
 
@@ -82,3 +94,5 @@ App 拥有账号/组织上下文，EditorWorkbench 暴露 hasContent/exportDraft
 ## 用户名统一显示升级
 
 2026-10-24：移除显示名设计，升级执行 accounts.0003_remove_user_display_name。该迁移删除旧显示名数据，不改用户名、账号 ID、密码、组织关系、会话、项目或快捷键。历史迁移保留用于旧库升级；回退迁移只能恢复空字段，不能恢复旧显示名。部署时停止旧后端，执行 `python backend/manage.py migrate`，再同时发布/重启新的后端与前端。API 不再返回 display_name；不存在兼容占位字段或第二套名称回退。当前开发环境的升级和验证结果见 [用户名验证记录](experiments/username-only.md)。
+
+2026-10-24 显示偏好升级：部署执行 `python backend/manage.py migrate` 应用 accounts.0004_personalsettings_audio_display_mode，再重启后端并发布前端。新字段默认 Spectrum，不改已有快捷键、账号、项目或会话；API 为兼容旧快捷键请求的字段扩展。当前开发库已升级，实测见 [音频显示设置](experiments/audio-preferences.md)。

@@ -1,3 +1,5 @@
+import { setAudioMode } from './audio-settings.mjs';
+import { sameTab } from './link-navigation.mjs';
 // Real Session/CSRF/project APIs plus the production audio editor; disposable fixtures only.
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
@@ -51,24 +53,30 @@ try {
   await page.getByLabel('用户名', { exact: true }).fill('project-organizer');
   await page.getByLabel('密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '登录', exact: true }).click();
-  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: '本地工作区', exact: true }));
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).waitFor();
   assert.equal(await guarded(), false);
   // App transitions must agree with beforeunload about the untouched default row.
   const organizations = (await api('/organizations')).organizations;
   const other = organizations.find(value => value.role === 'member');
+  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(other.id));
   await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
   assert.equal(await modal('切换组织').count(), 0);
   const org = organizations.find(value => value.role === 'organizer');
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(org.id));
-  await page.getByRole('link', { name: '本地工作区', exact: true }).click();
+  await page.waitForURL(`**/organizations/${org.id}/projects`);
+  await page.getByRole('link', { name: '本地工作区', exact: true }).waitFor();
+  await sameTab(page.getByRole('link', { name: '本地工作区', exact: true }));
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(videoFile);
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
+  await setAudioMode(page, 'spectrum');
   assert.equal(await guarded(), true);
+  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(other.id));
   await modal('切换组织').waitFor();
   await modal('切换组织').getByRole('button', { name: '取消', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: '本地工作区', exact: true }));
   check('默认首行不触发离页/切组织提示；仅加载视频也会保护本地内容');
 
   const base = `/organizations/${org.id}/projects`;
@@ -78,7 +86,7 @@ try {
   const path = `${base}/${project.id}`;
   await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.getByLabel('搜索项目', { exact: true }).fill(project.name);
-  await page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('link', { name: '打开', exact: true }).click();
+  await sameTab(page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('link', { name: '打开', exact: true }));
   await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   const original = await rowTimes(0);
@@ -103,13 +111,13 @@ try {
   let saved = (await api(path)).project;
   assert.equal(saved.document.cues[0].start_ms, 1200);
   assert.equal(saved.document.cues[0].end_ms, 3400);
-  await page.getByRole('button', { name: 'project-organizer', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: '设置', exact: true }));
   await page.getByLabel('提交并下一条绑定').fill('Shift+KeyT');
   await page.getByRole('button', { name: '保存快捷键', exact: true }).click();
   await page.getByText('已保存', { exact: true }).waitFor();
   await page.keyboard.press('Control+Delete'); await page.keyboard.press('Shift+KeyT');
   assert.equal(await rows.count(), 2); assert.deepEqual(await rowTimes(0), original);
-  await modal('个人设置').getByRole('button', { name: '关闭', exact: true }).click();
+  await page.goBack(); await stage.waitFor();
   await stage.focus(); await page.keyboard.press('KeyG');
   assert.deepEqual(await rowTimes(0), original);
   await page.keyboard.press('Shift+KeyT');
@@ -119,9 +127,9 @@ try {
   await page.getByText('项目已保存。尚未应用的时间输入不包含在本次保存中。', { exact: true }).waitFor();
   saved = (await api(path)).project;
   assert.equal(saved.document.cues[0].start_ms, 1200); assert.equal(saved.document.cues[0].end_ms, 3500);
-  check('音频点击仅改草稿；保存不含未提交时间；个人覆盖键提交并下一行；设置弹窗阻止提交与删行');
+  check('音频点击仅改草稿；保存不含未提交时间；个人覆盖键提交并下一行；设置页面阻止提交与删行');
 
-  await page.getByRole('button', { name: 'Waveform', exact: true }).click();
+  await setAudioMode(page, 'waveform');
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
   const snapshot = await stage.evaluate(() => {
     window.__integrationVideo = document.querySelector('video');
@@ -129,13 +137,14 @@ try {
   });
   await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.keyboard.press('Control+Delete'); await page.keyboard.press('Shift+KeyT');
-  await page.getByRole('link', { name: '返回工作区', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: project.name, exact: true }));
+  await stage.waitFor();
   assert.equal(await page.locator('video').evaluate(video => video === window.__integrationVideo), true);
   assert.equal(await page.locator('video').getAttribute('src'), snapshot.src);
   assert.equal(await start.inputValue(), snapshot.start);
   assert.equal(await rows.count(), 2);
   assert.equal(await page.locator('.audio-timeline').getAttribute('data-mode'), 'waveform');
-  await page.getByRole('button', { name: 'Spectrum', exact: true }).click();
+  await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
   saved = (await api(path)).project;
   await api(`${path}/archive`, 'POST', { revision: saved.revision });
@@ -159,6 +168,6 @@ try {
   await page.screenshot({ path: join(directory, 'failure.png'), fullPage: true });
   throw error;
 } finally {
-  await api('/me/settings', 'PATCH', { shortcut_overrides: {} }).catch(() => {});
+  await api('/me/settings', 'PATCH', { shortcut_overrides: {}, audio_display_mode: 'spectrum' }).catch(() => {});
   await browser.close();
 }
