@@ -2,6 +2,7 @@ export type Route =
   | { kind: 'entry' }
   | { kind: 'projects'; organizationId?: number }
   | { kind: 'project'; organizationId: number; projectId: number }
+  | { kind: 'project-settings'; organizationId: number; projectId: number }
   | { kind: 'local'; organizationId?: number }
   | { kind: 'settings'; organizationId?: number }
   | { kind: 'organization-settings'; organizationId: number }
@@ -25,10 +26,10 @@ export function parseRoute(pathname: string): Route {
   // Keep the original organization settings URL as a canonicalized alias.
   const settingsMatch = /^\/organizations\/([^/]+)\/settings(?:\/organization)?$/.exec(path);
   if (settingsMatch && validId(settingsMatch[1])) return { kind: 'organization-settings', organizationId: Number(settingsMatch[1]) };
-  const match = /^\/organizations\/([^/]+)\/projects(?:\/([^/]+)\/workspace)?$/.exec(path);
+  const match = /^\/organizations\/([^/]+)\/projects(?:\/([^/]+)\/(workspace|settings))?$/.exec(path);
   if (match && validId(match[1]) && (!match[2] || validId(match[2]))) {
     const organizationId = Number(match[1]);
-    return match[2] ? { kind: 'project', organizationId, projectId: Number(match[2]) } : { kind: 'projects', organizationId };
+    return match[2] ? { kind: match[3] === 'settings' ? 'project-settings' : 'project', organizationId, projectId: Number(match[2]) } : { kind: 'projects', organizationId };
   }
   return { kind: 'not-found', path: pathname };
 }
@@ -38,6 +39,7 @@ export function routePath(route: Route): string {
     case 'entry': return '/';
     case 'projects': return route.organizationId === undefined ? '/projects' : `/organizations/${route.organizationId}/projects`;
     case 'project': return `/organizations/${route.organizationId}/projects/${route.projectId}/workspace`;
+    case 'project-settings': return `/organizations/${route.organizationId}/projects/${route.projectId}/settings`;
     case 'local': return route.organizationId === undefined ? '/workspace/local' : `/organizations/${route.organizationId}/workspace/local`;
     case 'settings': return route.organizationId === undefined ? '/settings' : `/organizations/${route.organizationId}/settings/personal`;
     case 'organization-settings': return `/organizations/${route.organizationId}/settings/organization`;

@@ -4,6 +4,10 @@
 
 显示模式是受控 mode 属性，由 App 的账号设置经 EditorWorkbench 传入，默认 Spectrum；选择和显式保存入口位于个人设置的「音频显示」，工作区不提供切换器。mode 更新只改变分析/绘制请求，不重置坐标、File、video 或已有 PCM；本组件不请求账号设置或持久化偏好。音频区域不再有标题 / 模式 / 缩放 / 当前工具栏，原高度全部给画布。普通滚轮（纵向或横向）平移，Shift+滚轮缩放；wheelViewport 统一指针锚点、边界约束与 deltaMode 单位。
 
+右侧保留 48px 给 Vertical Zoom 原生竖直滑块，向上增强、向下减弱，双击滑块恢复默认；方向键、Home / End 可操作。`AudioTimeline` 独立持有 `verticalZoom`（默认 1.0，范围 0.5–4.0，步长 0.01），仅在组件卸载时重置；切 mode、File 或水平视窗不重置。它不进入 Worker 请求、账号偏好、字幕 DTO、video 音量或播放状态。
+
+Spectrum 将 Worker 已有 -80..0dBFS 对应的归一化能量 `e` 映射为 `e ** (1 / verticalZoom)`，再查原 normal / inactive / active 色表。1.0 保持原图；增大提亮弱信号，减小压暗弱信号，零能量与满量程端点不动，避免整段高亮截断。频率采样、时间坐标及颜色方案保持，低于原 -80dBFS 分析阈值的信号不能通过显示缩放恢复。Waveform 只将峰值显示幅度乘以同一个值并限定在波形区域内，不修改峰值缓存或音频。
+
 Spectrum 本体（22px 标尺以下）左键单击设置入点草稿，右键按下设置出点草稿并阻止原生右键菜单；坐标复用 timeAtX / boundaryTime，吸附到既有 10ms 网格。右键使用 PointerEvent 的小数坐标，contextmenu 仅负责阻止菜单，避免该 MouseEvent 坐标取整引起一格偏差。左键移动超过 3px 仍为平移，不会顺带设置入点。播放头 / 入点边界的左键拖动优先，出点边界仅右键拖动，标尺与 Waveform 仍单击定位视频。
 
 onBoundaryChange 是统一的时间草稿回调：ASS 文档就绪、canEdit 通过、工作区可见、快捷键未暂停且无转换 / 待确认导入时可用，不要求已选字幕。G / Enter（或个人覆盖键）统一校验并进入下一条，逆序等非法区间由原校验处理，不自动交换边界。点击定时不定位视频、不移动视窗，也不重置缩放。浏览器验证见 `browser-tests/boundary-click-checks.mjs`。
@@ -22,11 +26,13 @@ onBoundaryChange 是统一的时间草稿回调：ASS 文档就绪、canEdit 通
 - `AudioCueIntervals.tsx` / `cue-intervals.ts`：其他字幕的只读边界及底线，区域填色由 Canvas 的实际频谱色表承担，不再叠加蓝色透明遮罩。入点为橙色、出点为紫色的 2px 虚线（90% 不透明度），与活动边界共用局部 CSS 颜色变量。相邻区间共享时刻时，出点线在左侧、入点线在右侧，保留两种颜色。只生成可见区间，按 cues / 当前行 / 视窗缓存投影；intervalPosition / xAtTime 同时用于 Canvas 裁剪及 DOM 边界。只绘制真实可见的端点，截断边缘不冒充字幕边界；pointer-events:none，不拦截定时、拖动、定位或滚轮。当前行从只读边界中排除，保留橙 / 紫实线与入 / 出文字。直接读取现有 cues，因此导入、提交、修改、删除后同步更新。
 - `BoundaryCaps.tsx`：当前行滑块与非当前行边界共用上下两个 9px 三角端帽，入点向右、出点向左，形状参考 Aegisub PaintFoot。端帽不扩大命中区，pointer-events:none；随竖线定位到频谱本体顶 / 底，不覆盖标尺，不在裁剪边缘伪造端点。
 - `AudioBoundary.tsx`：有 pointer capture 的可访问边界滑块；拖动及方向键将时间吸附到 10ms，Shift 方向键为 100ms。仅更新 EditorWorkbench 的 changeTimeDraft；G / Enter 通过 commitAndAdvance 提交。逆序等草稿继续由原校验拒绝，未绕过字幕契约。
-- `draw-spectrum.ts`：仅绘制 Worker 的时频能量；每个组件持有 SpectrumImageCache（WeakMap），每个 tile 按 normal / inactive / active 最多缓存三张当前目标高度的图像，随 tile 释放，不创建全局缓存；仅转换实际与裁剪范围相交的 tile。高度 / DPR 改变时各色表图像按需重建。
-- `spectrum-pixels.ts`：纯函数将固定 0..255 能量映射到色表。normal 保留原黑 / 蓝 / 青 / 白色表；inactive / active 参考 Aegisub 3.2.2 Icy Blue 的 Inactive / Primary HSL 参数，让弱能量背景及语音能量都能显示状态差异，active 更亮。缩小按覆盖频带取最大值，放大插值能量，再转 RGBA。低频在底部，alpha 恒为 255；三种状态共用同一能量和采样算法，不改 dBFS / FFT，不用 CSS invert 或整图滤镜。
+- `draw-spectrum.ts`：仅绘制 Worker 的时频能量；每个组件持有 SpectrumImageCache（WeakMap），每个 tile 缓存一份目标高度的 Uint8 能量、一份共用 ImageData 临时缓冲、normal / inactive / active 最多三张 canvas 和各自最新 zoom。拖动只重着色并原地上传，不重新采样、不累积历史 zoom 图像；随 tile 释放，不创建全局缓存。高度 / DPR 改变时按需重建。
+- `spectrum-pixels.ts`：纯函数负责能量重采样与显示曲线 / 色表映射；normal 保留原黑 / 蓝 / 青 / 白色表，inactive / active 沿用 Aegisub 3.2.2 Icy Blue 的 HSL 参数。缩小按覆盖频带取最大值，放大插值能量，再量化为原有 256 档颜色索引。重着色只生成 256 项查找表并写入既有 RGBA 缓冲。低频在底部，alpha 恒为 255；三种状态共用同一能量和采样算法，不改 dBFS / FFT，不用 CSS invert 或整图滤镜。
 - `media/audio/use-audio-analysis.ts`：Worker 会话与陈旧结果隔离，视图仅接收当前窗口的分析 tiles。
 
-播放头 RAF 只更新一条 DOM 线，波形仅在数据 / 视窗 / 尺寸变化时重绘。视窗在无视频元数据时不被跟随逻辑重置。字幕行选择经 revealInterval，仅在区间超出视窗时移动；已可见的下一行保留视窗与之前区间的上下文，输入时间草稿不会重置缩放或平移。已有 seekVideo / EditorWorkbench 的操作仍是播放和字幕状态入口。
+播放头 RAF 只更新一条 DOM 线，波形仅在数据 / 视窗 / 尺寸 / 显示状态变化时重绘。视窗在无视频元数据时不被跟随逻辑重置。字幕行选择经 revealInterval，仅在区间超出视窗时移动；已可见的下一行保留视窗与之前区间的上下文，输入时间草稿不会重置缩放或平移。已有 seekVideo / EditorWorkbench 的操作仍是播放和字幕状态入口。
+
+音频画布也在 verticalZoom 变化时重绘；React effect 经 requestAnimationFrame 合并更新，每帧使用最新参数。主 canvas 只在实际尺寸 / DPR 变化时调整 backing store，普通重绘重设坐标矩阵并覆写背景，避免重复清空 / 分配画布。验证命令：`cd frontend && node browser-tests/vertical-zoom.mjs`，默认连接 5173（可用 AUDIO_TIMELINE_URL 覆盖），API 使用浏览器内 fixture，无需数据库；真实 Chrome / FFmpeg 验证颜色、拖动、复位、缓冲复用、模式切换、水平缩放、播放头 / 标尺和窄屏。详情见 [垂直缩放记录](../../../../docs/experiments/vertical-zoom.md)。
 
 红色播放头的可拖命中区为 12px，悬停光标为 ew-resize，没有新增悬浮提示。AudioTimeline 的同一个 pointer capture 生命周期通过 `TimelineDrag.kind` 区分视窗平移与播放头定位；按下时记录既有 AudioViewport 和抓取偏移，拖动通过 timeAtX → 原 onSeek → seekVideo 更新视频时间。拖动期间阻止视窗自动跟随 / 滚轮缩放平移，指针出界时限定到当前可见范围；不自动延伸视窗。定位保留视频原来的播放 / 暂停状态，不修改字幕草稿。
 

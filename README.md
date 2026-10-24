@@ -45,9 +45,9 @@ npm run dev
 
 ## 项目面板
 
-登录后默认进入项目列表，可查看「进行中」「过去项目」，按名称搜索和分页。organizer 管理本组织项目，dev 管理所有组织；member 可查看项目并保存字幕，不能改项目信息或归档/恢复。
+登录后默认进入项目列表，可查看「进行中」「过去项目」，按名称搜索和分页。organizer 管理本组织项目，dev 管理所有组织；member 可查看项目并保存字幕，不能改项目信息或归档/恢复。项目列表操作直接展示「项目设置」和「归档项目」；项目设置在独立页面编辑名称与说明（`/organizations/:organizationId/projects/:projectId/settings`），点击项目名称进入工作区。
 
-「新建项目」在当前列表页打开弹窗，名称、说明、本地视频和空字幕/合法 ASS 在同一表单填写，不设“下一步”。视频完成完整 SHA-256 校验、字幕预检通过后才可确认创建；取消文件选择不会关闭弹窗或清除已填内容。视频不上传。打开后点击「保存项目」持久化已应用字幕，旧版本冲突会保留输入；归档只读。项目名称/打开/只读查看、本地工作区、项目列表及设置入口默认新开标签页；设置页内个人/组织分类在当前标签页切换；CueRelay、组织选择和错误页返回入口留在当前页；新建项目是本页弹窗操作。原页字幕、视频和播放状态保留。同页通过前进/回退浏览列表保留当前实例，切换或重新加载先处理本地稿件。
+「新建项目」在当前列表页打开弹窗，名称、说明、本地视频和空字幕/合法 ASS 在同一表单填写，不设“下一步”。视频完成完整 SHA-256 校验、字幕预检通过后才可确认创建；取消文件选择不会关闭弹窗或清除已填内容。视频不上传。打开后点击「保存项目」持久化已应用字幕，旧版本冲突会保留输入；归档只读。项目名称、项目设置、本地工作区、项目列表及设置入口默认新开标签页；设置页内个人/组织分类在当前标签页切换；CueRelay、组织选择和错误页返回入口留在当前页；新建项目是本页弹窗操作。原页字幕、视频和播放状态保留。同页通过前进/回退浏览列表保留当前实例，切换或重新加载先处理本地稿件。
 
 升级运行 `python manage.py migrate` 和前端 `npm ci`，并重启后端。新增 projects.0001_initial 表与 @noble/hashes 2.0.1（MIT），既有音频依赖保留。没有实时协作或自动保存，保存不含尚未应用的时间输入。详细边界与浏览器测试入口见 [项目契约](docs/projects.md)。
 
@@ -87,7 +87,7 @@ npm run build
 
 ## 页面 URL 与导航
 
-组织项目列表：`/organizations/:organizationId/projects`；项目工作区：`/organizations/:organizationId/projects/:projectId/workspace`；本地工作区：`/workspace/local`。项目名称和打开/只读查看可复制链接或原生新开标签页；创建后新增历史记录进入项目，回退回到列表。登录后继续原请求地址，直接访问/刷新加载指定项目的已保存快照，并要求重新选片校验。URL 不保存未保存稿件或视频，新标签页不会复制工作区现场。无组织入口为 `/projects`。
+组织项目列表：`/organizations/:organizationId/projects`；项目工作区：`/organizations/:organizationId/projects/:projectId/workspace`；本地工作区：`/workspace/local`。项目名称和项目设置可复制链接或原生新开标签页；创建后新增历史记录进入项目，回退回到列表。登录后继续原请求地址，直接访问/刷新加载指定项目的已保存快照，并要求重新选片校验。URL 不保存未保存稿件或视频，新标签页不会复制工作区现场。无组织入口为 `/projects`。
 
 点击左上角 CueRelay 返回 `/` 首页，根地址保持不变，展示当前可访问组织的项目列表；保留已有工作区，返回后可以继续原稿。
 
@@ -98,3 +98,5 @@ npm run build
 账号统一使用 username 登录和显示，没有独立显示名。升级需执行 `python backend/manage.py migrate` 应用 accounts.0003_remove_user_display_name，并同步更新前后端；旧显示名数据会删除，账号 ID、密码、组织关系、项目和快捷键保留。详见 [用户系统升级说明](docs/user-system.md#用户名统一显示升级)。
 
 音频显示偏好已保存到账号：更新本版本需执行 `python backend/manage.py migrate`（accounts.0004），再重启后端与前端。旧快捷键偏好保留；显示设置和快捷键分开保存，不互相覆盖。验证入口 `cd frontend && npm run test:audio-preferences`，一次性测试库准备及结果见 [验证记录](docs/experiments/audio-preferences.md)。
+
+项目设置界面回归：启动前端后，在 frontend 执行 `npm run test:project-settings`（需 Chrome，`PROJECT_SETTINGS_URL` 可指定地址）；使用 HTTP 测试夹具验证独立页面、名称/说明保存、版本冲突、归档/权限和窄屏布局，不访问开发数据库。

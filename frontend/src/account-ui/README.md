@@ -2,7 +2,7 @@
 
 App 编排会话、组织上下文、登录/保护弹窗及工作区所有权。App 显式创建并传递 account-ui/api.ts 客户端实例；实例负责同源 Session 请求、当前 CSRF Cookie、结构化错误、账号一致性头和旧上下文响应过滤，通过显式回调通知会话失效，不使用模块级账号全局状态。LoginForm、MembersPanel、PersonalPanel 只通过公开 HTTP 契约操作数据，不访问 EditorWorkbench 内部状态。
 
-Modal 使用原生 dialog 的焦点约束和焦点恢复。onCancel 只响应弹窗自身（event.target === event.currentTarget），忽略文件 input 冒泡的 cancel，避免取消选片关闭整个表单；真正的 Escape 仍经 onClose 关闭，未提供 onClose 时阻止默认关闭。App 通过 shortcutsPaused 暂停工作区快捷键，通过 WorkbenchHandle.hasContent/exportDraft 处理切换前的本地稿件。普通会话检查或同账号重新登录不能重建工作区。
+Modal 使用原生 dialog 的焦点约束和焦点恢复。showCloseButton 默认为 true，归档确认框设为 false，保留底部取消按钮；此属性只控制标题旁关闭按钮，不影响 Escape。onCancel 只响应弹窗自身（event.target === event.currentTarget），忽略文件 input 冒泡的 cancel，避免取消选片关闭整个表单；真正的 Escape 仍经 onClose 关闭，未提供 onClose 时阻止默认关闭。App 通过 shortcutsPaused 暂停工作区快捷键，通过 WorkbenchHandle.hasContent/exportDraft 处理切换前的本地稿件。普通会话检查或同账号重新登录不能重建工作区。
 
 MembersPanel 隐藏 organizer 对其他 organizer 的角色修改和移除入口（dev 除外），后端仍独立校验。移除其他成员使用 Modal 二次确认，移除自己经 App 的退出/稿件保护流程。组织名与添加成员表单共用 member-form 栅格对齐。账号入口、成员表和移除确认统一只显示 username，不重复展示另一份账号名。PersonalPanel 不提供显示名或资料字段；新密码/确认新密码前后端均校验，成功清空三项密码，个人设置仅保留退出账号入口。
 

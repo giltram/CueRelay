@@ -8,17 +8,19 @@ import { spectrumColor, type SpectrumStyle } from './spectrum-pixels';
 
 export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: AudioViewport, mode: AudioDisplayMode,
   spectrumImages: SpectrumImageCache, cues: readonly Cue[], selectedId: string | null,
-  selection: { start: number; end: number } | null) {
+  selection: { start: number; end: number } | null, verticalZoom = 1) {
   // Preserve fractional CSS dimensions so canvas and percentage-based overlays agree.
   const { width, height } = canvas.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.round(width * ratio)); canvas.height = Math.max(1, Math.round(height * ratio));
+  const pixelWidth = Math.max(1, Math.round(width * ratio)); const pixelHeight = Math.max(1, Math.round(height * ratio));
+  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
   const context = canvas.getContext('2d');
   if (!context || !width || !height) return;
-  context.scale(canvas.width / width, canvas.height / height);
+  context.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
   context.fillStyle = '#08080c'; context.fillRect(0, 0, width, height);
   const top = AUDIO_RULER_HEIGHT; const mid = top + (height - top) / 2; const amplitude = Math.max(1, (height - top) / 2 - 4);
-  if (view.span && mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages);
+  if (view.span && mode === 'spectrum') for (const tile of tiles) drawSpectrum(context, tile, view, width, height, top, spectrumImages, 'normal', verticalZoom);
   const inactive = visibleCueIntervals(cues, selectedId, view);
   const active = selection ? intervalPosition(selection.start, selection.end, view) : null;
   const paintRegions = (style: SpectrumStyle, regions: readonly { left: number; width: number }[]) => {
@@ -34,7 +36,7 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
       const left = xAtTime(spectrum.firstTimestamp - spectrum.stepSeconds / 2, 100, view);
       const right = left + spectrum.columns * spectrum.stepSeconds / view.span * 100;
       if (regions.some(region => left < region.left + region.width && right > region.left)) {
-        drawSpectrum(context, tile, view, width, height, top, spectrumImages, style);
+        drawSpectrum(context, tile, view, width, height, top, spectrumImages, style, verticalZoom);
       }
     }
     context.restore();
@@ -69,7 +71,8 @@ export function drawAudio(canvas: HTMLCanvasElement, tiles: AudioTile[], view: A
         min = Math.min(min, tile.peaks[bin * 2]); max = Math.max(max, tile.peaks[bin * 2 + 1]);
       }
     }
-    context.moveTo(x + 0.5, mid - max * amplitude); context.lineTo(x + 0.5, mid - min * amplitude);
+    context.moveTo(x + 0.5, mid - Math.min(1, max * verticalZoom) * amplitude);
+    context.lineTo(x + 0.5, mid - Math.max(-1, min * verticalZoom) * amplitude);
   }
   context.stroke();
 }

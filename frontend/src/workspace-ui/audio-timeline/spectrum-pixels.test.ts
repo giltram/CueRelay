@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { spectrumColor, spectrumPixels } from './spectrum-pixels';
+import { colorSpectrumLevels, spectrumColor, spectrumLevels, spectrumPixels } from './spectrum-pixels';
 import type { SpectrumTile } from '../../media/audio/analysis-types';
 
 function tile(rows: number, columns = 1): SpectrumTile {
@@ -9,6 +9,47 @@ const pixel = (data: Uint8ClampedArray, index: number) => [...data.slice(index *
 const luminance = ([r, g, b]: readonly number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 describe('dark spectrum palette and physical frequency pixels', () => {
+  it('smoothly lifts weak dB levels without clipping highlights or lifting silence in any palette', () => {
+    for (const style of ['normal', 'inactive', 'active'] as const) {
+      for (const energy of [32, 64, 128, 192]) {
+        const dim = luminance(spectrumColor(energy, style, 0.5));
+        const normal = luminance(spectrumColor(energy, style, 1));
+        const bright = luminance(spectrumColor(energy, style, 4));
+        expect(dim).toBeLessThan(normal);
+        expect(bright).toBeGreaterThan(normal);
+        expect(spectrumColor(energy, style, 4)).not.toEqual(spectrumColor(255, style));
+      }
+      for (const zoom of [0.5, 1, 2, 4]) {
+        expect(spectrumColor(0, style, zoom)).toEqual(spectrumColor(0, style));
+        expect(spectrumColor(255, style, zoom)).toEqual(spectrumColor(255, style));
+      }
+      for (let step = 51; step <= 400; step++) {
+        const previous = spectrumColor(64, style, (step - 1) / 100);
+        const next = spectrumColor(64, style, step / 100);
+        // Existing HSL palettes have sub-unit luminance rounding fluctuations.
+        expect(luminance(next)).toBeGreaterThanOrEqual(luminance(previous) - 1);
+        expect(Math.max(...next.map((channel, i) => Math.abs(channel - previous[i])))).toBeLessThan(8);
+      }
+    }
+  });
+  it('recolors the same resampled levels and output buffer without changing time-frequency data', () => {
+    const spectrum = tile(4, 2);
+    spectrum.energy.set([64, 0, 128, 0, 0, 0, 0, 192]);
+    const original = spectrum.energy.slice();
+    const levels = spectrumLevels(spectrum, 9);
+    const before = levels.slice();
+    const pixels = new Uint8ClampedArray(levels.length * 4);
+    for (const zoom of [0.5, 1, 4, 1]) {
+      for (const style of ['normal', 'inactive', 'active'] as const) {
+        colorSpectrumLevels(levels, pixels, style, zoom);
+        expect(pixels).toEqual(spectrumPixels(spectrum, 9, style, zoom));
+        expect(pixel(pixels, 0)).toEqual([...spectrumColor(0, style), 255]);
+        expect(pixel(pixels, 16)).toEqual([...spectrumColor(64, style, zoom), 255]);
+      }
+    }
+    expect(spectrum.energy).toEqual(original);
+    expect(levels).toEqual(before);
+  });
   it('uses distinct brighter Icy Blue HSL palettes for existing and active intervals', () => {
     expect(spectrumColor(0, 'inactive')).toEqual([32, 24, 40]);
     expect(spectrumColor(0, 'active')).toEqual([64, 32, 96]);

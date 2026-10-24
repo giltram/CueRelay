@@ -5,6 +5,7 @@ import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './account-ui/Modal';
 import { SettingsPage } from './account-ui/SettingsPage';
 import { ProjectsPanel } from './project-ui/ProjectsPanel';
+import { ProjectSettingsPage } from './project-ui/ProjectSettingsPage';
 import { useNavigation } from './navigation/use-navigation';
 import { RouteLink } from './navigation/RouteLink';
 import { HomeLink } from './navigation/HomeLink';
@@ -202,6 +203,9 @@ export default function App() {
           workspaceState.adoptCreated(project, video);
           navigateApproved({ kind: 'project', organizationId: project.organization_id, projectId: project.id });
         }} onLifecycle={workspaceState.updateSummary} />}
+      {route.kind === 'project-settings' && <ProjectSettingsPage key={`${owner.id}:${route.organizationId}:${route.projectId}`}
+        organization={organization} organizationId={route.organizationId} projectId={route.projectId}
+        request={api} header={header} enabled={Boolean(user && settingsReady && !busy && !transition)} navigate={navigate} />}
       {isSettings && <SettingsPage user={user ?? owner} organization={organization}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
         enabled={Boolean(user && settingsReady && !busy && !transition)} ready={settingsReady}

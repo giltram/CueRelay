@@ -86,7 +86,7 @@ try {
   const path = `${base}/${project.id}`;
   await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
   await page.getByLabel('搜索项目', { exact: true }).fill(project.name);
-  await sameTab(page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('link', { name: '打开', exact: true }));
+  await sameTab(page.locator('.project-table tbody tr').filter({ hasText: project.name }).getByRole('link', { name: project.name, exact: true }));
   await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   const original = await rowTimes(0);

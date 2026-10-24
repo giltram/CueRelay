@@ -169,7 +169,7 @@ try {
   assert.equal(await middleTab.locator('video').getAttribute('src'), null);
   const modifierTab = await newTab(tabProjectLink, { modifiers: ['ControlOrMeta'] });
   await workspace(modifierTab).waitFor(); assert(await workspace(modifierTab).isDisabled());
-  await sameTab(listTab.getByRole('row').filter({ has: tabProjectLink }).getByRole('link', { name: '打开', exact: true }));
+  await sameTab(tabProjectLink);
   await workspace(listTab).waitFor();
   assert(await workspace(listTab).isDisabled());
   await listTab.reload(); await workspace(listTab).waitFor();

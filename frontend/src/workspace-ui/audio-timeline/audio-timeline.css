@@ -1,4 +1,8 @@
 .audio-panel.audio-timeline { --audio-start-color: #ffb86b; --audio-end-color: #de8cff; padding: 0; justify-content: start; align-items: stretch; min-height: 136px; flex-basis: 136px; overflow: hidden; background: #08080c; color: #9bbce0; border-color: #27344c; }
+.audio-visualization { display: flex; flex: 1; min-height: 64px; min-width: 0; }
+.audio-vertical-zoom { display: flex; flex-direction: column; flex: 0 0 48px; align-items: center; gap: 4px; padding: 4px; border-left: 1px solid #27344c; color: inherit; font: 10px ui-monospace, monospace; user-select: none; }
+.audio-vertical-zoom input[type="range"] { writing-mode: vertical-lr; direction: rtl; flex: 1; width: 24px; height: 0; min-height: 24px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; accent-color: #9bbce0; color-scheme: dark; cursor: ns-resize; touch-action: none; }
+.audio-vertical-zoom input:focus-visible { outline-color: #619eff; outline-offset: 0; }
 .audio-stage { position: relative; flex: 1; min-height: 64px; overflow: hidden; touch-action: none; cursor: crosshair; background: #08080c; }
 .audio-stage canvas { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
 .audio-cue-intervals { position: absolute; inset: 22px 0 0; pointer-events: none; }

@@ -232,11 +232,10 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .project-table-scroll { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: auto; }
 .project-table th, .project-table td { padding: 12px 16px; }
 .project-table th:first-child, .project-table td:first-child { width: 42%; min-width: 180px; }
-.project-table th:last-child, .project-table td:last-child { width: 180px; }
+.project-table th:last-child, .project-table td:last-child { width: 220px; }
 .project-table td { vertical-align: top; }
 .project-name { border: 0; padding: 0; min-height: 24px; background: transparent; font-weight: 600; white-space: normal; text-align: left; justify-content: start; }
 .project-description { color: var(--text-muted); max-width: 560px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.project-management > .controls { margin-top: 8px; }
 .project-pagination { color: var(--text-muted); font-size: 13px; }
 .project-workspace-status { color: var(--text-muted); font-size: 13px; }
 .workspace-project-name { font-size: 13px; max-width: 200px; overflow-wrap: anywhere; }
@@ -256,6 +255,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .settings-content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .settings-content > fieldset { width: 100%; }
 .settings-content table { width: 100%; }
+.project-settings-form { width: 100%; max-width: 720px; }
 @media (max-width: 700px) {
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .settings-nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 8px; }

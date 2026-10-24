@@ -14,6 +14,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 红色播放头支持拖动定位：AudioTimeline 在现有 pointer capture 中区分 pan / seek，复用既有 AudioViewport、timeAtX 和 onSeek；不直接持有或改写视频播放状态。定位拖动期间冻结视窗，字幕边界重叠时保留编辑优先级；边缘判断允许媒体定位的微秒舍入，契约见时间轴 README。
 
+2026-10-24 Vertical Zoom：`AudioTimeline` 本地持有独立 verticalZoom（默认 1.0，0.5–4.0），右侧原生竖直滑块实时调整 / 双击复位。Spectrum 在 UI 层对归一化 dB 能量应用 `e ** (1 / verticalZoom)` 后查既有三种状态色表；Waveform 缩放并约束峰值显示高度。每 tile 复用目标高度的量化能量、共享 ImageData 和最多三张当前 zoom 的 canvas，RAF 合并绘制，不重新解码 / FFT、不积累历史缩放图像。Worker、字幕、播放和坐标契约不变；状态随组件实例保留，不持久化到账号。实现与验证见 [时间轴 README](../frontend/src/workspace-ui/audio-timeline/README.md) 和 [垂直缩放记录](experiments/vertical-zoom.md)。
+
 Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBoundaryChange → changeTimeDraft 更新现有草稿，吸附 10ms。只在文档就绪、canEdit 通过、工作区可见、快捷键未暂停且无转换 / 待确认导入时提供回调；G / Enter 调用 commitAndAdvance。图内点击定时不 seek 视频，标尺和 Waveform 单击定位、播放头 / 边界拖动及左键拖动平移继续保留。标尺高度由 draw-ruler 导出的常量与绘制共用，没有新增时间状态或字幕副本。
 
 `workspace-ui/cue-defaults.ts` 在本地工作区加载或导入无行 ASS 时补一条 0–2 秒空文本字幕并选中，样式为文档第一项；已有行不改动。默认 2000ms 常量与连续打轴共用，后端空文档接口保持原样。EditorWorkbench 的 hasEdits 仅在真实时间草稿、文本 / 样式编辑、提交或删除时设为 true；未修改的默认行不触发离页 / 导入替换确认，导入标记仍受保护。删空不会强制重新插入，刷新后才重新初始化。
@@ -38,7 +40,7 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `http_api/identity_views.py`：Session/登录/退出/本人只读身份、密码/设置、组织及成员 JSON 适配。身份、成员和项目操作者统一显示 username，无自定义显示名；改密要求两份新密码一致。organizer 不能移除或降级其他 organizer，由 organizations.services 在组织锁内重查；dev 仍受最后活动 organizer 约束。Django CSRF 中间件保护匿名登录和全部写入；身份从 Session 获取，白名单拒绝未知字段。与纯格式公开接口分离。
 - `http_api/auth_security.py`：在 CSRF 前限制现有密码入口的请求体和 Admin 密码长度；将认证 backend 的重试秒数转换为 API/Admin 共用的 429 JSON/Retry-After。实际密码校验和账号计数只由 accounts 拥有，不再使用进程内 IP 缓存。
 - `projects`：组织项目生命周期、固定媒体基准、有限 ASS 快照、revision 冲突保护，写入锁操作者 User → Organization → Project；契约见 [projects README](../backend/projects/README.md)，HTTP 适配在 `http_api/project_views.py`。
-- `project-ui/{ProjectsPanel,ProjectForm}.tsx`：列表、搜索/分页、创建/管理界面。App 组合 navigation 和 app-workspace，项目保存/重载经明确接口，见 [project-ui README](../frontend/src/project-ui/README.md)。
+- `project-ui/{ProjectsPanel,ProjectForm,ProjectSettingsPage}.tsx`：列表、搜索/分页、创建弹窗和独立项目设置页。App 组合 navigation 和 app-workspace，项目保存/重载经明确接口，见 [project-ui README](../frontend/src/project-ui/README.md)。
 - `media/{file-hash,file-hash.worker,media-manifest}.ts`：本地完整 SHA-256 与可播放/时长检查，Worker 分块且可取消；不读账号/组织、不上传视频。
 - `shared/timing-shortcuts.json`：后端和前端共同读取的默认键位唯一来源，个人设置仅保存覆盖。
 - `ass_format`：纯格式公共入口 `parse_ass` / `serialize_ass` / `empty_document`，原始行锚点适配隔离 pysubs2 保留局限，见 [局部契约](../backend/ass_format/README.md)。
@@ -226,3 +228,5 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 2026-10-24 音频显示偏好：accounts.0004 添加 audio_display_mode（waveform/spectrum，默认 spectrum，数据库检查约束）。GET/PATCH /api/me/settings 在既有 Session/CSRF/账号一致性边界内扩展此字段；PATCH 接受非空字段子集，未提交字段保留，旧快捷键请求继续兼容。PersonalPanel 显式保存，App 沿用原有设置检查应用到已打开的工作区，无新增标签页通信/草稿存储。运行与验证见 [音频显示设置记录](experiments/audio-preferences.md)。
 
 2026-10-24 创建弹窗修正：名称/说明和视频/字幕合并为同一表单；新建按钮留在当前列表，不新开 tab。Modal 的 cancel 处理只响应自身 target，文件 input 的冒泡取消不会关闭整份表单；真正 Escape/明确取消继续工作，忙碌时禁止误关。职责与验证见 [project-ui](../frontend/src/project-ui/README.md) 和 [创建表单记录](experiments/project-form.md)。
+
+2026-10-24 项目设置页：项目列表移除打开/只读查看按钮，以项目名称进入工作区；管理操作直接显示项目设置及归档/恢复，不再折叠。navigation 新增 `/organizations/:organizationId/projects/:projectId/settings`，App 组合 project-ui/ProjectSettingsPage，设置页经 project-data 读取并更新名称/说明，保持 revision 冲突校验和显式刷新，不修改保留工作区的文档或 revision。ProjectForm 仅负责创建。沿用 organizer/dev 管理权限、归档只读及 RouteLink 新标签页规则；详情和浏览器回归见 [project-ui](../frontend/src/project-ui/README.md)。

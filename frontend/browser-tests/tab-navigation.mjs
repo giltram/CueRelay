@@ -130,12 +130,12 @@ try {
   await byName.getByLabel('字幕中文文本').waitFor();
   assert(await byName.getByLabel('字幕中文文本').isDisabled());
   assert.equal(await byName.locator('video').getAttribute('src'), null);
-  const byOpen = await open(list.getByRole('row').filter({ has: list.getByRole('link', { name: title, exact: true }) }).getByRole('link', { name: '打开', exact: true }));
-  await byOpen.getByLabel('字幕中文文本').waitFor();
-  assert.equal(new URL(byOpen.url()).pathname, projectPath);
-  await byOpen.reload(); await byOpen.getByLabel('字幕中文文本').waitFor();
-  assert.equal(await byOpen.locator('video').getAttribute('src'), null);
-  record('项目名称/打开/工作区列表/设置普通点击新开；原视频继续播放，字幕和时间草稿保留；普通打开及刷新独立选片');
+  const reopened = await open(list.getByRole('row').filter({ has: list.getByRole('link', { name: title, exact: true }) }).getByRole('link', { name: title, exact: true }));
+  await reopened.getByLabel('字幕中文文本').waitFor();
+  assert.equal(new URL(reopened.url()).pathname, projectPath);
+  await reopened.reload(); await reopened.getByLabel('字幕中文文本').waitFor();
+  assert.equal(await reopened.locator('video').getAttribute('src'), null);
+  record('项目名称/工作区列表/设置普通点击新开；原视频继续播放，字幕和时间草稿保留；普通打开及刷新独立选片');
 
   await creation.locator('video').evaluate(video => video.pause());
   const beforeHome = context.pages().length;
@@ -168,7 +168,7 @@ try {
   const detail = (await api(`${listPath}/${projectId}`)).project;
   await api(`${listPath}/${projectId}/archive`, 'POST', { revision: detail.revision });
   await list.getByRole('tab', { name: '过去项目', exact: true }).click();
-  const readOnly = await open(list.getByRole('row').filter({ has: list.getByRole('link', { name: title, exact: true }) }).getByRole('link', { name: '只读查看', exact: true }));
+  const readOnly = await open(list.getByRole('row').filter({ has: list.getByRole('link', { name: title, exact: true }) }).getByRole('link', { name: title, exact: true }));
   await readOnly.getByText('已归档项目仅可查看和导出。', { exact: true }).waitFor();
   assert(await readOnly.getByLabel('字幕中文文本').isDisabled());
   record('错误页两个返回入口留在原 tab；归档只读查看默认新开并继续只读限制');

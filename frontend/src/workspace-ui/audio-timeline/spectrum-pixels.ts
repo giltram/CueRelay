@@ -45,14 +45,17 @@ const palettes: Record<SpectrumStyle, Rgb[]> = {
   normal: normalPalette, inactive: contextPalette(false), active: contextPalette(true),
 };
 
-export function spectrumColor(energy: number, style: SpectrumStyle = 'normal'): Rgb {
-  return palettes[style][Math.max(0, Math.min(255, Math.round(energy)))];
+export function spectrumColor(energy: number, style: SpectrumStyle = 'normal', verticalZoom = 1): Rgb {
+  const level = Math.max(0, Math.min(1, energy / 255));
+  // A display-only curve on normalized -80..0 dBFS. Unlike additive gain,
+  // this lifts weak signals without clipping highlights or lifting silence.
+  return palettes[style][Math.round(255 * Math.pow(level, 1 / verticalZoom))];
 }
 
 /** Preserve narrow bands when shrinking; interpolate levels when enlarging. Low Hz is at the bottom. */
-export function spectrumPixels(spectrum: SpectrumTile, height: number, style: SpectrumStyle = 'normal'): Uint8ClampedArray {
+export function spectrumLevels(spectrum: SpectrumTile, height: number): Uint8Array {
   const { rows, columns, energy } = spectrum;
-  const pixels = new Uint8ClampedArray(columns * height * 4);
+  const levels = new Uint8Array(columns * height);
   for (let y = 0; y < height; y++) {
     const first = Math.floor(y * rows / height);
     const last = Math.min(rows, Math.ceil((y + 1) * rows / height));
@@ -65,10 +68,25 @@ export function spectrumPixels(spectrum: SpectrumTile, height: number, style: Sp
       } else {
         level = energy[lower * columns + column] * (1 - (position - lower)) + energy[upper * columns + column] * (position - lower);
       }
-      const color = spectrumColor(level, style);
-      const pixel = ((height - y - 1) * columns + column) * 4;
-      pixels[pixel] = color[0]; pixels[pixel + 1] = color[1]; pixels[pixel + 2] = color[2]; pixels[pixel + 3] = 255;
+      levels[(height - y - 1) * columns + column] = Math.round(level);
     }
   }
+  return levels;
+}
+
+/** Recolor cached display levels into an existing RGBA buffer, using a small lookup table. */
+export function colorSpectrumLevels(levels: Uint8Array, pixels: Uint8ClampedArray, style: SpectrumStyle, verticalZoom: number) {
+  const palette = Array.from({ length: 256 }, (_, energy) => spectrumColor(energy, style, verticalZoom));
+  for (let i = 0; i < levels.length; i++) {
+    const color = palette[levels[i]];
+    const pixel = i * 4;
+    pixels[pixel] = color[0]; pixels[pixel + 1] = color[1]; pixels[pixel + 2] = color[2]; pixels[pixel + 3] = 255;
+  }
+}
+
+export function spectrumPixels(spectrum: SpectrumTile, height: number, style: SpectrumStyle = 'normal', verticalZoom = 1): Uint8ClampedArray {
+  const levels = spectrumLevels(spectrum, height);
+  const pixels = new Uint8ClampedArray(levels.length * 4);
+  colorSpectrumLevels(levels, pixels, style, verticalZoom);
   return pixels;
 }

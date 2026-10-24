@@ -32,6 +32,7 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
 export function AudioTimeline({ file, video, duration, currentTime, mode, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
   const seconds = duration / 1000;
   const [viewport, setViewport] = useState<AudioViewport>({ start: 0, span: 10 });
+  const [verticalZoom, setVerticalZoom] = useState(1);
   const [spectrumImages] = useState<SpectrumImageCache>(() => new WeakMap());
   const view = clampViewport(viewport, seconds);
   const analysis = useAudioAnalysis(file, view.start, view.start + view.span, mode);
@@ -59,8 +60,11 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
     return () => { observer.disconnect(); resolution.removeEventListener('change', watchResolution); };
   }, []);
   useEffect(() => {
-    if (canvas.current) drawAudio(canvas.current, analysis.tiles, view, mode, spectrumImages, cues, selectionId, selection);
-  }, [analysis.tiles, view.start, view.span, size, mode, cues, selectionId, selection?.start, selection?.end]);
+    const frame = requestAnimationFrame(() => {
+      if (canvas.current) drawAudio(canvas.current, analysis.tiles, view, mode, spectrumImages, cues, selectionId, selection, verticalZoom);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [analysis.tiles, view.start, view.span, size, mode, cues, selectionId, selection?.start, selection?.end, verticalZoom]);
   useEffect(() => {
     if (!selectionId || !selection) return;
     setViewport(value => revealInterval(value, selection.start / 1000, selection.end / 1000, seconds));
@@ -116,6 +120,7 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
 
   return <section className="audio-panel audio-timeline" aria-label="音频时间轴" data-state={analysis.status}
     data-start={view.start} data-end={view.start + view.span} data-mode={mode} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
+    <div className="audio-visualization">
     <div className="audio-stage" ref={stage} role="group" aria-label="音频可视范围" tabIndex={seconds ? 0 : -1}
       onKeyDown={event => {
         if (drag.current?.kind === 'seek') return;
@@ -183,7 +188,7 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
         if (mode !== 'spectrum' || event.clientY < rect.top + AUDIO_RULER_HEIGHT) return;
         event.preventDefault();
       }}>
-      <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越深能量越强'} />
+      <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越亮能量越强'} />
       <AudioCueIntervals cues={cues} selectedId={selectionId} view={view} />
       {selection && <>
         <AudioBoundary point="start" value={selection.start} duration={duration} view={view} onChange={onBoundaryChange} />
@@ -193,6 +198,15 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
       {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频</p>}
       {analysis.status === 'opening' && <p className="audio-message" role="status">正在读取本地音轨…</p>}
       {analysis.status === 'error' && <p className="audio-message audio-error" role="status">{analysis.message}</p>}
+    </div>
+    <label className="audio-vertical-zoom" title="Vertical Zoom · 向上增强，双击恢复 1.00×">
+      <span>垂直</span>
+      <input type="range" aria-label="垂直缩放" aria-orientation="vertical" min="0.5" max="4" step="0.01"
+        value={verticalZoom} aria-valuetext={`${verticalZoom.toFixed(2)} 倍，${mode === 'spectrum' ? '频谱强度' : '波形高度'}`}
+        onChange={event => setVerticalZoom(Number(event.currentTarget.value))}
+        onDoubleClick={() => setVerticalZoom(1)} />
+      <output>{verticalZoom.toFixed(2)}×</output>
+    </label>
     </div>
     <div className="audio-footer">
       <span>{formatTime(currentTime)}{selection && ` · 入 ${formatTime(selection.start)} / 出 ${formatTime(selection.end)}`}</span>

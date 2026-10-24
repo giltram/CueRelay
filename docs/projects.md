@@ -8,13 +8,13 @@
 
 organizer 和 dev 可创建项目，只有本组织 organizer 有本组织管理权。「新建项目」在当前列表页打开弹窗，不改 URL 或新增标签页。名称、说明、固定本地视频及空字幕/导入 ASS 在同一表单填写，不设中间步骤；浏览器验证可播放首帧与 0–10 小时时长，Worker 每次读取至多 4MiB 计算完整 SHA-256，可取消且有进度。最终确认才提交创建，视频不上传，失败保留输入且无半成品记录。初始 File 在同一标签页内通过显式内存接口交给随后显示的工作区，不保存到账号设置或服务器。
 
-编辑信息仅接受名称/说明与 revision；发生冲突保留表单，「刷新项目版本」展示服务器最新名称/说明并保留输入，用户核对后再保存。组织和视频基准不可移动/更换。归档确认明确尚未保存内容不会自动提交；归档项目只读查看/导出，恢复后继续工作，无硬删除入口。
+项目列表操作直接显示「项目设置」和「归档项目」，过去项目直接显示「恢复项目」，不折叠；通过项目名称进入工作区，不再显示打开/只读查看按钮。「项目设置」在新标签页打开 `/organizations/:organizationId/projects/:projectId/settings`，可编辑名称和说明，保存后留在设置页；仅接受名称/说明与 revision；发生冲突保留表单，「刷新项目版本」展示服务器最新名称/说明并保留输入，用户核对后再保存。组织和视频基准不可移动/更换。归档确认明确尚未保存内容不会自动提交；归档项目只读查看/导出，恢复后继续工作，无硬删除入口。
 
 member 可查看本组织项目并编辑/保存字幕，不能管理项目元数据。dev 可选择所有组织，不建立虚假成员关系。所有权限在服务器逐请求判断；按钮显隐只是提示。
 
 ## 工作区和数据安全
 
-项目 URL 为 `/organizations/:organizationId/projects/:projectId/workspace`，组织列表为 `/organizations/:organizationId/projects`，本地工作区为 `/workspace/local`，从组织列表新开时使用 `/organizations/:organizationId/workspace/local` 延续组织上下文；入口 `/` 和 `/projects` 仅在没有显式资源目标时选择默认组织。登录保持原请求 URL，成功后继续指定项目。项目名称与打开/只读查看均为真实链接，普通点击默认新开标签页，继续支持中键、Ctrl/Cmd 和复制地址。
+项目 URL 为 `/organizations/:organizationId/projects/:projectId/workspace`，组织列表为 `/organizations/:organizationId/projects`，本地工作区为 `/workspace/local`，从组织列表新开时使用 `/organizations/:organizationId/workspace/local` 延续组织上下文；入口 `/` 和 `/projects` 仅在没有显式资源目标时选择默认组织。登录保持原请求 URL，成功后继续指定项目。项目名称与项目设置均为真实链接，普通点击默认新开标签页，继续支持中键、Ctrl/Cmd 和复制地址。
 
 左上角 CueRelay 是首页链接，点击在当前标签页进入 `/`，展示当前可访问组织的项目列表并保留根地址；不清空已有工作区。无组织时展示列表空状态和本地工作区入口。
 

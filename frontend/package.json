@@ -16,6 +16,7 @@
     "test:audio-lifecycle": "node browser-tests/audio-lifecycle.mjs",
     "test:navigation": "node browser-tests/navigation.mjs",
     "test:project-form": "node browser-tests/project-form.mjs",
+    "test:project-settings": "node browser-tests/project-settings.mjs",
     "test:cue-table": "node browser-tests/cue-table.mjs",
     "test:video-progress": "node browser-tests/video-progress.mjs",
     "test:tab-navigation": "node browser-tests/tab-navigation.mjs",

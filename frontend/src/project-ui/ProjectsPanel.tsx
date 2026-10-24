@@ -23,7 +23,7 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
-  const [form, setForm] = useState<ProjectSummary | 'new' | null>(null);
+  const [creating, setCreating] = useState(false);
   const [confirm, setConfirm] = useState<ProjectSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const sequence = useRef(0);
@@ -49,9 +49,8 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
     return () => { sequence.current++; };
   }, [api, organization, status, query, page, refresh, enabled]);
   function saved(project: ProjectDetail, video?: File) {
-    const creating = form === 'new';
-    setForm(null); setRefresh(value => value + 1);
-    if (creating) onCreated(project, video);
+    setCreating(false); setRefresh(value => value + 1);
+    onCreated(project, video);
   }
   const person = (user: { username: string } | null) => user?.username || '—';
   const date = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
@@ -59,7 +58,7 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
     <header className="app-header"><h1><HomeLink navigate={navigate} /></h1>{header}</header>
     <div className="project-heading"><h2>项目</h2><div className="controls">
       <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>本地工作区</RouteLink>
-      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setForm('new'))}>新建项目</button>}
+      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>新建项目</button>}
     </div></div>
     {organization ? <>
       <div className="project-filters">
@@ -79,11 +78,10 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         <td>{date(status === 'active' ? project.updated_at : project.archived_at)}</td>
         <td>{person(status === 'active' ? project.updated_by : project.archived_by)}</td>
         <td><div className="controls">
-          <RouteLink className="button-link" route={{ kind: 'project', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{status === 'active' ? '打开' : '只读查看'}</RouteLink>
-          {organization.can_manage && <details className="project-management"><summary>管理</summary><div className="controls">
-            {status === 'active' && <button disabled={!enabled || busy} onClick={() => { setForm(project); }}>编辑信息</button>}
+          {organization.can_manage && <>
+            {status === 'active' && <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>项目设置</RouteLink>}
             <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? '归档项目' : '恢复项目'}</button>
-          </div></details>}
+          </>}
         </div></td>
       </tr>)}</tbody></table>
         {data.projects.length === 0 && <div className="empty">
@@ -100,9 +98,9 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
       : '暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。'}</p>
       {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
     </div>}
-    {organization && form && <ProjectForm api={api} organization={organization} project={form === 'new' ? undefined : form}
-      onClose={() => setForm(null)} onSaved={saved} />}
-    {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} onClose={busy ? undefined : () => setConfirm(null)}>
+    {organization && creating && <ProjectForm api={api} organization={organization}
+      onClose={() => setCreating(false)} onSaved={saved} />}
+    {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} showCloseButton={confirm.status !== 'active'} onClose={busy ? undefined : () => setConfirm(null)}>
       <p>{confirm.status === 'active' ? `归档「${confirm.name}」后所有成员只能查看和导出，尚未保存的稿件不会自动提交。` : `恢复「${confirm.name}」后，组织成员可以继续工作。`}</p>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="controls"><button disabled={busy} onClick={() => setConfirm(null)}>取消</button>
