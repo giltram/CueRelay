@@ -4,5 +4,6 @@
   "before-start": {"label": "播放入点前 500ms", "bindings": ["KeyQ"]},
   "after-end": {"label": "播放出点后 500ms", "bindings": ["KeyW"]},
   "first-500": {"label": "播放选区开头 500ms", "bindings": ["KeyE"]},
-  "last-500": {"label": "播放选区结尾 500ms", "bindings": ["KeyD"]}
+  "last-500": {"label": "播放选区结尾 500ms", "bindings": ["KeyD"]},
+  "delete-row": {"label": "删除当前字幕行", "bindings": ["Ctrl+Delete", "Meta+Delete", "Ctrl+Backspace", "Meta+Backspace"]}
 }

@@ -22,7 +22,8 @@ export function parseRoute(pathname: string): Route {
     // Retired creation URLs normalize to the list; creation is now a local modal.
     return { kind: contextual[2] === 'workspace/local' ? 'local' : contextual[2] === 'settings/personal' ? 'settings' : 'projects', organizationId };
   }
-  const settingsMatch = /^\/organizations\/([^/]+)\/settings$/.exec(path);
+  // Keep the original organization settings URL as a canonicalized alias.
+  const settingsMatch = /^\/organizations\/([^/]+)\/settings(?:\/organization)?$/.exec(path);
   if (settingsMatch && validId(settingsMatch[1])) return { kind: 'organization-settings', organizationId: Number(settingsMatch[1]) };
   const match = /^\/organizations\/([^/]+)\/projects(?:\/([^/]+)\/workspace)?$/.exec(path);
   if (match && validId(match[1]) && (!match[2] || validId(match[2]))) {
@@ -39,7 +40,7 @@ export function routePath(route: Route): string {
     case 'project': return `/organizations/${route.organizationId}/projects/${route.projectId}/workspace`;
     case 'local': return route.organizationId === undefined ? '/workspace/local' : `/organizations/${route.organizationId}/workspace/local`;
     case 'settings': return route.organizationId === undefined ? '/settings' : `/organizations/${route.organizationId}/settings/personal`;
-    case 'organization-settings': return `/organizations/${route.organizationId}/settings`;
+    case 'organization-settings': return `/organizations/${route.organizationId}/settings/organization`;
     case 'not-found': return route.path;
   }
 }

@@ -19,9 +19,9 @@ export function SettingsPage({ user, organization, section, header, enabled, rea
     <h2 className="settings-title">设置</h2>
     <div className="settings-layout">
       <nav className="settings-nav" aria-label="设置分类">
-        <RouteLink route={{ kind: 'settings', organizationId: organization?.id }} navigate={navigate} aria-current={section === 'personal' ? 'page' : undefined}>个人设置</RouteLink>
+        <RouteLink route={{ kind: 'settings', organizationId: organization?.id }} navigate={navigate} target="_self" aria-current={section === 'personal' ? 'page' : undefined}>个人设置</RouteLink>
         {organization
-          ? <RouteLink route={{ kind: 'organization-settings', organizationId: organization.id }} navigate={navigate}
+          ? <RouteLink route={{ kind: 'organization-settings', organizationId: organization.id }} navigate={navigate} target="_self"
             aria-current={section === 'organization' ? 'page' : undefined}>组织设置</RouteLink>
           : <span aria-disabled="true">组织设置</span>}
       </nav>

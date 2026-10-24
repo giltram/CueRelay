@@ -69,6 +69,31 @@ describe('default timing shortcuts', () => {
 // Overrides replace all aliases for one action; focus and IME checks still apply.
 describe('custom timing shortcuts', () => {
   const overrides = { commit: ['Shift+KeyT'] };
+  it('replaces or disables every deletion alias and restores defaults without an override', () => {
+    const custom = { 'delete-row': ['Shift+KeyX'] };
+    expect(timingShortcut({ ...base, code: 'KeyX', shiftKey: true }, false, custom)).toBe('delete-row');
+    expect(timingShortcut({ ...base, code: 'KeyX' }, false, custom)).toBeUndefined();
+    expect(timingShortcut({ ...base, code: 'KeyX', shiftKey: true }, true, custom)).toBeUndefined();
+    const target = { closest: () => ({}) } as unknown as EventTarget;
+    expect(timingShortcut({ ...base, code: 'KeyX', shiftKey: true, target }, false, custom)).toBeUndefined();
+    for (const code of ['Delete', 'Backspace']) {
+      for (const modifier of ['ctrlKey', 'metaKey']) {
+        const event = { ...base, code, [modifier]: true };
+        expect(timingShortcut(event, false, custom)).toBeUndefined();
+        expect(timingShortcut(event, false, { 'delete-row': [] })).toBeUndefined();
+        expect(timingShortcut(event, false, {})).toBe('delete-row');
+      }
+    }
+    expect(timingShortcut({ ...base, code: 'KeyX', shiftKey: true }, false, { 'delete-row': [] })).toBeUndefined();
+  });
+
+  it('matches only the configured Ctrl/Cmd deletion aliases', () => {
+    const custom = { 'delete-row': ['Meta+Backspace'] };
+    expect(timingShortcut({ ...base, code: 'Backspace', metaKey: true }, false, custom)).toBe('delete-row');
+    expect(timingShortcut({ ...base, code: 'Delete', metaKey: true }, false, custom)).toBeUndefined();
+    expect(timingShortcut({ ...base, code: 'Backspace', ctrlKey: true }, false, custom)).toBeUndefined();
+  });
+
   it('requires the exact configured modifiers and replaces all default aliases', () => {
     expect(timingShortcut({ ...base, code: 'KeyT', shiftKey: true }, false, overrides)).toBe('commit');
     expect(timingShortcut({ ...base, code: 'KeyT' }, false, overrides)).toBeUndefined();

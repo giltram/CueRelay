@@ -23,3 +23,9 @@
 设置分类/其他页面导航不自动保存未提交的密码或快捷键输入，沿用原弹窗关闭即丢弃输入的边界。工作区本地内容在同一文档内保留；刷新及新标签页仍独立，不新增草稿持久化。普通进入设置会隐藏并暂停视频，回退恢复播放位置，不自动恢复播放。
 
 此次执行开发服务上的 Chrome 回归；未重跑后端单元测试（无后端改动），未执行 preview、生产 Nginx/TLS、Safari/Firefox 或真实片源验收。现有 SPA fallback 支持新增路径，部署验收步骤见 [前端部署](../frontend-deployment.md)。
+
+## 组织设置路径统一
+
+2026-10-24：组织设置规范地址改为 `/organizations/:organizationId/settings/organization`，与个人设置的 `/settings/personal` 对称。旧 `/organizations/:organizationId/settings`（含尾斜杠）仍解析为组织设置，由 App 既有规范化流程 replace 到新地址，不增加历史条目。全部链接继续由 navigation.routePath 生成，无新增模块依赖。
+
+本轮执行 navigation 的 routes / history-navigation / RouteLink 测试，3 文件 38 项通过；typecheck、build、两份导航浏览器脚本的语法检查及 `git diff --check` 通过。独立 Chrome 检查使用模拟只读 API 与临时 Vite 服务，验证新链接、当前页分类切换、刷新、前进/回退、两种旧地址 replace 跳转和非默认组织上下文，无页面异常或意外 API 请求。既有 navigation.mjs 已补充旧地址跳转断言；本轮未重跑依赖真实数据库的完整导航脚本。

@@ -21,7 +21,7 @@ member 查看本组织及成员、退出自己所在组织。organizer 还可改
 
 ## 设置页面
 
-项目列表右上角「设置」是普通真实链接，默认新开 `/organizations/:organizationId/settings/personal`；无组织时使用 `/settings`。工作区也保留同一设置入口。页面左侧个人/组织分类链接同样新开标签页，组织设置为 `/organizations/:organizationId/settings`，包含组织名称及成员管理。组织选择只放在项目列表，设置页和工作区不提供组织下拉框。
+项目列表右上角「设置」是普通真实链接，默认新开 `/organizations/:organizationId/settings/personal`；无组织时使用 `/settings`。工作区也保留同一设置入口。页面左侧个人/组织分类链接在当前标签页切换，组织设置为 `/organizations/:organizationId/settings`，包含组织名称及成员管理。组织选择只放在项目列表，设置页和工作区不提供组织下拉框。
 
 未登录直达设置页保持目标 URL，登录后继续打开；显式组织无权访问或不存在时显示状态和重新加载入口，保留项目列表链接，不静默换到默认组织。无组织仍可修改个人设置，组织设置入口禁用。member 继续可浏览成员及退出，管理动作由既有服务端权限控制。
 
@@ -67,11 +67,13 @@ Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿�
 
 ## 快捷键
 
-shared/timing-shortcuts.json 是默认动作、名称、绑定的唯一权威来源，Python 和 TypeScript 直接读取。稳定动作：commit、selection、before-start、after-end、first-500、last-500。
+shared/timing-shortcuts.json 是默认动作、名称、绑定的唯一权威来源，Python 和 TypeScript 直接读取。稳定动作：commit、selection、before-start、after-end、first-500、last-500、delete-row。删除当前字幕行默认绑定 Ctrl+Delete、Meta+Delete、Ctrl+Backspace、Meta+Backspace（Meta 为 macOS Cmd）。
 
 覆盖一个动作会替换该动作全部别名（例如 commit 默认 G/Enter/NumpadEnter）；空数组禁用；删除该键恢复全部默认别名；保存与默认完全相同的列表会归一化移除覆盖。保存时对最终有效配置检查重复与跨动作冲突，包括恢复默认后产生的冲突。
 
-采用物理 KeyboardEvent.code，允许 KeyA–KeyZ、Digit0–Digit9、Enter、NumpadEnter、Space，以及 Shift+字母/数字；其他键和 Ctrl/Meta/Alt 组合一律视为不支持/保留组合。每动作至多四个绑定。设置界面可录制一个组合、填写逗号分隔多绑定、禁用及单项/全部恢复；恢复操作在保存后持久化。
+删行配置的实现与验证见 [删行快捷键设置](experiments/delete-shortcut-settings.md)。
+
+采用物理 KeyboardEvent.code，允许 KeyA–KeyZ、Digit0–Digit9、Enter、NumpadEnter、Space，以及 Shift+字母/数字；delete-row 另外支持单个 Ctrl/Meta+Delete/Backspace；其他键和修饰键组合为不支持/保留组合。每动作至多四个绑定。设置界面可录制一个组合、填写逗号分隔多绑定、禁用及单项/全部恢复；恢复操作在保存后持久化。删行与其他动作遵循相同覆盖规则；禁用或改键后旧默认不再生效。已有账号未保存 delete-row 覆盖时自动使用原默认，无需数据库迁移。
 
 匹配修饰键与焦点/IME 过滤分开；精确匹配全部修饰键。输入框、contenteditable、video、IME、重复及已处理事件过滤保持不变；按钮/链接/summary 上 Space/Enter 保留原生激活。登录及编辑保护弹窗打开、或浏览个人设置（含录制）/组织设置页面时暂停工作区全局快捷键。
 

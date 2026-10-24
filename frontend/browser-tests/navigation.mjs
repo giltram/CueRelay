@@ -113,7 +113,7 @@ try {
   await page.keyboard.press('KeyG'); await page.keyboard.press('Control+Delete');
   assert.deepEqual(await draftSnapshot(), snapshot);
   await sameTab(page.getByRole('link', { name: '组织设置', exact: true }));
-  await page.waitForURL(`**/organizations/${org.id}/settings`);
+  await page.waitForURL(`**/organizations/${org.id}/settings/organization`);
   await page.getByLabel('组织名称', { exact: true }).waitFor();
   await page.goBack(); await page.getByRole('heading', { name: '个人设置', exact: true }).waitFor();
   await page.goBack(); await workspace(page).waitFor();
@@ -204,7 +204,7 @@ try {
 
   const settingsContext = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
   const settingsPage = await settingsContext.newPage(); watch(settingsPage);
-  const orgSettingsPath = `/organizations/${otherOrg.id}/settings`;
+  const orgSettingsPath = `/organizations/${otherOrg.id}/settings/organization`;
   await settingsPage.goto(orgSettingsPath); await login(settingsPage);
   await settingsPage.getByRole('heading', { name: '组织设置', exact: true }).waitFor();
   await settingsPage.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
@@ -215,7 +215,10 @@ try {
   await settingsPage.reload();
   await settingsPage.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
   assert.equal(new URL(settingsPage.url()).pathname, orgSettingsPath);
-  await settingsPage.goto(`/organizations/${org.id}/settings`);
+  await settingsPage.goto(`/organizations/${otherOrg.id}/settings`);
+  await settingsPage.waitForURL('**' + orgSettingsPath);
+  await settingsPage.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
+  await settingsPage.goto(`/organizations/${org.id}/settings/organization`);
   await settingsPage.getByLabel('组织名称', { exact: true }).waitFor();
   await settingsPage.setViewportSize({ width: 390, height: 844 });
   assert(await settingsPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -229,9 +232,9 @@ try {
   const settingsTab = await settingsTabPromise; watch(settingsTab);
   await settingsTab.getByLabel('旧密码', { exact: true }).waitFor();
   assert.equal(await settingsTab.locator('video').count(), 0);
-  await settingsTab.goto('/organizations/999999999/settings');
+  await settingsTab.goto('/organizations/999999999/settings/organization');
   await settingsTab.getByText('组织不存在或无权访问。', { exact: true }).waitFor();
-  assert.equal(new URL(settingsTab.url()).pathname, '/organizations/999999999/settings');
+  assert.equal(new URL(settingsTab.url()).pathname, '/organizations/999999999/settings/organization');
   assert.equal(await settingsTab.getByLabel('组织名称', { exact: true }).count(), 0);
   await settingsTab.getByRole('button', { name: '重新加载组织', exact: true }).click();
   await sameTab(settingsTab.getByRole('link', { name: '项目列表', exact: true }));
@@ -407,7 +410,7 @@ try {
   record('无组织本地入口明确；同账号恢复、取消跨账号切换/退出均保留本地草稿与 video');
 
   // These requests prove the development/preview fallback does not swallow API/Admin.
-  for (const path of [projectPath, listPath, '/workspace/local', '/settings', `/organizations/${org.id}/settings`]) {
+  for (const path of [projectPath, listPath, '/workspace/local', '/settings', `/organizations/${org.id}/settings/organization`]) {
     const response = await context.request.get(path);
     assert.equal(response.status(), 200); assert((await response.text()).includes('<div id="root">'));
   }

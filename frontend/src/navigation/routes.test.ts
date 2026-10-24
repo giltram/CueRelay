@@ -14,6 +14,8 @@ describe('resource routes', () => {
     '/organizations/01/projects', '/organizations/9007199254740992/projects', '/organizations/1/projects/no/workspace',
     '/organizations/1/projects/2', '/api/organizations/1/projects', '/admin/', '/workspace/other',
     '/organizations/0/settings', '/organizations/01/settings', '/organizations/9007199254740992/settings',
+    '/organizations/0/settings/organization', '/organizations/01/settings/organization',
+    '/organizations/9007199254740992/settings/organization', '/organizations/12/settings/other',
     '/organizations/0/projects/new', '/organizations/01/settings/personal', '/organizations/0/workspace/local'])('rejects %s', path => {
     expect(parseRoute(path).kind).toBe('not-found');
   });
@@ -21,7 +23,18 @@ describe('resource routes', () => {
     const route = parseRoute('/organizations/72/projects/5/workspace/');
     expect(routeOrganization(route)).toBe(72);
     expect(routePath(route)).toBe('/organizations/72/projects/5/workspace');
-    expect(routeOrganization(parseRoute('/organizations/72/settings/'))).toBe(72);
+    const settings = parseRoute('/organizations/72/settings/organization/');
+    expect(routeOrganization(settings)).toBe(72);
+    expect(routePath(settings)).toBe('/organizations/72/settings/organization');
+  });
+  it('uses explicit settings sections for both organization and personal links', () => {
+    expect(routePath({ kind: 'organization-settings', organizationId: 72 })).toBe('/organizations/72/settings/organization');
+    expect(routePath({ kind: 'settings', organizationId: 72 })).toBe('/organizations/72/settings/personal');
+  });
+  it.each(['/organizations/72/settings', '/organizations/72/settings/'])('normalizes legacy organization settings link %s', path => {
+    const route = parseRoute(path);
+    expect(route).toEqual({ kind: 'organization-settings', organizationId: 72 });
+    expect(routePath(route)).toBe('/organizations/72/settings/organization');
   });
   it('normalizes retired creation links to their organization list', () => {
     const route = parseRoute('/organizations/72/projects/new');

@@ -13,14 +13,15 @@
 | `/organizations/:organizationId/projects/new` | 旧地址，规范到该组织项目列表 |
 | `/settings` | settings，无显式组织的个人设置 |
 | `/organizations/:organizationId/settings/personal` | settings，携带列表组织上下文的个人设置 |
-| `/organizations/:organizationId/settings` | organization-settings，组织设置 |
+| `/organizations/:organizationId/settings/organization` | organization-settings，组织设置 |
+| `/organizations/:organizationId/settings` | 旧地址，规范到该组织的 `/settings/organization` |
 | 其他 | not-found |
 
 `HistoryNavigation` 每个文档一个实例，由 `useNavigation` 管理订阅生命周期。应用通过 `NavigationRequest(route, commit)` 决定是否执行 commit；导航模块不读取 WorkbenchHandle、不拥有保护弹窗，不加载资源。重复当前地址替换条目，普通导航新增条目，入口规范化使用 replace。
 
 popstate 无法取消：控制器先按 group/index 恢复已提交条目，再请求应用确认；允许后重放原历史跨度，取消不调用 commit。恢复与重放事件不再次提交保护流程。过期回调不能改变新条目。文档外导航由浏览器及 beforeunload 处理。history.state 只有 `cueRelayNavigation: {group, index}`，不含文档、File、账号、播放位置或草稿；整页刷新复用原条目的导航标记，但工作区内容仍从服务器加载。
 
-`RouteLink` 渲染真实 href，默认 `target="_blank" rel="noopener noreferrer"`，所有常规页面入口及设置分类均由浏览器新开标签页。只有 HomeLink 和错误状态的返回列表/选择组织显式传 `target="_self"`。只有当前标签页导航才拦截没有修饰键、没有 download、目标为当前标签页的普通左键点击。新标签页、中键、右键复制等使用浏览器原生行为。项目 UI 通过此接口导航，不拼路径。`RouteStatus` 展示项目加载/权限/不存在/失败和页面不存在状态，不执行数据请求。
+`RouteLink` 渲染真实 href，默认 `target="_blank" rel="noopener noreferrer"`，常规页面入口由浏览器新开标签页。HomeLink、设置页内个人/组织分类切换和错误状态的返回列表/选择组织显式传 `target="_self"`，留在当前标签页。只有当前标签页导航才拦截没有修饰键、没有 download、目标为当前标签页的普通左键点击。新标签页、中键、右键复制等使用浏览器原生行为。项目 UI 通过此接口导航，不拼路径。`RouteStatus` 展示项目加载/权限/不存在/失败和页面不存在状态，不执行数据请求。
 
 链接外观使用 styles.css 的主题色；项目名称保持文字链接，导航/操作入口显式加 `.button-link` 复用按钮尺寸、悬停和焦点样式，当前导航通过 aria-current 显示。外观不改变 a 元素的链接语义。
 

@@ -55,15 +55,18 @@ try {
   await personal.getByLabel('旧密码', { exact: true }).waitFor();
   assert.equal(new URL(personal.url()).pathname, `/organizations/${other.id}/settings/personal`);
   assert.equal(await personal.getByLabel('当前组织', { exact: true }).count(), 0);
-  await personal.getByLabel('提交并下一条绑定').fill('Shift+KeyT');
-  const members = await open(personal.getByRole('link', { name: '组织设置', exact: true }));
-  await members.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
-  assert.equal(new URL(members.url()).pathname, `/organizations/${other.id}/settings`);
-  assert.equal(await members.getByLabel('添加成员', { exact: true }).count(), 0);
-  assert.equal(await personal.getByLabel('提交并下一条绑定').inputValue(), 'Shift+KeyT');
-  const personalAgain = await open(members.getByRole('link', { name: '个人设置', exact: true }));
-  await personalAgain.getByLabel('旧密码', { exact: true }).waitFor();
-  assert.equal(new URL(personalAgain.url()).pathname, `/organizations/${other.id}/settings/personal`);
+  const settingsTabs = context.pages().length;
+  const membersLink = personal.getByRole('link', { name: '组织设置', exact: true });
+  assert.equal(await membersLink.getAttribute('target'), '_self'); await membersLink.click();
+  await personal.waitForURL(`**/organizations/${other.id}/settings/organization`);
+  await personal.getByRole('cell', { name: 'project-organizer', exact: true }).waitFor();
+  assert.equal(await personal.getByLabel('添加成员', { exact: true }).count(), 0);
+  assert.equal(context.pages().length, settingsTabs);
+  const personalLink = personal.getByRole('link', { name: '个人设置', exact: true });
+  assert.equal(await personalLink.getAttribute('target'), '_self'); await personalLink.click();
+  await personal.waitForURL(`**/organizations/${other.id}/settings/personal`);
+  await personal.getByLabel('旧密码', { exact: true }).waitFor();
+  assert.equal(context.pages().length, settingsTabs);
   const local = await open(page.getByRole('link', { name: '本地工作区', exact: true }));
   await local.locator('video').waitFor();
   assert.equal(new URL(local.url()).pathname, `/organizations/${other.id}/workspace/local`);
@@ -71,8 +74,8 @@ try {
   const localList = await open(local.getByRole('link', { name: '项目列表', exact: true }));
   await localList.getByRole('heading', { name: '项目', exact: true }).waitFor();
   assert.equal(new URL(localList.url()).pathname, otherListPath);
-  for (const tab of [personal, members, personalAgain, local, localList]) await tab.close();
-  record('组织选择留在列表原 tab；设置/分类/本地工作区/项目列表普通点击均新开，保留非默认组织且没有组织切换控件');
+  for (const tab of [personal, local, localList]) await tab.close();
+  record('组织选择留在列表原 tab；设置/本地工作区/项目列表普通点击新开，设置分类在当前 tab 切换，保留非默认组织且没有组织切换控件');
 
   await page.getByLabel('当前组织', { exact: true }).selectOption(String(org.id));
   const listPath = `/organizations/${org.id}/projects`;

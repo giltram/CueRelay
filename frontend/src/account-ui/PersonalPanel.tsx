@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { type AccountRequest, type Settings } from './api';
 import { bindingFor, shortcutDefaults, timingActions, validateOverrides, type ShortcutOverrides, type TimingShortcut } from '../workspace-ui/timing-shortcuts';
 
+type ShortcutDrafts = Partial<Record<TimingShortcut, string>>;
+
+function formatShortcutDrafts(overrides: ShortcutOverrides): ShortcutDrafts {
+  return Object.fromEntries(Object.entries(overrides).map(([action, bindings]) => [action, bindings.join(', ')]));
+}
+
+function parseShortcutDrafts(drafts: ShortcutDrafts): ShortcutOverrides {
+  return Object.fromEntries(Object.entries(drafts).map(([action, text]) => [action, text.split(',').map(key => key.trim()).filter(Boolean)]));
+}
+
 export function PersonalPanel({ request: api, settings, onSettings }: {
   request: AccountRequest;
   settings: Settings; onSettings: (settings: Settings) => void;
@@ -9,7 +19,7 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
-  const [overrides, setOverrides] = useState<ShortcutOverrides>(settings.shortcut_overrides);
+  const [shortcutDrafts, setShortcutDrafts] = useState<ShortcutDrafts>(() => formatShortcutDrafts(settings.shortcut_overrides));
   const [audioMode, setAudioMode] = useState(settings.audio_display_mode);
   const [recording, setRecording] = useState<TimingShortcut | null>(null);
   const [message, setMessage] = useState('');
@@ -42,28 +52,29 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
       <button disabled={busy}>保存显示设置</button>
     </form>
     <h2>快捷键</h2>
-    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持 Shift+字母/数字，其他修饰键为保留组合。</p>
+    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd），其他组合为保留键。</p>
     {timingActions.map(action => <div className="shortcut-row" key={action}>
-      <label>{shortcutDefaults[action].label}<input aria-label={`${shortcutDefaults[action].label}绑定`} value={(overrides[action] ?? shortcutDefaults[action].bindings).join(', ')}
-        onChange={event => setOverrides({ ...overrides, [action]: event.target.value.split(',').map(key => key.trim()).filter(Boolean) })} /></label>
+      <label>{shortcutDefaults[action].label}<input aria-label={`${shortcutDefaults[action].label}绑定`} value={shortcutDrafts[action] ?? shortcutDefaults[action].bindings.join(', ')}
+        onChange={event => setShortcutDrafts({ ...shortcutDrafts, [action]: event.target.value })} /></label>
       <button onClick={() => setRecording(action)}>{recording === action ? '请按键…' : '录制'}</button>
-      <button onClick={() => { const next = { ...overrides }; delete next[action]; setOverrides(next); }}>恢复默认</button>
+      <button onClick={() => { const next = { ...shortcutDrafts }; delete next[action]; setShortcutDrafts(next); }}>恢复默认</button>
     </div>)}
     {recording && <input aria-label="录制快捷键" autoFocus readOnly value="按下组合键（Esc 取消）" onKeyDown={event => {
       event.preventDefault(); event.stopPropagation();
       if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat) return;
       if (event.code === 'Escape') { setRecording(null); return; }
       if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'].includes(event.code)) return;
-      const next = { ...overrides, [recording]: [bindingFor(event)] };
-      const problem = validateOverrides(next);
+      const next = { ...shortcutDrafts, [recording]: bindingFor(event) };
+      const problem = validateOverrides(parseShortcutDrafts(next));
       if (problem) { setMessage(problem); return; }
-      setOverrides(next); setRecording(null); setMessage('待保存');
+      setShortcutDrafts(next); setRecording(null); setMessage('待保存');
     }} />}
-    <div className="controls"><button onClick={() => { setOverrides({}); setRecording(null); }}>全部恢复默认</button>
+    <div className="controls"><button onClick={() => { setShortcutDrafts({}); setRecording(null); }}>全部恢复默认</button>
       <button disabled={busy} onClick={() => void run(async () => {
+        const overrides = parseShortcutDrafts(shortcutDrafts);
         const problem = validateOverrides(overrides); if (problem) throw new Error(problem);
         const result = await api<Settings>('/me/settings', 'PATCH', { shortcut_overrides: overrides });
-        setOverrides(result.shortcut_overrides); onSettings(result);
+        setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); onSettings(result);
       })}>保存快捷键</button></div>
     {message && <p role="status">{message}</p>}
   </div>;

@@ -118,6 +118,32 @@ class IdentityTests(TestCase):
         self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
         self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
 
+    def test_delete_shortcut_override_persistence_validation_and_restore(self):
+        self.login()
+        initial = self.client.get('/api/me/settings').json()
+        defaults = ['Ctrl+Delete', 'Meta+Delete', 'Ctrl+Backspace', 'Meta+Backspace']
+        self.assertEqual(initial['defaults']['delete-row']['bindings'], defaults)
+        for bindings in [defaults, ['Shift+KeyX'], [], ['Meta+Backspace']]:
+            overrides = {'delete-row': bindings}
+            expected = {} if bindings == defaults else overrides
+            response = self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['shortcut_overrides'], expected)
+            self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], expected)
+        for invalid in [
+            {'delete-row': ['Delete']}, {'delete-row': ['Backspace']},
+            {'delete-row': ['Ctrl+KeyX']}, {'delete-row': ['Ctrl+Meta+Delete']},
+            {'delete-row': ['Shift+Meta+Backspace']}, {'delete-row': ['Alt+Delete']},
+            {'delete-row': ['KeyG']}, {'delete-row': ['KeyX', 'KeyX']},
+            {'commit': ['Meta+Delete']}, {'commit': ['KeyX'], 'delete-row': ['KeyX']},
+        ]:
+            self.assertEqual(self.send('/me/settings', {'shortcut_overrides': invalid}, 'PATCH').status_code, 400, invalid)
+            self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {'delete-row': ['Meta+Backspace']})
+        for overrides in [{'delete-row': defaults}, {}]:
+            response = self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['shortcut_overrides'], {})
+
     def test_audio_display_settings_are_partial_validated_and_account_scoped(self):
         self.login()
         overrides = {'commit': ['Shift+KeyT']}
