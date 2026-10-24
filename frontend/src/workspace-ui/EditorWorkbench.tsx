@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
-import type { AssDocument, Cue } from '../contracts/subtitles';
+import type { AssDocument, Cue, SplitRequest, SplitResult } from '../contracts/subtitles';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
-import { auditionRange, formatTime, parseTime, seekVideo, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
-import { downloadFile, exportAss, importAss, loadEmptyDocument } from '../project-data/ass-api';
+import { auditionRange, formatTime, parseTime, seekVideo, snapTime, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
+import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
-import { timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
+import { isEditingShortcut, timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
 import { commitTiming } from './commit-timing';
+import { playheadBoundary } from './playhead-boundary';
 import { deleteCue } from './delete-cue';
 import { initializeDocument } from './cue-defaults';
 import { AudioTimeline } from './audio-timeline/AudioTimeline';
@@ -25,15 +26,17 @@ interface Props {
   shortcutsPaused?: boolean;
   shortcutOverrides?: ShortcutOverrides;
   audioMode?: AudioDisplayMode;
+  mouseSetsCueBoundary?: boolean;
   project?: ProjectDetail;
   initialMedia?: { file: File; sha256: string };
   readOnly?: boolean;
   visible?: boolean;
   onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
+  onSplit?: (request: SplitRequest, revision: number) => Promise<SplitResult & { project: ProjectSummary }>;
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', project, initialMedia, readOnly = false, visible = true, onSave, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -56,6 +59,16 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const [hasEdits, setHasEdits] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const composing = useRef(false);
+  const textEditor = useRef<HTMLTextAreaElement>(null);
+  const splitting = useRef(false);
+  const restoreTextCursor = useRef<number | null>(null);
+  useEffect(() => {
+    if (busy || restoreTextCursor.current === null || !textEditor.current) return;
+    const cursor = Math.min(restoreTextCursor.current, textEditor.current.value.length);
+    restoreTextCursor.current = null;
+    textEditor.current.focus({ preventScroll: true });
+    textEditor.current.setSelectionRange(cursor, cursor);
+  }, [busy, selectedId]);
   useEffect(() => { if (!visible) { video?.pause(); setAudition(null); } }, [visible, video]);
   const selected = document?.cues.find(cue => cue.id === selectedId);
 
@@ -117,6 +130,50 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     selectCue(result.selected);
   }
 
+  function setPlayheadBoundary(point: 'start' | 'end') {
+    if (!selected) throw new Error('请先选择一条字幕行');
+    if (!video || !duration) throw new Error('请先加载可播放的视频');
+    const updated = playheadBoundary(selected, point, video.currentTime);
+    updateCue(updated);
+    changeTimeDraft(point, formatTime(point === 'start' ? updated.start_ms : updated.end_ms));
+  }
+
+  async function splitSelectedCue(mode: 'playhead' | 'text') {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!document || !selected) throw new Error('请先选择一条字幕行');
+    if (splitting.current) return;
+    let position: number;
+    if (mode === 'playhead') {
+      if (!video || !duration) throw new Error('请先加载可播放的视频');
+      position = snapTime(video.currentTime);
+    } else {
+      const editor = textEditor.current;
+      if (!editor || editor !== window.document.activeElement) throw new Error('请将光标放在字幕文本内部。');
+      if (editor.selectionStart !== editor.selectionEnd) throw new Error('请选择一个文本光标位置，不能拆分选中文字。');
+      position = editor.selectionStart;
+    }
+    // Include the displayed timing draft in the frozen snapshot. Failure leaves
+    // both the draft and current document untouched; success applies them together.
+    const snapshot = { ...document, cues: document.cues.map(cue => cue.id === selected.id
+      ? { ...cue, start_ms: parseTime(startText), end_ms: parseTime(endText) } : cue) };
+    const request: SplitRequest = { document: snapshot, cue_id: selected.id, mode, position };
+    restoreTextCursor.current = mode === 'text' ? position : null;
+    splitting.current = true; setBusy(true);
+    try {
+      let result: SplitResult;
+      if (project) {
+        if (!onSplit) throw new Error('项目拆分保存尚未就绪。');
+        const persisted = await onSplit(request, savedRevision);
+        result = persisted;
+        setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
+      } else result = await splitAss(request);
+      setDocument(result.document); setHasEdits(true);
+      const first = result.document.cues.find(cue => cue.id === result.first_id)!;
+      selectCue(first);
+      restoreTextCursor.current = mode === 'text' ? first.text.length : null;
+    } finally { splitting.current = false; setBusy(false); }
+  }
+
   function deleteSelectedCue() {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document || !selected) return;
@@ -168,11 +225,21 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
-      if (busy || pendingImport || shortcutsPaused || !visible) return;
-      const shortcut = timingShortcut(event, composing.current, shortcutOverrides);
-      if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row') && !canEdit)) return;
+      if (busy || splitting.current || pendingImport || shortcutsPaused || !visible) return;
+      const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
+      if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || isEditingShortcut(shortcut)) && !canEdit)) return;
       event.preventDefault();
-      run(shortcut === 'commit' ? commitAndAdvance : shortcut === 'delete-row' ? deleteSelectedCue : () => playTiming(shortcut));
+      run(() => {
+        switch (shortcut) {
+          case 'commit': return commitAndAdvance();
+          case 'delete-row': return deleteSelectedCue();
+          case 'set-start-playhead': return setPlayheadBoundary('start');
+          case 'set-end-playhead': return setPlayheadBoundary('end');
+          case 'split-playhead': return splitSelectedCue('playhead');
+          case 'split-text': return splitSelectedCue('text');
+          default: return playTiming(shortcut);
+        }
+      });
     };
     window.addEventListener('compositionstart', begin);
     window.addEventListener('compositionend', end);
@@ -294,7 +361,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
           </>} />
       } editor={<>
-          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode}
+          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
             onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
             onSeek={seekPlayback} />
@@ -321,14 +388,14 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
               </div>
               <label className="subtitle-input">
                 字幕文本
-                <textarea aria-label="字幕中文文本" rows={2} disabled={!selected} value={selected?.text || ''}
+                <textarea ref={textEditor} aria-label="字幕中文文本" rows={2} disabled={!selected} value={selected?.text || ''}
                   placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
               </label>
             </fieldset>
           </section>
       </>} />
       <CueTable cues={document?.cues || []} selectedId={selectedId} currentTime={currentTime}
-        onSelect={selectCue} />
+        onSelect={cue => { if (!splitting.current) selectCue(cue); }} />
     </main>
   );
 }

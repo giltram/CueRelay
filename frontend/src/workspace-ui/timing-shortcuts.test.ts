@@ -105,3 +105,40 @@ describe('custom timing shortcuts', () => {
     expect(timingShortcut(base, false, {})).toBe('commit');
   });
 });
+
+describe('unbound editing commands', () => {
+  it('matches custom editing modifiers and protects IME and input focus', () => {
+    const overrides = { 'set-start-playhead': ['Ctrl+KeyB'] };
+    const event = { ...base, code: 'KeyB', ctrlKey: true };
+    expect(timingShortcut(event, false, overrides)).toBe('set-start-playhead');
+    expect(timingShortcut(event, false)).toBeUndefined();
+    for (const property of ['repeat', 'isComposing', 'defaultPrevented', 'altKey']) {
+      expect(timingShortcut({ ...event, [property]: true }, false, overrides)).toBeUndefined();
+    }
+    expect(timingShortcut(event, true, overrides)).toBeUndefined();
+    expect(timingShortcut({ ...event, keyCode: 229 }, false, overrides)).toBeUndefined();
+    expect(timingShortcut({ ...event, target: { closest: () => ({}) } as unknown as EventTarget }, false, overrides)).toBeUndefined();
+  });
+});
+
+describe('text cursor split shortcut focus', () => {
+  const textEditor = { closest: () => ({}) } as unknown as EventTarget;
+  const overrides = { commit: ['KeyG'], 'split-text': ['Enter', 'Ctrl+KeyB'] };
+  it('handles only a configured key in the exact subtitle editor', () => {
+    for (const event of [{ ...base, code: 'Enter' }, { ...base, code: 'KeyB', ctrlKey: true }]) {
+      expect(timingShortcut({ ...event, target: textEditor }, false, overrides, textEditor)).toBe('split-text');
+      expect(timingShortcut({ ...event, target: textEditor }, false, overrides)).toBeUndefined();
+      const otherInput = { closest: () => ({}) } as unknown as EventTarget;
+      expect(timingShortcut({ ...event, target: otherInput }, false, overrides, textEditor)).toBeUndefined();
+      for (const flag of ['isComposing', 'repeat', 'defaultPrevented']) {
+        expect(timingShortcut({ ...event, target: textEditor, [flag]: true }, false, overrides, textEditor)).toBeUndefined();
+      }
+      expect(timingShortcut({ ...event, target: textEditor, keyCode: 229 }, false, overrides, textEditor)).toBeUndefined();
+      expect(timingShortcut({ ...event, target: textEditor }, true, overrides, textEditor)).toBeUndefined();
+    }
+    for (const code of ['KeyG', 'Space', 'KeyQ', 'KeyW', 'KeyE', 'KeyD']) {
+      expect(timingShortcut({ ...base, code, target: textEditor }, false, overrides, textEditor)).toBeUndefined();
+    }
+    expect(timingShortcut({ ...base, code: 'Enter', target: textEditor }, false, {}, textEditor)).toBeUndefined();
+  });
+});

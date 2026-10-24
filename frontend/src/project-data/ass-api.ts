@@ -1,4 +1,4 @@
-import type { AssDocument } from '../contracts/subtitles';
+import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
 
 async function checked(response: Response): Promise<Response> {
   if (response.ok) return response;
@@ -44,4 +44,12 @@ export function downloadFile(blob: Blob, filename: string): void {
   anchor.click();
   // Allow the browser to consume the URL before releasing it.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Same backend split rules as persisted projects; local mode has no storage. */
+export async function splitAss(request: SplitRequest): Promise<SplitResult> {
+  const response = await checked(await fetch('/api/ass/split', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
+  }));
+  return response.json();
 }

@@ -144,6 +144,32 @@ class IdentityTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['shortcut_overrides'], {})
 
+    def test_mouse_boundary_preference_is_partial_boolean_and_personal(self):
+        self.client.force_login(self.user)
+        self.assertIs(self.client.get('/api/me/settings').json()['mouse_sets_cue_boundary'], True)
+        changed = self.send('/me/settings', {'mouse_sets_cue_boundary': False}, 'PATCH')
+        self.assertEqual(changed.status_code, 200)
+        self.assertIs(changed.json()['mouse_sets_cue_boundary'], False)
+        self.assertIs(self.send('/me/settings', {'shortcut_overrides': {}}, 'PATCH').json()['mouse_sets_cue_boundary'], False)
+        for invalid in [None, 0, 1, 'false', [], {}]:
+            self.assertEqual(self.send('/me/settings', {'mouse_sets_cue_boundary': invalid}, 'PATCH').status_code, 400)
+        self.assertIs(self.client.get('/api/me/settings').json()['mouse_sets_cue_boundary'], False)
+        self.client.force_login(self.other)
+        self.assertIs(self.client.get('/api/me/settings').json()['mouse_sets_cue_boundary'], True)
+        self.client.force_login(self.user)
+        self.assertIs(self.client.get('/api/me/settings').json()['mouse_sets_cue_boundary'], False)
+
+    def test_editing_shortcuts_default_to_unbound_and_validate_conflicts(self):
+        self.client.force_login(self.user)
+        initial = self.client.get('/api/me/settings').json()
+        for action in ['set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text']:
+            self.assertEqual(initial['defaults'][action]['bindings'], [])
+        overrides = {'set-start-playhead': ['Ctrl+KeyB'], 'split-text': ['Meta+Shift+KeyT']}
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH').json()['shortcut_overrides'], overrides)
+        for invalid in [{'set-start-playhead': ['KeyQ']}, {'split-text': ['Enter']},
+                        {'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB']}]:
+            self.assertEqual(self.send('/me/settings', {'shortcut_overrides': invalid}, 'PATCH').status_code, 400)
+
     def test_audio_display_settings_are_partial_validated_and_account_scoped(self):
         self.login()
         overrides = {'commit': ['Shift+KeyT']}

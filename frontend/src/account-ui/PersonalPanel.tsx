@@ -21,6 +21,7 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
   const [confirmation, setConfirmation] = useState('');
   const [shortcutDrafts, setShortcutDrafts] = useState<ShortcutDrafts>(() => formatShortcutDrafts(settings.shortcut_overrides));
   const [audioMode, setAudioMode] = useState(settings.audio_display_mode);
+  const [mouseBoundary, setMouseBoundary] = useState(settings.mouse_sets_cue_boundary);
   const [recording, setRecording] = useState<TimingShortcut | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,8 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
       <button disabled={busy}>保存显示设置</button>
     </form>
     <h2>快捷键</h2>
-    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd），其他组合为保留键。</p>
+    <label className="personal-checkbox"><input type="checkbox" checked={mouseBoundary} disabled={busy} onChange={event => setMouseBoundary(event.target.checked)} />鼠标点击设置字幕边界</label>
+    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd）；四个播放头及拆分动作还支持 Ctrl/Meta/Alt/Shift 组合。</p>
     {timingActions.map(action => <div className="shortcut-row" key={action}>
       <label>{shortcutDefaults[action].label}<input aria-label={`${shortcutDefaults[action].label}绑定`} value={shortcutDrafts[action] ?? shortcutDefaults[action].bindings.join(', ')}
         onChange={event => setShortcutDrafts({ ...shortcutDrafts, [action]: event.target.value })} /></label>
@@ -73,8 +75,8 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
       <button disabled={busy} onClick={() => void run(async () => {
         const overrides = parseShortcutDrafts(shortcutDrafts);
         const problem = validateOverrides(overrides); if (problem) throw new Error(problem);
-        const result = await api<Settings>('/me/settings', 'PATCH', { shortcut_overrides: overrides });
-        setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); onSettings(result);
+        const result = await api<Settings>('/me/settings', 'PATCH', { shortcut_overrides: overrides, mouse_sets_cue_boundary: mouseBoundary });
+        setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); setMouseBoundary(result.mouse_sets_cue_boundary); onSettings(result);
       })}>保存快捷键</button></div>
     {message && <p role="status">{message}</p>}
   </div>;

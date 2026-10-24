@@ -17,12 +17,13 @@ def settings_for(user):
     row = PersonalSettings.objects.filter(user=user).first()
     return {'shortcut_overrides': row.shortcut_overrides if row else {},
             'audio_display_mode': row.audio_display_mode if row else AudioDisplayMode.SPECTRUM,
+            'mouse_sets_cue_boundary': row.mouse_sets_cue_boundary if row else True,
             'defaults': DEFAULTS}
 
 
 def save_settings(user, changes):
-    if not isinstance(changes, dict) or not changes or set(changes) - {'shortcut_overrides', 'audio_display_mode'}:
-        raise ValidationError('仅接受快捷键或音频显示设置。')
+    if not isinstance(changes, dict) or not changes or set(changes) - {'shortcut_overrides', 'audio_display_mode', 'mouse_sets_cue_boundary'}:
+        raise ValidationError('仅接受快捷键、音频显示或鼠标边界设置。')
     updates = {}
     if 'shortcut_overrides' in changes:
         updates['shortcut_overrides'] = validate_overrides(changes['shortcut_overrides'])
@@ -31,6 +32,10 @@ def save_settings(user, changes):
         if not isinstance(mode, str) or mode not in AudioDisplayMode.values:
             raise ValidationError('音频显示模式必须是 waveform 或 spectrum。')
         updates['audio_display_mode'] = mode
+    if 'mouse_sets_cue_boundary' in changes:
+        if type(changes['mouse_sets_cue_boundary']) is not bool:
+            raise ValidationError('鼠标边界设置必须是布尔值。')
+        updates['mouse_sets_cue_boundary'] = changes['mouse_sets_cue_boundary']
     PersonalSettings.objects.update_or_create(user=user, defaults=updates)
     return settings_for(user)
 

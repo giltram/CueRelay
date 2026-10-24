@@ -63,3 +63,5 @@ Canvas 采用 getBoundingClientRect 的小数 CSS 尺寸，与 DOM 覆盖线一�
 区间状态色表、端帽的源码依据与回归见 [区间绘制记录](../../../../docs/experiments/interval-rendering.md)。这不是完整照搬 Aegisub 的 FFT / 能量模型：沿用原 normal 色表和分析尺度，仅引入其区间色表参数与 marker feet 形状。
 
 项目集成：打开项目不初始化默认行或改写已保存快照；本地 File 通过项目 SHA-256 校验后发布给分析 Worker。归档/会话失效/未验证媒体时禁用边界草稿更新及提交、删除。项目保存仍只包含已提交字幕；模式切换和隐藏恢复不重建 video。交互回归在 `browser-tests/main-audio-integration.mjs`，登录使用隔离项目浏览器库，运行方式见仓库集成记录。
+
+账号 mouseSetsCueBoundary 受控属性默认 true，沿 App → EditorWorkbench 传入。false 时只改变频谱背景单击：左击与标尺共用原 onSeek，右击不更新出点。边界组件/拖动、播放头拖动、平移/缩放保持原逻辑；组件不持久化设置。播放头裁剪与拆分快捷键独立于此开关，规则见 [编辑操作契约](../../../../docs/editing-operations.md)。

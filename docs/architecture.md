@@ -6,6 +6,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-10-23 已实现 [用户系统与固定权限方案 A](user-system.md)：PostgreSQL、自定义 User、Django Session/CSRF、多组织 organizer/member、个人快捷键及内存编辑保护。账号/组织切片后已增量接入 [项目面板](projects.md)：项目初始化、固定视频基准、归档和手动字幕快照保存；验收见 [用户系统记录](experiments/user-system.md)。
 
+2026-10-24 通用编辑操作：新增账号级鼠标边界点击开关（个人设置「快捷键」栏，随「保存快捷键」持久化）及四个默认空绑定动作，沿用现有布局、seek、10ms 精度和快捷键过滤。`ass_format.splitting` 统一执行纯快照拆分；项目 `split_cue` 复用 `save_document` 的权限/事务/revision 路径，一次保存完整快照；本地工作区走无持久化转换接口。两条新 UUID 用可选 source_id 保留原始 ASS 元数据。按用户确认，本次不实现原仓库尚不存在的编辑锁、审核、修改历史和实时推送。完整规则、API 与限制见 [编辑操作契约](editing-operations.md)。
+
 ## 当前可运行入口
 
 2026-10-23 音频阶段 B–D 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值 / Hann STFT 分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、共享秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。Waveform / Spectrum 切换复用 PCM，不改变缩放、平移或播放头。边界拖动 / 键盘只更新工作区的 changeTimeDraft，commitAndAdvance 统一校验、提交并选择下一条。阶段 A 的 `experiments/audio-probe.html`、生命周期探针只用于开发。契约见 [audio README](../frontend/src/media/audio/README.md)，B–D 实测见 [时间轴记录](experiments/audio-timeline.md)，大文件边界见 [A 记录](experiments/local-audio.md)。

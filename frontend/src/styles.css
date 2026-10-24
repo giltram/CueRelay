@@ -203,6 +203,8 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .account-toolbar select { max-width: 220px; padding: 6px 8px; }
 .login-page { display: flex; flex-direction: column; gap: 16px; max-width: 400px; margin: 12vh auto; padding: 24px; }
 .account-form { display: flex; flex-direction: column; gap: 12px; }
+.account-form .personal-checkbox { flex-direction: row; align-items: center; align-self: flex-start; }
+.personal-checkbox input[type="checkbox"] { width: 16px; height: 16px; flex: 0 0 16px; margin: 0; padding: 0; accent-color: var(--accent); }
 .account-form form { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 .member-form { display: grid; grid-template-columns: minmax(0, 1fr) 104px; align-items: end; gap: 8px; }
 .member-form input, .member-form button { height: 40px; }

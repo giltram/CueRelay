@@ -7,7 +7,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from ass_format import empty_document, parse_ass, serialize_ass
+from ass_format import empty_document, parse_ass, serialize_ass, split_document as split_ass_document
 from accounts.models import User
 from organizations.models import Organization
 from organizations.services import require_access
@@ -133,3 +133,11 @@ def save_document(actor, organization_id, project_id, revision, document):
         return project
     project.document = document
     return touch(project, actor)
+
+
+def split_cue(actor, organization_id, project_id, revision, document, cue_id, mode, position):
+    # Compute/validate outside row locks; immutable DTO, no partial local writes.
+    result = split_ass_document(document, cue_id, mode, position)
+    # Reuse the only snapshot write path (permissions, lock order, CAS, template).
+    project = save_document(actor, organization_id, project_id, revision, result['document'])
+    return project, result

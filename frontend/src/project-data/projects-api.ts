@@ -1,6 +1,6 @@
 import type { JsonRequest } from '../contracts/http';
 import type { ProjectDetail, ProjectSummary, ProjectPage, MediaManifest } from '../contracts/projects';
-import type { AssDocument } from '../contracts/subtitles';
+import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
 
 export function projectApi(request: JsonRequest, organizationId: number) {
   const base = `/organizations/${organizationId}/projects`;
@@ -13,6 +13,8 @@ export function projectApi(request: JsonRequest, organizationId: number) {
       (await request<{ project: ProjectDetail }>(`${base}/${project.id}`, 'PATCH', { name, description, revision: project.revision })).project,
     archive: async (project: ProjectSummary, archived: boolean) =>
       (await request<{ project: ProjectSummary }>(`${base}/${project.id}/${archived ? 'archive' : 'restore'}`, 'POST', { revision: project.revision })).project,
+    split: (project: ProjectSummary, split: SplitRequest) =>
+      request<SplitResult & { project: ProjectSummary }>(`${base}/${project.id}/split`, 'POST', { ...split, revision: project.revision }),
     save: async (project: ProjectSummary, document: AssDocument) =>
       (await request<{ project: ProjectSummary }>(`${base}/${project.id}/document`, 'PUT', { revision: project.revision, document })).project,
   };

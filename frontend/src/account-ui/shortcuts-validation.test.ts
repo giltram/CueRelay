@@ -19,6 +19,15 @@ describe('shortcut validation', () => {
       { 'delete-row': [] }, { 'delete-row': ['Shift+KeyX'] },
       { 'delete-row': shortcutDefaults['delete-row'].bindings },
       { 'delete-row': ['Meta+Backspace'] },
+      { 'set-start-playhead': ['Ctrl+KeyB'], 'split-text': ['Meta+Shift+KeyT'] },
     ]) expect(validateOverrides(value)).toBeUndefined();
   });
+});
+
+it('detects editing command conflicts against all defaults and overrides', () => {
+  expect(validateOverrides({ 'set-start-playhead': ['KeyQ'] })).toContain('冲突');
+  expect(validateOverrides({ 'before-start': [], 'set-start-playhead': ['KeyQ'] })).toBeUndefined();
+  expect(validateOverrides({ 'split-text': ['Enter'] })).toContain('冲突');
+  expect(validateOverrides({ commit: ['KeyG'], 'split-text': ['Enter'] })).toBeUndefined();
+  expect(validateOverrides({ 'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB'] })).toContain('冲突');
 });

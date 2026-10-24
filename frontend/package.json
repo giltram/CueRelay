@@ -21,7 +21,8 @@
     "test:video-progress": "node browser-tests/video-progress.mjs",
     "test:tab-navigation": "node browser-tests/tab-navigation.mjs",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "test:editing-operations": "node browser-tests/editing-operations.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

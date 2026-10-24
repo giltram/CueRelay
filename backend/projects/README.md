@@ -20,3 +20,9 @@ Project 保存组织、名称/说明、active/archived、固定 media JSON、doc
 ## 验证
 
 migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 PostgreSQL 验证权限、原子初始化、有限 ASS、归档约束、分页/搜索、并发保存及归档竞争。
+
+## 快照拆分
+
+`split_cue` 是新增公开命令：接受 revision、完整本地 document、cue_id、mode、position，在锁外调用 ass_format.split_document 验证，再调用现有 save_document。没有第二条持久化路径；一次事务替换完整快照并加一次 revision。HTTP POST /split 返回新 document、两条身份及 project 摘要；不接受客户端指定结果 UUID。并发拆分/保存/删除/归档由相同 revision 校验串行化，失败不产生部分行。
+
+按用户确认不扩展为实时协作：没有字幕版本/租约/审核/历史/推送；其他窗口需重新读取快照。拆分会同时保存发送的其他本地编辑与当前时间草稿，网络响应丢失后需重载确认。详见 [编辑操作契约](../../docs/editing-operations.md)，数据库测试在 test_splitting.py。

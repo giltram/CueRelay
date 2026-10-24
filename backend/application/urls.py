@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from http_api.ass_views import import_ass, export_ass, empty_document
+from http_api.ass_views import import_ass, export_ass, empty_document, split_ass
 from http_api import identity_views as identity
 from http_api import project_views as projects
 
@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/organizations/<int:organization_id>/projects/<int:project_id>/archive', projects.archive),
     path('api/organizations/<int:organization_id>/projects/<int:project_id>/restore', projects.restore),
     path('api/organizations/<int:organization_id>/projects/<int:project_id>/document', projects.document),
+    path('api/organizations/<int:organization_id>/projects/<int:project_id>/split', projects.split_cue),
+    path('api/ass/split', split_ass),
     path('api/ass/empty', empty_document),
     path('api/ass/import', import_ass),
     path('api/ass/export', export_ass),

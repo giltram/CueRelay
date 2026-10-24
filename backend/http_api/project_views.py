@@ -96,3 +96,10 @@ def document(request, organization_id, project_id):
     data = payload(request, ['revision', 'document'])
     project = services.save_document(request.user, organization_id, project_id, **data)
     return {'project': project_data(project)}
+
+
+@project_endpoint(['POST'])
+def split_cue(request, organization_id, project_id):
+    data = payload(request, ['revision', 'document', 'cue_id', 'mode', 'position'])
+    project, result = services.split_cue(request.user, organization_id, project_id, **data)
+    return {**result, 'project': project_data(project)}

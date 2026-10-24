@@ -17,6 +17,7 @@ class PersonalSettings(models.Model):
     user = models.OneToOneField(User, primary_key=True, on_delete=models.PROTECT)
     shortcut_overrides = models.JSONField(default=dict)
     audio_display_mode = models.CharField(max_length=8, choices=AudioDisplayMode, default=AudioDisplayMode.SPECTRUM)
+    mouse_sets_cue_boundary = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

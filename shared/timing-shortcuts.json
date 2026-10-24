@@ -5,5 +5,9 @@
   "after-end": {"label": "播放出点后 500ms", "bindings": ["KeyW"]},
   "first-500": {"label": "播放选区开头 500ms", "bindings": ["KeyE"]},
   "last-500": {"label": "播放选区结尾 500ms", "bindings": ["KeyD"]},
-  "delete-row": {"label": "删除当前字幕行", "bindings": ["Ctrl+Delete", "Meta+Delete", "Ctrl+Backspace", "Meta+Backspace"]}
+  "delete-row": {"label": "删除当前字幕行", "bindings": ["Ctrl+Delete", "Meta+Delete", "Ctrl+Backspace", "Meta+Backspace"]},
+  "set-start-playhead": {"label": "设置入点为播放头", "bindings": []},
+  "set-end-playhead": {"label": "设置出点为播放头", "bindings": []},
+  "split-playhead": {"label": "在播放头位置拆分字幕", "bindings": []},
+  "split-text": {"label": "在文本光标位置拆分字幕", "bindings": []}
 }

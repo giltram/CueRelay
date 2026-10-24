@@ -121,9 +121,14 @@ export function allowsShortcut(event: ShortcutEvent, composing: boolean): boolea
   return !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && allowsShortcutFocus(event, composing);
 }
 
+/** IME/repeat guards also apply to explicitly configured text-editor commands. */
+export function isShortcutSuppressed(event: ShortcutEvent, composing: boolean): boolean {
+  return Boolean(event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.repeat);
+}
+
 /** Focus/IME filtering is independent of explicit modifier binding matching. */
 export function allowsShortcutFocus(event: ShortcutEvent, composing: boolean): boolean {
-  if (event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.repeat) return false;
+  if (isShortcutSuppressed(event, composing)) return false;
   const element = event.target as { closest?: (selector: string) => unknown } | null;
   if (element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], video')) return false;
   // Preserve native activation for keyboard-focused controls. A slider has no

@@ -237,7 +237,8 @@ def serialize_ass(document):
         _fail("cues 须为不超过 5000 行的数组")
     replacements, additions, seen = {}, [], set()
     for cue in cues:
-        if not isinstance(cue, dict) or set(cue) != {"id", "start_ms", "end_ms", "text", "style"}:
+        required = {"id", "start_ms", "end_ms", "text", "style"}
+        if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id"}:
             _fail("字幕行字段不符合契约")
         cue_id = cue["id"]
         if not isinstance(cue_id, str) or not cue_id or len(cue_id) > 100 or cue_id in seen:
@@ -247,12 +248,19 @@ def serialize_ass(document):
         _text(cue["text"])
         if cue["style"] not in original["styles"]:
             _fail("字幕引用了不存在的样式")
+        source_id = cue.get("source_id", cue_id)
+        if "source_id" in cue and (not cue_id.startswith("new-") or not isinstance(source_id, str) or source_id not in layout.records):
+            _fail("拆分字幕的 source_id 必须引用模板中的原始字幕")
         if cue_id in layout.records:
             index, fields, raw_parts = layout.records[cue_id]
             values = dict(zip(fields, raw_parts))
         elif cue_id.startswith("new-"):
             index, fields = None, layout.event_format
-            values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
+            if "source_id" in cue:
+                _, source_fields, source_parts = layout.records[source_id]
+                values = dict(zip(source_fields, source_parts))
+            else:
+                values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
         else:
             _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
         values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=cue["style"])

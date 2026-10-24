@@ -100,3 +100,5 @@ npm run build
 音频显示偏好已保存到账号：更新本版本需执行 `python backend/manage.py migrate`（accounts.0004），再重启后端与前端。旧快捷键偏好保留；显示设置和快捷键分开保存，不互相覆盖。验证入口 `cd frontend && npm run test:audio-preferences`，一次性测试库准备及结果见 [验证记录](docs/experiments/audio-preferences.md)。
 
 项目设置界面回归：启动前端后，在 frontend 执行 `npm run test:project-settings`（需 Chrome，`PROJECT_SETTINGS_URL` 可指定地址）；使用 HTTP 测试夹具验证独立页面、名称/说明保存、版本冲突、归档/权限和窄屏布局，不访问开发数据库。
+
+通用编辑操作：个人设置增加默认开启的「鼠标点击设置字幕边界」，关闭后频谱背景左击只移动播放头。四个播放头裁剪/拆分动作默认均无绑定，可在原快捷键列表配置。项目拆分由后端原子保存完整快照并检查 revision；本地拆分仍需导出。文本拆分首版仅支持普通文本，含 ASS 标签或转义明确拒绝。按已确认范围，尚无字幕编辑锁、审核、修改历史或实时推送。升级需应用 accounts.0005 迁移并同步重启前后端。具体规则、保存影响与测试入口见 [编辑操作](docs/editing-operations.md)。

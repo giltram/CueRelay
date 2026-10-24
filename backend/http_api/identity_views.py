@@ -122,7 +122,7 @@ def password(request):
 @endpoint(['GET', 'PATCH'])
 def personal_settings(request):
     if request.method == 'PATCH':
-        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides', 'audio_display_mode'], partial=True))
+        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides', 'audio_display_mode', 'mouse_sets_cue_boundary'], partial=True))
     return accounts.settings_for(request.user)
 
 

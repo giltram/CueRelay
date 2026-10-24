@@ -10,6 +10,10 @@ BINDING = re.compile(r'^(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space|Shift\+(Key
 DELETION_BINDING = re.compile(r'^(Ctrl|Meta)\+(Delete|Backspace)$')
 
 
+EDITING_ACTIONS = {'set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text'}
+EDITING_BINDING = re.compile(r'^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$')
+
+
 def validate_overrides(value):
     if not isinstance(value, dict) or set(value) - DEFAULTS.keys():
         raise ValidationError('未知快捷键动作。')
@@ -18,7 +22,7 @@ def validate_overrides(value):
         if not isinstance(bindings, list) or len(bindings) > 4:
             raise ValidationError('每个动作接受 0–4 个绑定；空列表表示禁用。')
         for binding in bindings:
-            if not isinstance(binding, str) or not (BINDING.fullmatch(binding) or action == 'delete-row' and DELETION_BINDING.fullmatch(binding)):
+            if not isinstance(binding, str) or not (BINDING.fullmatch(binding) or action == 'delete-row' and DELETION_BINDING.fullmatch(binding) or action in EDITING_ACTIONS and EDITING_BINDING.fullmatch(binding)):
                 raise ValidationError('快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。')
         if bindings != DEFAULTS[action]['bindings']:
             normalized[action] = bindings

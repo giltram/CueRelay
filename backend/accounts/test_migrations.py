@@ -48,6 +48,7 @@ class UsernameOnlyMigrationTests(TransactionTestCase):
         self.assertTrue(migrated_user.is_staff)
         self.assertEqual(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).shortcut_overrides, {'commit': ['Shift+KeyT']})
         self.assertEqual(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).audio_display_mode, 'spectrum')
+        self.assertIs(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).mouse_sets_cue_boundary, True)
         self.assertEqual(apps.get_model('organizations', 'OrganizationMembership').objects.get(pk=membership.pk).user_id, old_user.pk)
         migrated_project = apps.get_model('projects', 'Project').objects.get(pk=project.pk)
         self.assertEqual((migrated_project.created_by_id, migrated_project.updated_by_id), (old_user.pk, old_user.pk))

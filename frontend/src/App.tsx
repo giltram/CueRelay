@@ -228,8 +228,9 @@ export default function App() {
         visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
+        onSplit={workspace.project ? workspaceState.split : undefined}
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
-        audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
+        mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
     </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>
       <LoginForm api={accountApi} onLogin={onLogin} /></div>}
     {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}

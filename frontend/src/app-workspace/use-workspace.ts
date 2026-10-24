@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
-import type { AssDocument } from '../contracts/subtitles';
+import type { AssDocument, SplitRequest } from '../contracts/subtitles';
 import { projectApi } from '../project-data/projects-api';
 import type { Route } from '../navigation/routes';
 
@@ -76,6 +76,22 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     }
   }, [workspace?.project, request, updateSummary]);
 
+  const split = useCallback(async (splitRequest: SplitRequest, revision: number) => {
+    const project = workspace?.project;
+    if (!project) throw new Error('尚未打开项目。');
+    try {
+      const result = await projectApi(request, project.organization_id).split({ ...project, revision }, splitRequest);
+      updateSummary(result.project);
+      return result;
+    } catch (reason) {
+      if ((reason as { code?: string }).code === 'project_archived') {
+        setWorkspace(value => matches(value, project.organization_id, project.id)
+          ? { ...value!, project: { ...value!.project!, status: 'archived' } } : value);
+      }
+      throw reason;
+    }
+  }, [workspace?.project, request, updateSummary]);
+
   const reload = useCallback(async () => {
     const project = workspace?.project;
     if (!project) return;
@@ -112,5 +128,5 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     : null;
   const visible = Boolean(workspace && (kind === 'local' && !workspace.project ||
     organizationId !== undefined && projectId !== undefined && matches(workspace, organizationId, projectId) && projectLoad?.status === 'ready'));
-  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, reload, retry: () => setRetry(value => value + 1) };
+  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, split, reload, retry: () => setRetry(value => value + 1) };
 }

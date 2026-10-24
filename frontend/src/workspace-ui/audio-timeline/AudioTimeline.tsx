@@ -17,6 +17,7 @@ interface Props {
   duration: number;
   currentTime: number;
   mode: AudioDisplayMode;
+  mouseSetsCueBoundary?: boolean;
   selectionId: string | null;
   selection: { start: number; end: number } | null;
   cues: readonly Cue[];
@@ -29,7 +30,7 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
   | { kind: 'seek'; grabOffset: number }
 );
 
-export function AudioTimeline({ file, video, duration, currentTime, mode, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
+export function AudioTimeline({ file, video, duration, currentTime, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
   const seconds = duration / 1000;
   const [viewport, setViewport] = useState<AudioViewport>({ start: 0, span: 10 });
   const [verticalZoom, setVerticalZoom] = useState(1);
@@ -135,7 +136,7 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
         if (!seconds || drag.current) return;
         const stageRect = event.currentTarget.getBoundingClientRect();
         const inSpectrum = mode === 'spectrum' && event.clientY >= stageRect.top + AUDIO_RULER_HEIGHT;
-        if (event.button === 2 && inSpectrum) {
+        if (event.button === 2 && inSpectrum && mouseSetsCueBoundary) {
           // Use fractional PointerEvent coordinates; contextmenu may round them to pixels.
           event.preventDefault(); follow.current = false;
           event.currentTarget.focus({ preventScroll: true });
@@ -151,7 +152,7 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, select
           drag.current = { kind: 'seek', pointerId: event.pointerId, view,
             grabOffset: event.clientX - (rect.left + rect.width / 2) };
         } else {
-          const click = inSpectrum ? 'start' : 'seek';
+          const click = inSpectrum && mouseSetsCueBoundary ? 'start' : 'seek';
           drag.current = { kind: 'pan', pointerId: event.pointerId, view, x: event.clientX, moved: false, click };
         }
         event.currentTarget.setPointerCapture(event.pointerId);

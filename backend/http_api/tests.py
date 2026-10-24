@@ -43,6 +43,22 @@ class ConversionContractTests(SimpleTestCase):
         result = self.client.post("/api/ass/export", {"document": document}, content_type="application/json")
         self.assertEqual(result.status_code, 422)
 
+    def test_stateless_split_endpoint_validation_and_roundtrip(self):
+        from ass_format import empty_document
+        document = empty_document()
+        document['cues'] = [{'id': 'new-test', 'start_ms': 1000, 'end_ms': 4000, 'text': '甲乙', 'style': 'Default'}]
+        body = {'document': document, 'cue_id': 'new-test', 'mode': 'text', 'position': 1}
+        response = self.client.post('/api/ass/split', body, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual([cue['text'] for cue in result['document']['cues']], ['甲', '乙'])
+        self.assertEqual(self.client.post('/api/ass/export', {'document': result['document']}, content_type='application/json').status_code, 200)
+        for invalid in [{}, {**body, 'project_id': 1}]:
+            self.assertEqual(self.client.post('/api/ass/split', invalid, content_type='application/json').status_code, 400)
+        for invalid in [{**body, 'position': 0}, {**body, 'mode': 'playhead', 'position': 2000}]:
+            self.assertEqual(self.client.post('/api/ass/split', invalid, content_type='application/json').status_code, 422)
+        self.assertEqual(self.client.get('/api/ass/split').status_code, 405)
+
     def test_methods_and_content_types(self):
         self.assertEqual(self.client.get("/api/ass/import").status_code, 405)
         self.assertEqual(self.client.post("/api/ass/import", "video bytes", content_type="video/mp4").status_code, 415)
@@ -50,6 +66,6 @@ class ConversionContractTests(SimpleTestCase):
 
     @override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=64)
     def test_json_body_limit_is_enforced_before_json_parser(self):
-        for endpoint, payload in [("import", {"source": "x" * 100}), ("export", {"document": {"source": "x" * 100}})]:
+        for endpoint, payload in [("import", {"source": "x" * 100}), ("export", {"document": {"source": "x" * 100}}), ("split", {"document": {"source": "x" * 100}})]:
             result = self.client.post(f"/api/ass/{endpoint}", payload, content_type="application/json")
             self.assertEqual(result.status_code, 413)
