@@ -97,7 +97,7 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .video-stage { position: relative; flex: none; align-self: center; width: min(100%, calc((100cqh - var(--video-controls-space)) * 16 / 9)); aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
 .video-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ass-preview-canvas { position: absolute; pointer-events: none; }
-.video-fullscreen { position: absolute; top: 8px; right: 8px; z-index: 1; }
+.video-fullscreen { position: absolute; top: 8px; right: 8px; z-index: 1; width: 28px; height: 28px; min-height: 28px; padding: 5px; border-radius: 4px; }
 .ass-preview-status { flex: none; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
 .video-stage:fullscreen { width: 100%; height: 100%; border-radius: 0; background: black; }
 input.video-progress { flex: none; height: 20px; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; accent-color: var(--accent); cursor: pointer; }

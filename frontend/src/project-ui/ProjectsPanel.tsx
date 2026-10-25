@@ -78,8 +78,8 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         <td>{date(status === 'active' ? project.updated_at : project.archived_at)}</td>
         <td>{person(status === 'active' ? project.updated_by : project.archived_by)}</td>
         <td><div className="controls">
+          <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>项目设置</RouteLink>
           {organization.can_manage && <>
-            {status === 'active' && <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>项目设置</RouteLink>}
             <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? '归档项目' : '恢复项目'}</button>
           </>}
         </div></td>

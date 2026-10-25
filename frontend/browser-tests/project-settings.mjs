@@ -1,4 +1,4 @@
-import { uiDocument } from './ass-codec.mjs';
+import { codec, uiDocument } from './ass-codec.mjs';
 import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 // Metadata page and list actions with HTTP fixtures; no development database writes.
 import assert from 'node:assert/strict';
@@ -27,6 +27,10 @@ let project = {
 };
 context.on('page', page => page.on('pageerror', error => errors.push(String(error))));
 await context.route('**/api/**', async route => {
+  if (new URL(route.request().url()).pathname === '/api/ass/styles') {
+    const result = codec('styles', route.request().postDataJSON());
+    return route.fulfill({ status: result.status, json: result.body });
+  }
   if (await unavailableAssPreview(route)) return;
   const request = route.request(), url = new URL(request.url()), path = url.pathname.slice(4), method = request.method();
   const reply = json => route.fulfill({ json });
@@ -76,6 +80,7 @@ try {
   assert.equal(await field(settings, '项目名称').inputValue(), project.name);
   assert.equal(await field(settings, '项目说明').inputValue(), project.description);
   assert.equal(await settings.locator('dialog, video, input[type=file]').count(), 0);
+  assert.equal(await settings.getByRole('link', { name: '返回项目列表', exact: true }).count(), 0);
   record('操作直接显示项目设置和归档，移除打开按钮；设置在独立新标签页加载名称说明，项目名称继续进入工作区');
 
   await field(settings, '项目名称').fill('新的项目名称');
@@ -112,7 +117,7 @@ try {
     assert(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await settings.screenshot({ path: join(artifacts, `settings-${width}.png`), fullPage: true });
   }
-  await settings.getByRole('link', { name: '返回项目列表', exact: true }).click();
+  await settings.goto(listPath);
   await settings.getByRole('link', { name: project.name, exact: true }).waitFor();
   await button(settings, '归档项目').click();
   await button(settings.getByRole('dialog'), '确认归档').click();
@@ -131,18 +136,30 @@ try {
   await settings.getByText('项目不存在。', { exact: true }).waitFor();
   failLoad = false; await button(settings, '重试').click(); await field(settings, '项目名称').waitFor();
   organization.can_manage = false; organization.role = 'member'; await settings.reload();
-  await settings.getByText('只有组织管理员可以修改项目设置。', { exact: true }).waitFor();
+  await settings.getByText('只有组织管理员可以修改项目名称和说明。', { exact: true }).waitFor();
+  await button(settings, '管理项目样式').click();
+  const manager = settings.getByRole('dialog', { name: '项目样式管理', exact: true });
+  assert(await button(manager, '应用并保存').isDisabled());
+  await button(manager, '关闭').click();
   assert.equal(await field(settings, '项目名称').count(), 0);
   await page.reload(); await page.getByRole('tab', { name: '过去项目', exact: true }).click();
   await page.getByRole('link', { name: project.name, exact: true }).waitFor();
   assert.equal(await button(page, '恢复项目').count(), 0);
-  organization.can_manage = true; organization.role = 'organizer'; project.status = 'active'; authenticated = false;
+  project.status = 'active';
+  await settings.reload();
+  await button(settings, '管理项目样式').click();
+  assert(await button(manager, '应用并保存').isEnabled());
+  assert.equal(await button(manager, '另存为组织模板').count(), 0);
+  await button(manager, '关闭').click();
+  await page.goto(listPath);
+  await page.getByRole('link', { name: '项目设置', exact: true }).waitFor();
+  organization.can_manage = true; organization.role = 'organizer'; authenticated = false;
   await settings.goto(settingsPath);
   await field(settings, '用户名').fill(user.username); await field(settings, '密码').fill('fixture-password');
   await button(settings, '登录').click(); await field(settings, '项目名称').waitFor();
   assert.equal(new URL(settings.url()).pathname, settingsPath);
   assert(await button(settings, '保存修改').isEnabled());
-  record('加载失败可重试，普通成员没有管理入口且直达设置不可编辑，登录继续原项目设置深链接');
+  record('加载失败可重试，普通成员可管理活动项目样式、归档只读，元数据管理仍受限，登录继续原项目设置深链接');
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
   console.log(JSON.stringify({ browser: browser.version(), checks, artifacts, errors, unexpected }, null, 2));
 } catch (error) {

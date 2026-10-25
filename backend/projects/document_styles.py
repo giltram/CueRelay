@@ -1,6 +1,6 @@
 """Template import orchestration; caller owns Organization lock + Project transaction."""
 from django.core.exceptions import ValidationError
-from ass_format import import_style, import_style_snapshots, validate_id
+from ass_format import import_style_snapshots, validate_id
 from organizations.style_templates import template_snapshot
 
 
@@ -11,12 +11,8 @@ def _snapshot(actor, organization_id, operation):
     return template_snapshot(actor, organization_id, operation['template_id'], operation['revision'])
 
 
-def import_template(actor, organization_id, document, operation):
-    return import_style(document, _snapshot(actor, organization_id, operation), operation['name'], operation['mode'])
-
-
-def import_initial_templates(actor, organization_id, document, imports):
+def import_templates(actor, organization_id, document, imports):
     if not isinstance(imports, list) or len(imports) > 1000:
-        raise ValidationError('初始模板列表无效。')
+        raise ValidationError('模板导入列表无效。')
     snapshots = [(_snapshot(actor, organization_id, operation), operation['name'], operation['mode']) for operation in imports]
     return import_style_snapshots(document, snapshots) if snapshots else document

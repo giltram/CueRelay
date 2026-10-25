@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Cue } from '../contracts/subtitles';
 import type { ProjectStyle } from '../contracts/styles';
 import { formatTime } from '../media/playback';
-import { orderCues } from './cue-order';
+import { orderCues } from '../subtitle-model/cue-order';
 import { cueCps } from './cue-cps';
 import { CueColumnResizeHandle } from './CueColumnResizeHandle';
 import { clampCueColumnWidth, cueColumns, cueRowNumberWidth, cueTableMinimumWidth, defaultCueColumnWidths } from './cue-column-widths';

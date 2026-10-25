@@ -7,7 +7,7 @@ import { templateApi } from '../project-data/styles-api';
 import { Modal } from '../account-ui/Modal';
 import { StyleSamplePreview } from '../ass-preview/StyleSamplePreview';
 import { ScriptSettingsEditor, StyleFieldsEditor } from './StyleFieldsEditor';
-import { assColor, sampleStyleDocument } from './style-fields';
+import { sampleStyleDocument } from './style-fields';
 
 export function OrganizationStyleLibrary({ request, organizationId, canManage, enabled }: {
   request: JsonRequest; organizationId: number; canManage: boolean; enabled: boolean;
@@ -36,8 +36,8 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
   return <section className="organization-style-library" aria-label="组织样式库">
     <h2>组织样式库</h2>
     <p className="hint">模板供项目复制使用；编辑或删除模板不会修改已有项目。{!canManage && ' 模板由 organizer / dev 管理。'}</p>
-    <div className="controls"><label>搜索组织样式<input type="search" disabled={!enabled} value={search} onChange={event => setSearch(event.target.value)} /></label>
-      <button disabled={!enabled || busy} onClick={() => setRefresh(v => v + 1)}>重新加载样式库</button>
+    <div className="controls style-library-toolbar"><label>搜索组织样式<input type="search" disabled={!enabled} value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <button disabled={!enabled || busy || loading} title="获取其他成员或标签页更新的模板" onClick={() => setRefresh(v => v + 1)}>刷新</button>
       {canManage && <button disabled={!enabled || busy || !base} onClick={() => {
         setError(''); setEditor({ input: { name: '', fields: base!.styles[0].fields, reference: base!.script, source_label: '' } });
       }}>新建模板</button>}
@@ -53,19 +53,19 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
     {imported && <div className="style-import-candidates"><p>来源：{sourceLabel} · 选择一个样式创建模板；引用原件不会自动更新模板。</p>
       <div className="controls">{imported.styles.map(style => <button key={style.id} disabled={busy || !enabled} onClick={() => {
         setEditor({ input: { name: style.name, fields: style.fields, reference: imported.script, source_label: sourceLabel } }); setError('');
-      }}>使用「{style.name}」</button>)}<button onClick={() => setImported(null)}>结束提取</button></div>
+      }}>导入「{style.name}」样式</button>)}<button onClick={() => setImported(null)}>结束提取</button></div>
     </div>}
     <div className="style-library-table"><table><thead><tr><th>模板</th><th>参考分辨率</th><th>来源 / 更新</th><th>操作</th></tr></thead>
       <tbody>{templates.filter(t => t.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map(template => <tr key={template.id}>
-        <td><span className="style-swatch" style={{ backgroundColor: assColor(template.fields.PrimaryColour)?.rgb }} aria-hidden="true" />{template.name}
+        <td>{template.name}
           <p className="hint">{template.fields.Fontname} · {template.fields.Fontsize}</p></td>
         <td>{template.reference.play_res_x}×{template.reference.play_res_y}</td>
         <td>{template.source_label || '手动创建'}<p className="hint">{template.updated_by.username} · v{template.revision}</p></td>
-        <td><div className="controls"><button disabled={busy || !enabled} onClick={() => { setError(''); setEditor({ template, input: { name: template.name, fields: template.fields, reference: template.reference, source_label: template.source_label } }); }}>{canManage ? '编辑模板' : '查看模板'}</button>
-          {canManage && <button disabled={busy || !enabled} onClick={() => { setDeleting(template); setError(''); }}>删除模板</button>}</div></td>
+        <td><div className="controls"><button disabled={busy || !enabled} onClick={() => { setError(''); setEditor({ template, input: { name: template.name, fields: template.fields, reference: template.reference, source_label: template.source_label } }); }}>{canManage ? '编辑' : '查看'}</button>
+          {canManage && <button disabled={busy || !enabled} onClick={() => { setDeleting(template); setError(''); }}>删除</button>}</div></td>
       </tr>)}</tbody></table></div>
     {!loading && !templates.length && <p className="hint">暂无模板。</p>}
-    {editor && base && <Modal title={editor.template ? `${canManage ? '编辑' : '查看'}组织模板` : '新建组织模板'} onClose={busy ? undefined : () => setEditor(null)}>
+    {editor && base && <Modal title={editor.template ? `${canManage ? '编辑' : '查看'}组织模板` : '新建组织模板'} showCloseButton={false} onClose={busy ? undefined : () => setEditor(null)}>
       <form className="account-form" onSubmit={event => {
         event.preventDefault(); if (!canManage || !enabled) return;
         setBusy(true); setError('');
@@ -80,7 +80,7 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
           <StyleFieldsEditor value={editor.input.fields} onChange={fields => patch({ fields })} />
         </fieldset>
         {error && <p className="error" role="alert">{error}</p>}
-        <div className="controls"><button type="button" disabled={busy} onClick={() => setEditor(null)}>关闭模板</button>
+        <div className="controls"><button type="button" disabled={busy} onClick={() => setEditor(null)}>{canManage ? '取消' : '关闭'}</button>
           {canManage && <button className="primary" disabled={busy || !enabled}>保存模板</button>}</div>
       </form>
     </Modal>}

@@ -95,7 +95,7 @@ def import_style(document, template, name, mode):
 
 
 def import_style_snapshots(document, snapshots):
-    """Validate a multi-template creation once, avoiding quadratic ASS reserialization."""
+    """Validate a multi-template import once, avoiding quadratic ASS reserialization."""
     serialize_ass(document)
     result = deepcopy(document)
     for template, name, mode in snapshots:

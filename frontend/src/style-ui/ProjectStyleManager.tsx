@@ -50,10 +50,11 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
     try {
       const result = await onApply(operation);
       setUsage(result.usage); setSelected([]);
-      const next = operation.type === 'create' || operation.type === 'copy' || operation.type === 'import' ? result.document.styles.at(-1)!
+      const next = operation.type === 'create' || operation.type === 'copy' || operation.type === 'import' || operation.type === 'import_many' ? result.document.styles.at(-1)!
         : result.document.styles.find(s => s.id === active.id) ?? result.document.styles[0];
+      if (operation.type === 'import_many' || operation.type === 'import') setImports([]);
       choose(next);
-      setMessage(persisted ? '样式及已应用的字幕编辑已保存。' : '样式已应用到本地文档，请及时导出。');
+      setMessage(persisted ? '项目样式已保存。' : '样式已应用到本地文档，请及时导出。');
     } catch (reason) { setError((reason as Error).message); }
     finally { setPending(false); }
   }
@@ -61,8 +62,8 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
   const disabled = pending || !editable;
   return <Modal title={persisted ? '项目样式管理' : '本地样式管理'} onClose={pending ? undefined : onClose}>
     <div className="style-manager">
-      <p className="hint">{persisted ? '每次样式操作同时保存当前已应用的字幕编辑；尚未应用的时间输入保留在编辑器，不包含在保存中。其他成员需显式重载。'
-        : '本地样式保留在当前页面，导出 ASS 后可复用。'}{!editable && ' 当前只读；项目需先验证本地视频才能修改。'}</p>
+      <p className="hint">{persisted ? '修改使用项目已保存的字幕快照；工作区未保存的字幕和时间输入不会被提交。已打开的工作区需重新加载项目后使用新样式。'
+        : '本地样式保留在当前页面，导出 ASS 后可复用。'}{!editable && ' 当前只读。'}</p>
       <div className="style-manager-layout">
         <section className="style-list" aria-label="样式列表">
           <label>搜索样式<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -100,8 +101,8 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
           <fieldset disabled={disabled}>
             {mode === 'import' && request && organizationId ? <>
               <TemplateImportSelection request={request} organizationId={organizationId} value={imports} onChange={setImports} existing={document.styles} />
-              <p className="hint">每次导入一个模板；可连续导入多个，或在新建项目时一次选择多个。</p>
-              <button className="primary" disabled={imports.length !== 1} onClick={() => void perform(imports[0])}>{applyLabel}</button>
+              <p className="hint">已选 {imports.length} 个模板；一次导入并保存，任一模板校验失败时整批不保存。</p>
+              <button className="primary" disabled={!imports.length} onClick={() => void perform({ type: 'import_many', imports })}>{applyLabel}</button>
             </> : mode === 'script' ? <>
               <ScriptSettingsEditor value={script} onChange={setScript} />
               <button className="primary" onClick={() => void perform({ type: 'script', script })}>{applyLabel}</button>

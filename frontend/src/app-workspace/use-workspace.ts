@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, SplitRequest } from '../contracts/subtitles';
-import type { StyleOperation } from '../contracts/styles';
 import { projectApi } from '../project-data/projects-api';
 import type { Route } from '../navigation/routes';
 
@@ -103,21 +102,6 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     setLoad({ key: projectKey(detail.organization_id, detail.id), status: 'ready' }); setAccessDenied(false);
   }, [workspace?.project, request]);
 
-  const styles = useCallback(async (document: AssDocument, operation: StyleOperation, revision: number) => {
-    const project = workspace?.project;
-    if (!project) throw new Error('尚未打开项目。');
-    try {
-      const result = await projectApi(request, project.organization_id).styles({ ...project, revision }, document, operation);
-      updateSummary(result.project);
-      return result;
-    } catch (reason) {
-      if ((reason as { code?: string }).code === 'project_archived') {
-        setWorkspace(value => matches(value, project.organization_id, project.id)
-          ? { ...value!, project: { ...value!.project!, status: 'archived' } } : value);
-      }
-      throw reason;
-    }
-  }, [workspace?.project, request, updateSummary]);
 
   useEffect(() => {
     const project = workspace?.project;
@@ -145,5 +129,5 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     : null;
   const visible = Boolean(workspace && (kind === 'local' && !workspace.project ||
     organizationId !== undefined && projectId !== undefined && matches(workspace, organizationId, projectId) && projectLoad?.status === 'ready'));
-  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, split, styles, reload, retry: () => setRetry(value => value + 1) };
+  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, split, reload, retry: () => setRetry(value => value + 1) };
 }

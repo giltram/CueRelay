@@ -1,5 +1,5 @@
 import type { AssDocument, Cue } from '../contracts/subtitles';
-import { orderCues } from './cue-order';
+import { orderCues } from '../subtitle-model/cue-order';
 
 /** Delete the selected row, preferring its displayed successor, then predecessor. */
 export function deleteCue(document: AssDocument, selectedId: string): { document: AssDocument; selected: Cue | null } {

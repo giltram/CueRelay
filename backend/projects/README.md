@@ -33,7 +33,7 @@ migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 P
 
 项目 member/organizer/dev 可修改样式，组织模板仅 organizer/dev 管理；无新增权限矩阵。import 通过 organizations.style_templates.template_snapshot 公开读取同组织、指定 revision 的快照，并生成新的项目 UUID；项目不访问模板私有模型。模板删除不级联影响任何快照。
 
-创建项目可原子接受 script 和 style_imports，任何模板冲突、重名、适配错误均不留下半个项目。模板批量创建只做一次最终格式验证，不对每个模板重复序列化整份文档。
+创建项目可原子接受 script 和 style_imports；现有项目通过 `import_many`（非空 imports 数组，至多 1000 项）一次导入多个模板，旧 `import` 单模板操作继续兼容。两者复用 document_styles.import_templates 的版本/组织检查与批量快照转换，只做一次最终格式验证，不对每个模板重复序列化整份文档。现有项目整批只 touch 一次，revision 加一；任何模板冲突、重名、适配错误均不持久化部分结果，创建失败不留下项目。
 
 迁移 projects.0002 将旧 JSON 文档转为 v2，保留 source/Cue ID/source_id/media/revision/操作者/时间；遇到异常文档整体回滚，报告项目 ID。不可逆，回滚依赖部署前备份。部署步骤及 API 见 [样式管理契约](../../docs/style-management.md)。权限/事务/多连接并发在 test_styles.py，既有数据迁移在 test_style_migration.py。
 

@@ -8,7 +8,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-10-24 通用编辑操作：新增账号级鼠标边界点击开关（个人设置「快捷键」栏，随「保存快捷键」持久化）及四个默认空绑定动作，沿用现有布局、seek、10ms 精度和快捷键过滤。`ass_format.splitting` 统一执行纯快照拆分；项目 `split_cue` 复用 `save_document` 的权限/事务/revision 路径，一次保存完整快照；本地工作区走无持久化转换接口。两条新 UUID 用可选 source_id 保留原始 ASS 元数据。按用户确认，本次不实现原仓库尚不存在的编辑锁、审核、修改历史和实时推送。完整规则、API 与限制见 [编辑操作契约](editing-operations.md)。
 
-2026-10-24 样式管理 A 阶段：组织模板表与项目 v2 样式快照、稳定 style_id、具名原子操作、复制导入/批量属性修改、脚本设置及受限等比适配已实现。复用项目 revision/权限/事务、原 ASS codec 和 JASSUB。组织设置增加模板库，工作区增加样式面板与独立样本预览；未新增 WS、历史事件或审核系统。已确认范围、迁移/API/测试入口见 [样式管理](style-management.md)。
+2026-10-24 样式管理 A 阶段：组织模板表与项目 v2 样式快照、稳定 style_id、具名原子操作、复制导入/批量属性修改、脚本设置及受限等比适配已实现。复用项目 revision/权限/事务、原 ASS codec 和 JASSUB。组织设置增加模板库，项目设置和本地工作区组合样式面板与独立样本预览；未新增 WS、历史事件或审核系统。已确认范围、迁移/API/测试入口见 [样式管理](style-management.md)。
 
 ## 当前可运行入口
 
@@ -30,7 +30,7 @@ Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBound
 
 边界拖动按鼠标键区分：入点左键，出点右键；出点不拦截左键，因此共享时间点可直接左击设置下一条的入点草稿。边界的右键菜单只阻止默认菜单，不重复设置时间；两种拖动都沿用原草稿与校验。
 
-连续打轴由 `workspace-ui/commit-timing.ts` 纯函数负责：校验当前时间草稿、写回当前行，选择已有下一行；末尾才新增空文本行，起点等于本次出点、时长 2000ms、样式继承当前行。“创建新行”和“循环试听 / 提交并下一条”按钮行均已移除，保留 G / Enter 提交。页面默认行直接作为当前行写回；删除所有行后再从空草稿提交仍可创建当前行和下一条。非空文档未选择行时要求先选择，不隐式覆盖或追加。`cue-order.ts` 是 CueTable 与提交导航共同的时间排序规则，下一条取自提交前显示顺序，原始 ASS 事件数组顺序保持。新增行不会按视频时长截断；若超出既有 10 小时支持范围则整次操作拒绝，保留草稿与文档。测试见 cue-defaults / commit-timing 与 `browser-tests/commit-timing-checks.mjs`。
+连续打轴由 `workspace-ui/commit-timing.ts` 纯函数负责：校验当前时间草稿、写回当前行，选择已有下一行；末尾才新增空文本行，起点等于本次出点、时长 2000ms、样式继承当前行。“创建新行”和“循环试听 / 提交并下一条”按钮行均已移除，保留 G / Enter 提交。页面默认行直接作为当前行写回；删除所有行后再从空草稿提交仍可创建当前行和下一条。非空文档未选择行时要求先选择，不隐式覆盖或追加。`subtitle-model/cue-order.ts` 是 CueTable、提交导航与项目设置共同的时间排序规则，下一条取自提交前显示顺序，原始 ASS 事件数组顺序保持。新增行不会按视频时长截断；若超出既有 10 小时支持范围则整次操作拒绝，保留草稿与文档。测试见 cue-defaults / commit-timing 与 `browser-tests/commit-timing-checks.mjs`。
 
 delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接受 Backspace）；共享 JSON 唯一声明四个默认别名，覆盖替换全部默认、空列表禁用、删除覆盖恢复默认，不再有固定删行分支。只有此动作额外接受 Ctrl/Meta+Delete/Backspace；输入框 / IME / 重复保护复用 allowsShortcutFocus；所有动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `delete-cue.ts`，删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 delete-cue / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
 
@@ -54,6 +54,7 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，navigation 统一页面 URL/历史，app-workspace 持有保留实例和项目加载，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。导入使用真实按钮同步触发 hidden 文件 input，避免透明原生控件覆盖按钮时出现默认文件名提示；鼠标和键盘都可选片，取消不改变已选视频，校验/固定时同时禁用按钮和 input。
 - LocalVideoPlayer 关闭原生 controls，在画面外下方渲染原生 range 进度条，接收受控 currentTime / duration（毫秒）和 onSeek，不持有另一份播放时间，不添加音量按钮。EditorWorkbench 的 seekPlayback 为进度条与 AudioTimeline 共用跳转入口，取消旧试听、调用 seekVideo 并立即同步显示时间，保留原播放 / 暂停状态，不修改字幕或时间草稿。验证见 [视频进度条记录](experiments/video-progress.md)。
+- 2026-10-25 视频全屏：LocalVideoPlayer 使用 16px SVG 图标 / 28px 按钮，监听 Fullscreen API 更新进入/退出图标、title 和 aria-pressed；仍只全屏 video/canvas 所在 stage。EditorWorkbench 在本视频进入全屏时同步取消现有试听观察器（清理句柄保存在 ref），保留时间和播放/暂停状态。全屏中的无修饰 Space 优先普通播放/暂停，允许 video/全屏按钮焦点并阻止按钮再次激活，保留输入框/IME/重复/弹窗/工作区可见性保护；不读取时间草稿或个人试听键位。退出全屏不恢复旧试听，普通工作区恢复个人配置下的 Space/S 行为。未改后端、字幕状态或预览链路；浏览器回归见 `frontend/browser-tests/fullscreen-playback.mjs`。
 - `workspace-ui/CueTable.tsx`：按时间展示行号、入、出、CPS、style、字幕文本，点击行号/文本选择字幕，不提供独立定位列；空文本以弱化色斜体 `（empty）` 占位，不写回正文。`cue-cps.ts` 只从已应用时间和当前文本派生每秒字符数，不进入 DTO 或保存数据；按 Unicode 字素统计并忽略 ASS 块、空白、标点，整数向下取整（参考 [Aegisub 网格](https://github.com/TypesettingTools/Aegisub/blob/master/src/grid_column.cpp) 与[默认计数选项](https://github.com/TypesettingTools/Aegisub/blob/master/src/libresrc/default_config.json)）。非正/非有限时长显示 `—`，不复制 Aegisub 的短时长隐藏或告警配色。回归见 cue-cps.test.ts；表格文本列占剩余宽度。
 - `workspace-ui/cue-column-widths.ts` 定义字幕列默认值、可调范围和表格最小宽度（保留 180px 文本空间）；CueTable 用 colgroup/fixed layout 应用宽度并在实例内持有状态。入/出默认 100px、CPS 44px、style 88px，行号固定 44px。`CueColumnResizeHandle` 仅处理表头右边界的 Pointer Capture 与键盘动作；支持取消/失去捕获、双击默认、方向键 8px/Shift 24px 与 Home/End，宽度由 CueTable 统一约束。调宽不更换字幕或媒体实例，不写 Storage/DTO；同页历史保留实例时保留列宽，刷新或更换实例恢复默认。窄屏在表格内滚动，不挤压最后一列；验证见 [字幕表格记录](experiments/cue-table.md)。
 - `shared/timing-shortcuts.json` 唯一声明可配置默认键位，`workspace-ui/timing-shortcuts.ts` 负责全部动作（含删行）的个人覆盖、校验和分派；默认 G / Enter 提交并下一条，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `commitAndAdvance`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，过时提示及时间采集 / 微调按钮已移除。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`watchPlaybackRange` 共用现有播放器观察区间，EditorWorkbench 只保留一个单次试听状态，切换或结束时清理旧观察器。循环按钮及其不可达的 startLoop 编排已移除，底层公共区间播放接口未改动。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
@@ -237,3 +238,7 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 2026-10-24 创建弹窗修正：名称/说明和视频/字幕合并为同一表单；新建按钮留在当前列表，不新开 tab。Modal 的 cancel 处理只响应自身 target，文件 input 的冒泡取消不会关闭整份表单；真正 Escape/明确取消继续工作，忙碌时禁止误关。职责与验证见 [project-ui](../frontend/src/project-ui/README.md) 和 [创建表单记录](experiments/project-form.md)。
 
 2026-10-24 项目设置页：项目列表移除打开/只读查看按钮，以项目名称进入工作区；管理操作直接显示项目设置及归档/恢复，不再折叠。navigation 新增 `/organizations/:organizationId/projects/:projectId/settings`，App 组合 project-ui/ProjectSettingsPage，设置页经 project-data 读取并更新名称/说明，保持 revision 冲突校验和显式刷新，不修改保留工作区的文档或 revision。ProjectForm 仅负责创建。沿用 organizer/dev 管理权限、归档只读及 RouteLink 新标签页规则；详情和浏览器回归见 [project-ui](../frontend/src/project-ui/README.md)。
+
+2026-10-25 项目样式入口移至项目设置，项目工作区顶部移除入口，本地工作区保留。所有成员可进入设置管理活动项目样式；名称/说明仍仅 organizer/dev 修改，归档样式只读。ProjectSettingsPage 拥有一份 ProjectDetail/revision，元数据与样式串行写入，名称/说明草稿独立；样式操作使用已保存字幕，无需视频，不提交工作区草稿。已打开工作区保持旧文档/revision，保存正常冲突，显式重载后才采用新样式。app-workspace 不再提供样式回调。共享纯排序下移 subtitle-model，`{project-ui, workspace-ui} → subtitle-model → contracts`，避免项目设置依赖编辑器内部。验证见 [实施记录](plans/project-styles-in-settings.md)。
+
+2026-10-26 现有项目的组织模板导入支持多选，通过 `import_many` 具名操作一次提交整批，复用 `projects.document_styles.import_templates` 与新建项目相同的模板快照校验/纯格式转换。沿用原事务、锁顺序和 revision 检查，只持久化一次；任一项失败整批不保存，前端保留选择与输入。旧单模板 import 继续兼容，未增加模块间依赖；API 与测试入口见 [样式管理](style-management.md)。

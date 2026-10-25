@@ -7,7 +7,7 @@ import { localStyleOperation } from '../project-data/styles-api';
 import { ProjectStyleManager } from '../style-ui/ProjectStyleManager';
 import '../style-ui/style-management.css';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
-import { auditionRange, formatTime, parseTime, seekVideo, snapTime, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
+import { auditionRange, formatTime, isFullscreenPlaybackShortcut, parseTime, seekVideo, snapTime, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
@@ -21,7 +21,7 @@ import { AudioTimeline } from './audio-timeline/AudioTimeline';
 import type { AudioDisplayMode } from '../media/audio/analysis-types';
 import { useAssPreview } from '../ass-preview/use-ass-preview';
 import { previewDocument } from './preview-document';
-import { orderCues } from './cue-order';
+import { orderCues } from '../subtitle-model/cue-order';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -41,14 +41,13 @@ interface Props {
   visible?: boolean;
   onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
   onSplit?: (request: SplitRequest, revision: number) => Promise<SplitResult & { project: ProjectSummary }>;
-  onStyles?: (document: AssDocument, operation: StyleOperation, revision: number) => Promise<StyleResult & { project: ProjectSummary }>;
   styleRequest?: JsonRequest;
   styleOrganizationId?: number;
   canManageTemplates?: boolean;
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, onStyles, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -58,6 +57,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const [endText, setEndText] = useState('0:00:02.00');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [audition, setAudition] = useState<RangePlayback | null>(null);
+  const stopAudition = useRef<(() => void) | null>(null);
+  const cancelAudition = useCallback(() => {
+    // Stop synchronously, before an already queued frame can pause/rewind video.
+    stopAudition.current?.(); stopAudition.current = null;
+    setAudition(null);
+  }, []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
@@ -87,6 +92,14 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const cueRows = useMemo(() => orderCues(document?.cues ?? []), [document?.cues]);
   const preview = useMemo(() => previewDocument(document, selectedId, startText, endText), [document, selectedId, startText, endText]);
   const subtitles = useAssPreview(video, mediaFile, preview.document, exportAss, visible);
+  useEffect(() => {
+    const changed = () => {
+      if (video && window.document.fullscreenElement?.contains(video)) cancelAudition();
+    };
+    changed();
+    window.document.addEventListener('fullscreenchange', changed);
+    return () => window.document.removeEventListener('fullscreenchange', changed);
+  }, [video, cancelAudition]);
 
   useEffect(() => {
     if (project) return;
@@ -203,6 +216,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
 
   async function togglePlayback() {
     if (!video || !duration) throw new Error('请先加载可播放的视频');
+    cancelAudition();
     if (video.paused) await video.play(); else video.pause();
   }
 
@@ -234,7 +248,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
 
   useEffect(() => {
     if (!video || !audition) return;
-    return watchPlaybackRange(video, audition, () => setAudition(null), reason => setError(reason.message));
+    const stop = watchPlaybackRange(video, audition, () => setAudition(null), reason => setError(reason.message));
+    stopAudition.current = stop;
+    return () => {
+      stop();
+      if (stopAudition.current === stop) stopAudition.current = null;
+    };
   }, [video, audition]);
 
   useEffect(() => {
@@ -242,6 +261,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
       if (busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible) return;
+      if (video && window.document.fullscreenElement?.contains(video) && isFullscreenPlaybackShortcut(event, composing.current)) {
+        event.preventDefault();
+        if (!event.repeat) run(togglePlayback);
+        return;
+      }
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
       if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || isEditingShortcut(shortcut)) && !canEdit)) return;
       event.preventDefault();
@@ -304,19 +328,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   }
 
   async function changeStyles(operation: StyleOperation): Promise<StyleResult> {
-    if (!document || !canEdit || busy) throw new Error('当前无法编辑样式。');
+    if (project || !document || !canEdit || busy) throw new Error('当前无法编辑本地样式。');
+    if (operation.type === 'import' || operation.type === 'import_many') throw new Error('组织模板请在项目设置中导入。');
     setBusy(true);
     try {
-      let result: StyleResult;
-      if (project) {
-        if (!onStyles) throw new Error('项目样式保存尚未就绪。');
-        const persisted = await onStyles(document, operation, savedRevision);
-        result = persisted;
-        setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
-      } else {
-        if (operation.type === 'import') throw new Error('组织模板请在项目中导入。');
-        result = await localStyleOperation(document, operation);
-      }
+      const result = await localStyleOperation(document, operation);
       setDocument(result.document); setHasEdits(true);
       return result;
     } finally { setBusy(false); }
@@ -347,7 +363,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
           {busy && <span role="status">正在转换…</span>}
-          <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); setAudition(null); setStylesOpen(true); }}>管理样式</button>
+          {!project && <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); setAudition(null); setStylesOpen(true); }}>管理样式</button>}
           {!project && <label className="file-picker">
             导入 ASS
             <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
@@ -439,9 +455,9 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       </>} />
       <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
         onSelect={cue => { if (!splitting.current) selectCue(cue); }} />
-      {stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
-        persisted={Boolean(project)} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
-        projectName={project?.name} onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
+      {!project && stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
+        persisted={false} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
+        onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
     </main>
   );
 }

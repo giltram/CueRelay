@@ -77,6 +77,59 @@ class StyleIntegrationTests(TestCase):
         self.assertEqual(self.send(self.base + '/projects', stale).status_code, 409)
         self.assertEqual(Project.objects.count(), count)
 
+    def test_import_many_saves_once_with_independent_snapshots(self):
+        second = create_template(self.actor, self.org.pk, **{**self.template_data, 'name': 'Second',
+            'reference': {**self.template_data['reference'], 'play_res_x': 1280, 'play_res_y': 720}})
+        imports = [self.import_op('Copy'), {**self.import_op('Scaled'), 'template_id': second['id'], 'mode': 'scale'}]
+        self.client.force_login(self.member)
+        response = self.operation({'type': 'import_many', 'imports': imports})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.project.refresh_from_db()
+        styles = self.project.document['styles']
+        self.assertEqual([s['name'] for s in styles], ['Default', 'Copy', 'Scaled'])
+        self.assertEqual(len({s['id'] for s in styles}), 3)
+        self.assertEqual(styles[1]['fields'], self.template['fields'])
+        self.assertEqual(styles[2]['fields']['Fontsize'], '14')
+        self.assertEqual([s['origin'] for s in styles[1:]], [
+            {'template_id': self.template['id'], 'revision': 1}, {'template_id': second['id'], 'revision': 1}])
+        self.assertEqual(self.project.revision, 2)
+        self.assertEqual(self.project.updated_by, self.member)
+        self.assertEqual(self.project.document['cues'], [])
+        self.assertEqual(self.operation({'type': 'import_many', 'imports': imports}, revision=1).status_code, 409)
+        set_archived(self.actor, self.org.pk, self.project.pk, 2, archived=True)
+        self.project.refresh_from_db()
+        self.assertEqual(self.operation({'type': 'import_many', 'imports': imports}).json()['error']['code'], 'project_archived')
+
+    def test_import_many_rejects_entire_batch_on_any_invalid_template(self):
+        foreign = create_template(self.stranger, self.other.pk, **self.template_data)
+        incompatible = create_template(self.actor, self.org.pk, **{**self.template_data, 'name': 'Incompatible',
+            'reference': {**self.template_data['reference'], 'play_res_x': 640, 'play_res_y': 480}})
+        original = deepcopy(self.project.document)
+        cases = [
+            (self.import_op('First'), 422),  # Duplicate name within the batch.
+            (self.import_op('Default'), 422),  # Conflicts with an existing style.
+            ({**self.import_op('Second'), 'revision': 999}, 409),
+            ({**self.import_op('Second'), 'template_id': foreign['id']}, 404),
+            ({**self.import_op('Second'), 'mode': 'invalid'}, 422),
+            ({**self.import_op('Second'), 'template_id': incompatible['id'], 'mode': 'scale'}, 422),
+            ({**self.import_op('Second'), 'mode': 'scale', 'unexpected': True}, 400),
+        ]
+        for second, status in cases:
+            with self.subTest(second=second):
+                response = self.operation({'type': 'import_many', 'imports': [self.import_op('First'), second]})
+                self.assertEqual(response.status_code, status, response.content)
+                self.project.refresh_from_db()
+                self.assertEqual(self.project.document, original)
+                self.assertEqual(self.project.revision, 1)
+                self.assertEqual(self.project.updated_by, self.actor)
+        for imports in ([], None, {}, 'invalid', [self.import_op()] * 1001):
+            with self.subTest(imports_type=type(imports)):
+                self.assertEqual(self.operation({'type': 'import_many', 'imports': imports}).status_code, 400)
+        self.assertEqual(self.operation({'type': 'import_many'}).status_code, 400)
+        self.assertEqual(self.operation({'type': 'import_many', 'imports': [self.import_op()], 'extra': True}).status_code, 400)
+        self.client.force_login(self.stranger)
+        self.assertEqual(self.operation({'type': 'import_many', 'imports': [self.import_op()]}).status_code, 403)
+
     def test_copy_batch_assign_rename_preserve_colors_and_cue_identity(self):
         original = self.project.document['styles'][0]
         document = deepcopy(self.project.document)

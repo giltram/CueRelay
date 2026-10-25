@@ -97,9 +97,13 @@ try {
 
   for (const width of [1440, 1000, 390]) {
     await page.setViewportSize({ width, height: 1000 });
-    const frame = await page.locator('.video-stage').boundingBox();
-    const progress = await slider.boundingBox();
-    const transport = await page.locator('.transport').boundingBox();
+    // Read one layout snapshot: ResizeObserver can update pane sizing between
+    // separate locator calls immediately after a viewport resize.
+    const { frame, progress, transport } = await page.evaluate(() => ({
+      frame: document.querySelector('.video-stage').getBoundingClientRect().toJSON(),
+      progress: document.querySelector('.video-progress').getBoundingClientRect().toJSON(),
+      transport: document.querySelector('.transport').getBoundingClientRect().toJSON(),
+    }));
     assert(Math.abs(frame.width / frame.height - 16 / 9) < .01);
     assert(progress.y >= frame.y + frame.height);
     assert(transport.y >= progress.y + progress.height);

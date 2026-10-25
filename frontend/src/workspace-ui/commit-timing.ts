@@ -1,6 +1,6 @@
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { MAX_TIME_MS, validateInterval } from '../media/playback';
-import { orderCues } from './cue-order';
+import { orderCues } from '../subtitle-model/cue-order';
 import { DEFAULT_CUE_DURATION_MS } from './cue-defaults';
 
 /** Commit the draft, then select the next displayed row or append an empty one. */

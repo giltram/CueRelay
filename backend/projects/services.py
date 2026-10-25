@@ -12,7 +12,7 @@ from accounts.models import User
 from organizations.models import Organization
 from organizations.services import require_access
 from .models import Project
-from .document_styles import import_initial_templates
+from .document_styles import import_templates
 from ass_format import validate_script
 
 
@@ -94,7 +94,7 @@ def create_project(actor, organization_id, *, name, description, media, source, 
         if script != document['script']:
             validate_script(script)
         document['script'] = script
-    document = import_initial_templates(actor, org.pk, document, [] if style_imports is None else style_imports)
+    document = import_templates(actor, org.pk, document, [] if style_imports is None else style_imports)
     serialize_ass(document)
     return Project.objects.create(organization=org, name=name, description=description, media=media, document=document,
                                   created_by=actor, updated_by=actor)

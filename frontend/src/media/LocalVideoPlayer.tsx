@@ -27,8 +27,14 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
   const [locked, setLocked] = useState(false);
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
   const verification = useRef<AbortController | null>(null);
   useEffect(() => () => verification.current?.abort(), []);
+  useEffect(() => {
+    const changed = () => setFullscreen(document.fullscreenElement === stage.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
 
   async function chooseFile(picked: File) {
     onVerifiedChange?.(false);
@@ -87,11 +93,14 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
           setLocked(false); setFile(null); onDuration(0);
         }} />
       {!file && <div className="video-placeholder">导入本地视频<span>视频不会上传</span></div>}
-      {file && <button type="button" className="video-fullscreen" aria-label="切换视频全屏" onClick={() => {
+      {file && <button type="button" className="video-fullscreen" aria-label="切换视频全屏" aria-pressed={fullscreen}
+        title={fullscreen ? '退出全屏' : '进入全屏'} onClick={() => {
         if (!stage.current?.requestFullscreen) { onError('当前浏览器无法进入全屏。'); return; }
         const action = document.fullscreenElement ? document.exitFullscreen() : stage.current?.requestFullscreen();
         void action?.catch(() => onError('当前浏览器无法进入全屏。'));
-      }}>全屏</button>}
+      }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d={fullscreen ? 'M2 6h4V2m4 0v4h4M6 14v-4H2m12 0h-4v4' : 'M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4'} />
+      </svg></button>}
     </div>
     <input className="video-progress" type="range" aria-label="视频进度"
       min={0} max={duration || 1} step="any" value={Math.min(currentTime, duration)}

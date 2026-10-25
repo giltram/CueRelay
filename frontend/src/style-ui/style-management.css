@@ -35,9 +35,12 @@
 .style-file-import { margin-block: 8px; }
 .style-import-candidates { border-bottom: 1px solid var(--border); padding-block: 8px; }
 .organization-style-library { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.organization-style-library .style-library-toolbar { align-items: flex-end; }
+.style-library-toolbar input[type="search"], .style-library-toolbar > button { height: 38px; }
 @media (max-width: 700px) {
   .style-manager-layout { grid-template-columns: minmax(0, 1fr); }
   .style-list { border-right: 0; padding-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
   .style-list-rows { max-height: 150px; }
   .style-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .style-library-toolbar > label { width: 100%; }
 }

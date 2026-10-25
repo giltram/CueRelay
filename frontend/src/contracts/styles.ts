@@ -20,5 +20,6 @@ export type StyleOperation =
   | { type: 'delete'; ids: string[] }
   | { type: 'assign'; cue_ids: string[]; style_id: string }
   | { type: 'script'; script: ScriptSettings }
+  | { type: 'import_many'; imports: ImportStyle[] }
   | ImportStyle;
 export type StyleUsage = Record<string, { cues: number; comments: number }>;

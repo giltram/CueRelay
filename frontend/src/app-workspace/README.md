@@ -12,4 +12,4 @@
 
 `split` 与 save 使用同一个 account request、显式 revision、updateSummary 与归档错误处理，经 projects-api.split 调用后端。只返回结果给 EditorWorkbench，由后者成功后替换自己的 document/savedRevision。请求期间编辑器冻结本次快照；失败继续保留当前内容。没有轮询采用远端文档或第二份字幕 store。项目拆分本身会保存完整工作快照（含当前时间草稿），详见 docs/editing-operations.md。
 
-样式保存由 styles(document, operation, revision) 显式接口传给 EditorWorkbench，复用 projectApi 的具名命令与 updateSummary。工作区只在收到成功返回的完整 document 后同时接纳 savedDocument / savedRevision，失败保留文档、样式表单和时间草稿；普通会话/归档检查仍不能接纳远端 revision。模板请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。
+项目样式保存由独立 ProjectSettingsPage 直接调用 projectApi.styles，本模块不再提供样式回调。设置页保存不修改保留工作区的文档或 revision；旧工作区保存继续冲突，明确重载后才接受新样式。本地工作区保留样式管理，模板另存请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。

@@ -69,7 +69,19 @@ await context.route('**/api/**', async route => {
     Object.assign(template, data, { revision: template.revision + 1 });
     return reply({ template });
   }
-  if (path === '/api/organizations/1/projects/1') return reply({ project });
+  if (path === '/api/organizations/1/projects/1' && method === 'GET') return reply({ project });
+  if (path === '/api/organizations/1/projects/1' && method === 'PATCH') {
+    writes.push({ path, data });
+    if (data.revision !== project.revision) return failure(409, 'project_conflict', '项目已被其他操作更新；当前输入已保留。');
+    project = { ...project, name: data.name, description: data.description, revision: project.revision + 1 };
+    return reply({ project });
+  }
+  if (path === '/api/organizations/1/projects/1/document' && method === 'PUT') {
+    writes.push({ path, data });
+    if (data.revision !== project.revision) return failure(409, 'project_conflict', '项目已被其他操作更新；当前输入已保留。');
+    project = { ...project, document: data.document, revision: project.revision + 1 };
+    return reply({ project });
+  }
   if (path === '/api/organizations/1/projects' && method === 'GET') return reply({ projects: [project], total: 1, page: 1, has_more: false });
   if (path === '/api/organizations/1/projects' && method === 'POST') {
     writes.push({ path, data });
@@ -91,10 +103,15 @@ await context.route('**/api/**', async route => {
     for (const key of ['source', 'styles', 'script']) if (JSON.stringify(data.document[key]) !== JSON.stringify(project.document[key])) return failure(400, 'invalid_request', '样式基准不匹配');
     const op = data.operation;
     let result;
-    if (op.type === 'import') {
-      const template = templates.find(t => t.id === op.template_id);
-      if (!template || template.revision !== op.revision) return failure(409, 'template_conflict', '模板已更新');
-      result = codec('import', { document: data.document, template, name: op.name, mode: op.mode });
+    if (op.type === 'import' || op.type === 'import_many') {
+      let doc = data.document;
+      for (const item of op.type === 'import_many' ? op.imports : [op]) {
+        const template = templates.find(t => t.id === item.template_id);
+        if (!template || template.revision !== item.revision) return failure(409, 'template_conflict', '模板已更新');
+        result = codec('import', { document: doc, template, name: item.name, mode: item.mode });
+        if (result.status !== 200) return failure(result.status, 'invalid_ass', result.body.issues[0].message);
+        doc = result.body.document;
+      }
     } else result = codec('styles', { document: data.document, operation: op });
     if (result.status !== 200) return failure(result.status, 'invalid_ass', result.body.issues[0].message);
     project = { ...project, document: result.body.document, revision: project.revision + 1 };
@@ -103,21 +120,28 @@ await context.route('**/api/**', async route => {
   unexpected.push(`${method} ${path}`); return route.abort();
 });
 
+const workspace = await context.newPage();
 const page = await context.newPage();
 const base = process.env.STYLE_MANAGEMENT_URL || 'http://127.0.0.1:5173';
-async function openManager() { await page.getByRole('button', { name: '管理样式', exact: true }).click(); await page.getByRole('dialog', { name: '项目样式管理' }).waitFor(); }
+async function openManager() { await page.getByRole('button', { name: '管理项目样式', exact: true }).click(); await page.getByRole('dialog', { name: '项目样式管理' }).waitFor(); }
 const manager = page.getByRole('dialog', { name: '项目样式管理' });
 const apply = () => manager.getByRole('button', { name: '应用并保存', exact: true }).click();
-async function applied() { await manager.getByText('样式及已应用的字幕编辑已保存。', { exact: true }).waitFor(); }
+async function applied() { await manager.getByText('项目样式已保存。', { exact: true }).waitFor(); }
 async function readyPreview() { await manager.locator('.style-sample figcaption').filter({ hasText: 'ASS 效果预览' }).waitFor(); }
 async function closeManager() { await manager.getByRole('button', { name: '关闭', exact: true }).click(); }
 try {
-  await page.goto(`${base}/organizations/1/projects/1/workspace`);
-  await page.getByLabel('导入本地视频').setInputFiles(file);
-  await page.waitForFunction(() => !document.querySelector('.cue-editor fieldset')?.disabled);
-  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
-  await page.getByLabel('字幕中文文本').fill('随样式操作一起保存的字幕');
-  await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:03.00');
+  await workspace.goto(`${base}/organizations/1/projects/1/workspace`);
+  await workspace.getByLabel('导入本地视频').setInputFiles(file);
+  await workspace.waitForFunction(() => !document.querySelector('.cue-editor fieldset')?.disabled);
+  await workspace.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  await workspace.getByLabel('字幕中文文本').fill('工作区未保存的字幕');
+  await workspace.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:03.00');
+  assert.equal(await workspace.getByRole('button', { name: '管理样式', exact: true }).count(), 0);
+  await page.goto(`${base}/organizations/1/projects/1/settings`);
+  await page.getByRole('button', { name: '管理项目样式', exact: true }).waitFor();
+  assert.equal(await page.locator('video, input[type=file]').count(), 0);
+  await page.getByLabel('项目名称', { exact: true }).fill('保留的项目名称草稿');
+  await page.getByLabel('项目说明', { exact: true }).fill('保留的项目说明草稿');
   await openManager();
   await readyPreview();
   await manager.getByRole('button', { name: '复制当前样式', exact: true }).click();
@@ -144,12 +168,20 @@ try {
   }
   assert(await instance.evaluate(el => el === document.querySelector('dialog .ass-preview-canvas')));
   await apply(); await applied();
-  assert.equal(project.document.cues[0].text, '随样式操作一起保存的字幕');
+  assert.equal(project.document.cues[0].text, '人物 0');
   assert.equal(project.document.cues[0].end_ms, 2000);
   assert.equal(project.document.styles[1].fields.PrimaryColour, '&H000000FF');
   await closeManager();
-  assert.equal(await page.getByRole('textbox', { name: '出点', exact: true }).inputValue(), '0:00:03.00');
-  assert(await page.getByRole('button', { name: '保存项目', exact: true }).isDisabled());
+  assert.equal(await workspace.getByRole('textbox', { name: '出点', exact: true }).inputValue(), '0:00:03.00');
+  assert.equal(await workspace.getByLabel('字幕中文文本').inputValue(), '工作区未保存的字幕');
+  assert(await workspace.getByRole('button', { name: '保存项目', exact: true }).isEnabled());
+  assert.equal(await page.getByLabel('项目名称', { exact: true }).inputValue(), '保留的项目名称草稿');
+  assert.equal(await page.getByLabel('项目说明', { exact: true }).inputValue(), '保留的项目说明草稿');
+  const revisionAfterStyle = project.revision;
+  await page.getByRole('button', { name: '保存修改', exact: true }).click();
+  await page.getByText('项目设置已保存。', { exact: true }).waitFor();
+  assert.equal(writes.at(-1).data.revision, revisionAfterStyle);
+  assert.equal(project.name, '保留的项目名称草稿');
   await openManager();
   await manager.getByRole('checkbox', { name: '选择样式 Default', exact: true }).check();
   await manager.getByRole('checkbox', { name: '选择样式 人物乙', exact: true }).check();
@@ -189,10 +221,56 @@ try {
   await manager.getByRole('spinbutton', { name: 'PlayResY', exact: true }).fill('720');
   await apply(); await applied();
   await manager.getByRole('button', { name: '从组织导入', exact: true }).click();
+  assert(await manager.getByRole('button', { name: '应用并保存', exact: true }).isDisabled());
+  await manager.getByRole('checkbox', { name: 'Actor', exact: true }).check();
   await manager.getByLabel('导入名称 Actor', { exact: true }).fill('等比副本');
   await manager.getByLabel('适配方式 Actor', { exact: true }).selectOption('scale');
   await apply(); await applied();
   assert.equal(project.document.styles.at(-1).fields.Fontsize, '72');
+  // Multiple selections use one request/revision; failures preserve the entire draft.
+  templates.push({ ...structuredClone(templates[0]), id: randomUUID(), name: 'Second Actor' });
+  await manager.getByRole('button', { name: '从组织导入', exact: true }).click();
+  await manager.getByRole('checkbox', { name: 'Actor', exact: true }).check();
+  await manager.getByRole('checkbox', { name: 'Second Actor', exact: true }).check();
+  await manager.getByLabel('导入名称 Actor', { exact: true }).fill('批量副本');
+  await manager.getByLabel('导入名称 Second Actor', { exact: true }).fill('批量副本');
+  await manager.getByLabel('适配方式 Second Actor', { exact: true }).selectOption('scale');
+  assert(await manager.getByRole('button', { name: '应用并保存', exact: true }).isEnabled());
+  const beforeBatch = structuredClone(project);
+  await apply();
+  await manager.getByRole('alert').waitFor();
+  assert.deepEqual(project, beforeBatch);
+  assert(await manager.getByRole('checkbox', { name: 'Actor', exact: true }).isChecked());
+  assert(await manager.getByRole('checkbox', { name: 'Second Actor', exact: true }).isChecked());
+  assert.equal(await manager.getByLabel('导入名称 Second Actor', { exact: true }).inputValue(), '批量副本');
+  assert.equal(await manager.getByLabel('适配方式 Second Actor', { exact: true }).inputValue(), 'scale');
+  await manager.getByLabel('导入名称 Second Actor', { exact: true }).fill('批量缩放副本');
+  templates[1].revision++;
+  await apply();
+  await manager.getByRole('alert').filter({ hasText: '模板已更新' }).waitFor();
+  assert.deepEqual(project, beforeBatch);
+  await manager.getByRole('button', { name: '重新加载模板', exact: true }).click();
+  assert(await manager.getByRole('button', { name: '应用并保存', exact: true }).isDisabled());
+  await manager.getByRole('checkbox', { name: 'Actor', exact: true }).check();
+  await manager.getByRole('checkbox', { name: 'Second Actor', exact: true }).check();
+  await manager.getByLabel('导入名称 Actor', { exact: true }).fill('批量副本');
+  await manager.getByLabel('导入名称 Second Actor', { exact: true }).fill('批量缩放副本');
+  await manager.getByLabel('适配方式 Second Actor', { exact: true }).selectOption('scale');
+  const writesBeforeBatch = writes.length;
+  await apply(); await applied();
+  assert.equal(writes.length, writesBeforeBatch + 1);
+  assert.equal(writes.at(-1).data.operation.type, 'import_many');
+  assert.equal(writes.at(-1).data.operation.imports.length, 2);
+  assert.equal(project.revision, beforeBatch.revision + 1);
+  assert.equal(project.document.styles.length, beforeBatch.document.styles.length + 2);
+  assert.deepEqual(project.document.styles.slice(-2).map(s => [s.name, s.fields.Fontsize]), [['批量副本', '36'], ['批量缩放副本', '72']]);
+  assert.deepEqual(project.document.cues, beforeBatch.document.cues);
+  assert.equal(project.document.styles.at(-1).origin.revision, 2);
+  templates.pop();
+  await manager.getByRole('button', { name: '从组织导入', exact: true }).click();
+  assert(await manager.getByRole('button', { name: '应用并保存', exact: true }).isDisabled());
+  assert.equal(await manager.getByRole('checkbox', { checked: true }).count(), 0);
+  await manager.getByRole('button', { name: '当前样式', exact: true }).click();
   await manager.getByRole('checkbox', { name: '选择样式 Default', exact: true }).check();
   await manager.getByRole('button', { name: '删除所选', exact: true }).click();
   await manager.getByRole('button', { name: '确认删除样式', exact: true }).click(); await applied();
@@ -210,8 +288,19 @@ try {
   await manager.getByRole('alert').filter({ hasText: '项目已被其他操作更新' }).waitFor();
   assert.equal(await manager.getByRole('textbox', { name: '样式名称', exact: true }).inputValue(), '冲突后保留');
   await closeManager();
-  // The current working snapshot still exports styles and cue names correctly.
-  const downloaded = page.waitForEvent('download'); await page.getByRole('button', { name: '导出 ASS', exact: true }).click();
+  // Settings never advance a different editor's revision or overwrite its drafts.
+  await workspace.getByRole('button', { name: '保存项目', exact: true }).click();
+  await workspace.getByRole('alert').filter({ hasText: '项目已被其他操作更新' }).waitFor();
+  assert.equal(await workspace.getByLabel('字幕中文文本').inputValue(), '工作区未保存的字幕');
+  assert.equal(await workspace.getByRole('textbox', { name: '出点', exact: true }).inputValue(), '0:00:03.00');
+  assert.equal(project.document.cues[0].text, '人物 0');
+  // Accepting remote styles requires the existing explicit discard/reload path.
+  await workspace.getByRole('button', { name: '重新加载项目', exact: true }).click();
+  await workspace.getByRole('button', { name: '明确放弃并继续', exact: true }).click();
+  await workspace.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  await workspace.getByLabel('字幕中文文本').waitFor();
+  assert.equal(await workspace.getByLabel('字幕中文文本').inputValue(), '人物 0');
+  const downloaded = workspace.waitForEvent('download'); await workspace.getByRole('button', { name: '导出 ASS', exact: true }).click();
   const download = await downloaded; await download.saveAs(join(artifacts, 'export.ass'));
   const exported = readFileSync(join(artifacts, 'export.ass'), 'utf8');
   assert(exported.includes('PlayResX: 1280'));
@@ -220,28 +309,64 @@ try {
   const settings = await context.newPage();
   await settings.goto(`${base}/organizations/1/settings/organization`);
   const library = settings.getByRole('region', { name: '组织样式库', exact: true });
-  await library.getByRole('button', { name: '编辑模板', exact: true }).click();
+  await library.getByRole('button', { name: '编辑', exact: true }).waitFor();
+  // Toolbar buttons share the search input's height and bottom edge.
+  const toolbar = library.locator('.style-library-toolbar');
+  const searchBox = await toolbar.getByRole('searchbox').boundingBox();
+  for (const label of ['刷新', '新建模板']) {
+    const button = await toolbar.getByRole('button', { name: label, exact: true }).boundingBox();
+    assert(Math.abs(button.y - searchBox.y) < 1, `${label} top is misaligned`);
+    assert(Math.abs(button.y + button.height - searchBox.y - searchBox.height) < 1, `${label} bottom is misaligned`);
+  }
+  assert.equal(await library.locator('.style-library-table input[type="checkbox"], .style-library-table .style-swatch').count(), 0);
+  await library.getByRole('button', { name: '编辑', exact: true }).click();
   const templateModal = settings.getByRole('dialog', { name: '编辑组织模板', exact: true });
+  assert.equal(await templateModal.locator('.dialog-heading button').count(), 0);
+  assert.equal(await templateModal.getByRole('button', { name: '取消', exact: true }).count(), 1);
   await templateModal.getByRole('spinbutton', { name: '字号', exact: true }).fill('80');
   await templateModal.getByLabel('模板来源说明', { exact: true }).fill('维护中的组织模板');
   await templateModal.getByRole('button', { name: '保存模板', exact: true }).click();
   await templateModal.waitFor({ state: 'hidden' });
   assert.deepEqual(project.document.styles.find(s => s.id === imported.id), imported);
-  await library.getByRole('button', { name: '编辑模板', exact: true }).click();
+  await library.getByRole('button', { name: '编辑', exact: true }).click();
   templates[0].revision++;
   await templateModal.getByRole('spinbutton', { name: '字号', exact: true }).fill('90');
   await templateModal.getByRole('button', { name: '保存模板', exact: true }).click();
   await templateModal.getByRole('alert').filter({ hasText: '模板已更新' }).waitFor();
   assert.equal(await templateModal.getByRole('spinbutton', { name: '字号', exact: true }).inputValue(), '90');
-  await templateModal.getByRole('button', { name: '关闭模板', exact: true }).click();
+  const writesBeforeCancel = writes.length;
+  await templateModal.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(writes.length, writesBeforeCancel);
+  assert.equal(templates[0].fields.Fontsize, '80');
+  // Refresh retrieves another tab's revision before reopening an editor.
+  templates[0].source_label = '另一标签页更新';
+  await library.getByRole('button', { name: '刷新', exact: true }).click();
+  await library.getByText('另一标签页更新').waitFor();
+  const extraction = codec('export', { document: uiDocument(['Default', 'skeppy', 'bbh', '1## Ithird person / a6dJ']) }).body.text;
+  await library.getByLabel('从 ASS 提取样式模板', { exact: true }).setInputFiles({ name: 'characters.ass', mimeType: 'text/plain', buffer: Buffer.from(extraction) });
+  for (const name of ['Default', 'skeppy', 'bbh', '1## Ithird person / a6dJ']) {
+    await library.getByRole('button', { name: `导入「${name}」样式`, exact: true }).waitFor();
+  }
+  await library.getByRole('button', { name: '导入「skeppy」样式', exact: true }).click();
+  const importModal = settings.getByRole('dialog', { name: '新建组织模板', exact: true });
+  assert.equal(await importModal.getByRole('textbox', { name: '模板名称', exact: true }).inputValue(), 'skeppy');
+  const writesBeforeImportCancel = writes.length;
+  await importModal.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(writes.length, writesBeforeImportCancel);
+  await library.getByRole('button', { name: '结束提取', exact: true }).click();
+  await settings.setViewportSize({ width: 390, height: 900 });
+  assert(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await settings.screenshot({ path: join(artifacts, 'library-mobile.png'), fullPage: true });
+  await settings.setViewportSize({ width: 1440, height: 1000 });
   await library.getByRole('button', { name: '新建模板', exact: true }).click();
   const newTemplate = settings.getByRole('dialog', { name: '新建组织模板', exact: true });
   await newTemplate.getByRole('textbox', { name: '模板名称', exact: true }).fill('New Template');
   await newTemplate.getByRole('button', { name: '保存模板', exact: true }).click(); await newTemplate.waitFor({ state: 'hidden' });
   assert.equal(templates.length, 2);
   await library.getByRole('searchbox', { name: '搜索组织样式', exact: true }).fill('New');
-  await library.getByRole('button', { name: '删除模板', exact: true }).click();
+  await library.getByRole('button', { name: '删除', exact: true }).click();
   await settings.getByRole('button', { name: '确认删除模板', exact: true }).click();
+  await settings.getByRole('dialog', { name: '删除组织模板', exact: true }).waitFor({ state: 'hidden' });
   assert.equal(templates.length, 1);
   await library.getByRole('searchbox', { name: '搜索组织样式', exact: true }).fill('');
   await settings.screenshot({ path: join(artifacts, 'library.png'), fullPage: true });
@@ -260,11 +385,18 @@ try {
   assert.equal(project.document.styles.length, 2);
   assert.equal(project.document.styles[1].origin.template_id, templates[0].id);
   assert.equal(writes.at(-1).data.style_imports.length, 1);
+  // Project relocation leaves the independent local style tool available.
+  const local = await context.newPage();
+  await local.goto(`${base}/workspace/local`);
+  await local.getByRole('button', { name: '管理样式', exact: true }).click();
+  await local.getByRole('dialog', { name: '本地样式管理', exact: true }).waitFor();
+  await local.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
   assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(unexpected, []);
-  const result = { checks: ['copy/color', 'atomic batch fields', 'cue assignment/rename', 'failure/conflict preserves drafts', 'snapshot imports', 'PlayRes scale', 'unused deletion', 'real JASSUB preview', 'desktop/mobile', 'ASS export', 'template CRUD/source/conflict', 'new project template'], writes: writes.length, errors, external, unexpected };
+  const result = { checks: ['settings-only project entry', 'no video requirement', 'workspace drafts isolated/CAS preserved', 'shared metadata/style revision', 'local style entry retained', 'copy/color', 'atomic batch fields', 'cue assignment/rename', 'failure/conflict preserves drafts', 'snapshot imports', 'atomic multi-template imports and retry', 'PlayRes scale', 'unused deletion', 'real JASSUB preview', 'desktop/mobile', 'ASS export', 'template CRUD/source/conflict', 'library toolbar alignment/cancel/import labels', 'new project template'], writes: writes.length, errors, external, unexpected };
   writeFileSync(join(artifacts, 'result.json'), JSON.stringify(result, null, 2));
   console.log('PASS', JSON.stringify(result));
 } catch (error) {
   await page.screenshot({ path: join(artifacts, 'failure.png'), fullPage: true }).catch(() => {});
+  console.error(error);
   console.error(JSON.stringify({ errors, external, unexpected })); throw error;
 } finally { await context.close(); await browser.close(); }

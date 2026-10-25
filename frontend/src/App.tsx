@@ -233,7 +233,6 @@ export default function App() {
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}
-        onStyles={workspace.project ? workspaceState.styles : undefined}
         styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}

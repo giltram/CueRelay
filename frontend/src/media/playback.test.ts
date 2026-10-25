@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allowsShortcut, formatTime, parseTime, seekVideo, snapTime, validateInterval } from './playback';
+import { allowsShortcut, formatTime, isFullscreenPlaybackShortcut, parseTime, seekVideo, snapTime, validateInterval } from './playback';
 
 describe('10ms timing contract', () => {
   it('snaps captures and roundtrips Chinese workbench timing values', () => {
@@ -29,6 +29,28 @@ describe('10ms timing contract', () => {
     expect(video.currentTime).toBe(1.23);
     expect(() => seekVideo(video, 10010)).toThrow();
     expect(video.currentTime).toBe(1.23);
+  });
+});
+
+describe('fullscreen Space playback guard', () => {
+  const base = { code: 'Space', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
+  it.each(['video', 'button', null])('accepts Space with %s focus while normal shortcuts keep their filtering', control => {
+    const target = control ? { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget : null;
+    expect(isFullscreenPlaybackShortcut({ ...base, target }, false)).toBe(true);
+    if (control) expect(allowsShortcut({ ...base, target }, false)).toBe(false);
+  });
+  it('preserves IME, modifier and already handled key protection, while claiming held Space', () => {
+    expect(isFullscreenPlaybackShortcut({ ...base, repeat: true }, false)).toBe(true);
+    for (const property of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey', 'isComposing', 'defaultPrevented']) {
+      expect(isFullscreenPlaybackShortcut({ ...base, [property]: true }, false)).toBe(false);
+    }
+    expect(isFullscreenPlaybackShortcut(base, true)).toBe(false);
+    expect(isFullscreenPlaybackShortcut({ ...base, keyCode: 229 }, false)).toBe(false);
+    expect(isFullscreenPlaybackShortcut({ ...base, code: 'KeyS' }, false)).toBe(false);
+  });
+  it.each(['input', 'textarea', 'select', '[contenteditable]:not([contenteditable="false"])', '[role="textbox"]'])('does not steal Space from %s', control => {
+    const target = { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget;
+    expect(isFullscreenPlaybackShortcut({ ...base, target }, false)).toBe(false);
   });
 });
 

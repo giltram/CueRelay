@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { MAX_TIME_MS } from '../media/playback';
 import { commitTiming } from './commit-timing';
-import { orderCues } from './cue-order';
+import { orderCues } from '../subtitle-model/cue-order';
 
 const cue = (id: string, start: number, style = 'Default'): Cue => ({
   id, start_ms: start, end_ms: start + 1000, text: `text-${id}`, style_id: style,

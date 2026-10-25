@@ -1,6 +1,6 @@
 # 项目面板
 
-ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、管理入口）；ProjectForm 负责名称/说明、媒体/ASS 初始化及可选版本化组织模板/脚本设置；ProjectSettingsPage 负责独立设置页的加载、名称/说明编辑和冲突后的显式版本刷新。App 拥有当前组织和切换保护，app-workspace 拥有单个保留工作区，面板不读取 EditorWorkbench 内部状态。
+ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、管理入口）；ProjectForm 负责名称/说明、媒体/ASS 初始化及可选版本化组织模板/脚本设置；ProjectSettingsPage 负责独立设置页的加载、名称/说明编辑、项目样式管理和冲突后的显式版本刷新。App 拥有当前组织和切换保护，app-workspace 拥有单个保留工作区，面板不读取 EditorWorkbench 内部状态。
 
 公开输入是 Organization、contracts/http.JsonRequest、navigate、创建前保护/创建成功和生命周期回调。项目名称、项目设置、本地工作区使用 navigation.RouteLink 的真实 href；路径解析/生成不属于面板。所有 HTTP 契约封装在 project-data/projects-api.ts，DTO 在 contracts/projects.ts。media/media-manifest.ts 只负责本地媒体元数据与 Worker 完整 SHA-256，不依赖 UI/账号。
 
@@ -20,6 +20,10 @@ ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、�
 
 文件选择取消：原生 input[type=file] 的 cancel 会冒泡，Modal 仅处理 target=currentTarget 的弹窗自身取消；视频/ASS 选择器取消不关闭弹窗，不清除名称、说明或之前校验成功的文件。空文件 change 也直接忽略。视频校验、ASS 预检完成前禁止创建；失败保留表单以便重试。浏览器复现/回归：project-form.mjs；旧创建地址兼容测试在 navigation/routes.test.ts。
 
-项目列表操作直接显示「项目设置」「归档项目」，过去项目直接显示「恢复项目」，无折叠菜单或打开按钮；点击项目名称进入工作区。「项目设置」默认新开 `/organizations/:organizationId/projects/:projectId/settings`。设置页自行调用 project-data 获取目标详情，不挂载或接纳字幕工作区；只允许 can_manage 且未归档的项目修改名称/说明。保存提交 revision，成功留在当前设置页；冲突/失败保留输入，显式刷新展示服务器最新名称/说明并更新表单基准 revision。设置页不更新保留工作区的 revision，避免旧字幕绕过并发保存校验。直接访问、登录后继续和刷新均保留目标组织/项目；不存在/无权限/归档有明确状态。回归：`npm run test:project-settings` 使用 HTTP 测试夹具，不访问开发数据库。
+项目列表所有成员均有「项目设置」入口；管理员另有「归档项目」或「恢复项目」，无折叠菜单或打开按钮；点击项目名称进入工作区。「项目设置」默认新开 `/organizations/:organizationId/projects/:projectId/settings`。设置页自行调用 project-data 获取目标详情，不挂载或接纳字幕工作区；只允许 can_manage 且未归档的项目修改名称/说明。所有成员可管理活动项目样式，归档时仅查看，无需选择视频。设置页组合 style-ui/ProjectStyleManager，以 subtitle-model/cue-order 提供已保存字幕的显示顺序，不依赖 workspace-ui 内部实现。
+
+项目设置页不提供「返回项目列表」按钮；页头 CueRelay 首页链接和浏览器历史继续可用。
+
+设置页元数据保存、样式保存、显式刷新共用一份 ProjectDetail/revision 和 busy 状态；名称/说明草稿独立保留。样式保存使用已保存文档，不提交工作区未保存的字幕/时间输入。冲突/失败保留输入，显式刷新展示服务器最新名称/说明并更新保存基准。设置页不更新保留工作区的文档或 revision，旧工作区保存继续冲突，明确重载后才接受新样式。直接访问、登录后继续和刷新均保留目标组织/项目；不存在/无权限/归档有明确状态。回归：`npm run test:project-settings`、`npm run test:style-management` 使用 HTTP 测试夹具，不访问开发数据库。
 
 本次验证及限制见 [项目设置记录](../../../docs/experiments/project-settings.md)。
