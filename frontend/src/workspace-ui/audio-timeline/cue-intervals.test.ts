@@ -3,7 +3,7 @@ import type { Cue } from '../../contracts/subtitles';
 import { intervalPosition, visibleCueIntervals } from './cue-intervals';
 import { xAtTime } from './viewport';
 
-const cue = (id: string, start: number, end: number): Cue => ({ id, start_ms: start, end_ms: end, style: 'Default', text: '' });
+const cue = (id: string, start: number, end: number): Cue => ({ id, start_ms: start, end_ms: end, style_id: 'Default', text: '' });
 
 describe('visible subtitle context', () => {
   it('projects an active draft with the same clipping rule, hiding invalid draft fills', () => {

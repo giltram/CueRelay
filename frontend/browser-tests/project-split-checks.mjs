@@ -1,3 +1,4 @@
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -10,12 +11,13 @@ export async function checkProjectSplits(browser, file, emptyDocument, splitOnBa
     created_at: '2026-10-24T00:00:00Z', updated_at: '2026-10-24T00:00:00Z', updated_by: { username: 'member' }, archived_by: null, archived_at: null,
     media: { sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length, duration_ms: 20000 },
     document: { ...emptyDocument, cues: [
-      { id: 'new-empty', start_ms: 10000, end_ms: 16000, style: 'Default', text: '' },
-      { id: 'new-next', start_ms: 16000, end_ms: 18000, style: 'Default', text: '后续保留' },
+      { id: 'new-empty', start_ms: 10000, end_ms: 16000, style_id: emptyDocument.styles[0].id, text: '' },
+      { id: 'new-next', start_ms: 16000, end_ms: 18000, style_id: emptyDocument.styles[0].id, text: '后续保留' },
     ] },
   };
   const commands = [], errors = [], unexpected = [];
   await context.route('**/api/**', async route => {
+    if (await unavailableAssPreview(route)) return;
     const request = route.request(), path = new URL(request.url()).pathname;
     if (request.method() === 'POST' && path.endsWith('/split')) {
       const { revision, ...split } = request.postDataJSON(); commands.push({ revision, ...split });

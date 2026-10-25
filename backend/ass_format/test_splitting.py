@@ -7,7 +7,7 @@ from ass_format import AssError, empty_document, parse_ass, serialize_ass, split
 
 def document_with(text='', start=10000, end=16000):
     doc = empty_document()
-    doc['cues'] = [{'id': 'new-original', 'start_ms': start, 'end_ms': end, 'text': text, 'style': 'Default'}]
+    doc['cues'] = [{'id': 'new-original', 'start_ms': start, 'end_ms': end, 'text': text, 'style_id': doc['styles'][0]['id']}]
     return doc
 
 

@@ -1,11 +1,12 @@
+import { testStyle, testScript } from '../contracts/subtitles.test-fixtures';
 import { describe, expect, it } from 'vitest';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { deleteCue } from './delete-cue';
 
-const first: Cue = { id: 'first', start_ms: 1000, end_ms: 2000, style: 'Default', text: 'first' };
-const second: Cue = { ...first, id: 'second', start_ms: 3000, end_ms: 4000, style: 'Emphasis', text: 'second' };
+const first: Cue = { id: 'first', start_ms: 1000, end_ms: 2000, style_id: 'Default', text: 'first' };
+const second: Cue = { ...first, id: 'second', start_ms: 3000, end_ms: 4000, style_id: 'Emphasis', text: 'second' };
 const third: Cue = { ...first, id: 'third', start_ms: 5000, end_ms: 6000 };
-const document: AssDocument = { source: 'original template', styles: ['Default', 'Emphasis'], cues: [third, first, second] };
+const document: AssDocument = { source: 'original template', styles: ['Default', 'Emphasis'].map(testStyle), schema_version: 2, script: testScript, cues: [third, first, second] };
 
 describe('delete the current subtitle', () => {
   it('selects the next displayed row and preserves remaining ASS order and content', () => {

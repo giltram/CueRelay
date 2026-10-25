@@ -13,13 +13,15 @@ interface Props {
   duration: number;
   onSeek: (milliseconds: number) => void;
   controls: ReactNode;
+  status?: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: { file: File; sha256: string };
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, status, expectedMedia, initialMedia, onVerifiedChange }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(() => initialMedia && expectedMedia && matchesMedia(initialMedia.file, initialMedia.sha256, expectedMedia) ? initialMedia.file : null);
   const [locked, setLocked] = useState(false);
@@ -61,7 +63,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
   }, [file, onVideo]);
 
   return <section className="player-section">
-    <div className="video-stage">
+    <div className="video-stage" ref={stage}>
       <video ref={ref} playsInline preload="metadata"
         onLoadedMetadata={e => {
           const duration = e.currentTarget.duration;
@@ -85,6 +87,11 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
           setLocked(false); setFile(null); onDuration(0);
         }} />
       {!file && <div className="video-placeholder">导入本地视频<span>视频不会上传</span></div>}
+      {file && <button type="button" className="video-fullscreen" aria-label="切换视频全屏" onClick={() => {
+        if (!stage.current?.requestFullscreen) { onError('当前浏览器无法进入全屏。'); return; }
+        const action = document.fullscreenElement ? document.exitFullscreen() : stage.current?.requestFullscreen();
+        void action?.catch(() => onError('当前浏览器无法进入全屏。'));
+      }}>全屏</button>}
     </div>
     <input className="video-progress" type="range" aria-label="视频进度"
       min={0} max={duration || 1} step="any" value={Math.min(currentTime, duration)}
@@ -102,5 +109,6 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
         e.target.value = '';
       }} />
     </div>
+    {status}
   </section>;
 }

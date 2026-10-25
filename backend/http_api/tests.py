@@ -5,6 +5,19 @@ FIXTURES = Path(__file__).resolve().parent.parent / "ass_format" / "fixtures"
 
 
 class ConversionContractTests(SimpleTestCase):
+    def test_styles_endpoint_is_stateless_csrf_independent_and_validates_schema(self):
+        from django.test import Client
+        client = Client(enforce_csrf_checks=True)
+        document = client.get('/api/ass/empty').json()['document']
+        response = client.post('/api/ass/styles', {'document': document, 'operation': {
+            'type': 'copy', 'id': document['styles'][0]['id'], 'name': 'Actor', 'fields': {'Fontsize': '55'}}}, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()['document']['styles']), 2)
+        self.assertEqual(client.post('/api/ass/styles', {}, content_type='application/json').status_code, 400)
+        self.assertEqual(client.post('/api/ass/styles', {'document': document, 'operation': {'type': 'import'}}, content_type='application/json').status_code, 422)
+        self.assertEqual(client.post('/api/ass/styles', {'document': {'source': '', 'styles': [], 'cues': []}, 'operation': {'type': 'inspect'}}, content_type='application/json').status_code, 422)
+        self.assertEqual(client.get('/api/ass/styles').status_code, 405)
+
     def test_empty_import_export_and_edit_contract(self):
         empty = self.client.get("/api/ass/empty")
         self.assertEqual(empty.status_code, 200)
@@ -36,7 +49,7 @@ class ConversionContractTests(SimpleTestCase):
 
     def test_invalid_export_time_and_text_are_rejected(self):
         document = self.client.get("/api/ass/empty").json()["document"]
-        document["cues"] = [{"id": "new-test", "start_ms": 0, "end_ms": 0, "text": "零长度", "style": "Default"}]
+        document["cues"] = [{"id": "new-test", "start_ms": 0, "end_ms": 0, "text": "零长度", "style_id": document["styles"][0]["id"]}]
         result = self.client.post("/api/ass/export", {"document": document}, content_type="application/json")
         self.assertEqual(result.status_code, 422)
         document["cues"][0].update(end_ms=100, text=r"{\pos(1,2)}不支持")
@@ -46,7 +59,7 @@ class ConversionContractTests(SimpleTestCase):
     def test_stateless_split_endpoint_validation_and_roundtrip(self):
         from ass_format import empty_document
         document = empty_document()
-        document['cues'] = [{'id': 'new-test', 'start_ms': 1000, 'end_ms': 4000, 'text': '甲乙', 'style': 'Default'}]
+        document['cues'] = [{'id': 'new-test', 'start_ms': 1000, 'end_ms': 4000, 'text': '甲乙', 'style_id': document['styles'][0]['id']}]
         body = {'document': document, 'cue_id': 'new-test', 'mode': 'text', 'position': 1}
         response = self.client.post('/api/ass/split', body, content_type='application/json')
         self.assertEqual(response.status_code, 200)
@@ -66,6 +79,6 @@ class ConversionContractTests(SimpleTestCase):
 
     @override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=64)
     def test_json_body_limit_is_enforced_before_json_parser(self):
-        for endpoint, payload in [("import", {"source": "x" * 100}), ("export", {"document": {"source": "x" * 100}}), ("split", {"document": {"source": "x" * 100}})]:
+        for endpoint, payload in [("import", {"source": "x" * 100}), ("export", {"document": {"source": "x" * 100}}), ("split", {"document": {"source": "x" * 100}}), ("styles", {"document": {"source": "x" * 100}})]:
             result = self.client.post(f"/api/ass/{endpoint}", payload, content_type="application/json")
             self.assertEqual(result.status_code, 413)

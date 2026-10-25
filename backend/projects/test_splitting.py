@@ -16,7 +16,7 @@ MEDIA = {'sha256': 'a' * 64, 'size': 100, 'duration_ms': 20000}
 
 def source(text=''):
     doc = empty_document()
-    doc['cues'] = [{'id': 'new-test', 'start_ms': 10000, 'end_ms': 16000, 'text': text, 'style': 'Default'}]
+    doc['cues'] = [{'id': 'new-test', 'start_ms': 10000, 'end_ms': 16000, 'text': text, 'style_id': doc['styles'][0]['id']}]
     return serialize_ass(doc)
 
 
@@ -40,7 +40,7 @@ class SplitContractTests(TestCase):
 
     def test_member_split_saves_entire_snapshot_once_and_second_member_reads_it(self):
         # Preserve unsaved edits in the supplied revision-bound snapshot as well.
-        self.body['document']['cues'][0]['style'] = 'Default'
+        self.body['document']['cues'][0]['style_id'] = self.project.document['styles'][0]['id']
         result = self.post()
         self.assertEqual(result.status_code, 200)
         value = result.json()

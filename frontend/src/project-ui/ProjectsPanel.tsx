@@ -98,7 +98,7 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
       : '暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。'}</p>
       {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
     </div>}
-    {organization && creating && <ProjectForm api={api} organization={organization}
+    {organization && creating && <ProjectForm api={api} organization={organization} request={request}
       onClose={() => setCreating(false)} onSaved={saved} />}
     {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} showCloseButton={confirm.status !== 'active'} onClose={busy ? undefined : () => setConfirm(null)}>
       <p>{confirm.status === 'active' ? `归档「${confirm.name}」后所有成员只能查看和导出，尚未保存的稿件不会自动提交。` : `恢复「${confirm.name}」后，组织成员可以继续工作。`}</p>

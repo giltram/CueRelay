@@ -12,13 +12,18 @@ def basic_source():
     return (FIXTURES / "basic.ass").read_text(encoding="utf-8")
 
 
+def named_cues(document):
+    names = {style['id']: style['name'] for style in document['styles']}
+    return [{**{k: v for k, v in cue.items() if k != 'style_id'}, 'style': names[cue['style_id']]} for cue in document['cues']]
+
+
 class CodecTests(unittest.TestCase):
     def test_basic_roundtrip_preserves_semantics_and_anchors(self):
         source = basic_source()
         document = parse_ass(source)
         output = serialize_ass(document)
-        self.assertEqual(parse_ass(output)["cues"], document["cues"])
-        self.assertEqual(parse_ass(output)["styles"], ["Default", "Emphasis"])
+        self.assertEqual(named_cues(parse_ass(output)), named_cues(document))
+        self.assertEqual([s["name"] for s in parse_ass(output)["styles"]], ["Default", "Emphasis"])
         self.assertIn("; Keep this anchor", output)
         self.assertIn("Comment: 0,0:00:02.00,0:00:02.50,Default,备注,0000,0000,0000,,保留注释", output)
         original, exported = (pysubs2.SSAFile.from_string(s, format_="ass") for s in (source, output))
@@ -31,16 +36,16 @@ class CodecTests(unittest.TestCase):
     def test_edits_and_new_events_keep_expected_changes_only(self):
         document = parse_ass(basic_source())
         original = deepcopy(document)
-        document["cues"][0].update(start_ms=1230, end_ms=3450, text="修改中文\\N换行{\\u1}强调{\\u0}", style="Emphasis")
-        document["cues"].append({"id": "new-example", "start_ms": 200, "end_ms": 500, "style": "Default", "text": "追加行"})
+        document["cues"][0].update(start_ms=1230, end_ms=3450, text="修改中文\\N换行{\\u1}强调{\\u0}", style_id=document["styles"][1]["id"])
+        document["cues"].append({"id": "new-example", "start_ms": 200, "end_ms": 500, "style_id": document["styles"][0]["id"], "text": "追加行"})
         # The chronological view may sort, but export keeps original event order.
         document["cues"].reverse()
         output = serialize_ass(document)
         result = parse_ass(output)
         self.assertEqual(result["cues"][0]["start_ms"], 1230)
         self.assertEqual(result["cues"][0]["text"], "修改中文\\N换行{\\u1}强调{\\u0}")
-        self.assertEqual(result["cues"][0]["style"], "Emphasis")
-        self.assertEqual(result["cues"][1], original["cues"][1])
+        self.assertEqual(named_cues(result)[0]["style"], "Emphasis")
+        self.assertEqual(named_cues(result)[1], named_cues(original)[1])
         self.assertEqual(result["cues"][2]["text"], "追加行")
         self.assertIn("译者,0000,0000,0000,,", output)
         self.assertIn("Comment:", output)
@@ -62,7 +67,7 @@ class CodecTests(unittest.TestCase):
         source = source.replace("Dialogue: 1,0:00:02.50,", "Dialogue: 0:00:02.50,1,")
         document = parse_ass(source)
         self.assertEqual(document["cues"][0]["start_ms"], 1200)
-        self.assertEqual(parse_ass(serialize_ass(document))["cues"], document["cues"])
+        self.assertEqual(named_cues(parse_ass(serialize_ass(document))), named_cues(document))
 
     def test_unsupported_content_is_rejected_including_comment_and_edited_text(self):
         unsupported = (FIXTURES / "unsupported.ass").read_text()
@@ -82,7 +87,7 @@ class CodecTests(unittest.TestCase):
                 serialize_ass(document)
 
     def test_unknown_style_duplicate_ids_and_extra_fields_rejected(self):
-        for patch in [{"style": "missing"}, {"id": "unknown"}, {"extra": "unaccepted"}]:
+        for patch in [{"style_id": "missing"}, {"id": "unknown"}, {"extra": "unaccepted"}]:
             document = parse_ass(basic_source())
             document["cues"][0].update(patch)
             with self.assertRaises(AssError):

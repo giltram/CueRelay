@@ -6,6 +6,6 @@ export const DEFAULT_CUE_DURATION_MS = 2000;
 export function initializeDocument(document: AssDocument, createId: () => string): AssDocument {
   if (document.cues.length) return document;
   return { ...document, cues: [{
-    id: createId(), start_ms: 0, end_ms: DEFAULT_CUE_DURATION_MS, text: '', style: document.styles[0],
+    id: createId(), start_ms: 0, end_ms: DEFAULT_CUE_DURATION_MS, text: '', style_id: document.styles[0].id,
   }] };
 }

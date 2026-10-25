@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Cue } from '../contracts/subtitles';
+import type { ProjectStyle } from '../contracts/styles';
 import { formatTime } from '../media/playback';
 import { orderCues } from './cue-order';
 import { cueCps } from './cue-cps';
@@ -8,12 +9,14 @@ import { clampCueColumnWidth, cueColumns, cueRowNumberWidth, cueTableMinimumWidt
 
 interface Props {
   cues: Cue[];
+  styles: ProjectStyle[];
   selectedId: string | null;
   currentTime: number;
   onSelect: (cue: Cue) => void;
 }
 
-export function CueTable({ cues, selectedId, currentTime, onSelect }: Props) {
+export function CueTable({ cues, styles, selectedId, currentTime, onSelect }: Props) {
+  const names = new Map(styles.map(style => [style.id, style.name]));
   const rows = useMemo(() => orderCues(cues).map(cue => ({ cue, cps: cueCps(cue) })), [cues]);
   const [widths, setWidths] = useState(defaultCueColumnWidths);
   return <section className="cue-list">
@@ -33,7 +36,7 @@ export function CueTable({ cues, selectedId, currentTime, onSelect }: Props) {
         <td className="time-cell">{formatTime(cue.start_ms)}</td>
         <td className="time-cell">{formatTime(cue.end_ms)}</td>
         <td className="cps-cell">{cps ?? '—'}</td>
-        <td className="style-cell" title={cue.style}>{cue.style}</td>
+        <td className="style-cell" title={names.get(cue.style_id)}>{names.get(cue.style_id) ?? '未知样式'}</td>
         <td><button className="cue-text" onClick={() => onSelect(cue)}>{cue.text || <em>（empty）</em>}</button></td>
       </tr>)}</tbody>
     </table>{!cues.length && <p className="empty">还没有字幕。选好入点和出点，按 G / Enter 提交并开始下一条。</p>}</div>

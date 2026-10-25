@@ -8,7 +8,11 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-10-24 通用编辑操作：新增账号级鼠标边界点击开关（个人设置「快捷键」栏，随「保存快捷键」持久化）及四个默认空绑定动作，沿用现有布局、seek、10ms 精度和快捷键过滤。`ass_format.splitting` 统一执行纯快照拆分；项目 `split_cue` 复用 `save_document` 的权限/事务/revision 路径，一次保存完整快照；本地工作区走无持久化转换接口。两条新 UUID 用可选 source_id 保留原始 ASS 元数据。按用户确认，本次不实现原仓库尚不存在的编辑锁、审核、修改历史和实时推送。完整规则、API 与限制见 [编辑操作契约](editing-operations.md)。
 
+2026-10-24 样式管理 A 阶段：组织模板表与项目 v2 样式快照、稳定 style_id、具名原子操作、复制导入/批量属性修改、脚本设置及受限等比适配已实现。复用项目 revision/权限/事务、原 ASS codec 和 JASSUB。组织设置增加模板库，工作区增加样式面板与独立样本预览；未新增 WS、历史事件或审核系统。已确认范围、迁移/API/测试入口见 [样式管理](style-management.md)。
+
 ## 当前可运行入口
+
+2026-10-24 实时 ASS 预览：`workspace-ui` 把当前文档及有效时间草稿交给 `ass-preview`，复用后端唯一 ASS 序列化器；JASSUB 2.5.23 在本地 Worker/WASM 叠加到现有 video。120ms 合并、过期响应隔离、串行 Track 更新、暂停强制重绘、全屏及同源 Noto Sans SC fallback 见 [预览模块](../frontend/src/ass-preview/README.md)，实测见 [验证记录](experiments/ass-preview.md)。没有新增自动保存或协作传输；Style 写接口见下述样式管理契约，项目远端修改仍经显式重载接受。
 
 2026-10-23 音频阶段 B–D 已接入正式打轴页：`media/audio` 负责本地 MP4 分段 PCM、Worker 内的峰值 / Hann STFT 分析与 32 MiB LRU；`workspace-ui/audio-timeline` 负责 canvas、共享秒坐标视窗和交互。LocalVideoPlayer 通过 onFile 显式发布同一个 File，字幕状态仍归 EditorWorkbench。视频是唯一时间与声音源。Waveform / Spectrum 切换复用 PCM，不改变缩放、平移或播放头。边界拖动 / 键盘只更新工作区的 changeTimeDraft，commitAndAdvance 统一校验、提交并选择下一条。阶段 A 的 `experiments/audio-probe.html`、生命周期探针只用于开发。契约见 [audio README](../frontend/src/media/audio/README.md)，B–D 实测见 [时间轴记录](experiments/audio-timeline.md)，大文件边界见 [A 记录](experiments/local-audio.md)。
 
@@ -38,7 +42,7 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 
 - `backend/manage.py`、`application/{settings,urls,asgi}.py`：Django/DRF 组合根，PostgreSQL 与环境配置，默认受保护接口；`application/admin.py` 显式注册 dev 专用 Admin，`identity_admin.py` 协调账号停用与组织约束。
 - `accounts`：AbstractUser（username 同时用于登录和显示）、PersonalSettings、本人密码/设置服务；AccountBackend + LoginAttempt 以 PostgreSQL 行锁共享账号登录限制，统一密码验证器设置 15–1024 字符。见 [局部契约](../backend/accounts/README.md) 与 [安全/部署契约](account-security.md)。不依赖 organizations 或 HTTP。
-- `organizations`：Organization、OrganizationMembership、固定角色鉴权、成员写入与事务约束，见 [局部契约](../backend/organizations/README.md)。依赖 accounts 的公开 User 身份；目标用户锁在组织锁之前，多组织按 id 锁定，维护至少一名活动 organizer。
+- `organizations`：Organization、OrganizationMembership、固定角色鉴权、成员写入与事务约束，见 [局部契约](../backend/organizations/README.md)。依赖 accounts 的公开 User 身份及 ass_format 的纯样式校验；目标用户锁在组织锁之前，多组织按 id 锁定，维护至少一名活动 organizer。
 - `http_api/identity_views.py`：Session/登录/退出/本人只读身份、密码/设置、组织及成员 JSON 适配。身份、成员和项目操作者统一显示 username，无自定义显示名；改密要求两份新密码一致。organizer 不能移除或降级其他 organizer，由 organizations.services 在组织锁内重查；dev 仍受最后活动 organizer 约束。Django CSRF 中间件保护匿名登录和全部写入；身份从 Session 获取，白名单拒绝未知字段。与纯格式公开接口分离。
 - `http_api/auth_security.py`：在 CSRF 前限制现有密码入口的请求体和 Admin 密码长度；将认证 backend 的重试秒数转换为 API/Admin 共用的 429 JSON/Retry-After。实际密码校验和账号计数只由 accounts 拥有，不再使用进程内 IP 缓存。
 - `projects`：组织项目生命周期、固定媒体基准、有限 ASS 快照、revision 冲突保护，写入锁操作者 User → Organization → Project；契约见 [projects README](../backend/projects/README.md)，HTTP 适配在 `http_api/project_views.py`。
@@ -56,11 +60,11 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构输入控件，仅接收值与 onChange，区间状态和校验仍由 EditorWorkbench 编排；两组“当前时间 / −10ms / +10ms”按钮及其采集 / 微调回调已移除，边界滑块仍支持方向键微调。EditorWorkbench 的 main 只在鼠标点击普通按钮后接收焦点（tabIndex=-1、preventScroll），避免 Enter / Space 再次激活刚点击的按钮；键盘 / Tab 激活继续保留按钮原生行为，边界 role=slider 不转移焦点。AudioTimeline 左 / 右键操作显式聚焦 stage，右键设置出点不再遗留输入框焦点。`allowsShortcutFocus` 允许 slider 上的 Enter / Space，保留输入框 / 视频控件 / IME、修饰键、重复及 defaultPrevented 过滤；普通键盘焦点按钮 / 链接仍保留原生激活。回归见 `browser-tests/shortcut-focus-checks.mjs`。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
 - `workspace-ui/ResizableWorkbench.tsx` 拥有桌面分栏比例、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
 - `workspace-ui/workbench-sizing.ts` 唯一负责宽度边界：媒体栏最低 300px、编辑栏最低 480px，视频最大宽度由上方区域可用高度和 16:9 决定，避免继续扩宽后视频大小不再变化。空间不足时以保留编辑区为先。CSS 的 `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试。
-- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频时间轴和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、频谱、0.5–60 秒视窗、滚轮平移 / Shift+滚轮缩放 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框引用当前 ASS 文档的样式名，仅修改选中字幕的引用，不编辑样式定义。
-- `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 68px 给独立进度条与导入 / 播放 / 时钟共用的控制栏，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
-- 已移除字幕预览 / 字体设置、JASSUB 依赖、定位测量和手输时间跳转；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
+- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频时间轴和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、频谱、0.5–60 秒视窗、滚轮平移 / Shift+滚轮缩放 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框按 name 展示、以稳定 style_id 修改当前行引用；样式定义由独立 style-ui 面板经具名服务操作。
+- `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 96px 给独立进度条、导入 / 播放 / 时钟 / 字幕开关共用控制栏及画面外预览状态提示，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
+- `ass-preview` 已恢复实时 ASS 渲染，接收 workspace-ui 注入的 serialize 函数，不依赖 project-data。LocalVideoPlayer 通过 controls/status 插槽组合开关和提示，全屏包含 video/canvas；不增加媒体层对渲染器的依赖。字体管理、定位测量和手输时间跳转仍未提供；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
-当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → accounts`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, navigation, app-workspace}`，`{project-ui, account-ui/SettingsPage} → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
+当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → {accounts, ass_format}`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, style-ui, navigation, app-workspace}`，`{project-ui, account-ui/SettingsPage} → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`、`workspace-ui → ass-preview → {contracts, JASSUB}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，`{workspace-ui, project-ui} → style-ui → {project-data, ass-preview, account-ui/Modal}`；App 通过 SettingsPage 的 ReactNode 插槽组合组织库，style-ui 不访问工作区内部。底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
 ## 1. 阅读路径与文档所有权
 
@@ -101,7 +105,7 @@ P0 采用少量实际责任模块，而不是为每个候选实体建立一个 D
 | 建议模块 | 所有权与公共接口 | 禁止依赖 |
 | --- | --- | --- |
 | accounts | 已实现 User、Session 身份/本人密码和设置；不建立全局工种体系 | 不依赖组织、项目、传输层 |
-| organizations | 已实现多组织、固定 organizer/member、鉴权与最后活动管理者约束 | 仅依赖 accounts；停用协调在 application |
+| organizations | 已实现多组织、固定角色、组织模板与鉴权/最后活动管理者约束 | 依赖 accounts 和 ass_format 公开纯校验；停用协调在 application |
 | ass_format | 纯解析/预检/序列化/文本子集验证，输入字节或明确 DTO，输出文档数据/问题列表；无 ORM/网络副作用 | 不依赖 Django 项目模型、React、Redis |
 | projects | 项目/成员/媒体基准/样式/字幕/审核/租约/历史/回执的唯一数据所有者；公开 `commands` 和 `queries` 的具名操作及结果 DTO | 不依赖 HTTP、WS、Redis 或前端；不自行广播 |
 | http_api | 身份提取、CSRF、请求验证、命令映射、快照/重放/导入导出响应；提交后触发通知 | 不访问 projects 私有 ORM 模型，不重新实现审核/锁规则 |
@@ -116,6 +120,7 @@ flowchart TD
     http_api --> accounts
     http_api --> organizations
     organizations --> accounts
+    organizations --> ass_format
     http_api --> ass_format
     http_api --> collaboration
     collaboration --> projects
@@ -134,7 +139,7 @@ projects 内按具体职责组织聚焦文件：模型定义、权限、时间�
 
 ## 4. 前端模块与数据所有权
 
-下表为未来协作结构；ass-preview 当前已移除，恢复时需重新确认产品范围。当前依赖以文首可运行入口为准。
+下表包含未来协作结构；ass-preview 已实现本地实时预览，project-data 的 WS/协作状态等仍是未来设计。当前依赖以文首可运行入口为准。
 
 | 模块 | 职责与接口 |
 | --- | --- |
@@ -199,7 +204,7 @@ Alpha 期间保留项目全部业务历史与成功命令回执，不截断审�
 | 容器与文件访问 | 扩展名不能决定编码可播放；标准选片作基线，持久句柄只做增强。[媒体容器说明](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Containers)、[File System API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) |
 | 增量哈希 | SubtleCrypto.digest 不接受流式输入；推荐 Worker 顺序读取固定大小块，交给增量 SHA-256，不能散列各块再拼接摘要充当文件 SHA-256。hash-wasm 是支持分块输入的候选，需核验实际发行包及许可证。[MDN digest](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest)、[hash-wasm 官方仓库](https://github.com/Daninet/hash-wasm) |
 | 波形 | wavesurfer.js（BSD-3-Clause 候选）可评估显示与区间交互，不能当作长视频低内存解码方案；官方说明大音频整段解码存在内存风险，须验证本地分段解码/峰值方案。[官方仓库及 FAQ](https://github.com/katspaugh/wavesurfer.js) |
-| ASS 渲染 | 历史验证采用 JASSUB 2.5.23，当前已按产品要求移除：本地 Worker/WASM、用户字体及跨源隔离路径已做合成检查；单线程降级未实测。wrapper、WASM 及传递依赖许可证不同，不能把整个发行包概括为 MIT，见实验记录。渲染能力不决定可编辑子集。[JASSUB](https://github.com/ThaUnknown/jassub)、[libass](https://github.com/libass/libass) |
+| ASS 渲染 | 当前恢复并固定 JASSUB 2.5.23：本地 Worker/WASM、同源中文 fallback、实时 Track 更新、跨源隔离与单线程路径均已在 Chrome 合成实测。色彩及失败清理适配见预览模块；Safari/Firefox 仍待实测。wrapper、WASM 及传递依赖许可证不同，不能把整个发行包概括为 MIT，见实验记录。渲染能力不决定可编辑子集。[JASSUB](https://github.com/ThaUnknown/jassub)、[libass](https://github.com/libass/libass) |
 | ASS 格式 | pysubs2（MIT）可作为解析/测试候选，但不能未验证就承担原始数据保真；通过 ass_format 隔离依赖，必要时为严格子集做小型保留适配。[官方文档](https://pysubs2.readthedocs.io/en/latest/) |
 | Redis | 许可证与版本有关，不能把所有新版本都当成 BSD；M0 记录使用版本和许可路径。若不符合分发要求，再评估替代实现并实测 channels_redis，不能仅凭协议相似认定兼容。[Redis 许可证表](https://redis.io/legal/licenses/) |
 

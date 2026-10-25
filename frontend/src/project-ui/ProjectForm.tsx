@@ -3,11 +3,15 @@ import type { Organization } from '../account-ui/api';
 import { Modal } from '../account-ui/Modal';
 import type { ProjectDetail, MediaManifest } from '../contracts/projects';
 import { createMediaManifest } from '../media/media-manifest';
-import { importAss } from '../project-data/ass-api';
+import { importAss, loadEmptyDocument } from '../project-data/ass-api';
+import type { JsonRequest } from '../contracts/http';
+import type { ImportStyle, ScriptSettings } from '../contracts/styles';
+import { TemplateImportSelection } from '../style-ui/TemplateImportSelection';
+import { ScriptSettingsEditor } from '../style-ui/StyleFieldsEditor';
 import type { projectApi } from '../project-data/projects-api';
 
-export function ProjectForm({ organization, api, onClose, onSaved }: {
-  organization: Organization; api: ReturnType<typeof projectApi>;
+export function ProjectForm({ organization, api, request, onClose, onSaved }: {
+  organization: Organization; api: ReturnType<typeof projectApi>; request: JsonRequest;
   onClose: () => void; onSaved: (project: ProjectDetail, video?: File) => void;
 }) {
   const [name, setName] = useState('');
@@ -21,6 +25,17 @@ export function ProjectForm({ organization, api, onClose, onSaved }: {
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [script, setScript] = useState<ScriptSettings | null>(null);
+  const [styleImports, setStyleImports] = useState<ImportStyle[]>([]);
+  const [initialStyles, setInitialStyles] = useState<{ name: string }[]>([]);
+  const initialDocumentVersion = useRef(0);
+  useEffect(() => {
+    let active = true;
+    const version = initialDocumentVersion.current;
+    void loadEmptyDocument().then(document => { if (active && version === initialDocumentVersion.current) { setScript(document.script); setInitialStyles(document.styles); } })
+      .catch(reason => { if (active) setError(reason.message); });
+    return () => { active = false; };
+  }, []);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   async function inspect(file: File) {
@@ -39,7 +54,7 @@ export function ProjectForm({ organization, api, onClose, onSaved }: {
       event.preventDefault(); setError('');
       if (!media || (mode === 'import' && source === null)) { setError('请完成视频校验并选择初始字幕。'); return; }
       setBusy(true);
-      void api.create({ name, description, media, source: mode === 'empty' ? null : source })
+      void api.create({ name, description, media, source: mode === 'empty' ? null : source, style_imports: styleImports, ...(script ? { script } : {}) })
         .then(value => onSaved(value, selectedFile.current)).catch(reason => setError(reason.message)).finally(() => setBusy(false));
     }}>
       <p>所属组织：{organization.name}</p>
@@ -56,12 +71,19 @@ export function ProjectForm({ organization, api, onClose, onSaved }: {
       </select></label>
       {mode === 'import' && <label>ASS 文件<input type="file" accept=".ass" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]; if (!file) return;
+        initialDocumentVersion.current++;
         setBusy(true); setError(''); setSource(null); setAssName('');
-        void importAss(file).then(document => { setSource(document.source); setAssName(file.name); })
+        void importAss(file).then(document => { setSource(document.source); setAssName(file.name); setScript(document.script); setInitialStyles(document.styles); })
           .catch(reason => setError(reason.message)).finally(() => setBusy(false));
         event.target.value = '';
       }} /></label>}
       {mode === 'import' && assName && <p>{assName} · 字幕预检通过</p>}
+      <fieldset disabled={busy}>
+        <details><summary>样式模板与脚本设置（可选）</summary>
+          {script && <ScriptSettingsEditor value={script} onChange={value => { initialDocumentVersion.current++; setScript(value); }} />}
+          <TemplateImportSelection request={request} organizationId={organization.id} value={styleImports} onChange={setStyleImports} existing={initialStyles} />
+        </details>
+      </fieldset>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="controls">
         <button type="button" disabled={busy} onClick={onClose}>取消</button>

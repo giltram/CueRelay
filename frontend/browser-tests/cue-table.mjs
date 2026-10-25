@@ -1,3 +1,5 @@
+import { uiDocument } from './ass-codec.mjs';
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 // UI-only fixtures: no development accounts, database writes or ASS conversion.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -19,9 +21,10 @@ try {
     '/api/auth/session': { user: { id: 1, username: 'cue-table-fixture', is_dev: false } },
     '/api/organizations': { organizations: [] },
     '/api/me/settings': { shortcut_overrides: {}, audio_display_mode: 'spectrum' },
-    '/api/ass/empty': { document: { source: '', styles: ['Default', 'Emphasis'], cues: [] } },
+    '/api/ass/empty': { document: uiDocument(['Default', 'Emphasis']) },
   };
   await page.route('**/api/**', async route => {
+    if (await unavailableAssPreview(route)) return;
     const request = route.request(); const path = new URL(request.url()).pathname;
     if (request.method() === 'GET' && fixtures[path]) {
       await route.fulfill({ json: fixtures[path] });
@@ -51,7 +54,7 @@ try {
 
   await page.getByLabel('字幕中文文本').fill('你，好！\\N世界');
   assert.equal(await rows.first().locator('.cps-cell').textContent(), '2');
-  await page.getByLabel('字幕样式', { exact: true }).selectOption('Emphasis');
+  await page.getByLabel('字幕样式', { exact: true }).selectOption({ label: 'Emphasis' });
   assert.equal(await rows.first().locator('td').nth(4).textContent(), 'Emphasis');
   await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:04.00');
   assert.equal(await rows.first().locator('.cps-cell').textContent(), '2'); // Unapplied draft is separate.

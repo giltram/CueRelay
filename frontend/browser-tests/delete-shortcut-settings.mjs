@@ -1,3 +1,5 @@
+import { uiDocument } from './ass-codec.mjs';
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 // UI persistence fixtures; actual settings validation is covered by IdentityTests.
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
@@ -13,6 +15,7 @@ const context = await browser.newContext({ baseURL, viewport: { width: 1360, hei
 const errors = [], unexpected = [];
 let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum', defaults };
 await context.route('**/api/**', async route => {
+  if (await unavailableAssPreview(route)) return;
   const request = route.request(), path = new URL(request.url()).pathname;
   if (path === '/api/me/settings') {
     if (request.method() === 'PATCH') settings = { ...settings, ...request.postDataJSON() };
@@ -21,7 +24,7 @@ await context.route('**/api/**', async route => {
   const fixtures = {
     '/api/auth/session': { user: { id: 1, username: 'shortcut-fixture', is_dev: false } },
     '/api/organizations': { organizations: [] },
-    '/api/ass/empty': { document: { source: '', styles: ['Default'], cues: [] } },
+    '/api/ass/empty': { document: uiDocument(['Default']) },
   };
   if (request.method() === 'GET' && fixtures[path]) return route.fulfill({ json: fixtures[path] });
   unexpected.push(`${request.method()} ${path}`); await route.abort();

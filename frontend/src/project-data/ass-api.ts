@@ -1,4 +1,5 @@
 import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
+import { documentV2 } from './document-version';
 
 async function checked(response: Response): Promise<Response> {
   if (response.ok) return response;
@@ -10,7 +11,7 @@ async function checked(response: Response): Promise<Response> {
 
 export async function loadEmptyDocument(): Promise<AssDocument> {
   const response = await checked(await fetch('/api/ass/empty'));
-  return (await response.json()).document;
+  return documentV2((await response.json()).document);
 }
 
 export async function importAss(file: File): Promise<AssDocument> {
@@ -24,7 +25,7 @@ export async function importAss(file: File): Promise<AssDocument> {
   const response = await checked(await fetch('/api/ass/import', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source }),
   }));
-  return (await response.json()).document;
+  return documentV2((await response.json()).document);
 }
 
 /** Also used for preview: one backend serializer, no frontend ASS generation. */

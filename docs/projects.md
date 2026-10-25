@@ -59,3 +59,9 @@ Session/CSRF、账号变更头、no-store、错误格式复用既有 HTTP 边界
 项目列表右上角的「设置」进入个人/组织设置独立页面，路径和职责见 [账号界面](../frontend/src/account-ui/README.md)。已移除「返回工作区」入口；默认点击同项目链接仍新开独立工作区；只有同文档浏览器前进/回退恢复保留实例。组织切换器仅在项目列表，工作区和设置页不保留。
 
 视频和字幕选片取消不关闭创建弹窗，也不清除名称、说明或已校验的文件；Modal 区分文件 input 冒泡的 cancel 与 dialog 自身取消。具体回归与限制见 [单页创建记录](experiments/project-form.md)。旧创建地址 `/organizations/:organizationId/projects/new` 规范到对应列表。
+
+## 样式管理升级
+
+样式不再是名称数组：Project.document 使用 schema_version=2 的结构化样式与脚本设置，Cue.style_id 指向本项目 UUID。项目样式管理沿用当前 member 可编辑能力及整文档 revision；操作会保存当前已应用字幕，时间草稿保持独立。组织模板只能 organizer/dev 管理，创建项目和已有项目都可复制导入。模板来源 UUID/revision 仅用于追踪。ASS 初始 source 仍不可替换。
+
+需应用 organizations.0002 与 projects.0002 并同步升级客户端；维护窗口先导出页面稿件和备份数据库。旧页面与 v1 写入明确拒绝。详细 API、适配边界与验证见 [样式管理契约](style-management.md)。

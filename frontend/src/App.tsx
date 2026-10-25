@@ -12,6 +12,8 @@ import { HomeLink } from './navigation/HomeLink';
 import { RouteStatus } from './navigation/RouteStatus';
 import { routeOrganization, routePath, type Route } from './navigation/routes';
 import { useWorkspace } from './app-workspace/use-workspace';
+import './style-ui/style-management.css';
+import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
 
 interface Transition { label: string; action: () => Promise<void> }
 
@@ -207,6 +209,8 @@ export default function App() {
         organization={organization} organizationId={route.organizationId} projectId={route.projectId}
         request={api} header={header} enabled={Boolean(user && settingsReady && !busy && !transition)} navigate={navigate} />}
       {isSettings && <SettingsPage user={user ?? owner} organization={organization}
+        organizationStyles={organization && <OrganizationStyleLibrary key={`${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
+          canManage={organization.can_manage} enabled={Boolean(user && settingsReady && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
         enabled={Boolean(user && settingsReady && !busy && !transition)} ready={settingsReady}
         request={api} settings={settings} navigate={navigate} onSettings={setSettings}
@@ -229,6 +233,8 @@ export default function App() {
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}
+        onStyles={workspace.project ? workspaceState.styles : undefined}
+        styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
     </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>

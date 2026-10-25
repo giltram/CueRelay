@@ -7,10 +7,11 @@ import { RouteLink } from '../navigation/RouteLink';
 import type { Route } from '../navigation/routes';
 
 /** Page layout only; App owns session, organization selection and guarded actions. */
-export function SettingsPage({ user, organization, section, header, enabled, ready, request, settings, navigate,
+export function SettingsPage({ user, organization, section, header, organizationStyles, enabled, ready, request, settings, navigate,
   onSettings, onExit, onChanged, onLeave, onRetry }: {
   user: User; organization?: Organization; section: 'personal' | 'organization'; header: ReactNode;
   enabled: boolean; ready: boolean; request: AccountRequest; settings: Settings;
+  organizationStyles?: ReactNode;
   navigate: (route: Route) => void; onSettings: (settings: Settings) => void;
   onExit: () => void; onChanged: () => void; onLeave: () => void; onRetry: () => void;
 }) {
@@ -35,8 +36,9 @@ export function SettingsPage({ user, organization, section, header, enabled, rea
             </div>
             <PersonalPanel key={user.id} request={request} settings={settings} onSettings={onSettings} />
           </div> : organization
-            ? <MembersPanel key={organization.id} currentUserId={user.id} isDev={user.is_dev} request={request}
+            ? <><MembersPanel key={organization.id} currentUserId={user.id} isDev={user.is_dev} request={request}
               organization={organization} onChanged={onChanged} onLeave={onLeave} />
+              {organizationStyles}</>
             : <div className="account-form"><p role="alert">组织不存在或无权访问。</p><button onClick={onRetry}>重新加载组织</button></div>}
         </fieldset>}
         {section === 'personal' && ready && !organization && <p>暂无可用组织。请联系管理员添加成员后使用组织设置。</p>}

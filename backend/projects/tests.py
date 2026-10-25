@@ -16,7 +16,7 @@ MEDIA = {'sha256': 'a' * 64, 'size': 100, 'duration_ms': 4000}
 
 def with_cue(document, text='测试字幕'):
     document = deepcopy(document)
-    document['cues'] = [{'id': 'new-test', 'start_ms': 0, 'end_ms': 1000, 'text': text, 'style': 'Default'}]
+    document['cues'] = [{'id': 'new-test', 'start_ms': 0, 'end_ms': 1000, 'text': text, 'style_id': document['styles'][0]['id']}]
     return document
 
 

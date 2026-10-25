@@ -1,3 +1,4 @@
+import { testStyle, testScript } from '../contracts/subtitles.test-fixtures';
 import { describe, expect, it, vi } from 'vitest';
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { MAX_TIME_MS } from '../media/playback';
@@ -5,9 +6,9 @@ import { commitTiming } from './commit-timing';
 import { orderCues } from './cue-order';
 
 const cue = (id: string, start: number, style = 'Default'): Cue => ({
-  id, start_ms: start, end_ms: start + 1000, text: `text-${id}`, style,
+  id, start_ms: start, end_ms: start + 1000, text: `text-${id}`, style_id: style,
 });
-const documentWith = (...cues: Cue[]): AssDocument => ({ source: 'original ASS template', styles: ['Default', 'Emphasis'], cues });
+const documentWith = (...cues: Cue[]): AssDocument => ({ source: 'original ASS template', styles: ['Default', 'Emphasis'].map(testStyle), schema_version: 2, script: testScript, cues });
 const ids = () => { let id = 0; return () => `new-${++id}`; };
 
 describe('commit timing and advance', () => {
@@ -15,8 +16,8 @@ describe('commit timing and advance', () => {
     const original = documentWith();
     const result = commitTiming(original, null, 1200, 3400, ids());
     expect(result.document).toEqual({ ...original, cues: [
-      { id: 'new-1', start_ms: 1200, end_ms: 3400, text: '', style: 'Default' },
-      { id: 'new-2', start_ms: 3400, end_ms: 5400, text: '', style: 'Default' },
+      { id: 'new-1', start_ms: 1200, end_ms: 3400, text: '', style_id: 'Default' },
+      { id: 'new-2', start_ms: 3400, end_ms: 5400, text: '', style_id: 'Default' },
     ] });
     expect(result.selected).toBe(result.document.cues[1]);
     expect(original.cues).toEqual([]);
@@ -41,9 +42,9 @@ describe('commit timing and advance', () => {
     const createId = ids();
     const result = commitTiming(documentWith(last), last.id, 4560, 7890, createId);
     expect(result.document.cues[0]).toEqual({ ...last, start_ms: 4560, end_ms: 7890 });
-    expect(result.selected).toEqual({ id: 'new-1', start_ms: 7890, end_ms: 9890, style: 'Emphasis', text: '' });
+    expect(result.selected).toEqual({ id: 'new-1', start_ms: 7890, end_ms: 9890, style_id: 'Emphasis', text: '' });
     const following = commitTiming(result.document, result.selected.id, 7890, 10500, createId);
-    expect(following.selected).toMatchObject({ start_ms: 10500, end_ms: 12500, style: 'Emphasis', text: '' });
+    expect(following.selected).toMatchObject({ start_ms: 10500, end_ms: 12500, style_id: 'Emphasis', text: '' });
   });
 
   it('shares stable table order, choosing the next row before timing edits reorder it', () => {

@@ -21,7 +21,7 @@ npm run preview
 1. 发布 frontend/dist。把响应头片段安装为 `/etc/nginx/snippets/cuerelay-frontend-headers.conf`；配置文件放入现有 Nginx http 上下文。
 2. Django Admin 静态文件需通过实际部署 settings 配置 STATIC_ROOT 并执行 collectstatic，发布到示例 alias 对应目录。开发时这些文件由 Django DEBUG 服务，不要将该方式用于生产。
 3. `/api`、`/api/`、`/admin`、`/admin/` 优先代理 Django；`/static/` 服务 Admin 静态资源；`/assets/` 仅服务存在的前端文件。上述路径缺失时不得回退到 index.html。
-4. 前端路径回退到 index.html，由客户端处理未知页面。index.html 不缓存；前端页面/脚本/Worker 使用现有 COOP/COEP 和 CSP 边界。前端 CSP 仅施加到前端位置，避免改变 Django Admin 页面策略。生产 MIME 配置需正确包含 JS/CSS 类型。
+4. 前端路径回退到 index.html，由客户端处理未知页面。index.html 不缓存；前端页面/脚本/Worker 使用现有 COOP/COEP 和 CSP 边界。前端 CSP 仅施加到前端位置，避免改变 Django Admin 页面策略。生产 MIME 配置需正确包含 JS/CSS、`application/wasm` 和 OTF 字体类型；ASS 预览 Worker/WASM/内置中文字体均在 `/assets/`，缺失时不能回退 HTML。
 5. 外部使用 HTTPS、DEBUG=0、实际 ALLOWED_HOSTS；保留安全 Cookie。示例 8080 仅展示路由边界，没有配置证书或承诺可直接上线；反向代理信任、TLS 和其他安全设置仍见 [账号安全](account-security.md)。不要随意信任客户端传入的转发头。
 6. 发布前执行 nginx -t，然后从实际公网入口验收下列路径和登录/保存。仓库不会自动安装、启动 Nginx 或发布到生产。
 

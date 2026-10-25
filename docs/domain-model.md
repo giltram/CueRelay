@@ -15,7 +15,8 @@
 | Project（快照切片已实现） | 组织、名称/说明、active/archived、不可变媒体基准、有限 ASS document JSON、revision、创建/更新/归档时间和操作者；显式保存、归档只读、可恢复，不硬删除。project_seq/style_revision/租约仍为未来设计 |
 | 项目访问（已实现） | 继承组织关系；member 查看并保存活动项目字幕，organizer 管理本组织元数据与生命周期，dev 管理所有组织；无 ProjectMembership 或工种权限集合 |
 | MediaManifest | Project 内的值对象：完整 SHA-256、文件大小、时间原点约定和必要时长/分辨率；时长等是诊断信息。首次发布后不可替换，不保存路径或媒体字节 |
-| ProjectStyle | 项目内稳定 ID、唯一 ASS 样式名、受支持的 v4+ 样式字段；行引用它。使用中的样式不可删除；P0 不改已引用样式名，允许改样式参数 |
+| OrganizationStyleTemplate（已实现） | 组织模板表：名称/ASS 字段/参考 PlayRes/来源说明/revision/操作者；organizer/dev 管理，同组织复制导入后无动态继承 |
+| ProjectStyle（快照值对象已实现） | Project.document v2 内稳定 UUID、唯一名称、完整 ASS 字段、原始锚点与可选模板来源快照；Cue.style_id 引用。允许改名，禁止删除被 Dialogue/Comment 使用的样式与最后一个样式；无单独 ORM 表 |
 | SubtitleCue | 稳定 ID、项目、开始/结束、原始 ASS 文本、样式 ID、Layer/Name/Margins 等已知字段、事件顺序、`cue_version`、`submitted_version`、软删除标记；空轴→草稿→提交→审核，可反复修改 |
 | Review | 不可变审核决定：批准/要求修改、审核者、时间、可选理由、绑定版本元组；不保存成一个可随意覆盖的 `approved` 布尔值 |
 | EditLease | 一行一个有效排他租约；服务端编辑会话、用户、不可猜测 token、过期时间。申请/续期/释放/撤销；不是修改历史，不以 Redis 为权威 |
@@ -30,6 +31,7 @@ erDiagram
     Organization ||--|{ OrganizationMembership : authorizes
     User ||--o| PersonalSettings : configures
     Organization ||--o{ Project : owns
+    Organization ||--o{ OrganizationStyleTemplate : stores
     Project ||--o{ ProjectStyle : defines
     Project ||--o{ SubtitleCue : contains
     ProjectStyle ||--o{ SubtitleCue : styles
@@ -50,7 +52,7 @@ MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外�
 - 行 ID 永不复用，显示行号不是 ID。时间列表按 `(start,end,event_order,id)` 排序；导出使用独立稳定的 `event_order` 保持 ASS 重叠/碰撞顺序，不能用界面时间排序擅自重排行文件。
 - `cue_version` 从 1 起；每次真正改变行字段、显式提交、删除/恢复加一。无变化保存是 no-op，不增加版本。审核决定自身不改 cue_version，而是追加 Review 和 ChangeEvent。
 - `submitted_version` 仅在显式提交时设为新 cue_version。任一后续行编辑使二者不等，自动回到草稿；不再额外存储容易漂移的“翻译已完成”布尔字段。
-- `style_revision` 是项目全套样式和影响渲染的脚本设置版本；修改任一样式/这些设置递增一次。P0 保守使所有旧样式版本的审核失效，不逐行批量改版本。
+- `style_revision` 是项目全套样式和影响渲染的脚本设置版本；修改任一样式/这些设置递增一次。仅使旧样式版本的视觉 QC 失效，不使内容审核或翻译提交失效，也不逐行批量改版本。
 - `project_seq` 对所有持久项目变更连续递增：行、审核、样式、成员、归档、导入、显式管理员撤锁审计等。一次导入或未来拆并影响多对象，也只占一个序号。失败/no-op/普通租约申请续期释放及过期/在线心跳不增加序号。序号是传输游标，不是所有行的编辑前置条件。
 
 ## 3. 当前固定权限方案 A
@@ -63,11 +65,11 @@ MediaManifest、CommandReceipt 和未来 Comment 未全部画作独立表；外�
 
 组织角色不放在 User 或 Django Group。organizer 不能授予 dev、改站点管理字段、停用账号或管理其他组织。个人设置只属于本人账号；所有组织写入重查活动身份及目标组织权限，不能信任前端组织选择。
 
-降级、移除、退出和关联账号停用均必须在组织行锁下保留至少一名活动 organizer；完整锁顺序、Admin 边界与 API 契约见 [user-system](user-system.md)。组织样式管理将归 organizer，但本轮不实现样式库或项目级权限矩阵。独立本地工作区仍无云端组织归属；显式创建的项目属于其组织，切组织不会上传或转移已有本地字幕。后续审核/租约章节只描述未来数据流，不改变本切片的固定角色决定。
+降级、移除、退出和关联账号停用均必须在组织行锁下保留至少一名活动 organizer；完整锁顺序、Admin 边界与 API 契约见 [user-system](user-system.md)。组织模板管理已归 organizer/dev；项目 member/organizer/dev 可编辑样式，未新增项目级权限矩阵。独立本地工作区仍无云端组织归属；显式创建的项目属于其组织，切组织不会上传或转移已有本地字幕。后续审核/租约章节只描述未来数据流，不改变本切片的固定角色决定。
 
-## 4. 提交与审核的派生状态
+## 4. 提交与视觉 QC 的派生状态（未来设计）
 
-有效审核绑定 `(cue_id, cue_version, style_revision, media_sha256)`。服务器在同一事务中检查这些值仍是当前值、行未删除且当前翻译已提交，再记录决定。批准和要求修改都需要显式操作，不能由自动保存推断。
+当前尚无审核实体；本节状态机描述未来视觉 QC。内容审核须单独绑定对应内容版本并保留，样式变化不清除内容审核事实。有效视觉 QC 绑定 `(cue_id, cue_version, style_revision, media_sha256)`。服务器在同一事务中检查这些值仍是当前值、行未删除且当前翻译已提交，再记录决定。批准和要求修改都需要显式操作，不能由自动保存推断。
 
 ```mermaid
 stateDiagram-v2
@@ -99,7 +101,7 @@ stateDiagram-v2
 
 可提交条件包括合法时间、有效项目样式、受支持的 ASS 语法和至少一个可显示非空白字符；不能只剥掉大括号后误判含绘图的行。无修改但要求重新提交时，显式 submit 仍生成新版本和历史；普通重复保存不会冒充重新提交。同一版本重复审核通过预期的 review-head ID 防止覆盖未知决定，详见协议。
 
-内容或时间改变后历史 Review 原样保留，只是不再有效。样式改动不撤销翻译提交，因此回到 Ready 而非 Draft。P0 基准视频不能更换。相邻行改变不会自动改变本行状态；审核界面保留当时 project_seq 供上下文追查，但它不是整个项目的批准证明。
+内容或时间改变后历史 Review 原样保留，只是不再有效。样式改动不撤销翻译提交或内容审核；仅视觉 QC 回到 Ready 而非 Draft。P0 基准视频不能更换。相邻行改变不会自动改变本行状态；审核界面保留当时 project_seq 供上下文追查，但它不是整个项目的批准证明。
 
 ## 5. 日常流转与结构性操作
 

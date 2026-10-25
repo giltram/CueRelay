@@ -1,3 +1,5 @@
+import { uiDocument } from './ass-codec.mjs';
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 // UI fixtures and a real local MP4; no development accounts or database writes.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -20,9 +22,10 @@ try {
     '/api/auth/session': { user: { id: 1, username: 'progress-fixture', is_dev: false } },
     '/api/organizations': { organizations: [] },
     '/api/me/settings': { shortcut_overrides: {}, audio_display_mode: 'spectrum' },
-    '/api/ass/empty': { document: { source: '', styles: ['Default'], cues: [] } },
+    '/api/ass/empty': { document: uiDocument(['Default']) },
   };
   await page.route('**/api/**', async route => {
+    if (await unavailableAssPreview(route)) return;
     const request = route.request(), path = new URL(request.url()).pathname;
     if (request.method() === 'GET' && fixtures[path]) await route.fulfill({ json: fixtures[path] });
     else { unexpected.push(`${request.method()} ${path}`); await route.abort(); }

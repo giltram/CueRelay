@@ -12,6 +12,8 @@ from accounts.models import User
 from organizations.models import Organization
 from organizations.services import require_access
 from .models import Project
+from .document_styles import import_initial_templates
+from ass_format import validate_script
 
 
 class ProjectConflict(Exception):
@@ -81,13 +83,19 @@ def read_project(actor, organization_id, project_id):
 
 
 @transaction.atomic
-def create_project(actor, organization_id, *, name, description, media, source):
+def create_project(actor, organization_id, *, name, description, media, source, style_imports=None, script=None):
     # Validate the bounded format input before taking the short database lock.
     name = text(name, 100, True)
     description = text(description, 2000)
     media = validate_media(media)
     document = empty_document() if source is None else parse_ass(source)
     org, _ = organization_for(actor, organization_id, manage=True, lock=True)
+    if script is not None:
+        if script != document['script']:
+            validate_script(script)
+        document['script'] = script
+    document = import_initial_templates(actor, org.pk, document, [] if style_imports is None else style_imports)
+    serialize_ass(document)
     return Project.objects.create(organization=org, name=name, description=description, media=media, document=document,
                                   created_by=actor, updated_by=actor)
 
@@ -127,12 +135,18 @@ def save_document(actor, organization_id, project_id, revision, document):
     project = Project.objects.select_for_update().get(pk=project_id, organization=org)
     require_active(project)
     check_revision(project, revision)
-    if document['source'] != project.document['source'] or document['styles'] != project.document['styles']:
-        raise ValidationError('不能替换项目的初始 ASS 模板或样式定义。')
+    validate_document_base(project, document)
     if project.document == document:
         return project
     project.document = document
     return touch(project, actor)
+
+
+def validate_document_base(project, document):
+    """Cue edits cannot smuggle changes to style IDs, source anchors or provenance."""
+    serialize_ass(document)
+    if any(document[key] != project.document[key] for key in ('source', 'styles', 'script')):
+        raise ValidationError('不能替换项目 ASS 模板或样式定义；请使用样式管理操作。')
 
 
 def split_cue(actor, organization_id, project_id, revision, document, cue_id, mode, position):

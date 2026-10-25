@@ -1,3 +1,4 @@
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 import { emptyDocument, splitOnBackend } from './backend-split-fixture.mjs';
 import { checkProjectSplits } from './project-split-checks.mjs';
 // Real browser input, with isolated HTTP fixtures and real local media analysis.
@@ -18,6 +19,7 @@ const errors = [], unexpected = [];
 const splitRequests = [];
 let failNextSplit = false, holdNextSplit = false, releaseSplit;
 await context.route('**/api/**', async route => {
+  if (await unavailableAssPreview(route)) return;
   const request = route.request(), path = new URL(request.url()).pathname;
   if (path === '/api/ass/split') {
     splitRequests.push(request.postDataJSON());

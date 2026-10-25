@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
-import type { AssDocument, Cue, SplitRequest, SplitResult } from '../contracts/subtitles';
+import type { AssDocument, Cue, SplitRequest, SplitResult, StyleResult } from '../contracts/subtitles';
+import type { StyleOperation } from '../contracts/styles';
+import type { JsonRequest } from '../contracts/http';
+import { localStyleOperation } from '../project-data/styles-api';
+import { ProjectStyleManager } from '../style-ui/ProjectStyleManager';
+import '../style-ui/style-management.css';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
 import { auditionRange, formatTime, parseTime, seekVideo, snapTime, watchPlaybackRange, type AuditionMode, type RangePlayback } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
@@ -14,6 +19,9 @@ import { deleteCue } from './delete-cue';
 import { initializeDocument } from './cue-defaults';
 import { AudioTimeline } from './audio-timeline/AudioTimeline';
 import type { AudioDisplayMode } from '../media/audio/analysis-types';
+import { useAssPreview } from '../ass-preview/use-ass-preview';
+import { previewDocument } from './preview-document';
+import { orderCues } from './cue-order';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -33,10 +41,14 @@ interface Props {
   visible?: boolean;
   onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
   onSplit?: (request: SplitRequest, revision: number) => Promise<SplitResult & { project: ProjectSummary }>;
+  onStyles?: (document: AssDocument, operation: StyleOperation, revision: number) => Promise<StyleResult & { project: ProjectSummary }>;
+  styleRequest?: JsonRequest;
+  styleOrganizationId?: number;
+  canManageTemplates?: boolean;
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, onStyles, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
   const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -48,6 +60,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const [audition, setAudition] = useState<RangePlayback | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
   const [savedRevision, setSavedRevision] = useState(project?.revision ?? 0);
   const [savedDocument, setSavedDocument] = useState(project?.document);
@@ -69,8 +82,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     textEditor.current.focus({ preventScroll: true });
     textEditor.current.setSelectionRange(cursor, cursor);
   }, [busy, selectedId]);
-  useEffect(() => { if (!visible) { video?.pause(); setAudition(null); } }, [visible, video]);
+  useEffect(() => { if (!visible) { video?.pause(); setAudition(null); setStylesOpen(false); } }, [visible, video]);
   const selected = document?.cues.find(cue => cue.id === selectedId);
+  const cueRows = useMemo(() => orderCues(document?.cues ?? []), [document?.cues]);
+  const preview = useMemo(() => previewDocument(document, selectedId, startText, endText), [document, selectedId, startText, endText]);
+  const subtitles = useAssPreview(video, mediaFile, preview.document, exportAss, visible);
 
   useEffect(() => {
     if (project) return;
@@ -80,7 +96,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       const initial = initializeDocument(value, () => `new-${crypto.randomUUID()}`);
       setDocument(initial); selectCue(initial.cues[0]);
     })
-      .catch(() => { if (active) setError('无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
+      .catch(reason => { if (active) setError(reason.message?.includes('v2') ? reason.message : '无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
     return () => { active = false; };
   }, []);
 
@@ -225,7 +241,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
-      if (busy || splitting.current || pendingImport || shortcutsPaused || !visible) return;
+      if (busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible) return;
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
       if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || isEditingShortcut(shortcut)) && !canEdit)) return;
       event.preventDefault();
@@ -287,6 +303,25 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     } finally { setBusy(false); }
   }
 
+  async function changeStyles(operation: StyleOperation): Promise<StyleResult> {
+    if (!document || !canEdit || busy) throw new Error('当前无法编辑样式。');
+    setBusy(true);
+    try {
+      let result: StyleResult;
+      if (project) {
+        if (!onStyles) throw new Error('项目样式保存尚未就绪。');
+        const persisted = await onStyles(document, operation, savedRevision);
+        result = persisted;
+        setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
+      } else {
+        if (operation.type === 'import') throw new Error('组织模板请在项目中导入。');
+        result = await localStyleOperation(document, operation);
+      }
+      setDocument(result.document); setHasEdits(true);
+      return result;
+    } finally { setBusy(false); }
+  }
+
   async function exportDraft() {
     if (!document) throw new Error('ASS 服务尚未就绪');
     downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass');
@@ -299,7 +334,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       // Mouse activation returns to timing shortcuts; keyboard activation keeps
       // native button focus. Boundary sliders retain focus for arrow-key edits.
       const button = (event.target as Element).closest('button');
-      if (event.detail > 0 && button && button.getAttribute('role') !== 'slider') {
+      if (event.detail > 0 && button && !button.closest('dialog') && button.getAttribute('role') !== 'slider') {
         event.currentTarget.focus({ preventScroll: true });
       }
     }}>
@@ -312,6 +347,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
           {busy && <span role="status">正在转换…</span>}
+          <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); setAudition(null); setStylesOpen(true); }}>管理样式</button>
           {!project && <label className="file-picker">
             导入 ASS
             <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
@@ -351,7 +387,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
 
       <ResizableWorkbench media={
           <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
-            currentTime={currentTime} duration={duration} onSeek={seekPlayback} controls={<>
+            currentTime={currentTime} duration={duration} onSeek={seekPlayback}
+            status={subtitles.active && <div className="ass-preview-status" role="status" data-phase={subtitles.status.phase}>
+              {subtitles.status.phase === 'loading' ? '正在加载 ASS 字幕…' : subtitles.status.phase === 'error'
+                ? subtitles.status.message : preview.warning || '预览使用内置 Noto Sans SC；指定字体未提供时会替代，可能与最终效果有差异。'}
+            </div>}
+            controls={<>
             <button className="playback-button" aria-label="播放 / 暂停"
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -359,6 +400,8 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
               </svg>
             </button>
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
+            <button type="button" aria-label="显示字幕" aria-pressed={subtitles.enabled}
+              onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? '隐藏字幕' : '显示字幕'}</button>
           </>} />
       } editor={<>
           <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
@@ -371,9 +414,9 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
               <div className="editor-heading">
                 <div className="cue-options">
                   <label>样式
-                    <select aria-label="字幕样式" disabled={!selected} value={selected?.style || document?.styles[0] || ''}
-                      onChange={event => run(() => updateCue({ style: event.target.value }))}>
-                      {document?.styles.map(style => <option key={style}>{style}</option>)}
+                    <select aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
+                      onChange={event => run(() => updateCue({ style_id: event.target.value }))}>
+                      {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
                     </select>
                   </label>
                   <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
@@ -394,8 +437,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
             </fieldset>
           </section>
       </>} />
-      <CueTable cues={document?.cues || []} selectedId={selectedId} currentTime={currentTime}
+      <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
         onSelect={cue => { if (!splitting.current) selectCue(cue); }} />
+      {stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
+        persisted={Boolean(project)} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
+        projectName={project?.name} onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
     </main>
   );
 }

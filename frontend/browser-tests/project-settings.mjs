@@ -1,3 +1,5 @@
+import { uiDocument } from './ass-codec.mjs';
+import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 // Metadata page and list actions with HTTP fixtures; no development database writes.
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
@@ -21,10 +23,11 @@ let project = {
   created_at: '2026-10-24T00:00:00Z', updated_at: '2026-10-24T00:00:00Z', updated_by: user,
   archived_at: null, archived_by: null,
   media: { sha256: 'a'.repeat(64), size: 100, duration_ms: 10000 },
-  document: { source: '', styles: ['Default'], cues: [] },
+  document: uiDocument(['Default']),
 };
 context.on('page', page => page.on('pageerror', error => errors.push(String(error))));
 await context.route('**/api/**', async route => {
+  if (await unavailableAssPreview(route)) return;
   const request = route.request(), url = new URL(request.url()), path = url.pathname.slice(4), method = request.method();
   const reply = json => route.fulfill({ json });
   const failure = (status, code, message) => route.fulfill({ status, json: { error: { code, message } } });

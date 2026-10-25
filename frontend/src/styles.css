@@ -72,7 +72,7 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
   --default-media-share: .42;
   --media-share: var(--default-media-share);
   --divider-width: 16px;
-  --video-controls-space: 68px;
+  --video-controls-space: 96px;
   display: grid;
   grid-template-columns: minmax(0, calc((100% - var(--divider-width)) * var(--media-share))) var(--divider-width) minmax(0, 1fr);
   flex: 0 1 clamp(400px, 54dvh, 560px);
@@ -96,11 +96,15 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 /* Reserve space for the progress slider and shared import / playback row. */
 .video-stage { position: relative; flex: none; align-self: center; width: min(100%, calc((100cqh - var(--video-controls-space)) * 16 / 9)); aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
 .video-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ass-preview-canvas { position: absolute; pointer-events: none; }
+.video-fullscreen { position: absolute; top: 8px; right: 8px; z-index: 1; }
+.ass-preview-status { flex: none; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.video-stage:fullscreen { width: 100%; height: 100%; border-radius: 0; background: black; }
 input.video-progress { flex: none; height: 20px; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; accent-color: var(--accent); cursor: pointer; }
 .video-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: #cbd9cc; pointer-events: none; }
 .video-placeholder span { font-size: 12px; color: #92a095; }
 .hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.transport { display: flex; flex-shrink: 0; align-items: center; gap: 8px; margin-top: 8px; }
+.transport { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 8px; margin-top: 8px; }
 .transport .file-picker { margin-left: auto; flex-shrink: 0; }
 .playback-button { width: 28px; min-height: 28px; padding: 4px; }
 .time-display { font: 14px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }

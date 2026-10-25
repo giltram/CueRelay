@@ -1,37 +1,26 @@
 """Editable ASS v4+ subset with a raw-line preservation adapter.
 
-Public DTO: {source: str, styles: str[], cues: Cue[]}. source is a template,
+Public DTO v2: structured styles/script and cue.style_id. source is a template,
 not a storage key. Every conversion re-preflights it. Original Dialogue IDs
 identify raw line anchors; new IDs append events without reordering comments.
 pysubs2 parses canonical mapped records; it never serializes the source file.
 """
 
-import math
 import re
 import warnings
 from dataclasses import dataclass
+from uuid import uuid4
+from .errors import AssError, fail as _fail
+from .styles import STYLE_FIELDS, MAX_STYLES, validate_values as _style, validate_script, validate_styles
 
 import pysubs2
 
 MAX_BYTES = 1024 * 1024
 MAX_CUES = 5000
 MAX_TIME = 35_999_990  # ASS workbench supports 0:00:00.00 through 9:59:59.99.
-STYLE_FIELDS = "Name Fontname Fontsize PrimaryColour SecondaryColour OutlineColour BackColour Bold Italic Underline StrikeOut ScaleX ScaleY Spacing Angle BorderStyle Outline Shadow Alignment MarginL MarginR MarginV Encoding".split()
 EVENT_FIELDS = "Layer Start End Style Name MarginL MarginR MarginV Effect Text".split()
 TIME = re.compile(r"([0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{2})")
 TAG_BLOCK = re.compile(r"(?:\\[bius][01])+")
-
-
-class AssError(ValueError):
-    def __init__(self, message, line=None):
-        self.issue = {"code": "unsupported_or_invalid_ass", "message": message}
-        if line is not None:
-            self.issue["line"] = line
-        super().__init__(message)
-
-
-def _fail(message, line=None):
-    raise AssError(message, line)
 
 
 def _text(value, line=None):
@@ -88,38 +77,19 @@ def _fields(value, expected, line):
     return fields
 
 
-def _style(values, line):
-    for name in ("Name", "Fontname"):
-        if not values[name].strip():
-            _fail(f"样式 {name} 不能为空", line)
-    for name in ("PrimaryColour", "SecondaryColour", "OutlineColour", "BackColour"):
-        if not re.fullmatch(r"&H[0-9a-fA-F]{8}", values[name]):
-            _fail("当前样式颜色须为 &HAABBGGRR", line)
-    for name in ("Bold", "Italic", "Underline", "StrikeOut"):
-        if values[name] not in ("0", "-1"):
-            _fail("样式布尔值须为 0 或 -1", line)
-    for name in ("Fontsize", "ScaleX", "ScaleY", "Spacing", "Angle", "Outline", "Shadow"):
-        try:
-            number = float(values[name])
-        except ValueError:
-            _fail(f"非法样式数字 {name}", line)
-        if not math.isfinite(number) or abs(number) > 10000:
-            _fail(f"样式数字 {name} 超出验证台范围", line)
-        if name in ("Fontsize", "ScaleX", "ScaleY") and number <= 0:
-            _fail(f"样式 {name} 必须大于零", line)
-    for name in ("BorderStyle", "Alignment", "MarginL", "MarginR", "MarginV", "Encoding"):
-        if not re.fullmatch(r"[0-9]{1,5}", values[name]):
-            _fail(f"非法样式整数 {name}", line)
-    if values["BorderStyle"] not in ("1", "3") or int(values["Alignment"]) not in range(1, 10):
-        _fail("非法 BorderStyle 或 Alignment", line)
-
-
 @dataclass
 class _Layout:
     lines: list[str]
     records: dict[str, tuple[int, list[str], list[str]]]
     event_format: list[str]
     insertion: int
+    style_format: list[str]
+    style_records: dict
+    style_insertion: int
+    comments: dict
+    script_records: dict
+    script_insertion: int
+    script: dict
 
 
 def _inspect(source):
@@ -139,12 +109,19 @@ def _inspect(source):
     styles, cues, records, canonical_events, canonical_styles = [], [], {}, [], []
     script_type = None
     insertion = len(lines)
+    style_insertion = script_insertion = len(lines)
+    style_records, comments, script_records = {}, {}, {}
+    script = {"play_res_x": None, "play_res_y": None, "scaled_border_and_shadow": None}
     for index, raw in enumerate(lines):
         line = index + 1
         stripped = raw.strip()
         if not stripped or stripped.startswith(";"):
             continue
         if stripped.startswith("["):
+            if section == "[V4+ Styles]":
+                style_insertion = index
+            if section == "[Script Info]":
+                script_insertion = index
             if section == "[Events]":
                 insertion = index
             if stripped not in {"[Script Info]", "[V4+ Styles]", "[Events]", "[Aegisub Project Garbage]"} or stripped in seen:
@@ -161,7 +138,22 @@ def _inspect(source):
                 if script_type is not None:
                     _fail("ScriptType 重复", line)
                 script_type = value.strip()
-            continue  # Metadata is preserved verbatim and never dereferenced.
+            script_keys = {"PlayResX": "play_res_x", "PlayResY": "play_res_y", "ScaledBorderAndShadow": "scaled_border_and_shadow"}
+            script_key = next((known for known in script_keys if known.casefold() == key.strip().casefold()), None)
+            if section == "[Script Info]" and script_key:
+                if script_key in script_records:
+                    _fail(f"{script_key} 重复，不能安全编辑脚本设置", line)
+                script_records[script_key] = index
+                raw = value.strip()
+                if script_key == "ScaledBorderAndShadow":
+                    if raw.lower() not in ("yes", "no"):
+                        _fail("ScaledBorderAndShadow 须为 yes/no", line)
+                    script[script_keys[script_key]] = raw.lower() == "yes"
+                else:
+                    if not re.fullmatch(r"[1-9][0-9]{0,4}", raw) or int(raw) > 32768:
+                        _fail("PlayRes 须为 1–32768 的整数", line)
+                    script[script_keys[script_key]] = int(raw)
+            continue  # Other metadata is preserved verbatim and never dereferenced.
         if section == "[V4+ Styles]":
             if key == "Format" and style_format is None:
                 style_format = _fields(value, STYLE_FIELDS, line)
@@ -174,6 +166,7 @@ def _inspect(source):
                 if values["Name"] in styles:
                     _fail("样式名重复", line)
                 styles.append(values["Name"])
+                style_records[values["Name"]] = (index, style_format, values)
                 canonical_styles.append("Style: " + ",".join(values[f] for f in STYLE_FIELDS))
             else:
                 _fail("无法识别的样式记录或重复 Format", line)
@@ -195,6 +188,8 @@ def _inspect(source):
                 style = values["Style"].strip()
                 canonical_events.append(key + ": " + ",".join(values[f] for f in EVENT_FIELDS))
                 # Comment is validated but never exposed as an editable cue.
+                if key == "Comment":
+                    comments[index] = (event_format, values)
                 if key == "Dialogue":
                     cue_id = f"source-{index}"
                     records[cue_id] = (index, event_format, parts)
@@ -207,6 +202,8 @@ def _inspect(source):
         _fail("需要 ASS v4.00+、至少一个样式及 Events Format")
     if len(canonical_events) > MAX_CUES:
         _fail("验证台最多接受 5000 个事件")
+    if len(styles) > MAX_STYLES:
+        _fail(f"文档最多接受 {MAX_STYLES} 个样式")
     # pysubs2 ignores Format lines, so feed it records already mapped by Format.
     canonical = "[Script Info]\nScriptType: v4.00+\n[V4+ Styles]\n" + "\n".join(canonical_styles) + "\n[Events]\n" + "\n".join(canonical_events)
     try:
@@ -217,27 +214,38 @@ def _inspect(source):
         raise AssError("ASS 字段无法安全解析") from error
     if any(event.style not in styles for event in parsed.events):
         _fail("事件引用了不存在的样式")
-    return {"source": source, "styles": styles, "cues": cues}, _Layout(lines, records, event_format, insertion)
+    validate_script(script, allow_partial=True)
+    return {"source": source, "styles": styles, "cues": cues}, _Layout(
+        lines, records, event_format, insertion, style_format, style_records,
+        style_insertion, comments, script_records, script_insertion, script)
 
 
 def parse_ass(source):
     """Preflight all records, returning an editable DTO or one explicit issue."""
-    return _inspect(source)[0]
+    original, layout = _inspect(source)
+    styles = [{"id": str(uuid4()), "name": name, "fields": {key: value for key, value in values.items() if key != "Name"},
+               "source_name": name, "origin": None} for name, (_, _, values) in layout.style_records.items()]
+    names = {style["name"]: style["id"] for style in styles}
+    cues = [{**{key: value for key, value in cue.items() if key != "style"}, "style_id": names[cue["style"]]} for cue in original["cues"]]
+    return {"schema_version": 2, "source": source, "script": layout.script, "styles": styles, "cues": cues}
 
 
 def serialize_ass(document):
     """Validate a complete in-memory snapshot; preserve raw non-editable records."""
-    if not isinstance(document, dict) or set(document) != {"source", "styles", "cues"}:
-        _fail("document 须仅包含 source、styles、cues")
+    if (not isinstance(document, dict) or set(document) != {"schema_version", "source", "script", "styles", "cues"}
+            or type(document.get("schema_version")) is not int or document["schema_version"] != 2):
+        _fail("文档契约已升级为 v2；请先导出旧页面稿件，再刷新客户端")
     original, layout = _inspect(document["source"])
-    if document["styles"] != original["styles"]:
-        _fail("验证台不能通过 DTO 修改样式定义")
+    validate_script(document["script"], allow_partial=True)
+    validate_styles(document["styles"], set(original["styles"]))
+    by_id = {style["id"]: style for style in document["styles"]}
+    by_source = {style["source_name"]: style for style in document["styles"] if style["source_name"] is not None}
     cues = document["cues"]
     if not isinstance(cues, list) or len(cues) > MAX_CUES:
         _fail("cues 须为不超过 5000 行的数组")
     replacements, additions, seen = {}, [], set()
     for cue in cues:
-        required = {"id", "start_ms", "end_ms", "text", "style"}
+        required = {"id", "start_ms", "end_ms", "text", "style_id"}
         if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id"}:
             _fail("字幕行字段不符合契约")
         cue_id = cue["id"]
@@ -246,7 +254,7 @@ def serialize_ass(document):
         seen.add(cue_id)
         _interval(cue["start_ms"], cue["end_ms"])
         _text(cue["text"])
-        if cue["style"] not in original["styles"]:
+        if not isinstance(cue["style_id"], str) or cue["style_id"] not in by_id:
             _fail("字幕引用了不存在的样式")
         source_id = cue.get("source_id", cue_id)
         if "source_id" in cue and (not cue_id.startswith("new-") or not isinstance(source_id, str) or source_id not in layout.records):
@@ -263,26 +271,49 @@ def serialize_ass(document):
                 values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
         else:
             _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
-        values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=cue["style"])
+        values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=by_id[cue["style_id"]]["name"])
         record = "Dialogue: " + ",".join(values[f] for f in fields)
         if index is None:
             additions.append(record)
         else:
             replacements[index] = record
     dialogue_lines = {record[0] for record in layout.records.values()}
+    # Overlay styles/script without reparsing exported text, which would shift cue anchors.
+    for name, (index, fields, _) in layout.style_records.items():
+        style = by_source.get(name)
+        replacements[index] = "Style: " + ",".join(({"Name": style["name"], **style["fields"]})[f] for f in fields) if style else None
+    for index, (fields, values) in layout.comments.items():
+        style = by_source.get(values["Style"].strip())
+        if style is None:
+            _fail("样式仍被 ASS Comment 引用，不能删除")
+        replacements[index] = "Comment: " + ",".join(style["name"] if f == "Style" else values[f] for f in fields)
+    script_values = {"PlayResX": document["script"]["play_res_x"], "PlayResY": document["script"]["play_res_y"],
+                     "ScaledBorderAndShadow": document["script"]["scaled_border_and_shadow"]}
+    def script_record(key, value):
+        return f"{key}: " + (("yes" if value else "no") if type(value) is bool else str(value))
+    for key, index in layout.script_records.items():
+        value = script_values[key]
+        replacements[index] = script_record(key, value) if value is not None else None
+    new_script = [script_record(key, value) for key, value in script_values.items() if key not in layout.script_records and value is not None]
+    new_styles = ["Style: " + ",".join(({"Name": style["name"], **style["fields"]})[f] for f in layout.style_format)
+                  for style in document["styles"] if style["source_name"] is None]
     output = []
     for index in range(len(layout.lines) + 1):
+        if index == layout.script_insertion:
+            output.extend(new_script)
+        if index == layout.style_insertion:
+            output.extend(new_styles)
         if index == layout.insertion:
             output.extend(additions)
         if index == len(layout.lines):
             break
-        if index in dialogue_lines:
-            if index in replacements:
+        if index in replacements:
+            if replacements[index] is not None:
                 output.append(replacements[index])
-        else:
+        elif index not in dialogue_lines:
             output.append(layout.lines[index])
     result = "\n".join(output) + "\n"
-    parse_ass(result)  # Export is held to exactly the same supported subset.
+    _inspect(result)  # Export is held to exactly the same supported subset.
     return result
 
 

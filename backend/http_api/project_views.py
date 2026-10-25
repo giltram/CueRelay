@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from ass_format import AssError
 from projects import services
 from projects.models import Project
+from organizations.style_templates import TemplateConflict
 from .identity_views import endpoint, error, payload
 
 
@@ -18,6 +19,8 @@ def project_endpoint(methods):
                 return error(failure.code, failure.message, 409)
             except AssError as failure:
                 return error('invalid_ass', failure.issue['message'], 422)
+            except TemplateConflict as failure:
+                return error('template_conflict', str(failure), 409)
         return view
     return decorate
 
@@ -44,7 +47,9 @@ def project_data(project, detail=False):
 def project_list(request, organization_id):
     org, _ = services.organization_for(request.user, organization_id, manage=request.method == 'POST')
     if request.method == 'POST':
-        data = payload(request, ['name', 'description', 'media', 'source'])
+        data = payload(request, ['name', 'description', 'media', 'source', 'style_imports', 'script'], partial=True)
+        if not {'name', 'description', 'media', 'source'} <= set(data):
+            raise ValidationError('创建项目需要 name、description、media、source。')
         project = services.create_project(request.user, org.pk, **data)
         return {'project': project_data(project, True)}
     if set(request.GET) - {'status', 'search', 'page'}:
