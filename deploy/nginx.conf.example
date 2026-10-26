@@ -9,8 +9,22 @@ server {
     proxy_set_header Host $http_host;
 
     # API/Admin requests must never fall through to the SPA, including errors.
-    location = /api { proxy_pass http://127.0.0.1:8000; }
-    location ^~ /api/ { proxy_pass http://127.0.0.1:8000; }
+    # Match Django DATA_UPLOAD_MAX_MEMORY_SIZE. JSON contains both the source
+    # template and editable cues; the separate 1MiB ASS limit still applies.
+    location = /api {
+        client_max_body_size 3m;
+        error_page 413 = @api_body_too_large;
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location ^~ /api/ {
+        client_max_body_size 3m;
+        error_page 413 = @api_body_too_large;
+        proxy_pass http://127.0.0.1:8000;
+    }
+    location @api_body_too_large {
+        default_type application/json;
+        return 413 '{"issues":[{"code":"too_large","message":"请求体不能超过 3MiB"}],"error":{"code":"too_large","message":"请求体不能超过 3MiB"}}';
+    }
     location = /admin { proxy_pass http://127.0.0.1:8000; }
     location ^~ /admin/ { proxy_pass http://127.0.0.1:8000; }
 

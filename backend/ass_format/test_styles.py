@@ -7,6 +7,7 @@ import pysubs2
 from ass_format import (AssError, empty_document, parse_ass, serialize_ass,
                         apply_style_operation, import_style, style_usage, adapt_fields)
 from ass_format.migration import upgrade_legacy_document
+from ass_format.styles import validate_fields
 
 
 class StyleTests(unittest.TestCase):
@@ -17,6 +18,21 @@ class StyleTests(unittest.TestCase):
 
     def op(self, **operation):
         return apply_style_operation(self.doc, operation)
+
+    def test_numeric_limits_are_exact_and_independent_of_decimal_context(self):
+        for value in ['1e1000000', '-1e1000000', '1e99999999999999999999',
+                      'NaN', 'sNaN', 'Infinity', '-Infinity',
+                      '10000.00000000000000000000000000001',
+                      '-10000.00000000000000000000000000001']:
+            with self.subTest(value=value), self.assertRaises(AssError):
+                validate_fields({**self.style['fields'], 'Spacing': value})
+        for value in ['10000', '-10000', '9999.99999999999999999999999999999',
+                      '1e-1000000', '-1e-1000000', '0', '0.125']:
+            with self.subTest(value=value):
+                validate_fields({**self.style['fields'], 'Spacing': value})
+        for value in ['0', '-0.125', '-1e-1000000']:
+            with self.subTest(value=value), self.assertRaises(AssError):
+                validate_fields({**self.style['fields'], 'Fontsize': value})
 
     def test_update_and_rename_preserve_ids_and_affect_export(self):
         result = self.op(type='update', id=self.style['id'], name='人物甲', fields={'Fontsize': '55', 'PrimaryColour': '&H80332211'})

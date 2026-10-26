@@ -25,6 +25,14 @@ npm run preview
 5. 外部使用 HTTPS、DEBUG=0、实际 ALLOWED_HOSTS；保留安全 Cookie。示例 8080 仅展示路由边界，没有配置证书或承诺可直接上线；反向代理信任、TLS 和其他安全设置仍见 [账号安全](account-security.md)。不要随意信任客户端传入的转发头。
 6. 发布前执行 nginx -t，然后从实际公网入口验收下列路径和登录/保存。仓库不会自动安装、启动 Nginx 或发布到生产。
 
+### 请求大小验收
+
+示例在 `/api` 和 `/api/` 明确设置 `client_max_body_size 3m`，与 Django 的 `DATA_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024 * 1024` 一致。完整文档 JSON 同时携带原始 source 和结构化 cues，合法的 1MiB 以内 ASS 可能产生大于 1MiB 的请求。3MiB 是 JSON 请求预算，ASS 输入/输出仍独立限制为 1MiB。API 超限返回 413 JSON，同时包含转换客户端的 issues 与账号/项目客户端的 error，避免 Nginx HTML 错误掩盖原因。Admin 限制不在此配置中扩大。
+
+发布时检查 `nginx -T` 的有效配置及上游 ingress 限制；经过真实入口验证小于 1MiB 的大字幕导入、超过 1MiB 的文档 JSON 导出/预览和授权项目保存，再验证超过 3MiB 的请求返回 413。任何更外层代理也不能保留默认 1MiB 限制。
+
+仓库提供可重复的真实 Nginx + Django + PostgreSQL 测试：在隔离测试环境加载数据库变量后运行 `NGINX_BINARY=/absolute/path/to/nginx .venv/bin/python backend/manage.py test http_api.test_proxy_limits --noinput`。测试由示例生成临时配置，只替换监听端口、上游与文件路径，运行 `nginx -t` 后启动临时进程；通过真实 Session/CSRF 登录、导入、导出/预览及项目保存，检查超限错误和 revision 保留。没有 Nginx 时此项明确跳过。不会修改系统 Nginx 或开发库；这也不代替实际部署入口验收。
+
 | 请求 | 预期 |
 | --- | --- |
 | 组织列表、项目 workspace、本地 workspace、`/settings`、组织 settings、带组织的 personal/local 深路径（旧 projects/new 地址规范到列表） | 前端 HTML；资源以绝对根路径加载 |

@@ -103,10 +103,12 @@ flowchart TD
 ## 升级与恢复
 
 1. 在旧版本停止写入前，让用户应用时间输入并导出所需本地稿件；旧页面升级后不能向 v2 服务写入或继续以旧契约导出。
-2. 备份 PostgreSQL，停止旧版本写入进程；在维护窗口运行 `python backend/manage.py migrate`，应用 organizations.0002 与 projects.0002。
+2. 在新代码的独立维护环境中，先对目标数据库或其隔离备份运行 `python backend/manage.py check_style_migration`（可用 `--database` 指定 Django 数据库别名）。命令只读扫描所有项目，使用与 projects.0002 相同的升级验证器；逐项输出不兼容项目 ID/原因，汇总可升级 v1、有效 v2 和失败数，存在任何失败时退出非零，不保存生成的 UUID。备份 PostgreSQL、停止旧版本写入进程后再次预检，全部通过才在维护窗口运行 `python backend/manage.py migrate`，应用 organizations.0002 与 projects.0002。预检不代替备份，也不能保证检查之后继续写入的内容兼容。
 3. 模板迁移建表；项目数据迁移一次性生成并持久化样式 UUID，保留 source、Cue ID/source_id、媒体、revision、操作者与时间。任何异常文档报告项目 ID 并整体中止回滚，不能跳过。需先调查/修正不符合支持边界的旧快照。
 4. 同步部署前后端并重启后端，刷新客户端。混用旧契约明确报升级错误；不以名称猜测映射。现有运行的开发后端也需重启；2026-10-24 实现阶段未操作开发数据库，2026-10-25 经用户授权启用，见下节记录。
 5. v2 包含新定义/ID/来源，不能无损回退为旧名称数组；RunPython 故意不可逆。回滚需部署前备份，迁移后的新编辑先单独导出保留。
+
+历史兼容策略保持显式拒绝：v1 曾接受的 `PlayResX: 0640`、重复 PlayRes 和 101 字符样式名不自动改写或截断。固定历史 JSON 在 `backend/ass_format/fixtures/legacy-v1/`，由 v1 提交的真实 parser/serializer 生成；纯格式测试、预检测试和真实 MigrationExecutor 测试共同保护此边界。失败时保留旧版本及备份，先用旧版本导出已保存编辑；在隔离副本调查并制定定点修复方案。PlayRes 应人工确认单一规范值；样式改名必须同时核对原模板、Dialogue/Comment 和已保存 Cue 引用，禁止仅截断名称。对调整后的完整快照重新验证升级和导出，再实施维护并重跑预检。本命令不提供写库或猜测名称映射功能。
 
 ## 已执行验证
 

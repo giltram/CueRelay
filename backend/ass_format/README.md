@@ -22,6 +22,8 @@
 
 边界：每文档 1–1000 个样式、每组织 1000 模板，同时受 1MiB ASS 导出限制。名称/字体 1–100 字符，无逗号/控制字符/首尾空白；颜色为 &HAABBGGRR；PlayRes 为 1–32768 整数。重复或非法 PlayRes 保护性拒绝，大小写变体也检测重复。
 
+数值有限性和 ±10000 大小比较使用精确、无上下文的 Decimal.copy_abs，超出范围的极端指数或略超边界的数字必须转换为 AssError，不能产生 Overflow 或被精度舍入放行。历史 v1 快照兼容边界由 `fixtures/legacy-v1/` 与 `test_migration.py` 固定，迁移仍拒绝非规范/重复 PlayRes 及超长名称，不静默修正 source。
+
 ## 保留策略
 
 pysubs2 1.8.1 的裸序列化会丢分号注释，读取器忽略文件 Format。因此 `codec.py` 按声明 Format 映射字段，将规范字段顺序提供给 pysubs2 做解析检查；导出通过原始行锚点覆盖 Start/End/Text/Style、样式记录和三个结构化脚本设置，其余保留。Comment 的 Style 随绑定样式改名同步。不承担任意 ASS 解析，不使用通用 AST 或 opaque 未知记录作为绕过路径。

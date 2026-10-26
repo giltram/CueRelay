@@ -37,4 +37,6 @@ migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 P
 
 迁移 projects.0002 将旧 JSON 文档转为 v2，保留 source/Cue ID/source_id/media/revision/操作者/时间；遇到异常文档整体回滚，报告项目 ID。不可逆，回滚依赖部署前备份。部署步骤及 API 见 [样式管理契约](../../docs/style-management.md)。权限/事务/多连接并发在 test_styles.py，既有数据迁移在 test_style_migration.py。
 
+维护入口 `python manage.py check_style_migration [--database default]` 只读扫描全部快照，调用同一个 `ass_format.migration.upgrade_legacy_document` 验证 v1，验证已升级 v2 时调用 serialize_ass；逐项报告不兼容项目 ID/原因并非零退出，不更改 source、名称或 UUID。无需先应用 projects.0002，亦不触发迁移。历史严格拒绝夹具与真实迁移事务回滚见 `ass_format/fixtures/legacy-v1/` 和 `test_style_migration.py`；测试从空测试库撤销数据迁移的应用记录以建立 v1 状态，再执行真实迁移，不对不可逆迁移编造降级函数。
+
 本阶段没有 WS、不可变修改历史或审核对象，仅记录现有最近修改者/时间并保护冲突。按已确认方案 A，其他成员显式重载才接受新样式；不要把 JASSUB 本地实时预览描述为多人实时同步。

@@ -44,6 +44,18 @@ class StyleIntegrationTests(TestCase):
     def import_op(self, name='Imported'):
         return {'type': 'import', 'template_id': self.template['id'], 'revision': self.template['revision'], 'name': name, 'mode': 'copy'}
 
+    def test_extreme_style_numbers_do_not_change_saved_snapshot_or_revision(self):
+        before = deepcopy(self.project.document)
+        for value in ['1e1000000', '-1e1000000', 'NaN', '10000.00000000000000000000000000001']:
+            with self.subTest(value=value):
+                response = self.operation({'type': 'update', 'id': before['styles'][0]['id'],
+                    'name': 'Default', 'fields': {'Fontsize': value}})
+                self.assertEqual(response.status_code, 422)
+                self.project.refresh_from_db()
+                self.assertEqual(self.project.document, before)
+                self.assertEqual(self.project.revision, 1)
+                self.assertEqual(self.project.updated_by, self.actor)
+
     def test_template_crud_revision_and_copy_on_import(self):
         response = self.operation(self.import_op())
         self.assertEqual(response.status_code, 200, response.content)

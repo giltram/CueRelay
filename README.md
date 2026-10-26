@@ -111,6 +111,8 @@ npm run build
 
 升级包含 organizations.0002 / projects.0002。先在旧页面导出需要的稿件，备份数据库并暂停写入，再运行 `python backend/manage.py migrate`、同步部署前后端并刷新客户端。旧快照一次迁移为稳定样式 UUID；不支持无损自动降级。尚无多人实时推送、完整修改历史或审核系统，其他成员需显式重新加载。
 
+从 v1 升级前先运行只读 `python backend/manage.py check_style_migration`，列出全部不兼容项目；停止写入后重查通过才迁移。旧版本接受的非规范/重复 PlayRes 和超长样式名保持显式拒绝，处理流程见 [升级与恢复](docs/style-management.md#升级与恢复)。审计修复与测试结果见 [2026-10-26 修复记录](docs/plans/repository-audit-fixes-2026-10-26.md)。
+
 分辨率适配仅开放已验证的同宽高比等比规则；其他情况原样复制后人工调整。字体使用现有 Noto Sans SC fallback，不自动上传或获取字体。测试入口：`cd frontend && npm run test:style-management`；契约、迁移、限制和后端测试见 [样式管理](docs/style-management.md)。
 
 视频右上角为小尺寸全屏/退出全屏图标（16px 图标、28px 点击区域）。进入全屏保留当前位置及播放/暂停状态并取消字幕区间停止限制；全屏空格从当前位置播放/暂停，退出后恢复原有快捷键含义，不自动跳回字幕区间。验证：`cd frontend && npm run test:fullscreen-playback`（真实 Chrome/FFmpeg、前端开发服务，API 为隔离夹具，不写开发数据库）。

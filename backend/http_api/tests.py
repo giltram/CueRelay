@@ -5,6 +5,41 @@ FIXTURES = Path(__file__).resolve().parent.parent / "ass_format" / "fixtures"
 
 
 class ConversionContractTests(SimpleTestCase):
+    def test_extreme_style_numbers_return_422_on_import_and_style_transform(self):
+        from ass_format import empty_document
+        document = empty_document()
+        for value in ['1e1000000', '-1e1000000', '1e99999999999999999999', 'NaN', 'sNaN', 'Infinity',
+                      '10000.00000000000000000000000000001']:
+            with self.subTest(value=value):
+                source = document['source'].replace(',28,', f',{value},')
+                imported = self.client.post('/api/ass/import', {'source': source}, content_type='application/json')
+                transformed = self.client.post('/api/ass/styles', {'document': document, 'operation': {
+                    'type': 'update', 'id': document['styles'][0]['id'], 'name': 'Default',
+                    'fields': {'Fontsize': value}}}, content_type='application/json')
+                for response in (imported, transformed):
+                    self.assertEqual(response.status_code, 422)
+                    self.assertIn('Fontsize', response.json()['issues'][0]['message'])
+
+    def test_supported_ass_larger_than_one_megabyte_as_json_roundtrips(self):
+        import json
+        from ass_format import empty_document
+        source = empty_document()['source'] + (
+            'Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,' + 'a' * 1000 + '\n') * 600
+        self.assertLess(len(source.encode()), 1024 * 1024)
+        imported = self.client.post('/api/ass/import', {'source': source}, content_type='application/json')
+        self.assertEqual(imported.status_code, 200)
+        body = json.dumps(imported.json(), ensure_ascii=False, separators=(',', ':')).encode()
+        self.assertGreater(len(body), 1024 * 1024)
+        self.assertLess(len(body), 3 * 1024 * 1024)
+        exported = self.client.post('/api/ass/export', body, content_type='application/json')
+        self.assertEqual(exported.status_code, 200)
+        self.assertEqual(exported.content.decode(), source)
+
+    def test_default_three_megabyte_request_budget_still_rejects_oversized_json(self):
+        response = self.client.post('/api/ass/import', {'source': 'a' * (3 * 1024 * 1024)}, content_type='application/json')
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(response.json()['issues'][0]['code'], 'too_large')
+
     def test_styles_endpoint_is_stateless_csrf_independent_and_validates_schema(self):
         from django.test import Client
         client = Client(enforce_csrf_checks=True)

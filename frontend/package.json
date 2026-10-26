@@ -12,6 +12,7 @@
     "test": "vitest",
     "test:audio-browser": "node browser-tests/local-audio.mjs",
     "test:audio-preferences": "node browser-tests/audio-preferences.mjs",
+    "test:personal-settings-pending": "node browser-tests/personal-settings-pending.mjs",
     "test:audio-timeline": "node browser-tests/audio-timeline.mjs",
     "test:audio-lifecycle": "node browser-tests/audio-lifecycle.mjs",
     "test:navigation": "node browser-tests/navigation.mjs",

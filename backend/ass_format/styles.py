@@ -42,7 +42,9 @@ def validate_values(values, line=None):
             number = Decimal(values[name])
         except InvalidOperation:
             fail(f"非法样式数字 {name}", line)
-        if not number.is_finite() or abs(number) > 10000:
+        # copy_abs is exact and context-free: abs() can overflow on exponents
+        # or round a value just above the limit back down to 10000.
+        if not number.is_finite() or number.copy_abs() > 10000:
             fail(f"样式数字 {name} 须为有限数且绝对值不超过 10000", line)
         if name in ("Fontsize", "ScaleX", "ScaleY") and number <= 0:
             fail(f"样式 {name} 必须大于零", line)

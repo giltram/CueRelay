@@ -12,6 +12,8 @@ MembersPanel 隐藏 organizer 对其他 organizer 的角色修改和移除入口
 
 PersonalPanel 的快捷键输入保留原始字符串草稿（含末尾逗号、空格与未输入完整的键码），不能在 onChange 中 split/trim/filter 后回填。只在保存或录制校验时解析成 ShortcutOverrides；成功保存后用服务端响应格式化草稿，失败保留输入。单项/全部恢复直接移除相应草稿，留空解析为空列表。浏览器回归使用 pressSequentially 验证逗号逐字输入及多绑定保存/刷新，避免只用 fill 掩盖问题。
 
+局部 busy 在请求期间同时禁用全部快捷键输入、录制按钮/录制框、单项/全部恢复和鼠标边界勾选，成功/失败后恢复，确保响应仅确认已提交版本。延迟成功、延迟失败及失败后草稿/录制恢复见 `frontend/browser-tests/personal-settings-pending.mjs`（`npm run test:personal-settings-pending`，可设 PERSONAL_SETTINGS_URL；真实 Chrome，API 为内存夹具）。
+
 `SettingsPage.tsx` 负责独立设置页的页头、个人/组织分类导航及既有面板组合，通过显式 props 接收用户、当前组织、设置、导航和受保护动作。唯一新增直接依赖为 navigation 的链接和 Route 类型；navigation 不反向依赖 account-ui。`/settings` 或带组织上下文的 `/organizations/:organizationId/settings/personal` 展示 PersonalPanel 和退出账号/Admin，`/organizations/:organizationId/settings/organization` 展示 MembersPanel。组织不可访问时显示明确状态与重试；无组织禁用组织入口；会话无效时禁用表单。面板不读取隐藏编辑器，App 负责退出、移除自己及组织变更时的原有保护。
 
 设置入口默认新开标签页，来源工作区不隐藏、不主动暂停；设置页内个人/组织分类显式使用 target="_self"，在当前标签页切换并保留组织 URL 上下文。组织切换器只在项目列表；新页面通过显式组织 URL 延续列表/项目上下文。仅同文档历史浏览设置时隐藏工作区、暂停播放/快捷键，回退恢复内存；个人/组织设置不再用 Modal，成员移除二次确认与登录/保护继续用 Modal。未保存设置输入仍只属于面板，导航离开不自动保存。浏览器回归见 user-system.mjs（密码/快捷键/权限/保护）和 navigation.mjs（深链接/刷新/新标签页/布局/保留实例）。
