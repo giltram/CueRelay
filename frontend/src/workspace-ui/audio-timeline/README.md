@@ -76,3 +76,9 @@ Canvas 采用 getBoundingClientRect 的小数 CSS 尺寸，与 DOM 覆盖线一�
 控制器、独立 Worker、预算与测试见 [audio README](../../media/audio/README.md)；真实输出验证见 [试听记录](../../../../docs/experiments/audio-audition.md)。
 
 字幕表格的主动行号 / 文本选择由 EditorWorkbench.selectCueFromTable 负责：停止试听、暂停并定位视频到该行已应用入点；时间轴继续通过 video 和选择属性更新。G / Enter、删除 / 拆分等程序化选行不自动定位。无视频仍可选行，超片长入点保留原时间并显示定位错误，验证见 [字幕表格记录](../../../../docs/experiments/cue-table.md)。
+
+## 工作区历史回调
+
+字幕历史属于上层 workspace-ui。onBoundaryChange 报告一次单击；onBoundaryGesture 返回工作区发放的 change/end 句柄，AudioBoundary 只保留指针/键盘生命周期。pointerdown 前 begin，pointerup/cancel/lostpointercapture/blur 后 end；方向键同键 repeat 到 keyup/blur 合并一次。取消保留已经发生的草稿修改。historyEpoch 在工作区恢复时终止 capture/旧按键，工作区令牌同步失效，迟到事件不能覆盖撤销。回调撤除（隐藏、忙碌、弹窗、无权限等）同样结束手势。时间轴不拥有字幕历史、文档副本或保存状态。
+
+恢复 epoch 改变时跳过基于 selectionId 的 revealInterval，因此撤销/重做不主动移动视窗；媒体位置/缩放/视窗不进历史。完整契约和真实浏览器回归见 [工作区模块](../README.md)。

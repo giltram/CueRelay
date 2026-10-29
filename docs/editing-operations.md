@@ -36,3 +36,7 @@
 - Chrome：在 frontend 启动 Vite 后运行 `EDITING_URL=http://127.0.0.1:5189/workspace/local npm run test:editing-operations`。需要 Chrome、FFmpeg、仓库 .venv；HTTP 使用隔离夹具，拆分格式规则调用真实 Python 实现，鉴权与数据库事务由 Django 测试验证，不写开发库。
 
 结果记录见 [执行计划](plans/editing-operations.md)。合成浏览器/数据库测试不替代真实用户试用或实时协作验收。
+
+## 本实例撤销 / 重做
+
+工作区完整编辑状态与历史由 workspace-ui 拥有，见 [模块契约](../frontend/src/workspace-ui/README.md)。播放头裁剪是一条原子历史；拆分成功是一条原子历史，恢复提交前原文档、选行和原始时间草稿，重做复用响应中的 ID。项目拆分仍立即保存完整快照，savedRevision/savedDocument 留在编辑历史外。撤销恢复本地拆分前状态但不发反向请求；下一次手动保存使用拆分后的最新 revision。拆分失败不写历史或本地内容；成功导入建立新基线。

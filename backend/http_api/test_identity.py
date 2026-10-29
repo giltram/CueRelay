@@ -170,6 +170,22 @@ class IdentityTests(TestCase):
                         {'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB']}]:
             self.assertEqual(self.send('/me/settings', {'shortcut_overrides': invalid}, 'PATCH').status_code, 400)
 
+    def test_history_shortcuts_preserve_legacy_overrides_and_reject_explicit_conflicts(self):
+        self.client.force_login(self.user)
+        initial = self.client.get('/api/me/settings').json()
+        self.assertEqual(initial['defaults']['undo']['bindings'], ['Ctrl+KeyZ', 'Meta+KeyZ'])
+        self.assertEqual(initial['defaults']['redo']['bindings'], ['Ctrl+Shift+KeyZ', 'Meta+Shift+KeyZ'])
+        legacy = {'split-text': ['Ctrl+KeyZ'], 'split-playhead': ['Meta+Shift+KeyZ']}
+        PersonalSettings.objects.create(user=self.user, shortcut_overrides=legacy)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], legacy)
+        accepted = self.send('/me/settings', {'shortcut_overrides': legacy}, 'PATCH')
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(accepted.json()['shortcut_overrides'], legacy)
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': {**legacy, 'undo': ['Ctrl+KeyZ']}}, 'PATCH').status_code, 400)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], legacy)
+        disabled = {**legacy, 'undo': [], 'redo': []}
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': disabled}, 'PATCH').json()['shortcut_overrides'], disabled)
+
     def test_audio_display_settings_are_partial_validated_and_account_scoped(self):
         self.login()
         overrides = {'commit': ['Shift+KeyT']}

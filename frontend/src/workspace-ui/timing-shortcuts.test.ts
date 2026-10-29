@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { timingShortcut } from './timing-shortcuts';
+import { effectiveBindings, timingShortcut, validateOverrides } from './timing-shortcuts';
 
 const base = { code: 'KeyG', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
 
@@ -140,5 +140,29 @@ describe('text cursor split shortcut focus', () => {
       expect(timingShortcut({ ...base, code, target: textEditor }, false, overrides, textEditor)).toBeUndefined();
     }
     expect(timingShortcut({ ...base, code: 'Enter', target: textEditor }, false, {}, textEditor)).toBeUndefined();
+  });
+});
+
+
+describe('history shortcuts and legacy overrides', () => {
+  it.each(['ctrlKey', 'metaKey'])('maps %s Z and shift Z with input/IME/repeat protection', modifier => {
+    const event = { ...base, code: 'KeyZ', [modifier]: true };
+    expect(timingShortcut(event, false)).toBe('undo');
+    expect(timingShortcut({ ...event, shiftKey: true }, false)).toBe('redo');
+    for (const extra of [{ repeat: true }, { isComposing: true }, { keyCode: 229 }, { altKey: true }]) {
+      expect(timingShortcut({ ...event, ...extra }, false)).toBeUndefined();
+    }
+    const target = { closest: () => ({}) } as unknown as EventTarget;
+    expect(timingShortcut({ ...event, target }, false)).toBeUndefined();
+  });
+  it('lets old explicit bindings suppress only colliding new defaults', () => {
+    const overrides = { 'split-text': ['Ctrl+KeyZ'], 'split-playhead': ['Meta+Shift+KeyZ'] };
+    expect(validateOverrides(overrides)).toBeUndefined();
+    expect(effectiveBindings('undo', overrides)).toEqual(['Meta+KeyZ']);
+    expect(effectiveBindings('redo', overrides)).toEqual(['Ctrl+Shift+KeyZ']);
+    expect(timingShortcut({ ...base, code: 'KeyZ', ctrlKey: true }, false, overrides)).toBe('split-text');
+    expect(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ'] })).toMatch(/冲突/);
+    expect(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ', 'Meta+KeyZ'] })).toMatch(/冲突/);
+    expect(timingShortcut({ ...base, code: 'KeyZ', ctrlKey: true }, false, { undo: [] })).toBeUndefined();
   });
 });

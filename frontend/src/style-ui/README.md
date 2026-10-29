@@ -11,3 +11,5 @@
 直接依赖 contracts、project-data、account-ui 的既有 Modal 和 ass-preview。无 workspace-ui/project-ui 内部导入；本地工作区/项目设置/项目表单/App 向下组合本模块。样式 CSS 使用既有变量，窄屏在现有 Modal 内滚动。
 
 验证：style-fields.test.ts、browser-tests/style-management.mjs；服务端矩阵及完整限制见 [样式契约](../../../docs/style-management.md)。
+
+本地工作区 onApply 成功由 workspace-ui 记录一条完整文档历史（样式定义、脚本和字幕引用同时恢复）；无变化或失败不产生步骤。管理器表单自身不持有字幕历史，弹窗期间暂停工作区撤销，关闭后可按应用顺序撤销。独立项目设置仍修改服务器快照，保留工作区需显式重载后接受新基线。

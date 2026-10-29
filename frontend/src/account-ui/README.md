@@ -21,3 +21,5 @@ PersonalPanel 的快捷键输入保留原始字符串草稿（含末尾逗号、
 音频显示偏好：Settings 增加 audio_display_mode，createDefaultSettings 为账号切换提供默认 Spectrum 和空快捷键覆盖。PersonalPanel 的「音频显示」单独显式保存该字段，快捷键保存提交 shortcut_overrides 和鼠标边界偏好；响应包含完整设置供 App 更新，面板内尚未保存的另一类输入不被覆盖。错误保留选择。App 沿用 focus/visibilitychange/30 秒检查将服务端偏好传给工作区，没有新增 Storage 或标签页通信。类型仅向下引用 media/audio 的 AudioDisplayMode；不会从编辑器内部读取模式。
 
 鼠标边界点击偏好 mouse_sets_cue_boundary 默认为 true，位于「快捷键」标题下，随原「保存快捷键」按钮提交。勾选框用局部 personal-checkbox 横向布局与文字左对齐，16px 原生控件不继承普通文本框的全宽显示；不修改其他表单的默认布局。后端仅接受 boolean、按账号隔离；音频显示 PATCH 不提交此字段，也不重置未保存勾选。新增四个播放头/拆分动作均默认空绑定，仍用 shared 唯一动作表与有效绑定冲突检测；只有这四个动作扩展 Ctrl/Meta/Alt/Shift + 原基础键范围，已有动作可绑定范围与默认不变。文本拆分仅允许已配置绑定在具体字幕 textarea 聚焦时执行。详见 docs/editing-operations.md 与 editing-operations 浏览器回归。
+
+undo/redo 默认 Cmd/Ctrl+Z 和 Cmd/Ctrl+Shift+Z 同样来自共享 JSON。二者接受与播放头/拆分相同的修饰组合范围。兼容规则：未覆盖的新增 undo/redo 默认别名若被个人显式绑定占用则让出该别名；设置输入展示实际有效绑定，不让旧配置因新增默认失效。显式绑定之间的冲突仍拒绝；前端 effectiveBindings 与后端 effective_bindings 使用同一规则。输入框内保留原生撤销，工作区协调方式见 workspace-ui/README.md。

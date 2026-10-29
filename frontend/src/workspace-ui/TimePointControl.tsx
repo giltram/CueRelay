@@ -1,7 +1,7 @@
 interface Props {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, nativeHistory: boolean) => void;
 }
 
 /** The same controls for each endpoint; interval validity belongs to the parent. */
@@ -10,7 +10,7 @@ export function TimePointControl(props: Props) {
     <div className="time-point">
       <label>
         {props.label}
-        <input aria-label={props.label} value={props.value} onChange={event => props.onChange(event.target.value)} />
+        <input aria-label={props.label} value={props.value} onChange={event => props.onChange(event.target.value, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType))} />
       </label>
     </div>
   );

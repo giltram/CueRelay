@@ -10,6 +10,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-10-24 样式管理 A 阶段：组织模板表与项目 v2 样式快照、稳定 style_id、具名原子操作、复制导入/批量属性修改、脚本设置及受限等比适配已实现。复用项目 revision/权限/事务、原 ASS codec 和 JASSUB。组织设置增加模板库，项目设置和本地工作区组合样式面板与独立样本预览；未新增 WS、历史事件或审核系统。已确认范围、迁移/API/测试入口见 [样式管理](style-management.md)。
 
+2026-10-30 工作区内存撤销 / 重做：`workspace-ui/use-edit-history.ts` 唯一拥有 document、选择和原始时间草稿，`edit-history.ts` 提供独立不可变转换，最多 100 步，共享文档引用。AudioTimeline / AudioBoundary 只通过显式手势句柄报告操作；一次拖动/连续方向键为一步，G/Enter 的提交、选下一行与新增行原子恢复并复用 UUID。文本、行样式、本地样式、裁剪、删除、拆分统一接入；真实原生 historyUndo/historyRedo 输入建立安全新基线，避免两套重做栈重复重放。保存和拆分成功后的 revision/保存基准独立于编辑历史，Z 不发送反向保存请求；成功导入清空历史，失败保留；隐藏恢复保留，重载或替换实例清空。共享 JSON 声明 Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z，旧个人显式绑定优先于新增默认别名，双端校验显式冲突。详细粒度、输入边界、保存语义和回归入口见 [工作区模块](../frontend/src/workspace-ui/README.md)，实际执行结果与限制见 [历史验证记录](experiments/workspace-history.md)。
+
 ## 当前可运行入口
 
 本机 PostgreSQL 的持久目录、连接配置及启停操作见 [本机开发数据库](local-development.md)；数据库结构由各模块 migrations 管理。
@@ -61,7 +63,7 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `shared/timing-shortcuts.json`：后端和前端共同读取的默认键位唯一来源，个人设置仅保存覆盖。
 - `ass_format`：纯格式公共入口 `parse_ass` / `serialize_ass` / `empty_document`，原始行锚点适配隔离 pysubs2 保留局限，见 [局部契约](../backend/ass_format/README.md)。
 - `http_api/ass_views.py`：`GET /api/ass/empty`、`POST /api/ass/import {source}` 返回 `{document}`；`POST /api/ass/export {document}` 返回 ASS 文本。400 为请求契约错误，422 为不支持或非法内容（issues），413 为请求过大；无持久副作用。
-- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 的页面内存唯一拥有字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，navigation 统一页面 URL/历史，app-workspace 持有保留实例和项目加载，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
+- `frontend/src/main.tsx → App.tsx → workspace-ui/EditorWorkbench.tsx`：EditorWorkbench 通过 workspace-ui/use-edit-history 唯一拥有页面内存字幕状态和选中区间；App/account-ui/project-ui 编排 Session、组织、项目面板、设置和弹窗，navigation 统一页面 URL/历史，app-workspace 持有保留实例和项目加载，经 WorkbenchHandle 查询本地内容/导出，经 header 与 shortcutsPaused 接口组合工作区，不让会话检查卸载编辑器；通过 `project-data/ass-api.ts` 显式导入和导出字幕。前端不解析或生成 ASS。已移除原件 / 被拒原件下载及其 File 状态；只保留成功导入标记用于原有离页保护，待确认导入的 File 仅在替换确认期间暂存。转换状态位于顶栏，不占独立文档栏。
 - `media/LocalVideoPlayer.tsx`、`playback.ts`：本地 File/Object URL 生命周期、时间契约、焦点与 IME 快捷键过滤；不包含定位测量工具。LocalVideoPlayer 拥有视频下方的导入控件和媒体 File / 固定状态，通过 `controls: ReactNode` 接收 workspace-ui 提供的播放按钮与时钟，同一行显示；没有视频标题 / 文件名栏。导入使用真实按钮同步触发 hidden 文件 input，避免透明原生控件覆盖按钮时出现默认文件名提示；鼠标和键盘都可选片，取消不改变已选视频，校验/固定时同时禁用按钮和 input。
 - LocalVideoPlayer 关闭原生 controls，在画面外下方渲染原生 range 进度条，接收受控 currentTime / duration（毫秒）和 onSeek，不持有另一份播放时间，不添加音量按钮。EditorWorkbench 的 seekPlayback 为进度条与 AudioTimeline 共用跳转入口，取消旧试听、调用 seekVideo 并立即同步显示时间，保留原播放 / 暂停状态，不修改字幕或时间草稿。验证见 [视频进度条记录](experiments/video-progress.md)。
 - 2026-10-25 视频全屏：LocalVideoPlayer 使用 16px SVG 图标 / 28px 按钮，监听 Fullscreen API 更新进入/退出图标、title 和 aria-pressed；仍只全屏 video/canvas 所在 stage。EditorWorkbench 在本视频进入全屏时同步取消现有试听观察器（清理句柄保存在 ref），保留时间和播放/暂停状态。全屏中的无修饰 Space 优先普通播放/暂停，允许 video/全屏按钮焦点并阻止按钮再次激活，保留输入框/IME/重复/弹窗/工作区可见性保护；不读取时间草稿或个人试听键位。退出全屏不恢复旧试听，普通工作区恢复个人配置下的 Space/S 行为。未改后端、字幕状态或预览链路；浏览器回归见 `frontend/browser-tests/fullscreen-playback.mjs`。

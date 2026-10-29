@@ -10,7 +10,7 @@ BINDING = re.compile(r'^(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space|Shift\+(Key
 DELETION_BINDING = re.compile(r'^(Ctrl|Meta)\+(Delete|Backspace)$')
 
 
-EDITING_ACTIONS = {'set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text'}
+EDITING_ACTIONS = {'set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text', 'undo', 'redo'}
 EDITING_BINDING = re.compile(r'^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$')
 
 
@@ -26,10 +26,20 @@ def validate_overrides(value):
                 raise ValidationError('快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。')
         if bindings != DEFAULTS[action]['bindings']:
             normalized[action] = bindings
+    explicit = {binding for bindings in value.values() for binding in bindings}
     used = set()
     for action, default in DEFAULTS.items():
-        for binding in normalized.get(action, default['bindings']):
+        for binding in effective_bindings(action, value, explicit):
             if binding in used:
                 raise ValidationError(f'快捷键冲突：{binding}')
             used.add(binding)
     return normalized
+
+
+def effective_bindings(action, overrides, explicit=None):
+    """Old explicit bindings take precedence over new undo/redo defaults."""
+    bindings = overrides.get(action, DEFAULTS[action]['bindings'])
+    if action in {'undo', 'redo'} and action not in overrides:
+        explicit = explicit if explicit is not None else {binding for values in overrides.values() for binding in values}
+        return [binding for binding in bindings if binding not in explicit]
+    return bindings

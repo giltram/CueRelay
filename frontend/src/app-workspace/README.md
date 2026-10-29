@@ -13,3 +13,5 @@
 `split` 与 save 使用同一个 account request、显式 revision、updateSummary 与归档错误处理，经 projects-api.split 调用后端。只返回结果给 EditorWorkbench，由后者成功后替换自己的 document/savedRevision。请求期间编辑器冻结本次快照；失败继续保留当前内容。没有轮询采用远端文档或第二份字幕 store。项目拆分本身会保存完整工作快照（含当前时间草稿），详见 docs/editing-operations.md。
 
 项目样式保存由独立 ProjectSettingsPage 直接调用 projectApi.styles，本模块不再提供样式回调。设置页保存不修改保留工作区的文档或 revision；旧工作区保存继续冲突，明确重载后才接受新样式。本地工作区保留样式管理，模板另存请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。
+
+工作区编辑历史由 workspace-ui/use-edit-history 拥有，不进入本模块。save/split 返回的最新 revision 和保存基准不随撤销回退；撤销拆分只恢复本地快照，不调用本模块持久接口。隐藏保留同一挂载实例和历史；reload/clear/adoptCreated 或跨项目/组织/账号替换通过挂载 generation 建立新历史。回归新增 browser-tests/workspace-history.mjs。

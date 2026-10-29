@@ -23,6 +23,8 @@ import type { AudioDisplayMode } from '../media/audio/analysis-types';
 import { useAudioAudition } from '../media/audio/use-audio-audition';
 import { useAssPreview } from '../ass-preview/use-ass-preview';
 import { previewDocument } from './preview-document';
+import { useEditHistory } from './use-edit-history';
+import type { EditState } from './edit-history';
 import { orderCues } from '../subtitle-model/cue-order';
 
 export interface WorkbenchHandle {
@@ -50,14 +52,12 @@ interface Props {
 }
 
 export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
-  const [document, setDocument] = useState<AssDocument | null>(project?.document ?? null);
+  const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' });
+  const { document, selectedId, startText, endText } = edits.state;
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [startText, setStartText] = useState('0:00:00.00');
-  const [endText, setEndText] = useState('0:00:02.00');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const audioAudition = useAudioAudition(mediaFile, video, visible);
   const cancelAudition = audioAudition.stop;
   const [error, setError] = useState('');
@@ -86,6 +86,9 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     textEditor.current.setSelectionRange(cursor, cursor);
   }, [busy, selectedId]);
   useEffect(() => { if (!visible) { video?.pause(); cancelAudition(); setStylesOpen(false); } }, [visible, video]);
+  useEffect(() => {
+    if (!visible || shortcutsPaused || busy || stylesOpen || pendingImport) edits.finish();
+  }, [visible, shortcutsPaused, busy, stylesOpen, pendingImport]);
   const selected = document?.cues.find(cue => cue.id === selectedId);
   const cueRows = useMemo(() => orderCues(document?.cues ?? []), [document?.cues]);
   const preview = useMemo(() => previewDocument(document, selectedId, startText, endText), [document, selectedId, startText, endText]);
@@ -105,7 +108,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     loadEmptyDocument().then(value => {
       if (!active) return;
       const initial = initializeDocument(value, () => `new-${crypto.randomUUID()}`);
-      setDocument(initial); selectCue(initial.cues[0]);
+      edits.baseline(withSelection({ ...edits.current(), document: initial }, initial.cues[0]));
     })
       .catch(reason => { if (active) setError(reason.message?.includes('v2') ? reason.message : '无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
     return () => { active = false; };
@@ -127,8 +130,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     catch (reason) { setError((reason as Error).message); }
   }
 
+  function withSelection(state: EditState, cue?: Cue): EditState {
+    return { ...state, selectedId: cue?.id ?? null, startText: formatTime(cue?.start_ms ?? 0), endText: formatTime(cue?.end_ms ?? 0) };
+  }
+
   function selectCue(cue: Cue) {
-    setSelectedId(cue.id); setStartText(formatTime(cue.start_ms)); setEndText(formatTime(cue.end_ms)); cancelAudition();
+    edits.navigate(withSelection(edits.current(), cue)); cancelAudition();
   }
 
   function locate(cue: Cue) {
@@ -145,15 +152,18 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     });
   }
 
-  function changeTimeDraft(which: 'start' | 'end', value: string) {
-    if (which === 'start') setStartText(value); else setEndText(value);
+  function changeTimeDraft(which: 'start' | 'end', value: string, inputKey?: string, nativeHistory = false) {
+    edits.edit({ ...edits.current(), [which === 'start' ? 'startText' : 'endText']: value }, inputKey, nativeHistory);
     cancelAudition(); setHasEdits(true);
   }
 
-  function updateCue(patch: Partial<Cue>) {
+  function updateCue(patch: Partial<Cue>, inputKey?: string, nativeHistory = false) {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
-    if (!document || !selected) throw new Error('请先选择一条字幕行');
-    setDocument({ ...document, cues: document.cues.map(cue => cue.id === selected.id ? { ...cue, ...patch } : cue) });
+    const state = edits.current();
+    const cue = state.document?.cues.find(item => item.id === state.selectedId);
+    if (!state.document || !cue) throw new Error('请先选择一条字幕行');
+    if (Object.entries(patch).every(([key, value]) => cue[key as keyof Cue] === value)) return;
+    edits.edit({ ...state, document: { ...state.document, cues: state.document.cues.map(item => item.id === cue.id ? { ...item, ...patch } : item) } }, inputKey, nativeHistory);
     setHasEdits(true);
   }
 
@@ -161,17 +171,19 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document) throw new Error('ASS 服务尚未就绪');
     const result = commitTiming(document, selectedId, parseTime(startText), parseTime(endText), () => `new-${crypto.randomUUID()}`);
-    setDocument(result.document);
-    setHasEdits(true);
-    selectCue(result.selected);
+    edits.edit(withSelection({ ...edits.current(), document: result.document }, result.selected));
+    setHasEdits(true); cancelAudition();
   }
 
   function setPlayheadBoundary(point: 'start' | 'end') {
     if (!selected) throw new Error('请先选择一条字幕行');
     if (!video || !duration) throw new Error('请先加载可播放的视频');
     const updated = playheadBoundary(selected, point, video.currentTime);
-    updateCue(updated);
-    changeTimeDraft(point, formatTime(point === 'start' ? updated.start_ms : updated.end_ms));
+    if (selected.start_ms === updated.start_ms && selected.end_ms === updated.end_ms
+      && (point === 'start' ? startText : endText) === formatTime(point === 'start' ? updated.start_ms : updated.end_ms)) return;
+    edits.edit({ ...edits.current(), document: { ...document!, cues: document!.cues.map(cue => cue.id === selected.id ? { ...cue, ...updated } : cue) },
+      [point === 'start' ? 'startText' : 'endText']: formatTime(point === 'start' ? updated.start_ms : updated.end_ms) });
+    cancelAudition(); setHasEdits(true);
   }
 
   async function splitSelectedCue(mode: 'playhead' | 'text') {
@@ -203,9 +215,9 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
         result = persisted;
         setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
       } else result = await splitAss(request);
-      setDocument(result.document); setHasEdits(true);
       const first = result.document.cues.find(cue => cue.id === result.first_id)!;
-      selectCue(first);
+      edits.edit(withSelection({ ...edits.current(), document: result.document }, first));
+      setHasEdits(true); cancelAudition();
       restoreTextCursor.current = mode === 'text' ? first.text.length : null;
     } finally { splitting.current = false; setBusy(false); }
   }
@@ -214,11 +226,8 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document || !selected) return;
     const result = deleteCue(document, selected.id);
-    setDocument(result.document); setHasEdits(true);
-    if (result.selected) selectCue(result.selected);
-    else {
-      setSelectedId(null); setStartText('0:00:00.00'); setEndText('0:00:00.00'); cancelAudition();
-    }
+    edits.edit(withSelection({ ...edits.current(), document: result.document }, result.selected ?? undefined));
+    setHasEdits(true); cancelAudition();
   }
 
   async function togglePlayback() {
@@ -245,6 +254,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   useEffect(() => {
     const begin = () => { composing.current = true; };
     const end = () => { composing.current = false; };
+    const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
       if (busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible) return;
       if (canEdit && selected && !window.document.fullscreenElement
@@ -255,10 +265,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
         return;
       }
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
-      if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || isEditingShortcut(shortcut)) && !canEdit)) return;
+      if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || shortcut === 'undo' || shortcut === 'redo' || isEditingShortcut(shortcut)) && !canEdit)) return;
       event.preventDefault();
       run(() => {
         switch (shortcut) {
+          case 'undo': case 'redo': cancelAudition(); edits.travel(shortcut); return;
           case 'commit': return commitAndAdvance();
           case 'delete-row': return deleteSelectedCue();
           case 'set-start-playhead': return setPlayheadBoundary('start');
@@ -269,10 +280,12 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
         }
       });
     };
+    window.addEventListener('blur', blur);
     window.addEventListener('compositionstart', begin);
     window.addEventListener('compositionend', end);
     window.addEventListener('keydown', keydown);
     return () => {
+      window.removeEventListener('blur', blur);
       window.removeEventListener('compositionstart', begin);
       window.removeEventListener('compositionend', end);
       window.removeEventListener('keydown', keydown);
@@ -293,12 +306,9 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       const imported = await importAss(file);
       const initialized = initializeDocument(imported, () => `new-${crypto.randomUUID()}`);
       setHasImportedDocument(true);
-      setHasEdits(false); setDocument(initialized);
-      if (!imported.cues.length) selectCue(initialized.cues[0]);
-      else {
-        setSelectedId(null); cancelAudition();
-        setStartText('0:00:00.00'); setEndText('0:00:00.00');
-      }
+      setHasEdits(false);
+      edits.baseline(withSelection({ ...edits.current(), document: initialized }, !imported.cues.length ? initialized.cues[0] : undefined));
+      cancelAudition();
     } catch (reason) {
       setError(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
     }
@@ -321,7 +331,10 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     setBusy(true);
     try {
       const result = await localStyleOperation(document, operation);
-      setDocument(result.document); setHasEdits(true);
+      // Pure server transformations may return a fresh but unchanged snapshot.
+      if (JSON.stringify(result.document) !== JSON.stringify(document)) {
+        edits.edit({ ...edits.current(), document: result.document }); setHasEdits(true);
+      }
       return result;
     } finally { setBusy(false); }
   }
@@ -334,7 +347,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
 
   return (
-    <main className="editor-workbench" ref={workbench} tabIndex={-1} onClick={event => {
+    <main className="editor-workbench" ref={workbench} tabIndex={-1} onBlurCapture={() => edits.finish()} onCompositionStartCapture={() => edits.beginComposition()} onCompositionEndCapture={() => edits.endComposition()} onClick={event => {
       // Mouse activation returns to timing shortcuts; keyboard activation keeps
       // native button focus. Boundary sliders retain focus for arrow-key edits.
       const button = (event.target as Element).closest('button');
@@ -409,8 +422,15 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
           </>} />
       } editor={<>
           <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
-            selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
-            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
+            historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
+            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
+            onBoundaryGesture={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && document ? () => {
+              const gesture = edits.beginGesture();
+              return {
+                change: (point, time) => { gesture.change(state => ({ ...state, [point === 'start' ? 'startText' : 'endText']: formatTime(time) })); cancelAudition(); setHasEdits(true); },
+                end: gesture.end,
+              };
+            } : undefined}
             onSeek={seekPlayback} />
           <section className="cue-editor" aria-label="字幕编辑">
             <fieldset disabled={busy || !document || !canEdit}>
@@ -428,15 +448,15 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
                 </div>
               </div>
               <div className="time-points">
-                <TimePointControl label="入点" value={startText}
-                  onChange={value => changeTimeDraft('start', value)} />
-                <TimePointControl label="出点" value={endText}
-                  onChange={value => changeTimeDraft('end', value)} />
+                <TimePointControl key={`start:${edits.epoch}:${selectedId}`} label="入点" value={startText}
+                  onChange={(value, native) => changeTimeDraft('start', value, 'start', native)} />
+                <TimePointControl key={`end:${edits.epoch}:${selectedId}`} label="出点" value={endText}
+                  onChange={(value, native) => changeTimeDraft('end', value, 'end', native)} />
               </div>
               <label className="subtitle-input">
                 字幕文本
-                <textarea ref={textEditor} aria-label="字幕中文文本" title="Tab 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航" rows={2} disabled={!selected} value={selected?.text || ''}
-                  placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
+                <textarea key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title="Tab 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航" rows={2} disabled={!selected} value={selected?.text || ''}
+                  placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
               </label>
             </fieldset>
           </section>

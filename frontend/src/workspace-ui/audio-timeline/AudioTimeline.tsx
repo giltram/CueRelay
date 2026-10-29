@@ -8,12 +8,14 @@ import { boundaryTime, clampViewport, revealInterval, timeAtX, xAtTime, wheelVie
 import './audio-timeline.css';
 import type { AudioDisplayMode } from '../../media/audio/analysis-types';
 import type { SpectrumImageCache } from './draw-spectrum';
-import { AudioBoundary } from './AudioBoundary';
+import { AudioBoundary, type BoundaryGesture } from './AudioBoundary';
 import { AudioCueIntervals } from './AudioCueIntervals';
 import { AudioScrollbar } from './AudioScrollbar';
 import type { Cue } from '../../contracts/subtitles';
 
 interface Props {
+  historyEpoch?: number;
+  onBoundaryGesture?: () => BoundaryGesture;
   file: File | null;
   video: HTMLVideoElement | null;
   duration: number;
@@ -34,7 +36,7 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
   | { kind: 'seek'; grabOffset: number }
 );
 
-export function AudioTimeline({ file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
+export function AudioTimeline({ file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange, onBoundaryGesture, historyEpoch }: Props) {
   const auditionTime = audition?.position ?? null;
   const seconds = duration / 1000;
   const stageId = useId();
@@ -75,13 +77,15 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
     });
     return () => cancelAnimationFrame(frame);
   }, [analysis.tiles, view.start, view.span, size, mode, cues, selectionId, selection?.start, selection?.end, verticalZoom]);
+  const previousHistoryEpoch = useRef(historyEpoch);
   useEffect(() => {
+    if (previousHistoryEpoch.current !== historyEpoch) { previousHistoryEpoch.current = historyEpoch; return; }
     if (!selectionId || !selection) return;
     setViewport(value => revealInterval(value, selection.start / 1000, selection.end / 1000, seconds));
     follow.current = false;
     // Only offscreen selections move the view; typing times never changes zoom/pan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionId]);
+  }, [selectionId, historyEpoch]);
   useEffect(() => {
     if (!video || !seconds) {
       if (playhead.current) playhead.current.hidden = true;
@@ -207,8 +211,8 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
       <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越亮能量越强'} />
       <AudioCueIntervals cues={cues} selectedId={selectionId} view={view} />
       {selection && <>
-        <AudioBoundary point="start" value={selection.start} duration={duration} view={view} onChange={onBoundaryChange} />
-        <AudioBoundary point="end" value={selection.end} duration={duration} view={view} onChange={onBoundaryChange} />
+        <AudioBoundary point="start" value={selection.start} duration={duration} view={view} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
+        <AudioBoundary point="end" value={selection.end} duration={duration} view={view} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
       </>}
       <div className="audio-playhead" ref={playhead} aria-label="音频播放头" hidden />
       {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频</p>}

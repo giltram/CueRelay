@@ -28,7 +28,8 @@
     "test:subtitle-focus": "node browser-tests/subtitle-focus.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:editing-operations": "node browser-tests/editing-operations.mjs"
+    "test:editing-operations": "node browser-tests/editing-operations.mjs",
+    "test:workspace-history": "node browser-tests/workspace-history.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

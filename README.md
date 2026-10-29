@@ -122,3 +122,5 @@ npm run build
 视频右上角为小尺寸全屏/退出全屏图标（16px 图标、28px 点击区域）。进入全屏保留当前位置及播放/暂停状态并取消字幕区间停止限制；全屏空格从当前位置播放/暂停，退出后恢复原有快捷键含义，不自动跳回字幕区间。验证：`cd frontend && npm run test:fullscreen-playback`（真实 Chrome/FFmpeg、前端开发服务，API 为隔离夹具，不写开发数据库）。
 
 2026-10-25 全屏播放验证：前端 269 项单测、类型检查及构建通过；真实 Chrome 全屏播放/图标/长按空格/退出后快捷键恢复，以及既有视频进度和 ASS 预览浏览器回归通过。全屏退出事件在无界面 Chrome 中经 Fullscreen API 验证，不把模拟 Escape 当成浏览器原生命令。
+
+工作区支持 **Cmd/Ctrl+Z 撤销、Cmd/Ctrl+Shift+Z 重做**（可在个人设置覆盖）。一次边界拖动/方向键长按、提交并下一条/自动新增、删除均按原子步骤恢复文档、选择和时间草稿，最多保留本实例内 100 步。文本/样式同样接入；输入框保留原生撤销，实际原生撤销/重做建立新的工作区历史基线。保存不清空历史，也不回退服务端 revision；拆分撤销只改变本地内容，下次手动保存才写服务器。导入成功、显式重载和替换实例清空；隐藏恢复保留。详情见 [工作区历史](frontend/src/workspace-ui/README.md)。验证：`cd frontend && npm run test:workspace-history`（Chrome、FFmpeg、Vite 默认 5189，HISTORY_URL 可覆盖；隔离 HTTP fixture + 真实 ASS 纯转换，不写开发数据库）。
