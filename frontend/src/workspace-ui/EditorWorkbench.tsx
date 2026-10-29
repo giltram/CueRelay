@@ -13,6 +13,7 @@ import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
 import { isEditingShortcut, timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
+import { handleSubtitleFocusShortcut } from './subtitle-focus';
 import { commitTiming } from './commit-timing';
 import { playheadBoundary } from './playhead-boundary';
 import { deleteCue } from './delete-cue';
@@ -73,6 +74,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const [hasEdits, setHasEdits] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
   const composing = useRef(false);
+  const workbench = useRef<HTMLElement>(null);
   const textEditor = useRef<HTMLTextAreaElement>(null);
   const splitting = useRef(false);
   const restoreTextCursor = useRef<number | null>(null);
@@ -245,6 +247,8 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     const end = () => { composing.current = false; };
     const keydown = (event: KeyboardEvent) => {
       if (busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible) return;
+      if (canEdit && selected && !window.document.fullscreenElement
+        && handleSubtitleFocusShortcut(event, composing.current, workbench.current, textEditor.current)) return;
       if (video && window.document.fullscreenElement?.contains(video) && isFullscreenPlaybackShortcut(event, composing.current)) {
         event.preventDefault();
         if (!event.repeat) run(togglePlayback);
@@ -330,7 +334,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
 
   return (
-    <main tabIndex={-1} onClick={event => {
+    <main className="editor-workbench" ref={workbench} tabIndex={-1} onClick={event => {
       // Mouse activation returns to timing shortcuts; keyboard activation keeps
       // native button focus. Boundary sliders retain focus for arrow-key edits.
       const button = (event.target as Element).closest('button');
@@ -431,7 +435,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
               </div>
               <label className="subtitle-input">
                 字幕文本
-                <textarea ref={textEditor} aria-label="字幕中文文本" rows={2} disabled={!selected} value={selected?.text || ''}
+                <textarea ref={textEditor} aria-label="字幕中文文本" title="Tab 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航" rows={2} disabled={!selected} value={selected?.text || ''}
                   placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }))} />
               </label>
             </fieldset>

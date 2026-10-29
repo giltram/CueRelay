@@ -63,6 +63,8 @@ h1, h2, p { margin: 0; }
 h1 { font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
 h2 { font-size: 15px; font-weight: 600; }
 main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-height: 540px; padding: 0 16px 12px; }
+/* Timing shortcuts return focus here; the page-sized container needs no ring. */
+.editor-workbench:focus { outline: none; }
 .app-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; border-bottom: 1px solid var(--border); }
 .file-actions, .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .file-picker { position: relative; flex-direction: row; font-size: 14px; }

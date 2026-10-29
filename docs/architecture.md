@@ -42,6 +42,8 @@ Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBound
 
 delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接受 Backspace）；共享 JSON 唯一声明四个默认别名，覆盖替换全部默认、空列表禁用、删除覆盖恢复默认，不再有固定删行分支。只有此动作额外接受 Ctrl/Meta+Delete/Backspace；输入框 / IME / 重复保护复用 allowsShortcutFocus；所有动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `delete-cue.ts`，删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 delete-cue / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
 
+2026-10-30 固定 Tab 焦点切换：`workspace-ui/subtitle-focus.ts` 只在工作区 main、音频 audio-stage（含边界滑块）与当前字幕 textarea 间处理无修饰 Tab；进入文本框保留光标和选区，退出聚焦 main。EditorWorkbench 在普通快捷键输入保护之前调用该接口，复用既有转换 / 拆分 / 导入确认 / 弹窗 / 暂停 / 可见性保护，并要求有可编辑选中行且非全屏。焦点直接来自 DOM，不新增模式状态、不改字幕或时间、不提交 / 保存。长按事件被接管但不再次切换；IME、Shift+Tab、其他修饰键、其他输入和控件保留原行为。固定导航不加入可配置动作表；契约和真实浏览器验证见 [Tab 焦点记录](experiments/subtitle-focus.md)。
+
 时间轴顶部标尺复现 Aegisub 3.2.2 的八档刻度和时间前缀省略：`ruler.ts` 计算可见绝对时间刻度 / 测量避让，`draw-ruler.ts` 在既有 canvas 顶部绘制；`viewport.xAtTime` 统一标尺、频谱与覆盖线坐标。没有第二套视窗或滚动状态，缩放锚点和编辑交互继续由 AudioTimeline 持有。精确契约与测试入口见 [时间轴 README](../frontend/src/workspace-ui/audio-timeline/README.md#aegisub-标尺契约)。
 
 频谱显示沿用提取 / Hann STFT 和共享坐标，采用线性 0..Nyquist 与固定 -80..0dBFS 峰值幅度标度。`media/audio/spectrum.ts` 唯一拥有频带 / 能量契约；UI 的 `spectrum-pixels.ts` 负责峰值保留的纵向重采样与 normal / inactive / active 色表。normal 保留黑蓝青白；后两者参考 Aegisub Icy Blue HSL 参数，直接映射同一能量，而非叠加透明蓝色。draw-audio 先 normal，再按其他行联合区域重绘 inactive，最后当前时间草稿 active，重叠不累加；更改区间触发重绘，不触发分析 / 解码。draw-spectrum 的组件级 WeakMap 为每个 tile / 色表缓存一张目标物理高度图像，按需处理相交区域，DPR 变化时重建。波形共用区间背景，峰值绘制不变。深色样式限定音频区域；不更改全站主题、播放和字幕编辑入口。调查与验证见 [频谱显示记录](experiments/spectrum-display.md) 和 [区间配色记录](experiments/interval-rendering.md)。
