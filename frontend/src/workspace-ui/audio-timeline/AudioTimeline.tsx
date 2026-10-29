@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import type { AuditionState } from '../../media/audio/audition-controller';
 import { useAudioAnalysis } from '../../media/audio/use-audio-analysis';
 import { formatTime } from '../../media/playback';
 import { drawAudio } from './draw-audio';
@@ -9,6 +10,7 @@ import type { AudioDisplayMode } from '../../media/audio/analysis-types';
 import type { SpectrumImageCache } from './draw-spectrum';
 import { AudioBoundary } from './AudioBoundary';
 import { AudioCueIntervals } from './AudioCueIntervals';
+import { AudioScrollbar } from './AudioScrollbar';
 import type { Cue } from '../../contracts/subtitles';
 
 interface Props {
@@ -16,6 +18,8 @@ interface Props {
   video: HTMLVideoElement | null;
   duration: number;
   currentTime: number;
+  audition?: AuditionState;
+  getAuditionPosition?: () => number | null;
   mode: AudioDisplayMode;
   mouseSetsCueBoundary?: boolean;
   selectionId: string | null;
@@ -30,13 +34,17 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
   | { kind: 'seek'; grabOffset: number }
 );
 
-export function AudioTimeline({ file, video, duration, currentTime, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
+export function AudioTimeline({ file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange }: Props) {
+  const auditionTime = audition?.position ?? null;
   const seconds = duration / 1000;
+  const stageId = useId();
   const [viewport, setViewport] = useState<AudioViewport>({ start: 0, span: 10 });
   const [verticalZoom, setVerticalZoom] = useState(1);
   const [spectrumImages] = useState<SpectrumImageCache>(() => new WeakMap());
   const view = clampViewport(viewport, seconds);
   const analysis = useAudioAnalysis(file, view.start, view.start + view.span, mode);
+  const panel = useRef<HTMLElement>(null);
+  const timeDisplay = useRef<HTMLSpanElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const playhead = useRef<HTMLDivElement>(null);
@@ -44,6 +52,7 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, mouseS
   const drag = useRef<TimelineDrag | null>(null);
   const [size, setSize] = useState(0);
   const liveView = useRef(view); liveView.current = view;
+  const audioPosition = useRef(getAuditionPosition); audioPosition.current = getAuditionPosition;
 
   useEffect(() => { setViewport({ start: 0, span: 10 }); follow.current = true; drag.current = null; }, [file]);
   useEffect(() => {
@@ -80,7 +89,13 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, mouseS
     }
     let frame = 0;
     const show = (force = false) => {
-      const current = video.currentTime;
+      const audioTime = audioPosition.current?.() ?? null;
+      const current = audioTime === null ? video.currentTime : audioTime / 1000;
+      if (timeDisplay.current) timeDisplay.current.textContent = formatTime(current * 1000);
+      if (panel.current) {
+        if (audioTime === null) delete panel.current.dataset.auditionTime;
+        else panel.current.dataset.auditionTime = String(audioTime);
+      }
       const visible = liveView.current;
       // Media seeks can round to microseconds; an edge seek must not trigger a pan.
       const outside = current < visible.start - 1e-6 || current > visible.start + visible.span + 1e-6;
@@ -119,10 +134,10 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, mouseS
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
-  return <section className="audio-panel audio-timeline" aria-label="音频时间轴" data-state={analysis.status}
-    data-start={view.start} data-end={view.start + view.span} data-mode={mode} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
+  return <section ref={panel} className="audio-panel audio-timeline" aria-label="音频时间轴" data-state={analysis.status}
+    data-audition-phase={audition?.phase ?? 'idle'} data-audition-time={auditionTime ?? undefined} data-start={view.start} data-end={view.start + view.span} data-mode={mode} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
     <div className="audio-visualization">
-    <div className="audio-stage" ref={stage} role="group" aria-label="音频可视范围" tabIndex={seconds ? 0 : -1}
+    <div className="audio-stage" id={stageId} ref={stage} role="group" aria-label="音频可视范围" tabIndex={seconds ? 0 : -1}
       onKeyDown={event => {
         if (drag.current?.kind === 'seek') return;
         if (!seconds || event.altKey || event.ctrlKey || event.metaKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -195,23 +210,26 @@ export function AudioTimeline({ file, video, duration, currentTime, mode, mouseS
         <AudioBoundary point="start" value={selection.start} duration={duration} view={view} onChange={onBoundaryChange} />
         <AudioBoundary point="end" value={selection.end} duration={duration} view={view} onChange={onBoundaryChange} />
       </>}
-      <div className="audio-playhead" ref={playhead} aria-label="视频播放头" hidden />
+      <div className="audio-playhead" ref={playhead} aria-label="音频播放头" hidden />
       {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频</p>}
       {analysis.status === 'opening' && <p className="audio-message" role="status">正在读取本地音轨…</p>}
       {analysis.status === 'error' && <p className="audio-message audio-error" role="status">{analysis.message}</p>}
     </div>
-    <label className="audio-vertical-zoom" title="Vertical Zoom · 向上增强，双击恢复 1.00×">
-      <span>垂直</span>
+    <label className="audio-vertical-zoom" title={`垂直缩放 ${verticalZoom.toFixed(2)}× · 向上增强，双击恢复 1.00×`}>
       <input type="range" aria-label="垂直缩放" aria-orientation="vertical" min="0.5" max="4" step="0.01"
         value={verticalZoom} aria-valuetext={`${verticalZoom.toFixed(2)} 倍，${mode === 'spectrum' ? '频谱强度' : '波形高度'}`}
         onChange={event => setVerticalZoom(Number(event.currentTarget.value))}
         onDoubleClick={() => setVerticalZoom(1)} />
-      <output>{verticalZoom.toFixed(2)}×</output>
     </label>
     </div>
+    <AudioScrollbar view={view} duration={seconds} controls={stageId} onScroll={start => {
+      if (drag.current?.kind === 'seek') return;
+      follow.current = false;
+      setViewport(clampViewport({ ...view, start }, seconds));
+    }} />
     <div className="audio-footer">
-      <span>{formatTime(currentTime)}{selection && ` · 入 ${formatTime(selection.start)} / 出 ${formatTime(selection.end)}`}</span>
-      <span aria-live="polite">{analysis.status === 'loading' ? '分析中…' : '滚轮平移 · Shift+滚轮缩放'}</span>
+      <span><span ref={timeDisplay}>{formatTime(auditionTime ?? currentTime)}</span>{selection && ` · 入 ${formatTime(selection.start)} / 出 ${formatTime(selection.end)}`}</span>
+      <span aria-live="polite">{audition?.message || (analysis.status === 'loading' ? '分析中…' : '滚轮平移 · Shift+滚轮缩放')}</span>
     </div>
   </section>;
 }

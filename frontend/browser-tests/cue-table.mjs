@@ -11,7 +11,7 @@ import { sameTab } from './link-navigation.mjs';
 
 const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-cue-table-'));
 const video = join(artifacts, 'video.mp4');
-execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', video]);
+execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=5', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', video]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const errors = [], unexpected = [];
@@ -64,6 +64,12 @@ try {
   assert.equal(await rows.nth(1).locator('.cps-cell').textContent(), '0');
   await page.getByLabel('字幕中文文本').fill('e\u0301👨‍👩‍👧‍👦👍🏽中');
   assert.equal(await rows.nth(1).locator('.cps-cell').textContent(), '2');
+  // Selection remains available before a video is loaded.
+  await rows.first().locator('.row-number').click();
+  assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:00.00');
+  await rows.nth(1).locator('.cue-text').click();
+  assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:04.00');
+  assert.equal(await page.getByRole('alert').count(), 0);
   const chosen = page.waitForEvent('filechooser');
   await picker.focus(); await page.keyboard.press('Enter');
   await (await chosen).setFiles(video);
@@ -134,6 +140,39 @@ try {
   assert.equal(await page.getByRole('button', { name: '选择第 2 行', exact: true }).getAttribute('aria-pressed'), 'true');
   assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:04.00');
   assert.equal(await page.getByRole('textbox', { name: '出点', exact: true }).inputValue(), '0:00:06.00');
+  const subtitleSnapshot = await rows.allTextContents();
+  const at = time => page.waitForFunction(time => {
+    const video = document.querySelector('video');
+    return !video.seeking && video.paused && Math.abs(video.currentTime - time) < .001 &&
+      Math.abs(Number(document.querySelector('.video-progress').value) - time * 1000) < 1;
+  }, time);
+  // Selecting text while video is playing pauses and seeks to the applied start.
+  await page.getByRole('button', { name: '播放 / 暂停', exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('video').paused);
+  await rows.nth(1).locator('.cue-text').click(); await at(4);
+  assert.equal(await page.getByRole('button', { name: '选择第 2 行', exact: true }).getAttribute('aria-pressed'), 'true');
+  // Clicking the already selected row number seeks again without autoplay.
+  await page.locator('video').evaluate(video => { video.currentTime = .5; });
+  await page.waitForFunction(() => !document.querySelector('video').seeking);
+  await rows.nth(1).locator('.row-number').click(); await at(4);
+  // Row selection also cancels an active independent audio audition.
+  await page.locator('main').focus(); await page.keyboard.press('Space');
+  await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.auditionPhase === 'playing');
+  await rows.first().locator('.cue-text').click(); await at(0);
+  assert.equal(await page.locator('.audio-timeline').getAttribute('data-audition-phase'), 'idle');
+  // G/Enter programmatic advance keeps the video still; the new behavior belongs to table selection.
+  await page.keyboard.press('KeyG'); await at(0);
+  assert.equal(await page.getByRole('button', { name: '选择第 2 行', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(await rows.allTextContents(), subtitleSnapshot);
+  assert(await page.evaluate(() => document.querySelector('video') === window.__gridVideo));
+  // A cue beyond the media can still be selected; report the seek error without clipping subtitle time.
+  await page.locator('main').focus(); await page.keyboard.press('KeyG');
+  await rows.nth(2).locator('.row-number').click();
+  assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:06.00');
+  assert.match(await page.getByRole('alert').innerText(), /定位点超过视频时长/);
+  await at(0);
+  await page.keyboard.press('Control+Delete'); // Restore the original two-row fixture.
+  await rows.nth(1).locator('.cue-text').click(); await at(4);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -159,5 +198,5 @@ try {
   await page.reload(); await rows.first().waitFor();
   almost(await widthOf(4), 88); // Widths are per-workspace memory, with no new storage.
   assert.deepEqual(unexpected, []); assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ browser: browser.version(), columnOrder: true, liveCps: true, appliedTiming: true, unicode: true, tooltipRemoved: true, fixedVideo: true, resizeColumns: true, pointerCapture: true, keyboardLimits: true, resetWidths: true, preserveWorkspace: true, artifacts, errors }, null, 2));
+  console.log(JSON.stringify({ browser: browser.version(), rowSelectionSeeks: true, pausesVideoAndAudition: true, noMediaSelection: true, programmaticAdvanceStaysStill: true, outOfRangeSelection: true, columnOrder: true, liveCps: true, appliedTiming: true, unicode: true, tooltipRemoved: true, fixedVideo: true, resizeColumns: true, pointerCapture: true, keyboardLimits: true, resetWidths: true, preserveWorkspace: true, artifacts, errors }, null, 2));
 } finally { await browser.close(); }

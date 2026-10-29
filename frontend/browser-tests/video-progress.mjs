@@ -70,10 +70,13 @@ try {
   assert.equal(await page.locator('.cue-list tbody tr').count(), 1);
   assert(await video.evaluate(el => el.paused));
 
-  // Scrubbing cancels the 0–2s audition and preserves playback beyond its old endpoint.
+  // Scrubbing cancels the independent audition and keeps video paused; ordinary play still advances.
   await page.locator('main').focus(); await page.keyboard.press('Space');
-  await page.waitForFunction(() => !document.querySelector('video').paused);
-  await clickAt(.5);
+  await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
+  await clickAt(.5); await timeNear(6);
+  assert(await video.evaluate(el => el.paused));
+  assert.equal(await page.locator('.audio-timeline').getAttribute('data-audition-phase'), 'idle');
+  await page.getByRole('button', { name: '播放 / 暂停', exact: true }).click();
   await page.waitForFunction(() => {
     const video = document.querySelector('video');
     return !video.paused && video.currentTime > 6.2;

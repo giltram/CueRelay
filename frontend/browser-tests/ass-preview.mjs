@@ -127,14 +127,41 @@ try {
   assert.equal(await canvas.evaluate(el => getComputedStyle(el).pointerEvents), 'none');
   const originalCanvas = await canvas.elementHandle();
   await rows.first().click();
+  const start = page.getByRole('textbox', { name: '入点', exact: true });
+  const end = page.getByRole('textbox', { name: '出点', exact: true });
+
+  // Neither boundary is a 25fps frame timestamp. A late paused video-frame
+  // callback must not restore the subtitle at the exclusive end, or erase it
+  // just inside the start by rendering the preceding frame's timestamp.
+  const timingExport = page.waitForResponse(res => res.url().includes('/api/ass/export') &&
+    res.request().postDataJSON().document.cues[0]?.start_ms === 1230 &&
+    res.request().postDataJSON().document.cues[0]?.end_ms === 1870);
+  await start.fill('0:00:01.23'); await end.fill('0:00:01.87'); await timingExport; await ready();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await seek(1.23); await page.waitForTimeout(120);
+    assert((await pixels()).white > 100, 'paused seek inside subtitle must retain text');
+    await page.locator('main').focus(); await page.keyboard.press('Space');
+    await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished');
+    assert(await video.evaluate(video => video.paused && Math.abs(video.currentTime - 1.23) < .001));
+    assert((await pixels()).white > 100, 'audio-only audition retains the static video/ASS frame');
+    // Explicitly seek to the exclusive out point to retain the late-frame regression.
+    await seek(1.87);
+    await page.waitForTimeout(120);
+    for (let sample = 0; sample < 3; sample++) {
+      const image = await pixels();
+      assert.equal(image.white, 0, 'paused seek to out must not restore the preceding subtitle frame');
+      assert.equal(image.yellow, 0);
+    }
+  }
+  await start.fill('0:00:01.20'); await end.fill('0:00:03.40');
+  await seek(2.8); await eventually(p => p.white > 200 && p.yellow > 200);
+
   await edit('即时预览：新的中文台词');
   await eventually(p => p.hash !== overlap.hash && p.white > 200 && p.yellow > 200);
   assert(await originalCanvas.evaluate(el => el === document.querySelector('.ass-preview-canvas')));
   await pixels('02-edited-paused');
 
   // Timing draft affects preview before G/Enter, without changing saved row timing.
-  const start = page.getByRole('textbox', { name: '入点', exact: true });
-  const end = page.getByRole('textbox', { name: '出点', exact: true });
   await start.fill('0:00:03.00');
   await eventually(p => p.white === 0 && p.yellow > 200);
   assert.match(await rows.first().textContent(), /0:00:01.20/);

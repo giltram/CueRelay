@@ -8,6 +8,8 @@ Python 3.11.8、Node 26.4.0、npm 11.17.0、PostgreSQL 14+。前端依赖锁在 
 
 先准备自己管理的 PostgreSQL 数据库和用户；数据库用户需具有该数据库的迁移权限，运行 Django 测试还需 CREATEDB。项目不自动配置 Docker、部署或邮件服务。
 
+本机已配置的持久开发数据库及启停命令见 [本机开发数据库](docs/local-development.md)。
+
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate

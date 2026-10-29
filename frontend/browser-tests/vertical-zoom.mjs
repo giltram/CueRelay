@@ -10,6 +10,7 @@ import { chromium } from 'playwright';
 import { setAudioMode } from './audio-settings.mjs';
 import { checkPlayhead } from './playhead-checks.mjs';
 import { checkRuler, observeRuler } from './ruler-checks.mjs';
+import { checkAudioScrollbar } from './audio-scrollbar-checks.mjs';
 
 const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-vertical-zoom-'));
 const file = join(artifacts, 'weak-tones.mp4');
@@ -85,7 +86,9 @@ const report = { browser: browser.version(), artifacts, errors, unexpected };
 try {
   await page.goto(new URL('/workspace/local', process.env.AUDIO_TIMELINE_URL || 'http://127.0.0.1:5173').href);
   await page.waitForFunction(() => document.querySelector('.file-actions button.primary')?.disabled === false);
+  assert.equal(await page.getByRole('scrollbar').getAttribute('aria-disabled'), 'true');
   await page.getByLabel('导入本地视频').setInputFiles(file); await ready(); await painted();
+  report.scrollbar = await checkAudioScrollbar(page);
   const slider = page.getByRole('slider', { name: '垂直缩放', exact: true });
   assert.equal(await slider.inputValue(), '1');
   assert.equal(await slider.getAttribute('min'), '0.5'); assert.equal(await slider.getAttribute('max'), '4');
@@ -107,7 +110,7 @@ try {
   await page.locator('.audio-visualization').screenshot({ path: join(artifacts, 'bright.png') });
   await slider.dblclick(); await painted(); assert.equal(await slider.inputValue(), '1');
   assert.deepEqual(await brightness(), normal);
-  await page.locator('.audio-visualization').screenshot({ path: join(artifacts, 'default.png') });
+  await page.locator('.audio-timeline').screenshot({ path: join(artifacts, 'default.png') });
   const thumbY = box.y + 8 + (1 - (1 - .5) / 3.5) * (box.height - 16);
   await page.mouse.move(box.x + box.width / 2, thumbY); await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y + 8, { steps: 25 }); await painted();
@@ -143,9 +146,12 @@ try {
   await page.locator('video').evaluate(video => { video.currentTime = 5; });
   const bounds = () => page.locator('.audio-timeline').evaluate(el => ({ start: Number(el.dataset.start), end: Number(el.dataset.end) }));
   report.playhead = await checkPlayhead(page, bounds);
+  assert.equal(Number(await page.getByRole('scrollbar').getAttribute('aria-valuenow')), (await bounds()).start);
   report.ruler = await checkRuler(page, artifacts);
   await page.setViewportSize({ width: 800, height: 900 }); await painted();
-  const narrow = await slider.boundingBox(); assert(narrow.height > 24 && narrow.width >= 24);
+  const narrow = await slider.boundingBox(); assert(narrow.height > 24 && narrow.width <= 18);
+  const narrowScroll = await page.getByRole('scrollbar').boundingBox();
+  assert(narrowScroll.height <= 10 && Math.abs(narrowScroll.width - (await stage.boundingBox()).width) < 1);
   await page.screenshot({ path: join(artifacts, 'narrow.png') });
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
   console.log(JSON.stringify(report, null, 2));

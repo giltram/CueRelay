@@ -38,7 +38,6 @@ export function seekVideo(video: HTMLVideoElement, milliseconds: number): void {
 
 export type AuditionMode = 'selection' | 'before-start' | 'after-end' | 'first-500' | 'last-500';
 export interface PlaybackRange { start: number; end: number }
-export interface RangePlayback extends PlaybackRange { repeat: boolean }
 
 /** Clip playback only; never change the subtitle's timing values. */
 export function auditionRange(mode: AuditionMode, start: number, end: number, duration: number): PlaybackRange | null {
@@ -54,53 +53,6 @@ export function auditionRange(mode: AuditionMode, start: number, end: number, du
   const range = ranges[mode];
   const clipped = { start: Math.max(0, Math.min(duration, range.start)), end: Math.max(0, Math.min(duration, range.end)) };
   return clipped.start < clipped.end ? clipped : null;
-}
-
-/** Observe the existing player for both one-shot and repeating auditions. */
-export function watchPlaybackRange(
-  video: HTMLVideoElement, range: RangePlayback, onFinish: () => void, onError: (error: Error) => void,
-): () => void {
-  let active = true;
-  let frame = 0;
-  const finish = () => {
-    if (!active) return;
-    active = false;
-    cancelAnimationFrame(frame);
-    onFinish();
-  };
-  const tick = () => {
-    if (!active) return;
-    const time = video.currentTime * 1000;
-    if (!video.paused && time >= range.end) {
-      if (range.repeat) video.currentTime = range.start / 1000;
-      else {
-        video.pause();
-        video.currentTime = range.end / 1000;
-        finish();
-        return;
-      }
-    } else if (!video.paused && range.repeat && time < range.start) {
-      video.currentTime = range.start / 1000;
-    }
-    frame = requestAnimationFrame(tick);
-  };
-  const ended = () => {
-    if (!active) return;
-    if (!range.repeat) { finish(); return; }
-    video.currentTime = range.start / 1000;
-    void video.play().catch(error => {
-      if (!active) return;
-      onError(error);
-      finish();
-    });
-  };
-  frame = requestAnimationFrame(tick);
-  video.addEventListener('ended', ended);
-  return () => {
-    active = false;
-    cancelAnimationFrame(frame);
-    video.removeEventListener('ended', ended);
-  };
 }
 
 export interface ShortcutEvent {

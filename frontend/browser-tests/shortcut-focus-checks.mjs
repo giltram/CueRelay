@@ -30,11 +30,11 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     // A mouse action must return focus to the editor so Space plays the selection.
     await page.getByRole('button', { name: '定位选中行', exact: true }).click();
     await page.keyboard.press('Space');
-    await page.waitForFunction(() => !document.querySelector('video').paused);
+    await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
     assert.equal(await page.locator('.audio-timeline').getAttribute('data-mode'), 'spectrum');
     await page.waitForFunction(() => {
       const video = document.querySelector('video');
-      return video.paused && Math.abs(video.currentTime - 4) < 0.02;
+      return video.paused && Math.abs(video.currentTime - 2.5) < 0.02 && document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished' && Number(document.querySelector('.audio-timeline').dataset.auditionTime) === 4000;
     });
 
     // Tab-navigation still focuses buttons; Enter/Space keep native activation.
@@ -64,10 +64,10 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:03.71');
     await page.keyboard.press('Space');
-    await page.waitForFunction(() => !document.querySelector('video').paused);
+    await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
     await page.waitForFunction(() => {
       const video = document.querySelector('video');
-      return video.paused && Math.abs(video.currentTime - 5.7) < 0.02;
+      return video.paused && Math.abs(video.currentTime - 2.5) < 0.02 && document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished' && Number(document.querySelector('.audio-timeline').dataset.auditionTime) === 5700;
     });
     await page.keyboard.press('Enter');
     assert.equal(await rows.count(), 4);

@@ -15,7 +15,7 @@
 
 `BlobSource` 的字节缓存配置为 8 MiB。解码使用 `AudioSampleSink.samples(start,end)` 的内建有限预解码队列，逐块 `copyTo` 后在 finally 中关闭 sample；退出 / 取消时调用 iterator.return，销毁会话时 Input.dispose。模块不保留 PCM，调用方不能无限保留 chunks。库仍会解析容器索引，索引内存和解码器原生内存不属于 8 MiB 字节缓存限额。
 
-不调用整个 File.arrayBuffer、decodeAudioData、AudioContext 或第二套播放器，不发起媒体网络请求。解码不支持与读取错误由音频区域单独显示，不能清除视频或字幕。阶段 A 的验证页与现有工作区相互独立。
+提取模块本身不调用整个 File.arrayBuffer、decodeAudioData 或 AudioContext，不发起媒体网络请求。独立试听由下述控制器组合 PCM 与 Web Audio。解码不支持与读取错误由音频区域单独显示，不能清除视频或字幕。阶段 A 的验证页与现有工作区相互独立。
 
 ## 验证入口
 
@@ -29,7 +29,7 @@ LocalVideoPlayer 的 onFile 发布同一已选 File；EditorWorkbench 将 File�
 
 Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/max 桶保留约 0.5ms 的瞬态；渲染时按像素合并桶。反相声道不会因下混而消失。单个 ByteCache 以 PCM + 分析 typed arrays 的实际 byteLength 计费，上限 32 MiB；视图只保留当前窗口相交的分析 tiles（视窗最多 60 秒），不接收 PCM。没有多级缓存或全片扫描。
 
-每个 File 单独拥有 Worker；替换 / 卸载直接 terminate。视窗请求带递增 id，Worker 取消旧 readRange，UI 忽略旧 id；缓存命中循环也让出事件队列，避免旧视窗阻挡新请求。重计算和解码不在主线程。仅 video 播放，播放头读取 video.currentTime；手动平移暂时停止跟随，点击定位 / seeked 或「当前」恢复。
+每个 File 单独拥有 Worker；替换 / 卸载直接 terminate。视窗请求带递增 id，Worker 取消旧 readRange，UI 忽略旧 id；缓存命中循环也让出事件队列，避免旧视窗阻挡新请求。重计算和解码不在主线程。视窗 Worker 始终只做分析；普通播放头读取 video.currentTime，独立试听时读取试听控制器，完成时保留音频出点。手动平移暂时停止跟随，主动定位 / seeked 恢复。
 
 ## 频谱
 
@@ -42,3 +42,18 @@ Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/m
 最终集成回归：`test:audio-timeline` 验证正式页面与生产包；`test:audio-lifecycle` 用开发专用 hook 探针验证快速换片 / 卸载，另在正式页面验证无音轨不阻断视频与字幕。探针允许换片仅用于测试，不改变生产页面原有的成功选片固定规则。资源验证计数指 terminate 调用，不等同于操作系统级原生内存审计。
 
 AudioDisplayMode 仅是分析请求/输出的类型契约；个人偏好的保存和读取属于 accounts/account-ui/App。media 不访问账号或浏览器 Storage，受控 mode 改变时沿用同一个 File/Worker/PCM 缓存。
+
+## 独立选区试听（2026-10-29）
+
+依赖方向：`workspace-ui → use-audio-audition → {audition-controller, audition-reader}`；`audition-reader → audition.worker → local-audio`。协议 / 预算由 `audition-protocol.ts` 声明，控制器不依赖 React、video、账号、分析 Worker 或字幕。
+
+- `AudioAuditionController.start({start,end})` 接受毫秒容器时间；同步取消旧会话并在用户手势内创建 / resume AudioContext，进入 preparing。短范围全部准备，长范围先准备两窗后开始；准备期间不输出声音。
+- `state` / `getPosition()` 是只读输出：idle / preparing / playing / finished / error、毫秒 position（null 表示 UI 使用视频位置）、message。位置只由 AudioContext.currentTime 推导，正常结束固定在请求出点；不读取或写入 video.currentTime。
+- `scheduleAuditionChunks` 仅复制 `[start,end)` 中的采样到 AudioBuffer，保留 PCM 声道和 PTS；间隙通过未排程的时间自然静音，不把音轨首包移到零点。每块提前设置 start/stop，最后一帧按精确出点停止。50ms 初始排程余量只是开始前的准备时间，不缩短试听区间，不以提前停止补偿延迟。输出采样率转换 / 设备声道映射由 Web Audio 完成。
+- `audition.worker.ts` 每次会话独立创建，按需使用 `LocalAudioSource.readRange`；串行请求，PCM transferable 发回后不保留缓存。分段最多 2 秒 / 4 MiB，高采样率 / 多声道自动缩短每窗；两个已排程窗加一个正在读取的窗，连同一次 AudioBuffer 复制的逻辑 PCM 上界 16 MiB。已播窗口及时断连并置空 buffer，不累积全片。保留分析 LRU 32 MiB、每个源读取缓存 8 MiB；容器索引、原生解码器及 GC 瞬时驻留不属于这些预算。
+- 25ms 定时器仅更新状态 / 预取未来窗口。出点无需主线程及时执行；在已排程音频耗尽前无法完成预取时停止并明确报错，不迟到播放、不改变 PTS、不回退旧 video 路径。没有新增选区总长度限制。
+- `stop()` 同步停止 / 断连所有已排程节点，终止 Worker、拒绝在途读取、隔离旧结果，回到 idle。重复触发从新范围起点准备。完成也终止 Worker；AudioContext 在同一可见 File 生命周期内复用，dispose / 换片 / 隐藏 / 卸载 / pagehide 时关闭，pageshow 可新建控制器恢复使用。
+- `useAudioAudition(file,video,visible)` 在开始试听时仅 pause 视频；普通视频播放、seeking、emptied/error 都取消试听。工作区的播放 / 定位入口还会在操作前同步 stop，进入全屏也 stop，随后 Space 保留普通 video 播放/暂停。
+- hook 只把阶段变化交给 React；AudioTimeline 的 RAF 读取 getPosition 更新一条播放头和 footer 时钟，不为音频进度重绘字幕表或频谱、不回写视频。准备 / 错误提示位于已有音频 footer；滚动 / 缩放 / 模式切换不会触碰试听会话。
+
+验证：`audition-controller.test.ts`、`audition-reader.test.ts`、原 `local-audio.test.ts` 和 `range-playback.test.ts`；`npm run test:audio-audition` 使用真实 Chrome / FFmpeg、OfflineAudioContext 与 AudioWorklet 捕获实际渲染 PCM。开发专用 `experiments/audio-audition.html` 验证同一 hook 的换片 / 隐藏 / 卸载，不属于生产入口。结果、命令与限制见 [试听验证记录](../../../../docs/experiments/audio-audition.md)。

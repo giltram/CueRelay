@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 export async function checkPlayhead(page, bounds) {
   const originalMode = await page.locator('.audio-timeline').getAttribute('data-mode');
   const stage = page.locator('.audio-stage');
-  const marker = page.getByLabel('视频播放头', { exact: true });
+  const marker = page.getByLabel('音频播放头', { exact: true });
   const readTime = () => page.locator('video').evaluate(video => video.currentTime);
   const assertView = async expected => {
     const current = await bounds();

@@ -53,7 +53,7 @@ async function seek(time) {
 }
 async function previewSelection() {
   await main.focus(); await page.keyboard.press('Space');
-  await playingPast(.05);
+  await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
 }
 try {
   await page.goto(`${process.env.FULLSCREEN_PLAYBACK_URL || 'http://127.0.0.1:5173'}/workspace/local`);
@@ -72,11 +72,8 @@ try {
 
   // Ordinary Space still auditions the subtitle and stops at its end.
   await previewSelection();
-  await seek(1.9);
-  await page.waitForFunction(() => {
-    const video = document.querySelector('video');
-    return video.paused && Math.abs(video.currentTime - 2) < .02;
-  });
+  await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished');
+  assert(await video.evaluate(el => el.paused && el.currentTime === 0));
   await seek(3.5);
   // Entering fullscreen while paused never seeks or starts playback by itself.
   await fullscreen.click(); await active();
@@ -102,16 +99,18 @@ try {
   // Restore the normal selection shortcut, then enter while it is still active.
   await previewSelection();
   await fullscreen.click(); await active();
-  assert(await video.evaluate(el => !el.paused));
-  await seek(3); await playingPast(3.2);
+  assert(await video.evaluate(el => el.paused));
+  await seek(3);
+  await page.keyboard.press('Space'); await playingPast(3.2);
   // Browser-driven exits also deliver fullscreenchange; headless Chromium does
   // not turn a synthetic Escape into its native fullscreen browser command.
   await page.evaluate(() => document.exitFullscreen()); await normal();
   await playingPast(3.4);
   await video.evaluate(el => el.pause());
   await previewSelection();
-  await seek(1.9);
-  await page.waitForFunction(() => document.querySelector('video').paused && Math.abs(document.querySelector('video').currentTime - 2) < .02);
+  await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished');
+  assert(await video.evaluate(el => el.paused));
+  await seek(2);
 
   // Fullscreen playback ignores incomplete timing drafts and an unbound Space preference.
   await start.fill('0:'); await end.fill('invalid');

@@ -56,6 +56,21 @@ ASS_PREVIEW_URL=http://127.0.0.1:5184 ASS_PREVIEW_SINGLE_THREAD=1 npm run test:a
 
 浏览器测试中的 `unavailableAssPreview` 只供其他 UI 专项的简化 DTO/无 ASS 服务夹具使用，显式返回 503；这些专项测试不宣称验证了渲染。本测试不使用该降级夹具。
 
+## 2026-10-29 试听边界闪烁回归
+
+25fps 合成视频，字幕时间草稿为 1.23–1.87s，两端均不对齐视频帧。修复前新增的浏览器用例在暂停定位 1.23s 后检测不到字幕；此前时序探针也记录到试听结束的渲染时间为 1.88 → 1.87 → 1.84s，较早帧回调恢复了已结束字幕。`PreviewJassub.manualRender` 在暂停 / seeking 时统一使用 `video.currentTime`，正常播放保留帧 PTS。
+
+执行结果：
+
+- `npx vitest run`：27 个文件、272 项通过，其中新增 3 项适配层时间基准测试。
+- `npm run typecheck`、`npm run build`、`git diff --check`：通过。
+- `npm run test:ass-preview` 及 `ASS_PREVIEW_SINGLE_THREAD=1 npm run test:ass-preview`：Chrome 147.0.7727.101，多线程 / 单线程均通过。每轮连续三次定位非帧对齐入点并按 Space 试听，入点字幕可见、出点暂停后多次像素采样无字幕；原有编辑、全屏、故障恢复及项目重载检查通过，正常页面 `errors=[]`。
+- 开发服务器的单线程运行记录了 Chrome 对 Vite 热更新 WebSocket 的本地网络访问拦截，未影响字幕断言；上述运行均使用开发服务器，本次构建只验证生成成功，没有另行运行生产浏览器回归。
+
+修复仅位于现有第三方适配层，未增加模块依赖或改变字幕 / 媒体的所有权。Safari、Firefox 及真实片源仍未在本次验证。
+
+独立音频试听接入后的本轮回归：Space 只输出音频，视频 / ASS 保留 1.23s 画面；随后显式定位 1.87s 检查旧帧不能恢复字幕。既有 currentTime 渲染修复不变。本轮 Chrome 多线程专项通过，细节见 [试听记录](audio-audition.md)；此前单线程结果是上次修复记录，本轮未重复单线程专项。
+
 ## 已知限制和后续
 
 - 现有仓库尚无实时协作推送、自动保存和 Project Style 写接口；本次没有扩展协议。远端已提交快照经现有明确重载接受后更新。未来事件应用必须写入同一个 EditorWorkbench 文档；不能由预览偷偷覆盖本地稿。

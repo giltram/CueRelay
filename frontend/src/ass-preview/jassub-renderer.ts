@@ -8,8 +8,18 @@ import type { PreviewRenderer } from './preview-session';
 // 2.5.23's automatic BT709 -> BT601 WebGL matrix tints even neutral white
 // (its columns sum to unequal RGB values). Preserve script RGB, as the ASS
 // exporter does, rather than changing colors based on browser video metadata.
-class ScriptColorJassub extends JASSUB {
+class PreviewJassub extends JASSUB {
   override _updateColorSpace() {}
+
+  override manualRender(data: Parameters<JASSUB['manualRender']>[0], repaint = false) {
+    const video = this._video;
+    // A paused/seeked frame can arrive after our explicit repaint. Its PTS may
+    // precede currentTime (e.g. 1.84s for a 1.87s seek), crossing an ASS boundary
+    // and undoing the correct final image. Playback still follows video frames.
+    const frame = video && (video.paused || video.seeking)
+      ? { ...data, mediaTime: video.currentTime } : data;
+    return super.manualRender(frame, repaint);
+  }
 }
 
 /** All version-specific JASSUB calls and resource ownership stay here. */
@@ -49,7 +59,7 @@ export function createJassubRenderer(video: HTMLVideoElement, content: string, o
     if (destroyed) return;
     // Canvas-only initialization avoids JASSUB starting uncaught async video
     // callbacks before WASM has initialized successfully.
-    instance = new ScriptColorJassub({ canvas, subContent: content, workerUrl, wasmUrl, modernWasmUrl,
+    instance = new PreviewJassub({ canvas, subContent: content, workerUrl, wasmUrl, modernWasmUrl,
       fonts: [font], defaultFont: 'Noto Sans SC', queryFonts: false });
     instance._worker.addEventListener('error', workerError);
     instance._worker.addEventListener('messageerror', workerError);

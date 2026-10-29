@@ -10,6 +10,7 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:audio-audition": "node browser-tests/audio-audition.mjs",
     "test:audio-browser": "node browser-tests/local-audio.mjs",
     "test:audio-preferences": "node browser-tests/audio-preferences.mjs",
     "test:personal-settings-pending": "node browser-tests/personal-settings-pending.mjs",
