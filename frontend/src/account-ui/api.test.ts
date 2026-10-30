@@ -15,7 +15,7 @@ describe('session API boundary', () => {
     vi.stubGlobal('fetch', fetch);
     await client.request('/me/settings', 'PATCH', { shortcut_overrides: {} });
     expect(fetch.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', cache: 'no-store',
-      headers: { 'X-CSRFToken': 'rotated-token', 'X-CueRelay-User': '7' } });
+      headers: { 'x-csrftoken': 'rotated-token', 'x-cuerelay-user': '7' } });
   });
   it.each(['permission_denied', 'csrf_failed'])('does not expire a session for %s', async code => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: { code, message: code } }) }));

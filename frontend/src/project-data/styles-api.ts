@@ -1,3 +1,4 @@
+import { diagnosticFetch } from '../diagnostics/http';
 import type { JsonRequest } from '../contracts/http';
 import type { AssDocument, StyleResult } from '../contracts/subtitles';
 import type { StyleOperation, StyleTemplate, TemplateInput } from '../contracts/styles';
@@ -15,7 +16,7 @@ export function templateApi(request: JsonRequest, organizationId: number) {
 
 /** Stateless local transform/inspection; template import requires the protected project API. */
 export async function localStyleOperation(document: AssDocument, operation: Exclude<StyleOperation, { type: 'import' | 'import_many' }> | { type: 'inspect' }): Promise<StyleResult> {
-  const response = await fetch('/api/ass/styles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document, operation }) });
+  const response = await diagnosticFetch('/api/ass/styles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document, operation }) });
   const body = await response.json();
   if (!response.ok) throw new Error(body.issues?.map((issue: { message: string }) => issue.message).join('\n') || '样式操作失败');
   return body;

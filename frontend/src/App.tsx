@@ -1,3 +1,5 @@
+import { ExportDiagnostics } from './diagnostics/ExportDiagnostics';
+import { diagnostics } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
 import { createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
@@ -45,6 +47,7 @@ export default function App() {
   const { workspace, visible } = workspaceState;
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
   const organization = organizations.find(org => org.id === organizationId);
+  useEffect(() => { diagnostics.setContext({ page: route.kind, organizationId: organizationId ?? undefined, projectId: 'projectId' in route ? route.projectId : undefined }); }, [route, organizationId]);
   const isList = route.kind === 'projects' || route.kind === 'entry';
   const isSettings = route.kind === 'settings' || route.kind === 'organization-settings';
 
@@ -179,6 +182,7 @@ export default function App() {
   }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
   const header = <div className="account-toolbar">
+    <ExportDiagnostics />
     {isList && <><label className="sr-only" htmlFor="organization">当前组织</label>
     <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
       navigate({ kind: 'projects', organizationId: Number(event.target.value) });
@@ -194,7 +198,7 @@ export default function App() {
   </div>;
   const projectLoad = workspaceState.projectLoad;
 
-  if (initializing) return <div className="login-page"><p role="status">正在检查会话…</p></div>;
+  if (initializing) return <div className="login-page"><p role="status">正在检查会话…</p><ExportDiagnostics /></div>;
   return <>
     {owner ? <>
       {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
@@ -229,7 +233,7 @@ export default function App() {
           notFound={route.kind === 'not-found'} error={projectLoad?.error} organizationId={routeOrganization(route)} navigate={navigate}
           retry={route.kind === 'project' ? workspaceState.retry : undefined} exportDraft={workspace ? () => void exportDraft() : undefined} />}
       {workspace && <div hidden={!visible}><EditorWorkbench key={workspace.generation} ref={workbench} header={visible ? header : null} title={<HomeLink navigate={navigate} />}
-        visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
+        diagnosticOwner={owner.id} visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}
@@ -237,7 +241,7 @@ export default function App() {
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
     </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>
-      <LoginForm api={accountApi} onLogin={onLogin} /></div>}
+      <LoginForm api={accountApi} onLogin={onLogin} /><ExportDiagnostics /></div>}
     {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}
     {owner && user && organizations.length === 0 && <div className="session-notice">暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</div>}
     {message && !transition && <div className="app-message" role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></div>}

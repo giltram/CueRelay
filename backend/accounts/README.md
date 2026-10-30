@@ -15,3 +15,5 @@ test_migrations.py 验证 0002 旧账号升级后密码、会话、设置、成�
 PersonalSettings.audio_display_mode 是账号级显示偏好，默认 spectrum，仅接受 waveform/spectrum，choices 与数据库检查约束共同限定；迁移 0004 给旧记录补默认值，不改快捷键及 updated_at。settings_for 没有记录时返回默认值且不隐式创建。save_settings(user, changes) 接受两个设置字段的非空子集，先验证整份输入，再由 update_or_create 仅更新所提交字段；音频显示与快捷键不会互相覆盖。HTTP 继续检查身份、CSRF 和账号一致性，GET 返回完整设置，旧的 shortcut_overrides PATCH 保持兼容。回归包括 http_api/test_identity.py 的部分更新/失败原子性/账号隔离和 test_migrations.py 的旧设置保留。
 
 undo/redo 默认与标签均由 shared/timing-shortcuts.json 声明，允许既有编辑动作的修饰组合格式。effective_bindings 在未显式覆盖 undo/redo 时过滤已被个人显式覆盖占用的新增默认键；保留旧配置，不自动改写已存覆盖。显式冲突继续拒绝，前端使用同样规则；无模型/迁移变更。测试：accounts.test_shortcuts。
+
+toggle-text-focus 默认 Tab；shared JSON 的 allowed_bindings 限定为 Tab / Ctrl+Space，覆盖必须恰含一个选项，不接受禁用、多别名、裸字符或其他组合。沿用 shortcut_overrides 存储、默认覆盖归一化和跨动作有效绑定冲突检查；旧账号无覆盖继续 Tab，音频等部分更新保留选择。无模型或迁移变更。accounts.test_shortcuts 验证双端规则，http_api.test_identity 验证 API 持久化、失败原子性、账号隔离及恢复默认。

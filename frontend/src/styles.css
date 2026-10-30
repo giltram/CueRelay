@@ -270,3 +270,6 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
   .settings-content .shortcut-row { flex-wrap: wrap; }
   .settings-content .shortcut-row label { flex-basis: 100%; }
 }
+
+.diagnostic-export { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.diagnostic-export > span { font-size: 11px; color: var(--muted, #667085); max-width: 260px; line-height: 1.4; }

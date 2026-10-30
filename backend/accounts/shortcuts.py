@@ -21,8 +21,11 @@ def validate_overrides(value):
     for action, bindings in value.items():
         if not isinstance(bindings, list) or len(bindings) > 4:
             raise ValidationError('每个动作接受 0–4 个绑定；空列表表示禁用。')
+        if action == 'toggle-text-focus':
+            if len(bindings) != 1 or bindings[0] not in DEFAULTS[action]['allowed_bindings']:
+                raise ValidationError('字幕输入焦点切换只能选择 Tab 或 Ctrl+Space。')
         for binding in bindings:
-            if not isinstance(binding, str) or not (BINDING.fullmatch(binding) or action == 'delete-row' and DELETION_BINDING.fullmatch(binding) or action in EDITING_ACTIONS and EDITING_BINDING.fullmatch(binding)):
+            if not isinstance(binding, str) or not (action == 'toggle-text-focus' or BINDING.fullmatch(binding) or action == 'delete-row' and DELETION_BINDING.fullmatch(binding) or action in EDITING_ACTIONS and EDITING_BINDING.fullmatch(binding)):
                 raise ValidationError('快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。')
         if bindings != DEFAULTS[action]['bindings']:
             normalized[action] = bindings

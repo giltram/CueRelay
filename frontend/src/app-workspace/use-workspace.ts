@@ -1,3 +1,4 @@
+import { diagnostics } from '../diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
@@ -95,9 +96,11 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
   const reload = useCallback(async () => {
     const project = workspace?.project;
     if (!project) return;
+    diagnostics.record('workspace', 'reload', 'start', { revision: project.revision });
     const version = ++sequence.current;
     const detail = await projectApi(request, project.organization_id).get(project.id);
     if (version !== sequence.current) return;
+    diagnostics.record('workspace', 'reload', 'success', { revision: detail.revision });
     setWorkspace({ project: detail, generation: ++generation.current });
     setLoad({ key: projectKey(detail.organization_id, detail.id), status: 'ready' }); setAccessDenied(false);
   }, [workspace?.project, request]);

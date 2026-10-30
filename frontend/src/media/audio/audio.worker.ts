@@ -1,3 +1,4 @@
+import { safeError } from '../../diagnostics/safety';
 import { LocalAudioSource } from './local-audio';
 import { AUDIO_SEGMENT_SECONDS, type AudioWorkerRequest, type AudioWorkerResponse } from './analysis-types';
 import { AudioSegmentStore } from './segment-store';
@@ -34,7 +35,7 @@ async function drain() {
         controller.signal.throwIfAborted();
         scope.postMessage({ type: 'complete', id: request.id, cacheBytes: store.cacheBytes, decodedSegments: store.decodedSegments });
       } catch (error) {
-        if (!controller.signal.aborted) scope.postMessage({ type: 'error', id: request.id, message: (error as Error).message });
+        if (!controller.signal.aborted) scope.postMessage({ type: 'error', diagnostic: safeError(error), id: request.id, message: (error as Error).message });
       }
     }
   } finally { running = false; }
@@ -47,7 +48,7 @@ scope.onmessage = event => {
       store = new AudioSegmentStore(source);
       scope.postMessage({ type: 'ready', metadata: source.metadata });
       void drain();
-    }).catch(error => scope.postMessage({ type: 'error', message: (error as Error).message }));
+    }).catch(error => scope.postMessage({ type: 'error', diagnostic: safeError(error), message: (error as Error).message }));
   } else {
     active?.abort(); pending = message;
     void drain();

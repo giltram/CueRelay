@@ -1,3 +1,4 @@
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useState } from 'react';
 import { type AccountRequest, type Settings } from './api';
 import { bindingFor, effectiveBindings, shortcutDefaults, timingActions, validateOverrides, type ShortcutOverrides, type TimingShortcut } from '../workspace-ui/timing-shortcuts';
@@ -26,8 +27,9 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   async function run(action: () => Promise<void>) {
+    const origin = captureDiagnosticOrigin();
     setMessage(''); setBusy(true);
-    try { await action(); setMessage('已保存'); } catch (reason) { setMessage((reason as Error).message); }
+    try { await action(); setMessage('已保存'); } catch (reason) { reportFailure('account-ui', 'handled_error', reason, origin); setMessage((reason as Error).message); }
     finally { setBusy(false); }
   }
   return <div className="account-form">
@@ -54,8 +56,15 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
     </form>
     <h2>快捷键</h2>
     <label className="personal-checkbox"><input type="checkbox" checked={mouseBoundary} disabled={busy} onChange={event => setMouseBoundary(event.target.checked)} />鼠标点击设置字幕边界</label>
+    <label>{shortcutDefaults['toggle-text-focus'].label}
+      <select aria-label="字幕输入焦点切换" disabled={busy}
+        value={shortcutDrafts['toggle-text-focus'] ?? shortcutDefaults['toggle-text-focus'].bindings[0]}
+        onChange={event => setShortcutDrafts({ ...shortcutDrafts, 'toggle-text-focus': event.target.value })}>
+        {shortcutDefaults['toggle-text-focus'].allowed_bindings.map(binding => <option key={binding} value={binding}>{binding}</option>)}
+      </select>
+    </label>
     <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd）；撤销 / 重做、播放头及拆分动作还支持 Ctrl/Meta/Alt/Shift 组合。</p>
-    {timingActions.map(action => <div className="shortcut-row" key={action}>
+    {timingActions.filter(action => action !== 'toggle-text-focus').map(action => <div className="shortcut-row" key={action}>
       <label>{shortcutDefaults[action].label}<input disabled={busy} aria-label={`${shortcutDefaults[action].label}绑定`} value={shortcutDrafts[action] ?? effectiveBindings(action, parseShortcutDrafts(shortcutDrafts)).join(', ')}
         onChange={event => setShortcutDrafts({ ...shortcutDrafts, [action]: event.target.value })} /></label>
       <button disabled={busy} onClick={() => setRecording(action)}>{recording === action ? '请按键…' : '录制'}</button>

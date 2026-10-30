@@ -33,3 +33,11 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 `cd frontend && npm run test:workspace-history`：真实 Chrome、FFmpeg、本地 Vite（默认 5189，可用 HISTORY_URL 覆盖），HTTP 使用隔离 fixture，ASS 拆分/样式用真实 Python 纯转换，不写开发数据库。覆盖手势/中途撤销、重复方向键、原生输入事件、CDP IME、提交/删除、样式、导入、保存/拆分 revision 和实例保留/替换。
 
 本次实际验证结果及浏览器/旧音频套件限制见 [历史验证记录](../../../docs/experiments/workspace-history.md)。
+
+## 字幕输入焦点
+
+默认 Tab，可在个人快捷键设置选择 Ctrl+Space。共享 JSON 唯一声明默认和允许列表，EditorWorkbench 通过 effectiveBindings 计算当前绑定并显式传给 subtitle-focus.ts。后者仅在 main、audio-stage（含边界滑块）和当前字幕 textarea 之间切换 DOM 焦点，保留光标、选区及现有可用性 / IME / 长按保护。timingShortcut 不返回该导航动作，避免进入提交或试听分派。改绑释放旧 Tab，其他控件和 Shift+Tab 保持原生导航；切换不进入编辑历史。验证见 [焦点切换记录](../../../docs/experiments/subtitle-focus.md)。
+
+## 诊断
+
+use-edit-history 向只读 edit-diagnostics 观察器报告已有 before/after 引用，按连续输入/手势合并逐行差异；诊断自身 flush 不结束历史分组。导出通过账号/组织受限 getter 读取未保存状态、当前 revision、video 技术状态、试听和预览，不提交时间草稿或操纵业务状态。范围/敏感边界/预算见 [diagnostics](../diagnostics/README.md)。

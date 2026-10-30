@@ -1,3 +1,4 @@
+import { diagnostics } from '../diagnostics';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MediaManifest } from '../contracts/projects';
 import { hashFile, matchesMedia } from './media-manifest';
@@ -37,9 +38,10 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
   }, []);
 
   async function chooseFile(picked: File) {
+    diagnostics.record('media', 'select_file', 'start');
     onVerifiedChange?.(false);
     if (!expectedMedia) { setFile(picked); onError(''); return; }
-    if (picked.size !== expectedMedia.size) { onError('片源大小与项目基准不一致，请选择同一视频。'); return; }
+    if (picked.size !== expectedMedia.size) { diagnostics.record('media', 'validation', 'conflict', { reason: 'size_mismatch' }); onError('片源大小与项目基准不一致，请选择同一视频。'); return; }
     const task = new AbortController(); verification.current?.abort(); verification.current = task;
     setChecking(true); setProgress(0); onError('');
     try {
@@ -72,6 +74,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
     <div className="video-stage" ref={stage}>
       <video ref={ref} playsInline preload="metadata"
         onLoadedMetadata={e => {
+          diagnostics.record('media', 'load_metadata', 'success');
           const duration = e.currentTarget.duration;
           if (!Number.isFinite(duration) || duration <= 0 || duration >= 36000) {
             onError('视频时长无效或超过验证台 10 小时范围，请选择其他文件');
@@ -83,6 +86,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
         onSeeked={e => onTime(e.currentTarget.currentTime * 1000)}
         onError={() => {
           if (!file) return;
+          diagnostics.record('media', 'video_error', 'error', { status: ref.current?.error?.code });
           onVerifiedChange?.(false);
           if (locked) {
             onError('已固定的片源播放中断，可能存在解码或文件读取问题。请先导出字幕，再刷新页面检查；本次会话不能改换片源。');

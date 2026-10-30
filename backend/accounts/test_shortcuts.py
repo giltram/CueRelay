@@ -3,6 +3,23 @@ from django.test import SimpleTestCase
 from .shortcuts import DEFAULTS, effective_bindings, validate_overrides
 
 
+class SubtitleFocusShortcutTests(SimpleTestCase):
+    def test_defaults_and_exact_choices(self):
+        self.assertEqual(DEFAULTS['toggle-text-focus']['bindings'], ['Tab'])
+        self.assertEqual(validate_overrides({'toggle-text-focus': ['Tab']}), {})
+        custom = {'toggle-text-focus': ['Ctrl+Space']}
+        self.assertEqual(validate_overrides(custom), custom)
+        for invalid in [[], ['Tab', 'Ctrl+Space'], ['KeyT'], ['Shift+KeyT'], ['Space'],
+                        ['Meta+Space'], ['Ctrl+Shift+Space'], ['Shift+Tab'], [None], [{}]]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationError):
+                validate_overrides({'toggle-text-focus': invalid})
+
+    def test_choice_conflicts_with_other_commands(self):
+        validate_overrides({'split-text': ['Ctrl+Space']})
+        with self.assertRaises(ValidationError):
+            validate_overrides({'toggle-text-focus': ['Ctrl+Space'], 'split-text': ['Ctrl+Space']})
+
+
 class HistoryShortcutTests(SimpleTestCase):
     def test_shared_defaults_and_custom_history_bindings(self):
         self.assertEqual(DEFAULTS['undo']['bindings'], ['Ctrl+KeyZ', 'Meta+KeyZ'])

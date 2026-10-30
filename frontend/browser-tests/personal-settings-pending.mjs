@@ -43,6 +43,7 @@ try {
   const save = page.getByRole('button', { name: '保存快捷键', exact: true });
   const allDefaults = page.getByRole('button', { name: '全部恢复默认', exact: true });
   const mouse = page.getByLabel('鼠标点击设置字幕边界', { exact: true });
+  const focusChoice = page.getByRole('combobox', { name: '字幕输入焦点切换', exact: true });
   const status = page.getByRole('status');
   const beginSave = async () => {
     const observed = Promise.withResolvers();
@@ -55,7 +56,7 @@ try {
     for (const control of await page.locator('.shortcut-row input, .shortcut-row button').all()) {
       assert(await control.isDisabled());
     }
-    for (const control of [recorder, allDefaults, mouse, save]) assert(await control.isDisabled());
+    for (const control of [recorder, allDefaults, mouse, save, focusChoice]) assert(await control.isDisabled());
     assert.equal(await status.count(), 0);
     // Native disabled buttons ignore click(), including single/all restores.
     await page.locator('.shortcut-row button').evaluateAll(buttons => buttons.forEach(button => button.click()));
@@ -66,21 +67,25 @@ try {
   };
 
   await binding.fill('Shift+KeyT');
+  await focusChoice.selectOption('Ctrl+Space');
   await row.getByRole('button', { name: '录制', exact: true }).click();
   const first = await beginSave();
-  assert.deepEqual(first.body.shortcut_overrides, { commit: ['Shift+KeyT'] });
+  assert.deepEqual(first.body.shortcut_overrides, { commit: ['Shift+KeyT'], 'toggle-text-focus': ['Ctrl+Space'] });
   await checkPending('Shift+KeyT');
   first.finish(true);
   await page.getByText('已保存', { exact: true }).waitFor();
   assert.equal(await binding.inputValue(), 'Shift+KeyT');
   assert(await binding.isEnabled());
   assert(await recorder.isEnabled());
+  assert.equal(await focusChoice.inputValue(), 'Ctrl+Space');
+  assert(await focusChoice.isEnabled());
 
   // Failed saves preserve exactly the submitted draft and permit editing again.
   await binding.fill('Shift+KeyY');
+  await focusChoice.selectOption('Tab');
   await mouse.uncheck();
   const second = await beginSave();
-  assert.deepEqual(second.body.shortcut_overrides, { commit: ['Shift+KeyY'] });
+  assert.deepEqual(second.body.shortcut_overrides, { commit: ['Shift+KeyY'], 'toggle-text-focus': ['Tab'] });
   assert.equal(second.body.mouse_sets_cue_boundary, false);
   await checkPending('Shift+KeyY');
   second.finish(false);
@@ -90,6 +95,8 @@ try {
   assert(await binding.isEnabled());
   assert(await allDefaults.isEnabled());
   assert(await recorder.isEnabled());
+  assert.equal(await focusChoice.inputValue(), 'Tab');
+  assert(await focusChoice.isEnabled());
   await recorder.press('Shift+KeyZ');
   assert.equal(await binding.inputValue(), 'Shift+KeyZ');
   await row.getByRole('button', { name: '恢复默认', exact: true }).click();

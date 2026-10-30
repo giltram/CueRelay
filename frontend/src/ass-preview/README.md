@@ -48,3 +48,5 @@ Vite 使用安装包的实际路径 `dist/worker/worker.js?worker&url`、`dist/w
 `browser-tests/style-management.mjs` 使用真实 JASSUB/WASM、截图像素与 DOM 身份检查，验证红色样本确实渲染、输入时复用 canvas、关闭后恢复项目编辑、窄屏布局和导出。样本基于 640×360 底图，字体替代与最终播放尺寸差异仍须人工视觉 QC。
 
 普通工作区选区试听现为独立 Web Audio 音频，ASS 仍只跟随 video.currentTime / 视频帧；试听保持 video 静止，不把音频播放头传给 JASSUB。暂停 / seeking 的 currentTime 适配继续保留。`browser-tests/ass-preview.mjs` 分别检查试听时画面不变，以及手动定位到非帧对齐出点后旧回调不能恢复字幕。
+
+诊断：PreviewSession 报告预览阶段、转换与 renderer/Worker 失败；过期/已销毁结果不作为故障。仅传安全错误类型/源码位置，不传 ASS source、帧、字体或媒体内容。状态由工作区显式只读导出；见 ../diagnostics/README.md。

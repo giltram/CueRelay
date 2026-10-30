@@ -1,3 +1,4 @@
+import { diagnostics, safeError } from '../../diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlaybackRange } from '../playback';
 import { AudioAuditionController, type AuditionState } from './audition-controller';
@@ -13,11 +14,13 @@ export function useAudioAudition(file: File | null, video: HTMLVideoElement | nu
   useEffect(() => {
     setState(idle);
     if (!file || !video || !visible) return;
+    const scope = diagnostics.scope(), context = diagnostics.contextSnapshot();
     let displayed = idle;
     const changed = (next: AuditionState) => {
       // Frame-by-frame position is read directly by the timeline; do not rerender the subtitle table.
       if (displayed.phase === next.phase && displayed.message === next.message &&
           (next.phase === 'playing' || displayed.position === next.position)) return;
+      if (displayed.phase !== next.phase || displayed.message !== next.message) diagnostics.record('audio-audition', 'phase', next.phase === 'error' ? 'error' : next.phase === 'idle' ? 'cancelled' : 'success', { reason: next.phase, ...(next.phase === 'error' ? { error: safeError(new Error()) } : {}) }, scope, context);
       displayed = next; setState(next);
     };
     const create = () => new AudioAuditionController(() => new WorkerAuditionReader(file), changed);
@@ -63,7 +66,7 @@ export function useAudioAudition(file: File | null, video: HTMLVideoElement | nu
     if (!video || !controller.current) throw Error('请先加载可播放的本地视频');
     pendingSeek.current = video.seeking ? video.currentTime : null;
     video.pause();
-    if (range) await controller.current.start(range); else controller.current.stop();
+    if (range) { diagnostics.record('audio-audition', 'start', 'start'); await controller.current.start(range); } else controller.current.stop();
   }, [video]);
   return { state, start, stop, getPosition };
 }

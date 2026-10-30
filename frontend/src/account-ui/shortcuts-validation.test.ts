@@ -31,3 +31,20 @@ it('detects editing command conflicts against all defaults and overrides', () =>
   expect(validateOverrides({ commit: ['KeyG'], 'split-text': ['Enter'] })).toBeUndefined();
   expect(validateOverrides({ 'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB'] })).toContain('冲突');
 });
+
+describe('subtitle focus choices', () => {
+  it('accepts exactly one supported choice and checks conflicts', () => {
+    for (const binding of ['Tab', 'Ctrl+Space']) {
+      expect(validateOverrides({ 'toggle-text-focus': [binding] })).toBeUndefined();
+    }
+    expect(validateOverrides({ 'toggle-text-focus': ['Ctrl+Space'], 'split-text': ['Ctrl+Space'] })).toContain('冲突');
+    // Existing Ctrl+Space commands remain valid when focus uses its default Tab.
+    expect(validateOverrides({ 'split-text': ['Ctrl+Space'] })).toBeUndefined();
+  });
+
+  it.each([[], ['Tab', 'Ctrl+Space'], ['KeyT'], ['Shift+KeyT'], ['Space'], ['Meta+Space'], ['Ctrl+Shift+Space'], ['Shift+Tab']].map(bindings => ({ bindings })))(
+    'rejects unsupported focus choices: $bindings', ({ bindings }) => {
+      expect(validateOverrides({ 'toggle-text-focus': bindings })).toBeTruthy();
+    },
+  );
+});

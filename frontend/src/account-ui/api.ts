@@ -1,3 +1,5 @@
+import { diagnostics } from '../diagnostics';
+import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 export interface User { id: number; username: string; is_dev: boolean }
 export interface Organization { id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean }
 export interface Member { id: number; user_id: number; username: string; role: 'organizer' | 'member'; is_active: boolean }
@@ -5,7 +7,7 @@ export type Overrides = Partial<Record<import('../workspace-ui/timing-shortcuts'
 export interface Settings { mouse_sets_cue_boundary: boolean; shortcut_overrides: Overrides; audio_display_mode: import('../media/audio/analysis-types').AudioDisplayMode }
 export const createDefaultSettings = (): Settings => ({ shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true });
 export class ApiError extends Error {
-  constructor(public code: string, message: string) { super(message); }
+  constructor(public code: string, message: string, public requestId?: string) { super(message); }
 }
 export type AccountRequest = import('../contracts/http').JsonRequest;
 export type AccountApi = ReturnType<typeof createAccountApi>;
@@ -13,21 +15,30 @@ export type AccountApi = ReturnType<typeof createAccountApi>;
 /** One explicit client per App; identity never lives in shared module state. */
 export function createAccountApi(onExpired: () => void) {
   let expectedUser: number | null = null;
+  let identitySequence = 0;
   const request: AccountRequest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     // Only the CSRF cookie is readable. Session ID remains HttpOnly.
     const token = document.cookie.split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
     const actor = expectedUser;
+    const identityRequest = ['/auth/session', '/auth/login', '/auth/logout'].includes(path);
+    const identityVersion = identityRequest ? ++identitySequence : identitySequence;
+    const diagnosticScope = diagnostics.scope();
     const protectedRequest = !['/auth/session', '/auth/login'].includes(path);
     const headers: Record<string, string> = method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRFToken': token };
     if (protectedRequest && actor !== null) headers['X-CueRelay-User'] = String(actor);
-    const response = await fetch(`/api${path}`, {
+    const response = await diagnosticFetch(`/api${path}`, {
       method, credentials: 'same-origin', cache: 'no-store', headers,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const value = await response.json();
+    if (response.ok && identityRequest) {
+      if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+      void diagnostics.identify(value.user?.id ?? null);
+      diagnostics.record('account', path === '/auth/login' ? 'login' : path === '/auth/logout' ? 'logout' : 'session_observed', 'success');
+    }
     if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
     if (!response.ok) {
-      const error = new ApiError(value.error?.code || 'request_failed', value.error?.message || '请求失败');
+      const error = new ApiError(value.error?.code || 'request_failed', value.error?.message || '请求失败', responseRequestId(response));
       if (['authentication_required', 'account_changed'].includes(error.code)) onExpired();
       throw error;
     }

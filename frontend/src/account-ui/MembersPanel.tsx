@@ -1,3 +1,4 @@
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useState } from 'react';
 import { type AccountRequest, type Member, type Organization } from './api';
 import { Modal } from './Modal';
@@ -16,10 +17,11 @@ export function MembersPanel({ request: api, currentUserId, isDev, organization,
   const canManageMember = (member: Member) => organization.can_manage
     && (isDev || member.role !== 'organizer' || member.user_id === currentUserId);
   async function load() { setMembers((await api<{ members: Member[] }>(`${base}/members`)).members); }
-  useEffect(() => { void load().catch(reason => setError(reason.message)); }, [organization.id]);
+  useEffect(() => { const origin = captureDiagnosticOrigin(); void load().catch(reason => { reportFailure('account-ui', 'handled_error', reason, origin); setError(reason.message); }); }, [organization.id]);
   async function run(action: () => Promise<unknown>) {
+    const origin = captureDiagnosticOrigin();
     setBusy(true); setError('');
-    try { await action(); await load(); onChanged(); } catch (reason) { setError((reason as Error).message); }
+    try { await action(); await load(); onChanged(); } catch (reason) { reportFailure('account-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setBusy(false); }
   }
   return <div className="account-form">

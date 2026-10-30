@@ -15,3 +15,5 @@
 项目样式保存由独立 ProjectSettingsPage 直接调用 projectApi.styles，本模块不再提供样式回调。设置页保存不修改保留工作区的文档或 revision；旧工作区保存继续冲突，明确重载后才接受新样式。本地工作区保留样式管理，模板另存请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。
 
 工作区编辑历史由 workspace-ui/use-edit-history 拥有，不进入本模块。save/split 返回的最新 revision 和保存基准不随撤销回退；撤销拆分只恢复本地快照，不调用本模块持久接口。隐藏保留同一挂载实例和历史；reload/clear/adoptCreated 或跨项目/组织/账号替换通过挂载 generation 建立新历史。回归新增 browser-tests/workspace-history.mjs。
+
+诊断：save/split 请求复用 project-data 的 HTTP 关联；显式 reload 报告阶段/revision。诊断无权更换本模块实例或保存基准；实际工作区状态由 EditorWorkbench 的只读接口提供。见 ../diagnostics/README.md。

@@ -14,21 +14,27 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
   'color=c=black:s=160x90:r=10:d=12', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12',
   '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const page = await context.newPage();
 page.setDefaultTimeout(10000);
 const errors = [], unexpected = [], checks = [];
 const documentFixture = uiDocument();
+let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true };
 let releaseImport;
+context.on('page', page => page.on('pageerror', error => errors.push(String(error))));
 page.on('pageerror', error => errors.push(String(error)));
-await page.route('**/api/**', async route => {
+await context.route('**/api/**', async route => {
   if (await unavailableAssPreview(route)) return;
   const request = route.request(), path = new URL(request.url()).pathname;
   const fixtures = {
     '/api/auth/session': { user: { id: 1, username: 'focus-fixture', is_dev: false } },
     '/api/organizations': { organizations: [] },
-    '/api/me/settings': { shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true },
     '/api/ass/empty': { document: documentFixture },
   };
+  if (path === '/api/me/settings') {
+    if (request.method() === 'PATCH') settings = { ...settings, ...request.postDataJSON() };
+    return route.fulfill({ json: settings });
+  }
   if (request.method() === 'GET' && fixtures[path]) return route.fulfill({ json: fixtures[path] });
   if (path === '/api/ass/styles' && request.postDataJSON().operation.type === 'inspect') {
     return route.fulfill({ json: { document: documentFixture, usage: {} } });
@@ -135,6 +141,74 @@ try {
     assert.equal(await dispatchTab(target), true); assert(await focused(target));
   }
   checks.push('IME composition, modifiers and previously handled events are protected');
+
+  // Save in a separate settings tab, then refresh preferences on the retained editor.
+  const retained = await snapshot();
+  const retainedAudition = await page.locator('.audio-timeline').getAttribute('data-audition-phase');
+  await page.locator('video').evaluate(el => { window.__focusVideo = el; });
+  const personal = await context.newPage();
+  await personal.goto(new URL('/settings', page.url()).href);
+  const choice = personal.getByRole('combobox', { name: '字幕输入焦点切换', exact: true });
+  assert.equal(await choice.inputValue(), 'Tab');
+  assert.deepEqual(await choice.locator('option').allTextContents(), ['Tab', 'Ctrl+Space']);
+  assert.equal(await personal.getByRole('textbox', { name: '字幕输入焦点切换绑定', exact: true }).count(), 0);
+  await choice.selectOption('Ctrl+Space');
+  const saveChoice = async () => {
+    await Promise.all([
+      personal.waitForResponse(response => response.url().endsWith('/api/me/settings') && response.request().method() === 'PATCH'),
+      personal.getByRole('button', { name: '保存快捷键', exact: true }).click(),
+    ]);
+    await personal.getByText('已保存', { exact: true }).waitFor();
+  };
+  await saveChoice();
+  assert.deepEqual(settings.shortcut_overrides, { 'toggle-text-focus': ['Ctrl+Space'] });
+  await personal.reload(); assert.equal(await choice.inputValue(), 'Ctrl+Space');
+  await personal.screenshot({ path: join(artifacts, 'focus-settings.png'), fullPage: true });
+  const refreshFocusChoice = async binding => {
+    await page.bringToFront();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(binding => document.querySelector('[aria-label="字幕中文文本"]').title.startsWith(binding), binding);
+  };
+  await refreshFocusChoice('Ctrl+Space');
+  assert.deepEqual(await snapshot(), retained);
+  assert(await page.locator('video').evaluate(el => el === window.__focusVideo));
+  await main.focus(); await page.keyboard.press('Control+Space'); assert(await focused(text));
+  await page.keyboard.type('qwg'); assert.equal(await text.inputValue(), 'qwg');
+  // Tab leaves the textarea by normal DOM order; it no longer returns to main.
+  await page.keyboard.press('Tab'); assert.equal(await focused(main), false); assert.equal(await focused(text), false);
+  await main.focus();
+  await page.keyboard.down('Control');
+  for (const target of [text, main]) {
+    await page.keyboard.down('Space'); assert(await focused(target));
+    await page.keyboard.down('Space'); assert(await focused(target));
+    await page.keyboard.up('Space');
+  }
+  await page.keyboard.up('Control');
+  await page.keyboard.press('Control+Space'); assert(await focused(text));
+  await page.keyboard.press('End'); await page.keyboard.press('Space'); assert.equal(await text.inputValue(), 'qwg ');
+  for (const flags of [{ shiftKey: true }, { altKey: true }, { metaKey: true }]) {
+    assert.equal(await dispatchTab(text, { code: 'Space', key: ' ', ctrlKey: true, ...flags }), false);
+    assert(await focused(text));
+  }
+  await text.dispatchEvent('compositionstart');
+  assert.equal(await dispatchTab(text, { code: 'Space', key: ' ', ctrlKey: true }), false);
+  await text.dispatchEvent('compositionend');
+  for (const control of [start, end, locate]) {
+    assert.equal(await dispatchTab(control, { code: 'Space', key: ' ', ctrlKey: true }), false);
+  }
+  await page.keyboard.press('Control+Space'); assert(await focused(main));
+  assert.equal(await page.locator('.audio-timeline').getAttribute('data-audition-phase'), retainedAudition);
+  await page.keyboard.press('KeyG'); assert.equal(await rows.count(), 3);
+  await personal.bringToFront();
+  await personal.getByRole('button', { name: '全部恢复默认', exact: true }).click();
+  assert.equal(await choice.inputValue(), 'Tab'); await saveChoice();
+  assert.deepEqual(settings.shortcut_overrides, {});
+  await refreshFocusChoice('Tab');
+  await main.focus(); await page.keyboard.press('Tab'); assert(await focused(text));
+  await page.keyboard.press('Tab'); assert(await focused(main));
+  assert.equal(await dispatchTab(main, { code: 'Space', key: ' ', ctrlKey: true }), false);
+  await personal.close();
+  checks.push('Tab/Ctrl+Space settings persist, refresh in retained workspace, restore defaults and preserve native Tab/Space; exact modifiers, repeats and IME protected');
 
   await page.getByRole('button', { name: '管理样式', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '本地样式管理', exact: true });

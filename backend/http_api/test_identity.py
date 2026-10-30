@@ -118,6 +118,30 @@ class IdentityTests(TestCase):
         self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
         self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
 
+    def test_subtitle_focus_shortcut_persistence_validation_and_restore(self):
+        self.login()
+        initial = self.client.get('/api/me/settings').json()
+        self.assertEqual(initial['defaults']['toggle-text-focus']['bindings'], ['Tab'])
+        custom = {'toggle-text-focus': ['Ctrl+Space']}
+        response = self.send('/me/settings', {'shortcut_overrides': custom}, 'PATCH')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], custom)
+        # Updating a different preference must preserve the chosen focus key.
+        self.assertEqual(self.send('/me/settings', {'audio_display_mode': 'waveform'}, 'PATCH').json()['shortcut_overrides'], custom)
+        for bindings in [[], ['Tab', 'Ctrl+Space'], ['KeyT'], ['Shift+KeyT'], ['Space'], ['Meta+Space']]:
+            response = self.send('/me/settings', {'shortcut_overrides': {'toggle-text-focus': bindings}, 'mouse_sets_cue_boundary': False}, 'PATCH')
+            self.assertEqual(response.status_code, 400, bindings)
+            current = self.client.get('/api/me/settings').json()
+            self.assertEqual(current['shortcut_overrides'], custom)
+            self.assertTrue(current['mouse_sets_cue_boundary'])
+        conflict = {**custom, 'split-text': ['Ctrl+Space']}
+        self.assertEqual(self.send('/me/settings', {'shortcut_overrides': conflict}, 'PATCH').status_code, 400)
+        self.login(self.other)
+        self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
+        self.login()
+        for overrides in [{'toggle-text-focus': ['Tab']}, {}]:
+            self.assertEqual(self.send('/me/settings', {'shortcut_overrides': overrides}, 'PATCH').json()['shortcut_overrides'], {})
+
     def test_delete_shortcut_override_persistence_validation_and_restore(self):
         self.login()
         initial = self.client.get('/api/me/settings').json()

@@ -1,8 +1,15 @@
-import { useRef, useState } from 'react';
+import { EditDiagnostics } from './edit-diagnostics';
+import { diagnostics } from '../diagnostics';
+import { useEffect, useRef, useState } from 'react';
 import { createHistory, endGroup, navigate, record, redo, sameEdit, undo, type EditState } from './edit-history';
 
 /** Synchronous ref makes multi-event gestures and React batching deterministic. */
-export function useEditHistory(initial: EditState) {
+export function useEditHistory(initial: EditState, diagnosticOwner?: number) {
+  const [observer] = useState(() => new EditDiagnostics(undefined, diagnosticOwner));
+  useEffect(() => {
+    const remove = diagnostics.addFlusher(() => observer.flush());
+    return () => { observer.flush(); remove(); };
+  }, [observer]);
   const history = useRef(createHistory(initial));
   const [state, setState] = useState(initial);
   const [epoch, setEpoch] = useState(0);
@@ -10,9 +17,11 @@ export function useEditHistory(initial: EditState) {
   const composition = useRef(false);
   const input = useRef({ key: '', time: 0 });
   const publish = () => setState(history.current.present);
-  function finish() { history.current = endGroup(history.current); input.current.key = ''; generation.current++; }
+  function finish() { observer.flush(); history.current = endGroup(history.current); input.current.key = ''; generation.current++; }
   function apply(next: EditState, group: string | null = null) {
-    history.current = record(history.current, next, group); publish();
+    const previous = history.current.present;
+    history.current = record(history.current, next, group);
+    observer.observe(previous, history.current.present, group); publish();
   }
   return {
     state, epoch,
@@ -25,7 +34,7 @@ export function useEditHistory(initial: EditState) {
       if (nativeHistory) {
         // Browser undo stacks are opaque. An observed native history input is
         // an explicit safe boundary, never replayed again by workspace redo.
-        finish(); history.current = createHistory(next); publish(); return;
+        finish(); observer.observe(history.current.present, next, null, 'native_history'); history.current = createHistory(next); publish(); return;
       }
       let group: string | null = null;
       if (inputKey) {
@@ -42,6 +51,7 @@ export function useEditHistory(initial: EditState) {
       finish();
       const previous = history.current.present;
       history.current = direction === 'undo' ? undo(history.current) : redo(history.current);
+      observer.observe(previous, history.current.present, null, direction);
       if (!sameEdit(previous, history.current.present)) setEpoch(value => value + 1);
       publish();
     },

@@ -11,5 +11,6 @@
   "split-playhead": {"label": "在播放头位置拆分字幕", "bindings": []},
   "split-text": {"label": "在文本光标位置拆分字幕", "bindings": []},
   "undo": {"label": "撤销", "bindings": ["Ctrl+KeyZ", "Meta+KeyZ"]},
-  "redo": {"label": "重做", "bindings": ["Ctrl+Shift+KeyZ", "Meta+Shift+KeyZ"]}
+  "redo": {"label": "重做", "bindings": ["Ctrl+Shift+KeyZ", "Meta+Shift+KeyZ"]},
+  "toggle-text-focus": {"label": "字幕输入焦点切换", "bindings": ["Tab"], "allowed_bindings": ["Tab", "Ctrl+Space"]}
 }

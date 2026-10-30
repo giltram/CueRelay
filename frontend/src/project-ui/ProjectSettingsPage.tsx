@@ -1,3 +1,4 @@
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Organization } from '../account-ui/api';
 import type { JsonRequest } from '../contracts/http';
@@ -37,35 +38,38 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
 
   async function saveMetadata() {
     if (!project || !enabled || busy || !organization?.can_manage || project.status !== 'active') return;
+    const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
       const latest = await api.update(project, name, description);
       setProject(latest); setName(latest.name); setDescription(latest.description);
       setMessage('项目设置已保存。');
-    } catch (reason) { setError((reason as Error).message); }
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setBusy(false); }
   }
 
   async function refreshProject() {
     if (!project || !enabled || busy) return;
+    const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
       const latest = await api.get(project.id);
       setProject(latest);
       setMessage(`当前服务器版本：${latest.name}；说明：${latest.description || '无'}。你的输入已保留，请核对后再保存。`);
-    } catch (reason) { setError((reason as Error).message); }
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setBusy(false); }
   }
 
   async function changeStyles(operation: StyleOperation): Promise<StyleResult> {
     if (!project || !enabled || busy || project.status !== 'active') throw new Error('当前项目不可修改样式。');
+    const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await api.styles(project, project.document, operation);
       setProject({ ...project, ...result.project, document: result.document });
       setMessage('项目样式已保存。已打开的工作区需重新加载项目后使用新样式。');
       return result;
-    } catch (reason) {
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin);
       if ((reason as { code?: string }).code === 'project_archived') setProject({ ...project, status: 'archived' });
       throw reason;
     } finally { setBusy(false); }

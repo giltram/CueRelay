@@ -1,4 +1,6 @@
-/** Fixed Tab navigation between timing surfaces and the current subtitle editor.
+import { bindingFor } from './timing-shortcuts';
+
+/** Configured navigation between timing surfaces and the current subtitle editor.
  * The caller owns availability (selection, permissions, visibility and dialogs).
  */
 export function handleSubtitleFocusShortcut(
@@ -6,8 +8,9 @@ export function handleSubtitleFocusShortcut(
   composing: boolean,
   workbench: HTMLElement | null,
   textEditor: HTMLTextAreaElement | null,
+  binding: string,
 ): boolean {
-  if (event.code !== 'Tab' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey
+  if (bindingFor(event) !== binding
     || event.defaultPrevented || composing || event.isComposing || event.keyCode === 229
     || !workbench || !textEditor || textEditor.matches(':disabled') || textEditor.readOnly) return false;
 
@@ -19,7 +22,7 @@ export function handleSubtitleFocusShortcut(
     && workbench.contains(target) && Boolean(target.closest('.audio-stage')));
   if (!fromText && !fromTiming) return false;
 
-  // Claim repeat events too, so holding Tab neither toggles again nor tabs away.
+  // Claim repeats too, so holding the key neither toggles again nor navigates away.
   event.preventDefault();
   if (!event.repeat) (fromText ? workbench : textEditor).focus({ preventScroll: true });
   return true;

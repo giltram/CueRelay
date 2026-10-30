@@ -1,3 +1,4 @@
+import { diagnostics, safeError } from '../diagnostics';
 import type { MediaManifest } from '../contracts/projects';
 
 function videoDuration(file: File, signal: AbortSignal): Promise<number> {
@@ -29,9 +30,12 @@ function videoDuration(file: File, signal: AbortSignal): Promise<number> {
 
 export function hashFile(file: File, signal: AbortSignal, progress: (ratio: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
+    const scope = diagnostics.scope(), context = diagnostics.contextSnapshot();
+    diagnostics.record('media', 'validation', 'start', {}, scope, context);
     const worker = new Worker(new URL('./file-hash.worker.ts', import.meta.url), { type: 'module' });
     const finish = (error?: Error, digest?: string) => {
       worker.terminate(); signal.removeEventListener('abort', abort);
+      diagnostics.record('media', 'validation', error ? error.name === 'AbortError' ? 'cancelled' : 'error' : 'success', error ? { error: safeError(error) } : {}, scope, context);
       if (error) reject(error); else resolve(digest!);
     };
     const abort = () => finish(new DOMException('已取消', 'AbortError'));
@@ -42,6 +46,7 @@ export function hashFile(file: File, signal: AbortSignal, progress: (ratio: numb
       else if (event.data.digest) finish(undefined, event.data.digest);
       else progress(event.data.ratio);
     };
+    worker.onmessageerror = () => finish(new Error('校验 Worker 通信失败'));
     worker.onerror = () => finish(new Error('视频校验无法启动，请重试。'));
     worker.postMessage(file);
   });

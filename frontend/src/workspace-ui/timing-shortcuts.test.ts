@@ -3,6 +3,11 @@ import { effectiveBindings, timingShortcut, validateOverrides } from './timing-s
 
 const base = { code: 'KeyG', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
 
+it('keeps subtitle focus bindings out of timing command dispatch', () => {
+  expect(timingShortcut({ ...base, code: 'Tab' }, false)).toBeUndefined();
+  expect(timingShortcut({ ...base, code: 'Space', ctrlKey: true }, false, { 'toggle-text-focus': ['Ctrl+Space'] })).toBeUndefined();
+});
+
 describe('default timing shortcuts', () => {
   it.each([
     ['KeyG', 'commit'], ['Enter', 'commit'], ['NumpadEnter', 'commit'],

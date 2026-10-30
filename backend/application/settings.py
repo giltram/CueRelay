@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'rest_framework', 'accounts', 'organizations', 'projects', 'application.apps.ApplicationConfig',
 ]
 MIDDLEWARE = [
+    'diagnostics.middleware.RequestDiagnosticsMiddleware',
     'django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware', 'http_api.auth_security.AuthenticationSecurityMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -75,3 +76,19 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
 }
+
+# Public build labels only, never environment dumps. Optional file handler is single-process only.
+import re
+CUERELAY_BUILD = os.environ.get('CUERELAY_BUILD', 'unknown')
+if not re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', CUERELAY_BUILD):
+    CUERELAY_BUILD = 'unknown'
+_DIAGNOSTIC_HANDLER = {'class': 'logging.StreamHandler', 'formatter': 'diagnostic_json'}
+if os.environ.get('CUERELAY_DIAGNOSTIC_LOG'):
+    _DIAGNOSTIC_HANDLER = {'class': 'logging.handlers.RotatingFileHandler', 'formatter': 'diagnostic_json',
+                           'filename': os.environ['CUERELAY_DIAGNOSTIC_LOG'], 'maxBytes': 5 * 1024 * 1024,
+                           'backupCount': 3, 'encoding': 'utf-8', 'delay': True}
+LOGGING = {'version': 1, 'disable_existing_loggers': False,
+           'formatters': {'diagnostic_json': {'()': 'diagnostics.logging.SafeJsonFormatter'}},
+           'handlers': {'diagnostic': _DIAGNOSTIC_HANDLER},
+           'loggers': {name: {'handlers': ['diagnostic'], 'level': 'INFO', 'propagate': False}
+                       for name in ['cuerelay.diagnostics', 'django.request', 'django.security', 'django.server']}}

@@ -44,7 +44,7 @@ Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBound
 
 delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接受 Backspace）；共享 JSON 唯一声明四个默认别名，覆盖替换全部默认、空列表禁用、删除覆盖恢复默认，不再有固定删行分支。只有此动作额外接受 Ctrl/Meta+Delete/Backspace；输入框 / IME / 重复保护复用 allowsShortcutFocus；所有动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `delete-cue.ts`，删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 delete-cue / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
 
-2026-10-30 固定 Tab 焦点切换：`workspace-ui/subtitle-focus.ts` 只在工作区 main、音频 audio-stage（含边界滑块）与当前字幕 textarea 间处理无修饰 Tab；进入文本框保留光标和选区，退出聚焦 main。EditorWorkbench 在普通快捷键输入保护之前调用该接口，复用既有转换 / 拆分 / 导入确认 / 弹窗 / 暂停 / 可见性保护，并要求有可编辑选中行且非全屏。焦点直接来自 DOM，不新增模式状态、不改字幕或时间、不提交 / 保存。长按事件被接管但不再次切换；IME、Shift+Tab、其他修饰键、其他输入和控件保留原行为。固定导航不加入可配置动作表；契约和真实浏览器验证见 [Tab 焦点记录](experiments/subtitle-focus.md)。
+2026-10-30 字幕输入焦点切换：shared/timing-shortcuts.json 的 toggle-text-focus 唯一声明默认 Tab 和 Tab / Ctrl+Space 两个 allowed_bindings；前后端要求恰选一个，并纳入现有有效绑定冲突检查。个人设置用独立下拉框复用 shortcut_overrides 保存，无模型迁移；改绑后旧 Tab 恢复原生导航，全部恢复默认回到 Tab。EditorWorkbench 由个人覆盖计算当前键位，显式传给 workspace-ui/subtitle-focus.ts；后者只在 main、音频 audio-stage（含边界滑块）与字幕 textarea 间切换，保留光标和选区。普通 timingShortcut 排除导航动作，避免进入试听分派；工作区保留转换 / 拆分 / 导入确认 / 弹窗 / 暂停 / 可见性、可编辑选中行和非全屏保护。焦点来自 DOM，不新增模式状态或改动字幕 / 时间 / 保存；长按只切换一次，IME、Shift+Tab、其他修饰组合和控件保留原行为。契约和真实浏览器验证见 [焦点切换记录](experiments/subtitle-focus.md)。
 
 时间轴顶部标尺复现 Aegisub 3.2.2 的八档刻度和时间前缀省略：`ruler.ts` 计算可见绝对时间刻度 / 测量避让，`draw-ruler.ts` 在既有 canvas 顶部绘制；`viewport.xAtTime` 统一标尺、频谱与覆盖线坐标。没有第二套视窗或滚动状态，缩放锚点和编辑交互继续由 AudioTimeline 持有。精确契约与测试入口见 [时间轴 README](../frontend/src/workspace-ui/audio-timeline/README.md#aegisub-标尺契约)。
 
@@ -256,3 +256,16 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 2026-10-26 现有项目的组织模板导入支持多选，通过 `import_many` 具名操作一次提交整批，复用 `projects.document_styles.import_templates` 与新建项目相同的模板快照校验/纯格式转换。沿用原事务、锁顺序和 revision 检查，只持久化一次；任一项失败整批不保存，前端保留选择与输入。旧单模板 import 继续兼容，未增加模块间依赖；API 与测试入口见 [样式管理](style-management.md)。
 
 2026-10-26 审计修复：样式数值使用无上下文的精确 Decimal 边界比较；个人快捷键请求期间冻结输入/录制/恢复操作；API 代理 JSON 请求预算明确为 3MiB，ASS 仍限制 1MiB。projects 的只读 check_style_migration 复用纯格式升级验证器，固定 v1 历史夹具保护严格拒绝及整体回滚，不新增业务模块间依赖。修复决策、运行命令与结果见 [实施记录](plans/repository-audit-fixes-2026-10-26.md)。
+
+
+## 问题诊断与一键导出（2026-10-30）
+
+[浏览器 diagnostics](../frontend/src/diagnostics/README.md) 独立拥有格式、安全白名单、有界记录、IndexedDB 与中文 JSON 导出；[后端 diagnostics](../backend/diagnostics/README.md) 拥有 HTTP 关联及安全 JSON 日志。依赖方向是 `{App, account-ui, project-data, workspace-ui, media, ass-preview} → diagnostics → 浏览器 API`、`application → diagnostics → Django/标准库`，无反向业务导入。Worker 仅复用 diagnostics/safety 纯函数和格式类型，不引入账号或工作区依赖。
+
+EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编辑观察器只消费已有不可变状态引用，在现有分组边界/诊断停输定时器/导出前生成字幕逐行差异，不读写私有业务状态，不更改撤销分组。字幕、媒体、保存 revision、历史的原有所有权不变。默认允许实际编辑正文；禁止采集认证信息、原始请求/响应/console、媒体内容、文件名/路径/摘要或完整字幕快照。原始错误文本可能回显密码，故仅采集安全错误类型/源码位置。
+
+默认 1500 条、每条 16KiB、总事件 2MiB、24 小时，2 秒批写；按旧事件淘汰，记录缺失/脱敏/截断和内存降级。账号切换/退出以 IndexedDB control fence 原子清理，跨标签页旧来源失效；BroadcastChannel 仅作诊断身份失效通知，不同步业务。导出检查账号代次和当前组织，只读组合浏览器已收集信息；后端不可用也可导出，不能确认的账号数据保守隐藏。导出不是业务恢复、重放或审计机制。
+
+`diagnostics/errors` 的 `captureDiagnosticOrigin()` 在操作起点捕获账号代次及页面上下文，`reportFailure` 必须显式接收此 origin；同账号切页保留原组织/项目，账号变化丢弃旧错误，业务模块仍向下依赖诊断叶子。身份确认取消待写定时器时重置句柄，后续事件继续 2 秒批写。
+
+账号、项目与 ASS 客户端共用 HTTP 包装，X-Request-ID 追踪单次请求；后端最外层中间件覆盖成功、认证/CSRF 拒绝、冲突和异常。无响应标记结果未知，不推断服务端未提交。服务端默认 stderr JSON 行，可选单进程 5MiB × 4 轮换文件；多进程交给部署日志管理器做有界轮换。维护者按 requestId 查询，不新增日志下载接口。未来 command_id 与本次 requestId 含义不同，未提前实现协作框架。详细格式/接入/运维与已知限制见模块 README，实际验证见 [诊断验证记录](experiments/diagnostics-v1.md)。

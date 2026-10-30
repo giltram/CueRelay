@@ -38,4 +38,4 @@ export type AudioWorkerResponse =
   | { type: 'ready'; metadata: AudioMetadata }
   | { type: 'tile'; id: number; tile: AudioTile }
   | { type: 'complete'; id: number; cacheBytes: number; decodedSegments: number }
-  | { type: 'error'; id?: number; message: string };
+  | { type: 'error'; diagnostic?: import('../../diagnostics/schema').SafeError; id?: number; message: string };

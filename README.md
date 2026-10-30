@@ -87,7 +87,7 @@ npm run build
 
 架构入口：[docs/architecture.md](docs/architecture.md)。本次 main/audio 集成状态、用户决定及验证见 [集成记录](docs/plans/main-audio-integration.md)。
 
-在打轴区域按 **Tab** 聚焦当前字幕文本框，再按 **Tab** 返回打轴，恢复 Q/W/G 等快捷键；进入文本框保留原光标或选区。这个固定快捷键只在工作区 main、音频画布及边界滑块与字幕文本框之间生效。时间输入、按钮、其他控件和 Shift+Tab 保持原导航；输入法组词、弹窗、导入处理、只读、未选中行及全屏期间不接管。切换不提交时间、不保存或切换行，无需配置或数据库迁移。验证：`cd frontend && npm run test:subtitle-focus`（Chrome、FFmpeg 和 5173 前端服务；`SUBTITLE_FOCUS_URL` 可指定地址，API 使用隔离夹具，不写开发数据库），详见 [验证记录](docs/experiments/subtitle-focus.md)。
+在打轴区域按 **Tab** 聚焦当前字幕文本框，再按 **Tab** 返回打轴，恢复 Q/W/G 等快捷键；进入文本框保留原光标或选区。个人设置「快捷键 → 字幕输入焦点切换」可选择 **Tab**（默认）或 **Ctrl+Space**，随「保存快捷键」保存，改绑后 Tab 恢复普通导航；「全部恢复默认」恢复 Tab。此动作只在工作区 main、音频画布及边界滑块与字幕文本框之间生效。其他控件和 Shift+Tab 保持原行为；输入法组词、弹窗、导入处理、只读、未选中行及全屏期间不接管。切换不提交时间、不保存或切换行，无需数据库迁移；系统若占用 Ctrl+Space，仍需在系统中调整或继续用 Tab。验证：`cd frontend && npm run test:subtitle-focus`（Chrome、FFmpeg 和 5173 前端服务；`SUBTITLE_FOCUS_URL` 可指定地址，API 使用隔离夹具，不写开发数据库），详见 [验证记录](docs/experiments/subtitle-focus.md)。
 
 视频关闭浏览器原生控制栏，画面下方的独立进度条支持点击、拖动及方向键 / Home / End 定位，保留原有播放按钮和时间显示。定位与音频时间轴同步，取消旧选区试听并保留当前播放 / 暂停状态，不修改字幕。浏览器回归：在 frontend 运行 `npm run test:video-progress`（需 Chrome、FFmpeg 和前端服务，VIDEO_PROGRESS_URL 可指定地址；使用模拟 API，不写开发数据库），见 [验证记录](docs/experiments/video-progress.md)。
 

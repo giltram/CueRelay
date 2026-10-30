@@ -57,3 +57,5 @@ AudioDisplayMode 仅是分析请求/输出的类型契约；个人偏好的保�
 - hook 只把阶段变化交给 React；AudioTimeline 的 RAF 读取 getPosition 更新一条播放头和 footer 时钟，不为音频进度重绘字幕表或频谱、不回写视频。准备 / 错误提示位于已有音频 footer；滚动 / 缩放 / 模式切换不会触碰试听会话。
 
 验证：`audition-controller.test.ts`、`audition-reader.test.ts`、原 `local-audio.test.ts` 和 `range-playback.test.ts`；`npm run test:audio-audition` 使用真实 Chrome / FFmpeg、OfflineAudioContext 与 AudioWorklet 捕获实际渲染 PCM。开发专用 `experiments/audio-audition.html` 验证同一 hook 的换片 / 隐藏 / 卸载，不属于生产入口。结果、命令与限制见 [试听验证记录](../../../../docs/experiments/audio-audition.md)。
+
+诊断：分析、独立试听及 Worker 通信边界向 diagnostics 叶子报告有限阶段/安全错误，不采集 PCM、File、文件名或摘要。Worker 通过纯 safety 函数传回安全类型和源码位置；主线程覆盖 error/messageerror，过期结果/正常取消继续隔离。分析状态只读提供，不能通过诊断恢复媒体。见 ../../diagnostics/README.md。

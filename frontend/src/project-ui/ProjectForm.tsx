@@ -1,3 +1,4 @@
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useRef, useState } from 'react';
 import type { Organization } from '../account-ui/api';
 import { Modal } from '../account-ui/Modal';
@@ -39,6 +40,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   async function inspect(file: File) {
+    const origin = captureDiagnosticOrigin();
     controller.current?.abort();
     const task = new AbortController(); controller.current = task;
     selectedFile.current = file;
@@ -46,16 +48,17 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
     try {
       const value = await createMediaManifest(file, task.signal, setProgress);
       if (!task.signal.aborted) setMedia(value);
-    } catch (reason) { if (!task.signal.aborted) setError((reason as Error).message); }
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); if (!task.signal.aborted) setError((reason as Error).message); }
     finally { if (controller.current === task) setBusy(false); }
   }
   return <Modal title="新建项目" onClose={busy ? undefined : onClose}>
     <form className="account-form" onSubmit={event => {
+      const origin = captureDiagnosticOrigin();
       event.preventDefault(); setError('');
       if (!media || (mode === 'import' && source === null)) { setError('请完成视频校验并选择初始字幕。'); return; }
       setBusy(true);
       void api.create({ name, description, media, source: mode === 'empty' ? null : source, style_imports: styleImports, ...(script ? { script } : {}) })
-        .then(value => onSaved(value, selectedFile.current)).catch(reason => setError(reason.message)).finally(() => setBusy(false));
+        .then(value => onSaved(value, selectedFile.current)).catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason.message); }).finally(() => setBusy(false));
     }}>
       <p>所属组织：{organization.name}</p>
       <label>项目名称<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
@@ -72,9 +75,10 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
       {mode === 'import' && <label>ASS 文件<input type="file" accept=".ass" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]; if (!file) return;
         initialDocumentVersion.current++;
+        const origin = captureDiagnosticOrigin();
         setBusy(true); setError(''); setSource(null); setAssName('');
         void importAss(file).then(document => { setSource(document.source); setAssName(file.name); setScript(document.script); setInitialStyles(document.styles); })
-          .catch(reason => setError(reason.message)).finally(() => setBusy(false));
+          .catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason.message); }).finally(() => setBusy(false));
         event.target.value = '';
       }} /></label>}
       {mode === 'import' && assName && <p>{assName} · 字幕预检通过</p>}

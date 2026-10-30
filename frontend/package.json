@@ -29,7 +29,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editing-operations": "node browser-tests/editing-operations.mjs",
-    "test:workspace-history": "node browser-tests/workspace-history.mjs"
+    "test:workspace-history": "node browser-tests/workspace-history.mjs",
+    "test:diagnostics": "node browser-tests/diagnostics.mjs && node browser-tests/diagnostics-errors.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

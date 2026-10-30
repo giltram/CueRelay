@@ -41,7 +41,7 @@ onBoundaryChange 是统一的时间草稿回调：ASS 文档就绪、canEdit 通
 
 pointerup / pointercancel / lostpointercapture 均清理拖动状态，按 pointerId 隔离多指操作。播放头与字幕边界重叠时边界优先命中，保留原边界编辑。video.currentTime 在定位时可能取整到微秒；判断可见范围允许 1µs 容差，并把边缘显示位置约束到 0–100%，避免边缘舍入误触发平移或隐藏播放头。真实浏览器回归位于 `browser-tests/playhead-checks.mjs`，由 audio-timeline 脚本调用。
 
-左 / 右键操作 stage 时显式 focus({preventScroll:true})，右键定出点不再保留此前输入框的焦点。边界滑块继续在匹配按键拖动时保留自身焦点，方向键微调不变；workspace 的快捷键过滤允许 role=slider 上的 Enter / Space 提交 / 试听，避免原生 button 元素的激活规则吞掉打轴动作。普通按钮的鼠标点击由 EditorWorkbench 将焦点交回 main。无修饰 Tab 在 main 或 audio-stage（含边界滑块）聚焦时进入字幕文本框，从该文本框按 Tab 返回 main；由上层 subtitle-focus.ts 唯一处理，时间轴不新增模式或键盘监听器。其他控件的 Tab、Shift+Tab、文本输入和 IME 保留原行为。两组时间采集 / ±10ms 按钮已移除，时间输入框仍可编辑；真实键盘回归见 `browser-tests/shortcut-focus-checks.mjs` 与 `browser-tests/subtitle-focus.mjs`。
+左 / 右键操作 stage 时显式 focus({preventScroll:true})，右键定出点不再保留此前输入框的焦点。边界滑块继续在匹配按键拖动时保留自身焦点，方向键微调不变；workspace 的快捷键过滤允许 role=slider 上的 Enter / Space 提交 / 试听，避免原生 button 元素的激活规则吞掉打轴动作。普通按钮的鼠标点击由 EditorWorkbench 将焦点交回 main。默认 Tab（个人设置可选 Ctrl+Space）在 main 或 audio-stage（含边界滑块）聚焦时进入字幕文本框，再按当前绑定返回 main；由上层 subtitle-focus.ts 唯一处理，时间轴不新增模式或键盘监听器。改为 Ctrl+Space 后 Tab 恢复原导航；其他控件、Shift+Tab、文本输入和 IME 保留原行为。两组时间采集 / ±10ms 按钮已移除，时间输入框仍可编辑；真实键盘回归见 `browser-tests/shortcut-focus-checks.mjs` 与 `browser-tests/subtitle-focus.mjs`。
 
 Ctrl / Cmd + Delete 或 Backspace 由工作区删除当前行，音频组件不自行修改字幕。输入框内保留原生按词 / 按行删除，IME、长按重复及待确认导入继续保护。删除后工作区选择相邻行或重置空文档草稿；背景区间从新 cues 更新。首条标记、历史区间的平移 / 缩放对齐、鼠标穿透和删除回归见 `browser-tests/commit-timing-checks.mjs`；投影与视窗规则见 cue-intervals / viewport 测试。
 

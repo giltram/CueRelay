@@ -1,3 +1,4 @@
+import { safeError } from '../../diagnostics/safety';
 import { LocalAudioSource, type PcmChunk } from './local-audio';
 import { AUDITION_WINDOW_BYTES, type AuditionRequest, type AuditionResponse } from './audition-protocol';
 
@@ -28,5 +29,5 @@ scope.onmessage = event => {
       });
       scope.postMessage({ type: 'pcm', chunks }, chunks.flatMap(chunk => chunk.channels.map(channel => channel.buffer)));
     }
-  })().catch(error => scope.postMessage({ type: 'error', message: (error as Error).message }));
+  })().catch(error => scope.postMessage({ type: 'error', diagnostic: safeError(error), message: (error as Error).message }));
 };

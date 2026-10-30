@@ -1,3 +1,6 @@
+import { diagnosticId } from '../diagnostics/identifier';
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
+import { diagnostics, noteIgnored, provideWorkspaceStatus, safeError } from '../diagnostics';
 import { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, Cue, SplitRequest, SplitResult, StyleResult } from '../contracts/subtitles';
@@ -12,7 +15,7 @@ import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from 
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
-import { isEditingShortcut, timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
+import { bindingFor, timingActions, effectiveBindings, isEditingShortcut, timingShortcut, type ShortcutOverrides } from './timing-shortcuts';
 import { handleSubtitleFocusShortcut } from './subtitle-focus';
 import { commitTiming } from './commit-timing';
 import { playheadBoundary } from './playhead-boundary';
@@ -34,6 +37,7 @@ export interface WorkbenchHandle {
 interface Props {
   ref?: Ref<WorkbenchHandle>;
   header?: ReactNode;
+  diagnosticOwner?: number;
   title?: ReactNode;
   shortcutsPaused?: boolean;
   shortcutOverrides?: ShortcutOverrides;
@@ -51,8 +55,8 @@ interface Props {
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
-  const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' });
+export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
+  const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' }, diagnosticOwner);
   const { document, selectedId, startText, endText } = edits.state;
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -60,7 +64,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   const [duration, setDuration] = useState(0);
   const audioAudition = useAudioAudition(mediaFile, video, visible);
   const cancelAudition = audioAudition.stop;
-  const [error, setError] = useState('');
+  const [error, setErrorState] = useState('');
+  const setError = useCallback((message: string) => {
+    if (message) diagnostics.record('workspace', 'user_error', 'error', { error: safeError(new Error(message)) });
+    setErrorState(message);
+  }, []);
   const [busy, setBusy] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
@@ -90,9 +98,20 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     if (!visible || shortcutsPaused || busy || stylesOpen || pendingImport) edits.finish();
   }, [visible, shortcutsPaused, busy, stylesOpen, pendingImport]);
   const selected = document?.cues.find(cue => cue.id === selectedId);
+  const textFocusBinding = effectiveBindings('toggle-text-focus', shortcutOverrides)[0];
   const cueRows = useMemo(() => orderCues(document?.cues ?? []), [document?.cues]);
   const preview = useMemo(() => previewDocument(document, selectedId, startText, endText), [document, selectedId, startText, endText]);
   const subtitles = useAssPreview(video, mediaFile, preview.document, exportAss, visible);
+  const statusReader = useRef<() => import('../diagnostics/schema').WorkspaceStatus>(() => { throw new Error('not_ready'); });
+  statusReader.current = () => ({
+    projectId: project?.id ?? null, visible,
+    unsaved: project ? document !== savedDocument || Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms))) : hasEdits || hasImportedDocument,
+    revision: project ? savedRevision : null, editable: canEdit,
+    video: { loaded: Boolean(mediaFile), verified: mediaVerified, readyState: video?.readyState ?? null, networkState: video?.networkState ?? null,
+      duration: video && Number.isFinite(video.duration) ? video.duration : null, width: video?.videoWidth || null, height: video?.videoHeight || null, errorCode: video?.error?.code ?? null },
+    audition: audioAudition.state.phase, preview: subtitles.active ? subtitles.status.phase : 'inactive',
+  });
+  useEffect(() => diagnosticOwner === undefined ? undefined : provideWorkspaceStatus(diagnosticOwner, () => statusReader.current(), project?.organization_id ?? styleOrganizationId), [diagnosticOwner, project?.organization_id, styleOrganizationId]);
   useEffect(() => {
     const changed = () => {
       if (video && window.document.fullscreenElement?.contains(video)) cancelAudition();
@@ -126,8 +145,10 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
 
   function run(action: () => void | Promise<void>) {
     setError('');
-    try { void Promise.resolve(action()).catch(reason => setError(String(reason.message))); }
-    catch (reason) { setError((reason as Error).message); }
+    const origin = captureDiagnosticOrigin(), operationId = diagnosticId();
+    const failed = (reason: unknown) => { reportFailure('workspace', action.name || 'action', reason, origin, operationId); setErrorState((reason as Error).message); };
+    try { void Promise.resolve(action()).catch(failed); }
+    catch (reason) { failed(reason); }
   }
 
   function withSelection(state: EditState, cue?: Cue): EditState {
@@ -170,9 +191,11 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   function commitAndAdvance() {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document) throw new Error('ASS 服务尚未就绪');
+    diagnostics.record('editor', 'commit_timing', 'start');
     const result = commitTiming(document, selectedId, parseTime(startText), parseTime(endText), () => `new-${crypto.randomUUID()}`);
     edits.edit(withSelection({ ...edits.current(), document: result.document }, result.selected));
     setHasEdits(true); cancelAudition();
+    diagnostics.record('editor', 'commit_timing', 'success');
   }
 
   function setPlayheadBoundary(point: 'start' | 'end') {
@@ -206,6 +229,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       ? { ...cue, start_ms: parseTime(startText), end_ms: parseTime(endText) } : cue) };
     const request: SplitRequest = { document: snapshot, cue_id: selected.id, mode, position };
     restoreTextCursor.current = mode === 'text' ? position : null;
+    diagnostics.record('editor', 'split', 'start', { revision: savedRevision, reason: mode });
     splitting.current = true; setBusy(true);
     try {
       let result: SplitResult;
@@ -219,12 +243,14 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
       edits.edit(withSelection({ ...edits.current(), document: result.document }, first));
       setHasEdits(true); cancelAudition();
       restoreTextCursor.current = mode === 'text' ? first.text.length : null;
+      diagnostics.record('editor', 'split', 'success');
     } finally { splitting.current = false; setBusy(false); }
   }
 
   function deleteSelectedCue() {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document || !selected) return;
+    diagnostics.record('editor', 'delete', 'success', { cueId: selected.id });
     const result = deleteCue(document, selected.id);
     edits.edit(withSelection({ ...edits.current(), document: result.document }, result.selected ?? undefined));
     setHasEdits(true); cancelAudition();
@@ -256,15 +282,20 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
-      if (busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible) return;
+      const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
+      const blocked = busy || splitting.current || pendingImport || stylesOpen || shortcutsPaused || !visible;
+      if (candidate && blocked) noteIgnored('editor', stylesOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
+      if (blocked) return;
       if (canEdit && selected && !window.document.fullscreenElement
-        && handleSubtitleFocusShortcut(event, composing.current, workbench.current, textEditor.current)) return;
+        && handleSubtitleFocusShortcut(event, composing.current, workbench.current, textEditor.current, textFocusBinding)) return;
       if (video && window.document.fullscreenElement?.contains(video) && isFullscreenPlaybackShortcut(event, composing.current)) {
         event.preventDefault();
         if (!event.repeat) run(togglePlayback);
         return;
       }
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
+      if (candidate && !shortcut) noteIgnored('editor', composing.current || event.isComposing ? 'ime' : 'focus_or_native_behavior');
+      if (candidate && shortcut && !canEdit && (isEditingShortcut(shortcut) || ['commit', 'delete-row', 'undo', 'redo'].includes(shortcut))) noteIgnored('editor', 'not_editable');
       if (!shortcut || ((shortcut === 'commit' || shortcut === 'delete-row' || shortcut === 'undo' || shortcut === 'redo' || isEditingShortcut(shortcut)) && !canEdit)) return;
       event.preventDefault();
       run(() => {
@@ -301,26 +332,32 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
   }
 
   async function doImport(file: File) {
+    const origin = captureDiagnosticOrigin();
+    diagnostics.record('editor', 'import', 'start');
     setBusy(true); setPendingImport(null); setError('');
     try {
       const imported = await importAss(file);
       const initialized = initializeDocument(imported, () => `new-${crypto.randomUUID()}`);
+      diagnostics.record('editor', 'import', 'success', { count: imported.cues.length }, origin.scope, origin.context);
       setHasImportedDocument(true);
       setHasEdits(false);
       edits.baseline(withSelection({ ...edits.current(), document: initialized }, !imported.cues.length ? initialized.cues[0] : undefined));
       cancelAudition();
     } catch (reason) {
-      setError(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
+      reportFailure('editor', 'import', reason, origin);
+      setErrorState(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
     }
     finally { setBusy(false); }
   }
 
   async function saveProject() {
     if (!document || !onSave || !canEdit) return;
+    diagnostics.record('editor', 'save', 'start', { revision: savedRevision });
     setBusy(true); setSaveMessage('');
     try {
       const result = await onSave(document, savedRevision);
       setSavedRevision(result.revision); setSavedDocument(document);
+      diagnostics.record('editor', 'save', 'success', { revision: result.revision });
       setSaveMessage('项目已保存。尚未应用的时间输入不包含在本次保存中。');
     } finally { setBusy(false); }
   }
@@ -455,7 +492,7 @@ export function EditorWorkbench({ ref, header, title, shortcutsPaused = false, s
               </div>
               <label className="subtitle-input">
                 字幕文本
-                <textarea key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title="Tab 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航" rows={2} disabled={!selected} value={selected?.text || ''}
+                <textarea key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title={`${textFocusBinding} 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航`} rows={2} disabled={!selected} value={selected?.text || ''}
                   placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
               </label>
             </fieldset>

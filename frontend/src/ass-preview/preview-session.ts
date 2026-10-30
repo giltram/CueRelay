@@ -1,3 +1,4 @@
+import { diagnostics, safeError } from '../diagnostics';
 import type { AssDocument } from '../contracts/subtitles';
 
 export type PreviewStatus = { phase: 'loading' | 'ready' | 'error'; message?: string };
@@ -16,6 +17,13 @@ interface Dependencies {
 /** A disposable view of editor snapshots, never a persistence or subtitle store. */
 export class PreviewSession {
   private version = 0;
+  private scope = diagnostics.scope();
+  private diagnosticContext = diagnostics.contextSnapshot();
+  private lastPhase = '';
+  private status(status: PreviewStatus) {
+    if (this.lastPhase !== status.phase) diagnostics.record('ass-preview', 'phase', status.phase === 'error' ? 'error' : 'success', { reason: status.phase }, this.scope, this.diagnosticContext);
+    this.lastPhase = status.phase; this.dependencies.onStatus(status);
+  }
   private disposed = false;
   private timer?: ReturnType<typeof setTimeout>;
   private conversion?: AbortController;
@@ -52,11 +60,12 @@ export class PreviewSession {
       await this.apply();
     } catch (reason) {
       if (this.disposed || version !== this.version) return;
+      diagnostics.record('ass-preview', 'conversion_failure', 'error', { error: safeError(reason) }, this.scope, this.diagnosticContext);
       // A partial edit may temporarily fail export validation. Hide the stale
       // track, but keep the renderer alive so the next valid edit recovers.
       this.content = undefined;
       this.renderer?.setVisible(false);
-      this.dependencies.onStatus({ phase: 'error', message: `字幕预览暂不可用：${(reason as Error).message}` });
+      this.status({ phase: 'error', message: `字幕预览暂不可用：${(reason as Error).message}` });
     }
   }
 
@@ -68,7 +77,7 @@ export class PreviewSession {
         const next = this.pending;
         this.pending = undefined;
         if (!this.renderer) {
-          this.dependencies.onStatus({ phase: 'loading' });
+          this.status({ phase: 'loading' });
           this.renderer = this.dependencies.createRenderer(next.content, error => this.fail(error));
           await this.renderer.ready;
         }
@@ -77,7 +86,7 @@ export class PreviewSession {
         if (this.disposed || this.failed || next.version !== this.version) continue;
         this.content = next.content;
         this.renderer.setVisible(this.visible);
-        this.dependencies.onStatus({ phase: 'ready' });
+        this.status({ phase: 'ready' });
       }
     } catch (reason) {
       this.fail(reason as Error);
@@ -86,12 +95,13 @@ export class PreviewSession {
 
   private fail(error: Error) {
     if (this.disposed || this.failed) return;
+    diagnostics.record('ass-preview', 'renderer_failure', 'error', { error: safeError(error) }, this.scope, this.diagnosticContext);
     this.failed = true;
     clearTimeout(this.timer);
     this.conversion?.abort();
     this.pending = undefined;
     this.renderer?.destroy();
-    this.dependencies.onStatus({ phase: 'error', message: `ASS 渲染失败：${error.message}。可关闭后重新开启字幕预览。` });
+    this.status({ phase: 'error', message: `ASS 渲染失败：${error.message}。可关闭后重新开启字幕预览。` });
   }
 
   dispose() {

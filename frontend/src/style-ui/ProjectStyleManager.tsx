@@ -1,3 +1,4 @@
+import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useMemo, useState } from 'react';
 import type { AssDocument, Cue, StyleResult } from '../contracts/subtitles';
 import type { JsonRequest } from '../contracts/http';
@@ -46,6 +47,7 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
     setActiveId(style.id); setName(style.name); setFields(style.fields); setMode('edit'); setConfirmDelete(false); setError(''); setMessage('');
   }
   async function perform(operation: StyleOperation) {
+    const origin = captureDiagnosticOrigin();
     setPending(true); setError(''); setMessage(''); setConfirmDelete(false);
     try {
       const result = await onApply(operation);
@@ -55,7 +57,7 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
       if (operation.type === 'import_many' || operation.type === 'import') setImports([]);
       choose(next);
       setMessage(persisted ? '项目样式已保存。' : '样式已应用到本地文档，请及时导出。');
-    } catch (reason) { setError((reason as Error).message); }
+    } catch (reason) { reportFailure('style-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setPending(false); }
   }
   const applyLabel = persisted ? '应用并保存' : '应用到本地文档';
@@ -125,9 +127,10 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
                 ? { type: 'batch', ids: selected, fields: chosenFields(fields, batchFields) }
                 : mode === 'create' ? { type: 'create', name, fields } : { type: mode === 'copy' ? 'copy' : 'update', id: active.id, name, fields })}>{applyLabel}</button>
                 {request && organizationId && canManageTemplates && mode !== 'batch' && <button onClick={() => {
+                  const origin = captureDiagnosticOrigin();
                   setPending(true); setError('');
                   void templateApi(request, organizationId).create({ name, fields, reference: document.script, source_label: projectName ? `${projectName} / ${active.name}`.slice(0, 500) : '本地工作区' })
-                    .then(() => setMessage('组织模板已保存，项目样式保持独立。')).catch(reason => setError(reason.message)).finally(() => setPending(false));
+                    .then(() => setMessage('组织模板已保存，项目样式保持独立。')).catch(reason => { reportFailure('style-ui', 'handled_error', reason, origin); setError(reason.message); }).finally(() => setPending(false));
                 }}>另存为组织模板</button>}
               </div>
             </>}

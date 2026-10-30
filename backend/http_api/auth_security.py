@@ -7,6 +7,7 @@ from django.utils.cache import add_never_cache_headers
 
 def security_error(code, message, status):
     response = JsonResponse({'error': {'code': code, 'message': message}}, status=status)
+    response.diagnostic_code = code
     add_never_cache_headers(response)
     return response
 

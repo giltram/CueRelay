@@ -14,7 +14,9 @@ from organizations.models import Organization, OrganizationMembership as Members
 
 
 def error(code, message, status):
-    return JsonResponse({'error': {'code': code, 'message': message}}, status=status)
+    response = JsonResponse({'error': {'code': code, 'message': message}}, status=status)
+    response.diagnostic_code = code
+    return response
 
 
 @never_cache

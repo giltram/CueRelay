@@ -23,3 +23,7 @@ PersonalPanel 的快捷键输入保留原始字符串草稿（含末尾逗号、
 鼠标边界点击偏好 mouse_sets_cue_boundary 默认为 true，位于「快捷键」标题下，随原「保存快捷键」按钮提交。勾选框用局部 personal-checkbox 横向布局与文字左对齐，16px 原生控件不继承普通文本框的全宽显示；不修改其他表单的默认布局。后端仅接受 boolean、按账号隔离；音频显示 PATCH 不提交此字段，也不重置未保存勾选。新增四个播放头/拆分动作均默认空绑定，仍用 shared 唯一动作表与有效绑定冲突检测；只有这四个动作扩展 Ctrl/Meta/Alt/Shift + 原基础键范围，已有动作可绑定范围与默认不变。文本拆分仅允许已配置绑定在具体字幕 textarea 聚焦时执行。详见 docs/editing-operations.md 与 editing-operations 浏览器回归。
 
 undo/redo 默认 Cmd/Ctrl+Z 和 Cmd/Ctrl+Shift+Z 同样来自共享 JSON。二者接受与播放头/拆分相同的修饰组合范围。兼容规则：未覆盖的新增 undo/redo 默认别名若被个人显式绑定占用则让出该别名；设置输入展示实际有效绑定，不让旧配置因新增默认失效。显式绑定之间的冲突仍拒绝；前端 effectiveBindings 与后端 effective_bindings 使用同一规则。输入框内保留原生撤销，工作区协调方式见 workspace-ui/README.md。
+
+toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字幕输入焦点切换」下拉框选择 Tab / Ctrl+Space，选项和默认来自共享 JSON。该动作不展示自由输入、录制或单项恢复按钮；选择 Tab 或全部恢复默认即可恢复。随保存快捷键提交，busy 时禁用，失败保留草稿，音频显示保存不覆盖未保存选择。普通快捷键循环排除此动作，前后端仍统一检查它与其他动作的最终绑定冲突；App 的原有设置检查将保存结果传入保留的工作区，无新同步通道。浏览器回归见 subtitle-focus.mjs 与 personal-settings-pending.mjs。
+
+诊断：api 的会话/登录/退出成功响应只发布 user.id 给 diagnostics 身份边界，不传密码/CSRF/Session 或完整响应；异步旧身份响应隔离。诊断身份持久化不阻塞账号请求。账号/项目请求与 ASS 共用 diagnosticFetch，请求正文/认证头不采集。详见 ../diagnostics/README.md。

@@ -1,3 +1,4 @@
+import { diagnostics, safeError } from '../../diagnostics';
 import type { AudioMetadata, PcmChunk } from './local-audio';
 import type { AuditionRequest, AuditionResponse } from './audition-protocol';
 
@@ -10,17 +11,23 @@ export interface AuditionReader {
 /** A private decode session, independent of viewport requests and their cancellation. */
 export class WorkerAuditionReader implements AuditionReader {
   private worker: Worker;
+  private scope = diagnostics.scope();
+  private diagnosticContext = diagnostics.contextSnapshot();
   private failure: Error | null = null;
   private pending: { resolve: (message: AuditionResponse) => void; reject: (error: Error) => void } | null = null;
   constructor(private file: File) {
     this.worker = new Worker(new URL('./audition.worker.ts', import.meta.url), { type: 'module' });
     this.worker.onmessage = (event: MessageEvent<AuditionResponse>) => {
       const pending = this.pending; this.pending = null;
-      if (event.data.type === 'error') pending?.reject(Error(event.data.message));
+      if (event.data.type === 'error') {
+        diagnostics.record('audio-audition', 'worker_result', 'error', { error: event.data.diagnostic ?? safeError(Error()) }, this.scope, this.diagnosticContext);
+        pending?.reject(Error(event.data.message));
+      }
       else pending?.resolve(event.data);
     };
     const failed = () => {
       this.failure = Error('本地音频试听 Worker 中断，请重新试听');
+      diagnostics.record('audio-audition', 'worker_communication', 'error', { error: safeError(this.failure) }, this.scope, this.diagnosticContext);
       this.pending?.reject(this.failure); this.pending = null;
     };
     this.worker.onerror = failed; this.worker.onmessageerror = failed;

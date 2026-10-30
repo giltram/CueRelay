@@ -1,3 +1,4 @@
+import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
 import { documentV2 } from './document-version';
 
@@ -6,11 +7,11 @@ async function checked(response: Response): Promise<Response> {
   const body = await response.json().catch(() => null);
   const message = body?.issues?.map((issue: { line?: number; message: string }) =>
     `${issue.line ? `第 ${issue.line} 行：` : ''}${issue.message}`).join('\n');
-  throw new Error(message || body?.detail || `ASS 转换失败（HTTP ${response.status}）`);
+  throw Object.assign(new Error(message || body?.detail || `ASS 转换失败（HTTP ${response.status}）`), { requestId: responseRequestId(response) });
 }
 
 export async function loadEmptyDocument(): Promise<AssDocument> {
-  const response = await checked(await fetch('/api/ass/empty'));
+  const response = await checked(await diagnosticFetch('/api/ass/empty'));
   return documentV2((await response.json()).document);
 }
 
@@ -22,7 +23,7 @@ export async function importAss(file: File): Promise<AssDocument> {
   } catch {
     throw new Error('仅支持 UTF-8 ASS（可含 BOM），请保留原件并另存编码后重试');
   }
-  const response = await checked(await fetch('/api/ass/import', {
+  const response = await checked(await diagnosticFetch('/api/ass/import', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source }),
   }));
   return documentV2((await response.json()).document);
@@ -30,7 +31,7 @@ export async function importAss(file: File): Promise<AssDocument> {
 
 /** Also used for preview: one backend serializer, no frontend ASS generation. */
 export async function exportAss(document: AssDocument, signal?: AbortSignal): Promise<string> {
-  const response = await checked(await fetch('/api/ass/export', {
+  const response = await checked(await diagnosticFetch('/api/ass/export', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ document }), signal,
   }));
@@ -49,7 +50,7 @@ export function downloadFile(blob: Blob, filename: string): void {
 
 /** Same backend split rules as persisted projects; local mode has no storage. */
 export async function splitAss(request: SplitRequest): Promise<SplitResult> {
-  const response = await checked(await fetch('/api/ass/split', {
+  const response = await checked(await diagnosticFetch('/api/ass/split', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
   }));
   return response.json();
