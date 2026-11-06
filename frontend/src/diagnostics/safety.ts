@@ -1,4 +1,4 @@
-import type { Context, CueFields, EventData, SafeError, TimeDraft } from './schema';
+import type { AccountStatus, Context, CueFields, EventData, SafeError, TimeDraft } from './schema';
 
 /** No free-form error messages: libraries/servers can echo passwords, filenames or bodies. */
 export function safeError(value: unknown): SafeError {
@@ -34,6 +34,14 @@ export function safeContext(context: Context): Context {
   return { page: /^[a-z-]{1,40}$/.test(context.page) ? context.page : 'unknown',
     ...(Number.isSafeInteger(context.organizationId) ? { organizationId: context.organizationId } : {}),
     ...(Number.isSafeInteger(context.projectId) ? { projectId: context.projectId } : {}) };
+}
+/** Account metadata is allowed; never serialize a complete user or organization object. */
+export function safeAccount(account: AccountStatus): AccountStatus {
+  const organization = account.organization;
+  return { id: account.id, username: safeText(account.username, 150), is_dev: account.is_dev === true,
+    organization: organization ? { id: organization.id, name: safeText(organization.name, 200),
+      role: organization.role === 'organizer' || organization.role === 'member' ? organization.role : null,
+      can_manage: organization.can_manage === true } : null };
 }
 const cue = (v: CueFields): CueFields => ({ text: safeText(v.text), start_ms: v.start_ms, end_ms: v.end_ms, style_id: safeText(v.style_id, 100) });
 const draft = (v: TimeDraft): TimeDraft => ({ startText: safeText(v.startText, 40), endText: safeText(v.endText, 40), selectedId: v.selectedId && safeText(v.selectedId, 100) });

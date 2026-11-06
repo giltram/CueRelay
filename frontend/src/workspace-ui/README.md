@@ -41,3 +41,35 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 ## 诊断
 
 use-edit-history 向只读 edit-diagnostics 观察器报告已有 before/after 引用，按连续输入/手势合并逐行差异；诊断自身 flush 不结束历史分组。导出通过账号/组织受限 getter 读取未保存状态、当前 revision、video 技术状态、试听和预览，不提交时间草稿或操纵业务状态。范围/敏感边界/预算见 [diagnostics](../diagnostics/README.md)。
+
+## 字幕文本查找
+
+字幕列表标题「查找」切换一行查找条，展开时按钮使用既有选中配色（aria-pressed）并聚焦输入；没有独立关闭按钮。可见工作区内 Ctrl/Cmd+F 打开查找，已展开时再次按快捷键只聚焦并选中查找文字。查找框及前后按钮高 28px，整条高 32px，减少纵向占用，把剩余空间交给字幕列表。保留完整列表、时间排序和行号。输入只更新匹配及 React 文本节点高亮，不选行、不滚动、不提交时间草稿、不操纵媒体。
+
+- `cue-search.ts` 是纯函数入口：`matchCueText` 返回原始正文的 UTF-16 高亮范围；`findCueMatches` 复用 `subtitle-model/cue-order.ts` 的 `orderCues`，每行一个结果；`navigateCueMatches` 通过 cue ID 计算包含当前选行的首次查找及后续前后循环。
+- 匹配当前文档（包含未保存正文），普通字面文本，英文 A–Z 不区分大小写。只忽略 codec 已支持的 `b/i/u/s` 0/1 组合标签，`\N` / `\n` / `\h` 各视作一个空格；不修剪关键词或折叠空白。非法/未完成的标签按字面文本处理，查找不验证或修改原稿。列表继续展示原文，因此跨标签匹配会分段高亮，空白匹配高亮对应原始转义。
+- `use-cue-search.ts` 仅拥有本列表的开关、关键词和当前命中 ID；派生结果不另存字幕。关键词变化重置游标，首次前后查找从当前选行开始（含本行），未选行从首/末结果开始；尚未跳转显示 `0 / N 行`。当前命中不再匹配/被删除时恢复首次规则，修改或重排仍按 ID 识别。
+- `CueSearchBar` 隔离工作区快捷键、处理 IME Enter（composition、isComposing、229）并通过 polite live region 报告数量。输入框 Enter/Shift+Enter 和前后按钮调用显式导航，按钮保留原生键盘激活；连续导航焦点回到查找框。空字符串无高亮，无匹配时禁用前后按钮。
+- `CueTable` 用行 ref 在主动跳转时只滚动自身容器（避开 sticky 表头），然后复用传入的 `selectCueFromTable`：重复选择同一 cue ID 保留原始时间草稿（含未完成/非法输入），真正换行才丢弃旧草稿并载入目标行已提交时间。行号、正文点击和查找定位共用此规则；仍取消试听，有可播放视频时暂停并定位该行已提交入点，无视频时仍可选行。查找无独立提交/保存逻辑，也不生成历史步骤。
+- `EditorWorkbench` 仅传可用性、工作区 ref 和已有选行回调，主容器鼠标点击聚焦跳过 `data-cue-search` 控件。查找不受可编辑权限/媒体验证限制，但隐藏、忙碌、导入确认、工作区/账号弹窗时不拦截 Ctrl/Cmd+F。初始 body 焦点也可打开当前可见工作区查找；其他页面保留浏览器查找。
+- Esc 或再次点击「查找」收起查找条并移除高亮，保留选行和视频位置，焦点返回工作区。关键词在本实例关闭/重开及隐藏/恢复时保留；重开重新按首次规则导航，实例销毁时清空。无搜索历史、替换、过滤、正则、网络请求或持久化。
+
+依赖方向：`EditorWorkbench → CueTable → {use-cue-search, CueSearchBar, CueSearchText}`；`use-cue-search → cue-search → {subtitle-model/cue-order, contracts}`，展示组件只依赖类型及 React，不反向导入编排层。
+
+验证：`cue-search.test.ts`；`npm run test:subtitle-search`（真实 Chrome、FFmpeg、本地 Vite、隔离 HTTP fixture，无数据库写入）。实际结果与浏览器限制见 [查找验证记录](../../../docs/experiments/subtitle-search.md)。
+
+## 紧凑布局与提示
+
+EditorWorkbench 使用 page-ui 的 PageLayout / HeaderNotice：44px 顶栏容纳保存状态、错误、字幕预览及 App 注入的会话提示，长消息在栏内滚动。移除未校验片源时的选片提示，编辑权限仍要求原有完整校验。入点/出点/样式和定位/删除共用一行，窄栏可横向滚动；上方区域从原 54dvh（400–560px）减少 52px，省出的空间交给字幕表，不能只让音频画布增长。字幕导入替换确认和样式 dialog 保持原有交互及焦点边界。LocalVideoPlayer 不再持有预览 status 插槽；预览消息由工作区直接交给顶栏，媒体校验反馈也在顶栏中显示。
+
+回归：`npm run test:compact-layout` 覆盖桌面/短窗口/窄屏、验证与保存前后高度、设置下载及隐藏实例隔离。
+
+## 分隔栏联动预览高度
+
+`ResizableWorkbench` 组合 media / editor / subtitles 三个展示插槽，拥有上下区域和左右分栏的唯一尺寸状态；不访问字幕或视频内部状态。默认仍用紧凑布局。显式向右拖动分隔栏超过当前视频高度限制时，以 16:9 反推上方所需高度，把字幕列表空间转给预览；左拖缩回，双击恢复默认宽高，键盘沿用方向键 / Shift / Home / End。右侧编辑区最低 480px，字幕区最低 144px（CSS --subtitle-min-height 唯一声明），达到任一边界停止增大。
+
+ResizeObserver 观察布局容器、上方区域和字幕容器，读取实际可用高度、边框、控件预算及 CSS 最低高度；不能把当前上方高度再当成整个布局的高度预算，否则会锁住继续放大。只保存用户请求的宽度比例，额外高度由该宽度派生；反向拖动无需第二份高度状态。窗口缩小重新约束，窄屏隐藏分隔栏并释放进行中的 Pointer Capture，恢复桌面保留比例。实例保留/替换语义不变，无账号或 Storage 偏好。
+
+`workbench-sizing.ts` 是纯尺寸公式入口；`workbench-sizing.test.ts` 验证高度预算及宽度边界。`npm run test:workbench-resize` 用实际工作区、真实 Chrome/MP4 与隔离 HTTP 检查拖动增高、最低高度、窗口缩小、双击/键盘、断点释放和媒体/字幕草稿不变。
+
+实际结果与限制见 [分隔栏验证](../../../docs/experiments/workbench-resize.md)。

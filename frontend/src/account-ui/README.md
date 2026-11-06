@@ -1,5 +1,7 @@
 # 账号界面
 
+首次使用提示：App 仅在设置已加载且服务端明确返回 `handbook_seen: false` 时组合 HandbookPrompt；未登录、会话/切换保护弹窗中或正在阅读手册时不弹。提示只包含打开手册（默认新标签页）和稍后阅读，Escape 等同稍后阅读。App 立即关闭并按账号保存本页已关闭状态，异步 POST `/me/handbook`，只有相同账号代次的成功响应才更新设置；失败仅报告到页头，本页不重复打扰、下次进入可再提示。提示期间暂停工作区快捷键，不重建编辑器。PersonalSettings 页在密码表单前保留「使用手册」入口，带组织上下文；手册本身由独立 handbook-ui 拥有。createDefaultSettings 的 handbook_seen=true 只是未加载时的保守占位，实际提示以服务端状态为准；不使用 Storage 或诊断存储记录已读。
+
 App 编排会话、组织上下文、登录/保护弹窗及工作区所有权。App 显式创建并传递 account-ui/api.ts 客户端实例；实例负责同源 Session 请求、当前 CSRF Cookie、结构化错误、账号一致性头和旧上下文响应过滤，通过显式回调通知会话失效，不使用模块级账号全局状态。LoginForm、MembersPanel、PersonalPanel 只通过公开 HTTP 契约操作数据，不访问 EditorWorkbench 内部状态。
 
 会话观察以最新请求为准；focus、visibilitychange、30 秒检查重叠产生的 request_superseded 由 App 静默忽略，不作为账号变更提示显示。主动登录/退出期间，客户端直接丢弃后台会话观察，避免观察请求使主动操作过期；主动操作完成或失败后恢复检查。原有旧账号响应过滤与真正账号切换的稿件保护仍生效。回归：api.test.ts；`npm run test:session-observation`（真实 Chrome、默认 5173 服务，SESSION_URL 可覆盖；HTTP 隔离夹具，不写开发数据库）。
@@ -29,3 +31,5 @@ undo/redo 默认 Cmd/Ctrl+Z 和 Cmd/Ctrl+Shift+Z 同样来自共享 JSON。二�
 toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字幕输入焦点切换」下拉框选择 Tab / Ctrl+Space，选项和默认来自共享 JSON。该动作不展示自由输入、录制或单项恢复按钮；选择 Tab 或全部恢复默认即可恢复。随保存快捷键提交，busy 时禁用，失败保留草稿，音频显示保存不覆盖未保存选择。普通快捷键循环排除此动作，前后端仍统一检查它与其他动作的最终绑定冲突；App 的原有设置检查将保存结果传入保留的工作区，无新同步通道。浏览器回归见 subtitle-focus.mjs 与 personal-settings-pending.mjs。
 
 诊断：api 的会话/登录/退出成功响应只发布 user.id 给 diagnostics 身份边界，不传密码/CSRF/Session 或完整响应；异步旧身份响应隔离。诊断身份持久化不阻塞账号请求。账号/项目请求与 ASS 共用 diagnosticFetch，请求正文/认证头不采集。详见 ../diagnostics/README.md。
+
+页面顶栏由 `page-ui/PageLayout` 统一，PersonalPanel 的保存/录制反馈、MembersPanel 页内错误等通过 HeaderNotice 显示在 44px 栏内，不增加表单高度。dialog 的校验仍留在弹窗。个人设置正文独有诊断导出按钮；ExportDiagnostics 通过 onError 把错误交给 SettingsPage，诊断模块不反向依赖页面布局。回归：`npm run test:compact-layout`、`npm run test:personal-settings-pending`。

@@ -1,0 +1,23 @@
+.handbook-page { height: auto; min-height: 100dvh; gap: 24px; padding-bottom: 48px; }
+.handbook-title { font-size: 20px; }
+.handbook-layout { display: grid; grid-template-columns: 200px minmax(0, 800px); gap: 32px; align-items: start; }
+.handbook-toc { display: flex; flex-direction: column; gap: 4px; padding-right: 16px; border-right: 1px solid var(--border); position: sticky; top: 16px; }
+.handbook-toc a { padding: 6px 0; }
+.handbook-content { min-width: 0; line-height: 1.8; overflow-wrap: anywhere; }
+.handbook-content section { margin-top: 32px; scroll-margin-top: 16px; }
+.handbook-content h2 { font-size: 18px; margin-bottom: 12px; }
+.handbook-content p + p { margin-top: 12px; }
+.handbook-content ol { margin: 0; padding-left: 24px; }
+.handbook-content li + li { margin-top: 12px; }
+.handbook-content kbd, .handbook-content code { font-size: 13px; }
+.handbook-content blockquote { margin: 16px 0 0; padding: 12px 16px; border-left: 2px solid var(--accent); background: var(--surface); }
+.handbook-table-scroll { overflow-x: auto; margin-bottom: 12px; }
+.handbook-content table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.handbook-content th, .handbook-content td { padding: 8px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.handbook-content th { font-weight: 600; }
+.handbook-content th:first-child { width: 28%; min-width: 112px; }
+@media (max-width: 700px) {
+  .handbook-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .handbook-toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px 16px; border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
+  .handbook-content th, .handbook-content td { padding: 8px; }
+}

@@ -1,3 +1,4 @@
+import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Organization } from '../account-ui/api';
 import type { JsonRequest } from '../contracts/http';
@@ -54,8 +55,7 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
   }
   const person = (user: { username: string } | null) => user?.username || '—';
   const date = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
-  return <main className="projects-page">
-    <header className="app-header"><h1><HomeLink navigate={navigate} /></h1>{header}</header>
+  return <PageLayout className="projects-page" title={<HomeLink navigate={navigate} />} navigation={header}>
     <div className="project-heading"><h2>项目</h2><div className="controls">
       <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>本地工作区</RouteLink>
       {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>新建项目</button>}
@@ -68,8 +68,8 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         </div>
         <label>搜索项目<input type="search" value={search} maxLength={100} onChange={event => setSearch(event.target.value)} placeholder="按项目名称搜索" /></label>
       </div>
-      {loading && <p role="status">正在加载项目…</p>}
-      {error && <div className="error" role="alert">{error}<button onClick={() => setRefresh(value => value + 1)}>重试</button></div>}
+      {loading && <HeaderNotice>正在加载项目…</HeaderNotice>}
+      {error && !confirm && <HeaderNotice className="header-error" role="alert">{error}<button onClick={() => setRefresh(value => value + 1)}>重试</button></HeaderNotice>}
       {!error && data && <div className="project-table-scroll"><table className="project-table"><thead><tr>
         <th>项目</th><th>{status === 'active' ? '最近更新' : '归档时间'}</th><th>{status === 'active' ? '更新者' : '归档人'}</th><th>操作</th>
       </tr></thead><tbody>{data.projects.map(project => <tr key={project.id}>
@@ -111,5 +111,5 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         }}>{confirm.status === 'active' ? '确认归档' : '确认恢复'}</button>
       </div>
     </Modal>}
-  </main>;
+  </PageLayout>;
 }

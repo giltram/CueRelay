@@ -1,6 +1,6 @@
 # 浏览器诊断 v1
 
-默认启用，工具栏「导出诊断信息」直接下载单个缩进 JSON，不请求后端、不上传、不提交字幕、不移动媒体、不调用 undo/redo。登录页和初始会话检查页也有入口。诊断文件包含实际编辑的字幕正文，发送前可自行查看。
+默认启用，入口仅在个人设置正文中的「导出诊断信息」，直接下载单个缩进 JSON，不请求后端、不上传、不提交字幕、不移动媒体、不调用 undo/redo。登录页、初始会话检查页、其他页面及公共顶栏不提供导出按钮。诊断文件包含实际编辑的字幕正文，发送前可自行查看。按钮通过 onError 回调把下载错误交给 SettingsPage 在顶栏显示，诊断模块保持叶子依赖。
 
 ## 所有权与接入
 
@@ -11,6 +11,8 @@
 `workspace-ui/edit-diagnostics.ts` 只观察现有不可变 EditState 引用；连续输入/手势合并后生成逐行增量，包含前后正文、时间、样式引用、删除/增加，以及白名单样式和脚本字段。`use-edit-history` 在现有分组边界通知观察器，诊断自己的停输定时器和导出 flush 不结束历史分组。IME、粘贴及未失焦输入通过已生效的业务状态采集。没有第二份可写字幕状态，不保存原始 ASS source 或完整快照，记录不能恢复文档。
 
 App 提供页面类型与组织/项目 ID、经实际会话响应确认账号；EditorWorkbench 通过 `provideWorkspaceStatus` 提供只读 getter，包含该工作区自己的 projectId/visible，避免隐藏保留实例的 revision 被误认成当前页面项目版本。字幕、File、PCM、revision、保存基准、撤销历史仍归原模块。媒体/Worker 只向诊断叶子报告，不依赖账号或工作区。诊断不反向导入或操纵业务模块。
+
+App 通过 `provideAccountStatus(owner, getter)` 显式提供已确认用户及当前组织的只读信息；`accountStatus` 在导出刷新后校验账号 ID、账号代次和组织上下文，`safeAccount` 只投影 `id`、`username`、`is_dev` 及当前组织的 `id/name/role/can_manage`。不展开完整用户/组织对象，不额外请求账号接口，不持久化这份元数据。未登录、会话尚未确认、账号隔离失效或旧账号提供者返回 `null`；组织未加载或上下文不一致时只省略组织权限。
 
 ## 安全与账号生命周期
 
@@ -35,6 +37,8 @@ IndexedDB 单一 control 行包含当前 owner/epoch；账号切换或退出在�
 
 固定键顺序：`summary`（中文、由实际观测派生）、`environment`（构建/页面/能力/只读状态）、`events`、`metadata`（formatVersion=1、coverage、采集说明）。前端可用 `VITE_CUERELAY_BUILD=release-2026.10.30 npm run build` 显式注入公开构建标签；构建来自 `VITE_CUERELAY_BUILD` 和服务端 `X-CueRelay-Build`，未配置明确 `unknown`。浏览器只投影浏览器/系统家族及版本，不保存完整 UA。
 
+`environment.account` 包含上述用户/权限白名单，权限是导出时页面最近已确认的状态。文件名为 `cuerelay-diagnostics-用户名-id-用户ID-dev或user-当前组织角色-时间.json`；无组织角色时省略该段，用户不可用时使用 `account-unavailable`。用户名保留 Unicode 字母/数字及 `_.@+-`，其他字符替换为下划线并限 40 UTF-16 code units；JSON 中用户名保留至 150 字符。文件名和 JSON 使用同一份账号投影及导出时间，不含密码、Cookie、Session、CSRF 或令牌。
+
 事件含 `tabId`、`sessionId`、`sequence`、墙上时间与单调 `elapsedMs`。当前 tabId 标记本次页面标签页来源，刷新创建新来源和新页面会话；旧事件保留其原来源。按同 sessionId 的 sequence 分析先后，不仅靠跨来源时间。`id` 标识事件；`operationId` 可关联已处理错误的操作；`requestId` 只追踪一次 HTTP 请求，未来 command_id 另行定义，本次没有协作协议。
 
 `account-ui/api` 和 ASS/样式客户端共用 diagnosticFetch，不重复维护传输逻辑。开始/完成使用同一 X-Request-ID。HTTP 409 是冲突；网络未收到响应是 `unknown/no_response_result_unknown`，不能断言服务端未提交。主动 AbortSignal 是 cancelled。浏览器 `onLine` 单独展示，服务器可达性为 unknown。错误对象携带 requestId，模块错误可关联请求。
@@ -43,6 +47,6 @@ IndexedDB 单一 control 行包含当前 owner/epoch；账号切换或退出在�
 
 ## 验证与限制
 
-纯测试：`npm test -- --run`，含本目录 boundaries.test.ts 的模块循环/叶子依赖检查，关注本目录、`workspace-ui/edit-diagnostics.test.ts` 和既有历史测试。真实 Chrome：代码修改完成后启动干净进程 `npm run dev -- --port 5194`（测试期间不热更新源码），再 `npm run test:diagnostics`（包含 `diagnostics-errors.mjs`：真实项目设置页延迟保存失败前切组织/切账号）；可通过 DIAGNOSTICS_URL 指定服务。现有历史回归：`HISTORY_URL=http://127.0.0.1:5194/workspace/local npm run test:workspace-history`。
+纯测试：`npm test -- --run`，含本目录 boundaries.test.ts 的模块循环/叶子依赖检查，关注本目录、`workspace-ui/edit-diagnostics.test.ts` 和既有历史测试。`npm run test:compact-layout` 验证个人设置入口、说明文案、顶栏错误和失败重试；diagnostics.mjs 直接调用下载接口验证工作区/离线/初始会话的底层导出契约，不代表这些页面有 UI 入口。重建 recorder 验证持久化时必须设置相同组织上下文，避免组织过滤隐藏目标记录。真实 Chrome：代码修改完成后启动干净进程 `npm run dev -- --port 5194`（测试期间不热更新源码），再 `npm run test:diagnostics`（包含 `diagnostics-errors.mjs`：真实项目设置页延迟保存失败前切组织/切账号）；可通过 DIAGNOSTICS_URL 指定服务。现有历史回归：`HISTORY_URL=http://127.0.0.1:5194/workspace/local npm run test:workspace-history`。
 
 没有会话回放、自动修复/上传、恢复业务数据、日志搜索页、服务端日志下载或开发者控制台。只观测已接入模块和近期窗口；摘要不推断根因。Safari/Firefox、真实磁盘耗尽及崩溃最后一批丢失尚需实机验收。故障注入和实际执行结果见 [验证记录](../../../docs/experiments/diagnostics-v1.md)。

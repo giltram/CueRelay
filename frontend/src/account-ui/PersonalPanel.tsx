@@ -1,3 +1,4 @@
+import { HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useState } from 'react';
 import { type AccountRequest, type Settings } from './api';
@@ -88,6 +89,6 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
         const result = await api<Settings>('/me/settings', 'PATCH', { shortcut_overrides: overrides, mouse_sets_cue_boundary: mouseBoundary });
         setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); setMouseBoundary(result.mouse_sets_cue_boundary); onSettings(result);
       })}>保存快捷键</button></div>
-    {message && <p role="status">{message}</p>}
+    {message && <HeaderNotice aria-label="个人设置反馈">{message}</HeaderNotice>}
   </div>;
 }

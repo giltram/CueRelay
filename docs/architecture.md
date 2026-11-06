@@ -14,6 +14,12 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-07 手册 Markdown 化：正文迁到 `frontend/src/handbook-ui/handbook.md`，带稳定 ID 的二级标题唯一生成目录。Vite 构建插件使用 devDependency Marked 18.1.3 预编译介绍/章节 HTML，快捷键占位符从 shared JSON 展开；运行时只展示生成的 JS 模块，不加载原始文件、不携带解析器。构建工具只向下引用 `handbook-ui/content` 类型契约，页面不依赖构建工具。Markdown 的原始 HTML、缺少/重复章节 ID、缺少/重复快捷键占位符均在编译时拒绝。维护和验证见 [手册模块](../frontend/src/handbook-ui/README.md)。
+
+2026-11-07 首次使用手册：`accounts.User.handbook_seen` 拥有账号级确认状态，GET `/api/me/settings` 只读返回，POST `/api/me/handbook` 以空 JSON 幂等确认本人；原个人偏好 PATCH 和 safe_user 身份投影不变。accounts.0006 仅将升级前 last_login 非空的账号标记为已提示，未登录/新账号保留首次提示。App 组合 account-ui/HandbookPrompt、账号代次保护和工作区快捷键暂停；点击打开/稍后阅读/Escape 立即收起并异步持久化，失败不阻塞操作。navigation 拥有 `/handbook` 及带组织上下文的地址，设置与首次提示默认新开同一手册；`handbook-ui → {navigation, page-ui, shared JSON}` 只拥有静态正文/阅读样式，不依赖工作区内部或请求账号。目录只滚动正文、不添加路由历史。内容职责和维护点见 [手册模块](../frontend/src/handbook-ui/README.md)，检查及部署见 [验证记录](experiments/user-handbook.md)。
+
+2026-11-06 字幕文本查找与定位：`workspace-ui/cue-search.ts` 纯函数从现有字幕正文派生支持 ASS 标签/空白转义的字面匹配，复用 subtitle-model 时间排序和 cue ID 导航；`use-cue-search` 只拥有当前实例的开关、关键词和游标。CueTable 保留所有行/原文，用 React 文本节点高亮，仅显式跳转滚动，并通过既有 selectCueFromTable 处理选行、草稿和媒体。选行统一按 cue ID 判断：重复选择当前行保留原始时间草稿，真正换行才丢弃草稿；媒体定位/取消试听沿用原行为。查找不受编辑权限/媒体验证限制，Ctrl/Cmd+F 限可见且无弹窗的工作区，查找条隔离打轴快捷键及 IME；无数据契约、历史、保存或网络接口变更。职责/交互见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕文本查找)，实际检查及限制见 [验证记录](experiments/subtitle-search.md)。
+
 本机 PostgreSQL 的持久目录、连接配置及启停操作见 [本机开发数据库](local-development.md)；数据库结构由各模块 migrations 管理。
 
 2026-10-24 实时 ASS 预览：`workspace-ui` 把当前文档及有效时间草稿交给 `ass-preview`，复用后端唯一 ASS 序列化器；JASSUB 2.5.23 在本地 Worker/WASM 叠加到现有 video。120ms 合并、过期响应隔离、串行 Track 更新、暂停强制重绘、全屏及同源 Noto Sans SC fallback 见 [预览模块](../frontend/src/ass-preview/README.md)，实测见 [验证记录](experiments/ass-preview.md)。没有新增自动保存或协作传输；Style 写接口见下述样式管理契约，项目远端修改仍经显式重载接受。
@@ -71,13 +77,19 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `workspace-ui/cue-column-widths.ts` 定义字幕列默认值、可调范围和表格最小宽度（保留 180px 文本空间）；CueTable 用 colgroup/fixed layout 应用宽度并在实例内持有状态。入/出默认 100px、CPS 44px、style 88px，行号固定 44px。`CueColumnResizeHandle` 仅处理表头右边界的 Pointer Capture 与键盘动作；支持取消/失去捕获、双击默认、方向键 8px/Shift 24px 与 Home/End，宽度由 CueTable 统一约束。调宽不更换字幕或媒体实例，不写 Storage/DTO；同页历史保留实例时保留列宽，刷新或更换实例恢复默认。窄屏在表格内滚动，不挤压最后一列；验证见 [字幕表格记录](experiments/cue-table.md)。
 - `shared/timing-shortcuts.json` 唯一声明可配置默认键位，`workspace-ui/timing-shortcuts.ts` 负责全部动作（含删行）的个人覆盖、校验和分派；默认 G / Enter 提交并下一条，S / Space 单次播放选区，Q / W 播放入点前 / 出点后 500ms，E / D 播放选区开头 / 结尾最多 500ms。EditorWorkbench 复用当前时间草稿和 `commitAndAdvance`，通过单一 keydown 监听器分派；I/O/J/K/U/P/L/N 不再绑定，过时提示及时间采集 / 微调按钮已移除。`media/playback.ts` 的 `auditionRange` 只截断试听范围到媒体边界，空交集不播放，不改字幕时间；`media/audio/use-audio-audition` 连接独立的 `AudioAuditionController`，以音频时钟提前排程原声道 PCM；移除 `watchPlaybackRange` 及其 RAF 出点暂停路径。控制器唯一拥有试听状态 / 位置，时间轴通过只读 getter 更新播放头 / 时钟，避免每帧重绘整张字幕表；完成时停在音频出点。开始试听只暂停 video，不定位它；普通播放 / 主动定位同步取消试听，全屏 Space 仍切换普通视频播放。试听使用独立 Worker 和有界分段预取，频谱请求不参与其取消链；隐藏 / 换片 / 卸载释放资源。契约与输出采样验证见 [独立试听记录](experiments/audio-audition.md)。映射、焦点 / IME、范围和播放生命周期回归见 timing-shortcuts / playback / range-playback 测试；本次验证见 [快捷键验收记录](experiments/aegisub-shortcuts.md)。
 - `workspace-ui/TimePointControl.tsx`：入点 / 出点的同构输入控件，仅接收值与 onChange，区间状态和校验仍由 EditorWorkbench 编排；两组“当前时间 / −10ms / +10ms”按钮及其采集 / 微调回调已移除，边界滑块仍支持方向键微调。EditorWorkbench 的 main 只在鼠标点击普通按钮后接收焦点（tabIndex=-1、preventScroll），避免 Enter / Space 再次激活刚点击的按钮；键盘 / Tab 激活继续保留按钮原生行为，边界 role=slider 不转移焦点。AudioTimeline 左 / 右键操作显式聚焦 stage，右键设置出点不再遗留输入框焦点。`allowsShortcutFocus` 允许 slider 上的 Enter / Space，保留输入框 / 视频控件 / IME、修饰键、重复及 defaultPrevented 过滤；普通键盘焦点按钮 / 链接仍保留原生激活。回归见 `browser-tests/shortcut-focus-checks.mjs`。页面采用紧凑工具栏、视频与字幕编辑双栏、独立字幕表；不改变字幕数据或格式模块边界。
-- `workspace-ui/ResizableWorkbench.tsx` 拥有桌面分栏比例、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
-- `workspace-ui/workbench-sizing.ts` 唯一负责宽度边界：媒体栏最低 300px、编辑栏最低 480px，视频最大宽度由上方区域可用高度和 16:9 决定，避免继续扩宽后视频大小不再变化。空间不足时以保留编辑区为先。CSS 的 `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试。
-- 工作区桌面布局由窗口高度约束：上方约 54% 视口高度（400–560px，可在短窗口中收缩），右侧为音频时间轴和时间 / 样式 / 文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、频谱、0.5–60 秒视窗、滚轮平移 / Shift+滚轮缩放 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框按 name 展示、以稳定 style_id 修改当前行引用；样式定义由独立 style-ui 面板经具名服务操作。
-- `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 96px 给独立进度条、导入 / 播放 / 时钟 / 字幕开关共用控制栏及画面外预览状态提示，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；节省的编辑器高度由音频区 flex 增长承接。编辑器内部滚动，长错误不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
-- `ass-preview` 已恢复实时 ASS 渲染，核心 hook 接收 workspace-ui 注入的 serialize 函数；StyleSamplePreview 组合组件直接使用 project-data.exportAss，统一复用后端序列化。LocalVideoPlayer 通过 controls/status 插槽组合开关和提示，全屏包含 video/canvas；不增加媒体层对渲染器的依赖。字体管理、定位测量和手输时间跳转仍未提供；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
+- `workspace-ui/ResizableWorkbench.tsx` 拥有桌面上下区域与左右分栏的布局、ResizeObserver 尺寸测量和 Pointer Capture 生命周期；接收 `media` / `editor` / `subtitles` ReactNode，不访问字幕 DTO 或媒体内部状态。默认左栏比例 42%（901–1100px 为 36%），通过中间 16px 命中区拖动调整；方向键微调，Shift 加大步长，Home / End 到边界，双击恢复默认。比例仅存于当前组件状态，窗口变化时重新约束，拖动不重建 video。
+- `workspace-ui/workbench-sizing.ts` 唯一负责宽高边界：媒体栏最低 300px、编辑栏最低 480px；继续向右拖时按 16:9 视频宽度反推上方区域所需高度，字幕表相应缩小但最低保留 144px。最大视频宽度由整个布局剩余高度减去字幕最低高度、上下间距和视频控件/边框预算决定，不再被当前上方区域高度锁死。向左拖恢复空间，双击同时恢复默认宽高；窗口变小时重新约束，900px 以下不启用拖动增高。CSS 的 `--subtitle-min-height` / `--divider-width` / `--video-controls-space` / `--default-media-share` 是布局测量契约，避免 JS 复制间距和断点默认值；边界回归见同目录 sizing 测试及 browser-tests/workbench-resize.mjs。
+- 工作区桌面布局由窗口高度约束：上方默认使用 clamp(348px, 54dvh - 52px, 508px)（短窗口可收缩，显式右拖可在字幕最低高度约束内增高），右侧为音频时间轴、同一行入点 / 出点 / 样式和字幕文本编辑；下方字幕表填满剩余高度并独立滚动、固定表头。音频支持峰值波形、频谱、0.5–60 秒视窗、滚轮平移 / Shift+滚轮缩放 / 拖动平移、点击定位和字幕草稿边界显示，不包含语音识别。样式下拉框按 name 展示、以稳定 style_id 修改当前行引用；样式定义由独立 style-ui 面板经具名服务操作。
+- `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 96px 给独立进度条、导入 / 播放 / 时钟 / 字幕开关共用控制栏及窄栏换行余量，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；时间 / 样式合并与顶栏压缩省出的高度由下方字幕列表承接。编辑器内部滚动，长错误在顶栏内滚动，不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
+- `ass-preview` 已恢复实时 ASS 渲染，核心 hook 接收 workspace-ui 注入的 serialize 函数；StyleSamplePreview 组合组件直接使用 project-data.exportAss，统一复用后端序列化。LocalVideoPlayer 通过 controls 插槽组合播放 / 字幕开关，预览状态由 EditorWorkbench 直接渲染到顶栏，媒体验证进度及取消按钮也进入顶栏，全屏包含 video/canvas；不增加媒体层对渲染器的依赖。字体管理、定位测量和手输时间跳转仍未提供；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
 当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → {accounts, ass_format}`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, style-ui, navigation, app-workspace}`，`{project-ui, account-ui/SettingsPage} → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`、`workspace-ui → ass-preview → {contracts, project-data, JASSUB}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，`{workspace-ui, project-ui} → style-ui → {project-data, ass-preview, account-ui/Modal}`；App 通过 SettingsPage 的 ReactNode 插槽组合组织库，style-ui 不访问工作区内部。底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
+
+## 紧凑页面顶栏（2026-11-06）
+
+[page-ui](../frontend/src/page-ui/README.md) 唯一负责 PageLayout 页面壳和 HeaderNotice 的页面局部 portal 目标，依赖 React / ReactDOM，不读取业务状态。登录/会话初始化、项目列表、个人/组织设置、项目设置、路由状态页及工作区共用 44px 顶栏和 28px 栏内按钮。保存、加载、报错、会话及预览等页面反馈由调用模块保留状态，声明 HeaderNotice 后显示到自己的顶栏，文本过长在栏内滚动，不新增内容行；隐藏工作区仍拥有独立目标。弹窗的确认和校验留在 dialog 内，不破坏焦点 / 可访问性边界。前端 UI 模块可向下依赖 page-ui，diagnostics 不导入 page-ui，而由 SettingsPage 通过 onError 接收下载错误。
+
+诊断入口仅在个人设置正文，已移除公共顶栏、登录页及会话初始化页入口；说明保留导出内容，删除“不包含密码等认证凭证”半句。项目未校验片源时不再显示选片提示，编辑与保存的校验规则保持不变。工作区入点 / 出点 / 样式共用一行，上方编辑区域减少 52px；字幕表继续填满剩余视口。实际检查见 [紧凑布局记录](experiments/compact-layout.md)。
 
 ## 1. 阅读路径与文档所有权
 
@@ -261,6 +273,8 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 ## 问题诊断与一键导出（2026-10-30）
 
 [浏览器 diagnostics](../frontend/src/diagnostics/README.md) 独立拥有格式、安全白名单、有界记录、IndexedDB 与中文 JSON 导出；[后端 diagnostics](../backend/diagnostics/README.md) 拥有 HTTP 关联及安全 JSON 日志。依赖方向是 `{App, account-ui, project-data, workspace-ui, media, ass-preview} → diagnostics → 浏览器 API`、`application → diagnostics → Django/标准库`，无反向业务导入。Worker 仅复用 diagnostics/safety 纯函数和格式类型，不引入账号或工作区依赖。
+
+2026-11-06 用户诊断归属：App 通过 `provideAccountStatus` 提供只读用户和当前组织，诊断叶子在账号/代次/组织校验后仅导出用户名、用户 ID、dev 身份及组织角色/管理权限。`environment.account` 和下载文件名复用同一投影与导出时间，用户名进行文件名安全替换/长度限制；用户不可用明确标记，不回退旧账号。元数据仅在导出时读取，不落诊断存储、不增加请求，禁止复制完整用户对象或密码/令牌等认证凭证。字段和回归入口见诊断模块 README / export.test.ts。
 
 EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编辑观察器只消费已有不可变状态引用，在现有分组边界/诊断停输定时器/导出前生成字幕逐行差异，不读写私有业务状态，不更改撤销分组。字幕、媒体、保存 revision、历史的原有所有权不变。默认允许实际编辑正文；禁止采集认证信息、原始请求/响应/console、媒体内容、文件名/路径/摘要或完整字幕快照。原始错误文本可能回显密码，故仅采集安全错误类型/源码位置。
 

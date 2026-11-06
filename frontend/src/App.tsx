@@ -1,11 +1,13 @@
-import { ExportDiagnostics } from './diagnostics/ExportDiagnostics';
-import { diagnostics } from './diagnostics';
+import { PageLayout, HeaderNotice } from './page-ui/PageLayout';
+import { diagnostics, provideAccountStatus } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
 import { ApiError, createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './account-ui/Modal';
 import { SettingsPage } from './account-ui/SettingsPage';
+import { HandbookPrompt } from './account-ui/HandbookPrompt';
+import { HandbookPage } from './handbook-ui/HandbookPage';
 import { ProjectsPanel } from './project-ui/ProjectsPanel';
 import { ProjectSettingsPage } from './project-ui/ProjectSettingsPage';
 import { useNavigation } from './navigation/use-navigation';
@@ -29,6 +31,7 @@ export default function App() {
   const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings>(createDefaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [handbookDismissedFor, setHandbookDismissedFor] = useState<number | null>(null);
   const [panel, setPanel] = useState<'login' | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
@@ -48,8 +51,16 @@ export default function App() {
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
   const organization = organizations.find(org => org.id === organizationId);
   useEffect(() => { diagnostics.setContext({ page: route.kind, organizationId: organizationId ?? undefined, projectId: 'projectId' in route ? route.projectId : undefined }); }, [route, organizationId]);
+  useEffect(() => {
+    if (!user) return;
+    return provideAccountStatus(user.id, () => ({ id: user.id, username: user.username, is_dev: user.is_dev,
+      organization: settingsReady && organization ? { id: organization.id, name: organization.name,
+        role: organization.role, can_manage: organization.can_manage } : null }));
+  }, [user, organization, settingsReady]);
   const isList = route.kind === 'projects' || route.kind === 'entry';
   const isSettings = route.kind === 'settings' || route.kind === 'organization-settings';
+  const handbookPromptOpen = Boolean(user && settingsReady && settings.handbook_seen === false &&
+    handbookDismissedFor !== user.id && route.kind !== 'handbook' && !panel && !transition);
 
   // Only already-approved account changes and canonical entry redirects bypass
   // the route guard. User navigation always enters requestNavigation.
@@ -185,9 +196,23 @@ export default function App() {
     workspaceState.clear(); navigateApproved({ kind: 'entry' }, true);
     setSettings(createDefaultSettings()); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
   }
+  function dismissHandbook() {
+    if (!user || handbookDismissedFor === user.id) return;
+    const id = user.id, version = epoch.current;
+    setHandbookDismissedFor(id);
+    // Dismissing a welcome prompt must not depend on server availability.
+    void api('/me/handbook', 'POST', {}).then(() => {
+      if (epoch.current === version && ownerRef.current?.id === id) setSettings(previous => ({ ...previous, handbook_seen: true }));
+    }).catch(() => {
+      if (epoch.current === version && ownerRef.current?.id === id) setMessage('未能记住手册提示，下次登录可能再次出现。您仍可继续使用，手册也可从个人设置打开。');
+    });
+  }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
+  const feedback = message && !transition && <HeaderNotice role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></HeaderNotice>;
   const header = <div className="account-toolbar">
-    <ExportDiagnostics />
+    {owner && !user && <HeaderNotice>会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</HeaderNotice>}
+    {owner && user && organizations.length === 0 && <HeaderNotice>暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</HeaderNotice>}
+    {feedback}
     {isList && <><label className="sr-only" htmlFor="organization">当前组织</label>
     <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
       navigate({ kind: 'projects', organizationId: Number(event.target.value) });
@@ -203,7 +228,7 @@ export default function App() {
   </div>;
   const projectLoad = workspaceState.projectLoad;
 
-  if (initializing) return <div className="login-page"><p role="status">正在检查会话…</p><ExportDiagnostics /></div>;
+  if (initializing) return <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}><HeaderNotice>正在检查会话…</HeaderNotice></PageLayout>;
   return <>
     {owner ? <>
       {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
@@ -214,6 +239,7 @@ export default function App() {
           workspaceState.adoptCreated(project, video);
           navigateApproved({ kind: 'project', organizationId: project.organization_id, projectId: project.id });
         }} onLifecycle={workspaceState.updateSummary} />}
+      {route.kind === 'handbook' && <HandbookPage header={header} navigate={navigate} />}
       {route.kind === 'project-settings' && <ProjectSettingsPage key={`${owner.id}:${route.organizationId}:${route.projectId}`}
         organization={organization} organizationId={route.organizationId} projectId={route.projectId}
         request={api} header={header} enabled={Boolean(user && settingsReady && !busy && !transition)} navigate={navigate} />}
@@ -244,12 +270,12 @@ export default function App() {
         onSplit={workspace.project ? workspaceState.split : undefined}
         styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
         onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
-        mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || !user || !settingsReady)} /></div>}
-    </> : <div className="login-page"><h1><HomeLink navigate={navigate} /></h1><p>内部账号由站点管理员创建。</p>
-      <LoginForm api={accountApi} onLogin={onLogin} /><ExportDiagnostics /></div>}
-    {owner && !user && <div className="session-notice" role="status">会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</div>}
-    {owner && user && organizations.length === 0 && <div className="session-notice">暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</div>}
-    {message && !transition && <div className="app-message" role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></div>}
+        mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user || !settingsReady)} /></div>}
+    </> : <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}>
+      {feedback}<div className="login-page"><p>内部账号由站点管理员创建。</p>
+        <LoginForm api={accountApi} onLogin={onLogin} feedbackInHeader /></div>
+    </PageLayout>}
+    {handbookPromptOpen && user && <HandbookPrompt key={user.id} organizationId={organizationId ?? undefined} navigate={navigate} onDismiss={dismissHandbook} />}
     {owner && panel === 'login' && <Modal title="重新登录" onClose={() => setPanel(null)}>
       <LoginForm api={accountApi} onLogin={onLogin} expectedUsername={owner.username} />
     </Modal>}

@@ -1,9 +1,10 @@
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { clampMediaWidth, mediaWidthBounds } from './workbench-sizing';
+import { clampMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbenchHeight } from './workbench-sizing';
 
 interface Props {
   media: ReactNode;
   editor: ReactNode;
+  subtitles: ReactNode;
 }
 
 interface Geometry {
@@ -11,10 +12,16 @@ interface Geometry {
   width: number;
   defaultShare: number;
   maximumVideoWidth: number;
+  currentVideoWidth: number;
+  verticalFrame: number;
+  controlsHeight: number;
+  height: number;
 }
 
 /** Layout state stays here; resizing never changes media or subtitle state. */
-export function ResizableWorkbench({ media, editor }: Props) {
+export function ResizableWorkbench({ media, editor, subtitles }: Props) {
+  const container = useRef<HTMLDivElement>(null);
+  const subtitlePane = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const divider = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
@@ -23,6 +30,7 @@ export function ResizableWorkbench({ media, editor }: Props) {
   const [resizing, setResizing] = useState(false);
   const mediaId = useId();
   const editorId = useId();
+  const subtitleId = useId();
 
   useLayoutEffect(() => {
     const element = root.current!;
@@ -33,11 +41,17 @@ export function ResizableWorkbench({ media, editor }: Props) {
       const dividerWidth = parseFloat(style.getPropertyValue('--divider-width'));
       const controlsHeight = parseFloat(style.getPropertyValue('--video-controls-space'));
       const box = element.getBoundingClientRect();
+      const verticalFrame = verticalPadding + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+      const layoutStyle = getComputedStyle(container.current!);
+      const subtitleMinimum = parseFloat(getComputedStyle(subtitlePane.current!).minHeight);
       setGeometry({
         left: box.left + element.clientLeft + parseFloat(style.paddingLeft),
         width: Math.max(0, element.clientWidth - horizontalPadding - dividerWidth),
         defaultShare: parseFloat(style.getPropertyValue('--default-media-share')),
-        maximumVideoWidth: Math.max(0, element.clientHeight - verticalPadding - controlsHeight) * 16 / 9,
+        maximumVideoWidth: maximumMediaWidth(container.current!.clientHeight, subtitleMinimum,
+          parseFloat(layoutStyle.rowGap), verticalFrame + controlsHeight),
+        currentVideoWidth: Math.max(0, box.height - verticalFrame - controlsHeight) * 16 / 9,
+        verticalFrame, controlsHeight, height: box.height,
       });
       // A breakpoint change during a drag must release capture as well.
       if (drag.current && getComputedStyle(divider.current!).display === 'none') {
@@ -49,15 +63,20 @@ export function ResizableWorkbench({ media, editor }: Props) {
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
+    observer.observe(container.current!);
+    observer.observe(subtitlePane.current!);
     return () => observer.disconnect();
   }, []);
 
   const bounds = geometry ? mediaWidthBounds(geometry.width, geometry.maximumVideoWidth) : null;
   const mediaWidth = geometry && bounds
-    ? clampMediaWidth(geometry.width * (requestedShare ?? geometry.defaultShare), bounds) : 0;
+    ? clampMediaWidth(geometry.width * (requestedShare ?? geometry.defaultShare), requestedShare === null
+      ? mediaWidthBounds(geometry.width, geometry.currentVideoWidth) : bounds) : 0;
   const percent = (width: number) => geometry?.width ? Math.round(width / geometry.width * 100) : 0;
   const style = geometry?.width
-    ? { '--media-share': mediaWidth / geometry.width } as CSSProperties : undefined;
+    ? { '--media-share': mediaWidth / geometry.width,
+      '--requested-workbench-height': requestedShare === null ? undefined : requiredWorkbenchHeight(mediaWidth, geometry.controlsHeight + geometry.verticalFrame) + 'px',
+    } as CSSProperties : undefined;
 
   function updateWidth(width: number) {
     if (geometry?.width && bounds) setRequestedShare(clampMediaWidth(width, bounds) / geometry.width);
@@ -98,15 +117,18 @@ export function ResizableWorkbench({ media, editor }: Props) {
     }
   }
 
-  return <div ref={root} className="workbench" style={style} data-resizing={resizing || undefined}>
-    <div className="media-panel" id={mediaId}>{media}</div>
-    <div ref={divider} className="workbench-divider" role="separator" tabIndex={0}
-      aria-label="调整视频区域大小" aria-orientation="vertical" aria-controls={`${mediaId} ${editorId}`}
-      aria-valuemin={bounds ? percent(bounds.minimum) : 0} aria-valuemax={bounds ? percent(bounds.maximum) : 100}
-      aria-valuenow={percent(mediaWidth)} aria-valuetext={`视频区域宽度 ${Math.round(mediaWidth)} 像素`}
-      onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}
-      onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={adjustWithKeyboard}
-      onDoubleClick={() => setRequestedShare(null)} />
-    <div className="editing-panel" id={editorId}>{editor}</div>
+  return <div className="workbench-layout" ref={container}>
+    <div ref={root} className="workbench" style={style} data-resizing={resizing || undefined}>
+      <div className="media-panel" id={mediaId}>{media}</div>
+      <div ref={divider} className="workbench-divider" role="separator" tabIndex={0}
+        aria-label="调整视频区域大小" aria-orientation="vertical" aria-controls={`${mediaId} ${editorId} ${subtitleId}`}
+        aria-valuemin={bounds ? percent(bounds.minimum) : 0} aria-valuemax={bounds ? percent(bounds.maximum) : 100}
+        aria-valuenow={percent(mediaWidth)} aria-valuetext={`视频区域宽度 ${Math.round(mediaWidth)} 像素，上方区域高度 ${Math.round(geometry?.height ?? 0)} 像素`}
+        onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}
+        onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={adjustWithKeyboard}
+        onDoubleClick={() => setRequestedShare(null)} />
+      <div className="editing-panel" id={editorId}>{editor}</div>
+    </div>
+    <div className="workbench-subtitles" ref={subtitlePane} id={subtitleId}>{subtitles}</div>
   </div>;
 }

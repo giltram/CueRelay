@@ -1,3 +1,4 @@
+import { HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useState } from 'react';
 import { type AccountRequest, type Member, type Organization } from './api';
@@ -51,7 +52,7 @@ export function MembersPanel({ request: api, currentUserId, isDev, organization,
       </tr>)}
     </tbody></table>
     {organization.role && <button disabled={busy} onClick={onLeave}>退出此组织</button>}
-    {error && !removing && <p className="error" role="alert">{error}</p>}
+    {error && !removing && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
     {removing && <Modal title="移除成员" onClose={() => { if (!busy) setRemoving(null); }}>
       <div className="account-form">
         <p>确认将 {removing.username} 移出 {organization.name}？该账号将失去此组织的访问权限。</p>

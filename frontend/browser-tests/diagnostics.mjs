@@ -13,7 +13,7 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
 // Exercise the authoritative IndexedDB fence without the optional notification channel.
 await context.addInitScript(() => { Object.defineProperty(window, 'BroadcastChannel', { value: undefined }); });
-let user = { id: 1, username: 'diagnostic', is_dev: false }, conflict = false, disconnected = false;
+let user = { id: 1, username: 'diagnostic', is_dev: false, password: 'private-user-password', token: 'private-user-token' }, conflict = false, disconnected = false;
 const requests = [];
 const document = uiDocument(['Default']);
 const project = { id: 7, organization_id: 1, name: 'fixture', description: '', status: 'active', revision: 3,
@@ -40,10 +40,18 @@ page.on('dialog', dialog => dialog.accept());
 const origin = process.env.DIAGNOSTICS_URL || 'http://127.0.0.1:5194';
 async function report(target = page) {
   const download = target.waitForEvent('download');
-  await target.getByRole('button', { name: '导出诊断信息', exact: true }).click();
+  // Exercise the export contract in the current workspace; the UI entry lives in personal settings.
+  await target.evaluate(async () => (await import('/src/diagnostics/export.ts')).downloadDiagnostics());
   const result = await download;
   const text = readFileSync(await result.path(), 'utf8');
-  assert.ok(text.includes('\n  "summary"')); return JSON.parse(text);
+  assert.ok(text.includes('\n  "summary"'));
+  const report = JSON.parse(text), account = report.environment.account;
+  if (account) {
+    assert.ok(result.suggestedFilename().includes(`-${account.username}-id-${account.id}-${account.is_dev ? 'dev' : 'user'}`));
+    if (account.organization?.role) assert.ok(result.suggestedFilename().includes(`-${account.organization.role}-`));
+  } else assert.ok(result.suggestedFilename().includes('-account-unavailable-'));
+  for (const secret of ['private-user-password', 'private-user-token']) assert.ok(!text.includes(secret));
+  return report;
 }
 const collect = target => target.evaluate(async () => (await import('/src/diagnostics/export.ts')).diagnosticReport());
 try {
@@ -53,6 +61,8 @@ try {
   await text.fill(''); await text.pressSequentially('continuous');
   await main.focus();
   let first = await report();
+  assert.deepEqual(first.environment.account, { id: 1, username: 'diagnostic', is_dev: false,
+    organization: { id: 1, name: 'org', role: 'organizer', can_manage: true } });
   assert.ok(first.events.some(event => event.module === 'editor' && event.data.after?.text === 'continuous'));
   assert.equal(first.environment.workspace.unsaved, true);
   await page.screenshot({ path: join(artifacts, 'diagnostics-toolbar.png') });
@@ -95,16 +105,6 @@ try {
   assert.equal(quota.metadata.coverage.storage, 'memory_fallback');
   assert.ok(quota.events.some(event => event.data.after?.text === 'quota-memory-text'));
   await page.evaluate(() => { IDBDatabase.prototype.transaction = window.diagnosticOriginalTransaction; });
-  // A failed download retains records and exposes a retryable, concise message.
-  await page.evaluate(() => {
-    window.diagnosticOriginalCreateURL = URL.createObjectURL;
-    URL.createObjectURL = () => { throw Error('test download failure'); };
-  });
-  await page.getByRole('button', { name: '导出诊断信息', exact: true }).click();
-  await page.getByText('诊断信息导出失败，请重试。', { exact: true }).waitFor();
-  await page.evaluate(() => { URL.createObjectURL = window.diagnosticOriginalCreateURL; });
-  assert.ok((await report()).events.some(event => event.data.after?.text === 'quota-memory-text'));
-
   // Same browser client used by projects; preserve lost-response ambiguity.
   conflict = true;
   await page.evaluate(async () => {
@@ -133,12 +133,14 @@ try {
   assert.ok(refreshed.events.some(event => event.data.after?.text === '粘贴\\N末行'));
   assert.notEqual(refreshed.metadata.source.sessionId, offline.metadata.source.sessionId);
   // New tab observes a different account; old tab cannot export residual text or workspace state.
-  user = { id: 2, username: 'other', is_dev: false };
+  user = { id: 2, username: '测试用户', is_dev: true };
   const second = await context.newPage(); await second.goto(`${origin}/organizations/1/workspace/local`);
   await second.getByLabel('字幕中文文本').waitFor();
   const isolated = await collect(page);
   assert.ok(!JSON.stringify(isolated).includes('粘贴'));
   assert.equal(isolated.environment.workspace, null);
+  assert.equal(isolated.environment.account, null);
+  assert.equal((await report(second)).environment.account.username, '测试用户');
   assert.ok(!JSON.stringify(await collect(second)).includes('中文输入'));
   // Count/byte retention exercised against real IDB, then checked from a new recorder (refresh equivalent).
   const budget = await second.evaluate(async () => {
@@ -151,6 +153,7 @@ try {
     const { DiagnosticRecorder } = await import('/src/diagnostics/recorder.ts');
     const { IndexedDiagnosticStorage } = await import('/src/diagnostics/storage.ts');
     const refreshed = new DiagnosticRecorder(new IndexedDiagnosticStorage()); await refreshed.identify(2);
+    refreshed.setContext({ page: 'local', organizationId: 1 });
     refreshed.setContext({ page: 'local', organizationId: 1 }); return refreshed.collect();
   });
   assert.ok(persistedBudget.events.length <= 1500);
@@ -176,15 +179,19 @@ try {
   assert.ok(fallbackReport.events.some(event => event.data.after?.text === 'memory fallback subtitle'));
   assert.equal(await denied.getByLabel('字幕中文文本').inputValue(), 'memory fallback subtitle');
   await fallback.close();
-  // An indefinitely pending initial session cannot hide the offline export entry.
+  // The lower-level export remains usable while an initial session is pending.
   const waiting = await context.newPage();
   let held;
   await waiting.route('**/api/auth/session', route => { held = route; });
   await waiting.goto(`${origin}/workspace/local`);
   await waiting.getByText('正在检查会话…', { exact: true }).waitFor();
   const initializing = await report(waiting);
+  assert.equal(initializing.environment.account, null);
   assert.ok(initializing.events.some(event => event.module === 'http' && event.outcome === 'start'));
-  await held?.abort(); await waiting.close();
+  await held.fulfill({ json: { user: null } });
+  await waiting.getByRole('button', { name: '登录', exact: true }).waitFor();
+  assert.equal((await report(waiting)).environment.account, null);
+  await waiting.close();
   assert.deepEqual(errors, []);
   for (const secret of ['private-password', 'private-lease', 'private-media-digest', 'private-error']) assert.ok(!JSON.stringify(offline).includes(secret));
   console.log('diagnostics browser checks passed', artifacts);

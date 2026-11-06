@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 
 
 class User(AbstractUser):
+    handbook_seen = models.BooleanField(default=False)
+
     def delete(self, *args, **kwargs):
         raise ValidationError('账号不能删除，请通过站点管理停用。')
 

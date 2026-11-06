@@ -63,6 +63,11 @@ npm run dev
 
 ## 验证
 
+首次登录提示可在新标签页打开使用手册，之后从「个人设置 → 使用手册」再次打开。
+手册地址为 `/handbook` 或带来源组织的 `/organizations/:organizationId/handbook`，包含新手打轴流程、常用快捷键、Aegisub 迁移速查和保存/样式/ASS 边界。
+正文在 [handbook.md](frontend/src/handbook-ui/handbook.md) 维护，目录由章节标题生成；构建时预编译并打包进前端，更新文案后需重新构建部署。快捷键表格仍从共享默认配置生成。维护语法见 [手册模块](frontend/src/handbook-ui/README.md)。
+升级需运行 `python backend/manage.py migrate` 应用 accounts.0006，并同步更新前后端；已经登录过的旧账号不弹首次提示，尚未登录/新账号会提示，确认按账号持久化。浏览器回归：`cd frontend && npm run test:handbook`（默认本地前端 5198，HANDBOOK_URL 可覆盖，隔离接口夹具，不写开发数据库）。
+
 加载 .env 后：
 
 ```sh

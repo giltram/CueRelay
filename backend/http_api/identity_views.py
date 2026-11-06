@@ -128,6 +128,12 @@ def personal_settings(request):
     return accounts.settings_for(request.user)
 
 
+@endpoint(['POST'])
+def acknowledge_handbook(request):
+    payload(request, [])
+    return accounts.acknowledge_handbook(request.user)
+
+
 def organization_data(org, actor):
     role = Membership.objects.filter(organization=org, user=actor).values_list('role', flat=True).first()
     return {'id': org.pk, 'name': org.name, 'role': role, 'can_manage': actor.is_superuser or role == 'organizer'}

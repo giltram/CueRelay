@@ -13,6 +13,8 @@
 | `/organizations/:organizationId/workspace/local` | local，携带列表组织上下文 |
 | `/organizations/:organizationId/projects/new` | 旧地址，规范到该组织项目列表 |
 | `/settings` | settings，无显式组织的个人设置 |
+| `/handbook` | handbook，独立使用手册 |
+| `/organizations/:organizationId/handbook` | handbook，携带来源组织上下文 |
 | `/organizations/:organizationId/settings/personal` | settings，携带列表组织上下文的个人设置 |
 | `/organizations/:organizationId/settings/organization` | organization-settings，组织设置 |
 | `/organizations/:organizationId/settings` | 旧地址，规范到该组织的 `/settings/organization` |

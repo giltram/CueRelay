@@ -1,8 +1,11 @@
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
+import { HeaderNotice } from '../page-ui/PageLayout';
 import { useState } from 'react';
 import { type AccountApi, type User } from './api';
 
-export function LoginForm({ api, onLogin, expectedUsername }: { api: AccountApi; onLogin: (user: User) => void; expectedUsername?: string }) {
+export function LoginForm({ api, onLogin, expectedUsername, feedbackInHeader = false }: {
+  api: AccountApi; onLogin: (user: User) => void; expectedUsername?: string; feedbackInHeader?: boolean;
+}) {
   const [username, setUsername] = useState(expectedUsername || '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,7 +19,7 @@ export function LoginForm({ api, onLogin, expectedUsername }: { api: AccountApi;
     {expectedUsername && <p>本地工作区属于 {expectedUsername}。同账号登录可继续；更换账号前需要处理当前稿件。</p>}
     <label>用户名<input autoComplete="username" value={username} required onChange={event => setUsername(event.target.value)} /></label>
     <label>密码<input autoComplete="current-password" type="password" value={password} required onChange={event => setPassword(event.target.value)} /></label>
-    {error && <p className="error" role="alert">{error}</p>}
+    {error && (feedbackInHeader ? <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice> : <p className="error" role="alert">{error}</p>)}
     <button className="primary" disabled={busy} type="submit">{busy ? '登录中…' : '登录'}</button>
   </form>;
 }

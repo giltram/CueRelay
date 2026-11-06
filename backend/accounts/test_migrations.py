@@ -34,7 +34,8 @@ class UsernameOnlyMigrationTests(TransactionTestCase):
             organization_id=old_org.pk, name='Existing project', document=document,
             media={'sha256': 'a' * 64, 'size': 100, 'duration_ms': 4000},
             created_by_id=old_user.pk, updated_by_id=old_user.pk)
-        self.client.force_login(User.objects.get(pk=old_user.pk))
+        # The new onboarding column does not exist until the latest migration.
+        self.client.force_login(User.objects.defer('handbook_seen').get(pk=old_user.pk))
         session_key = self.client.session.session_key
 
         executor = MigrationExecutor(connection)
@@ -46,6 +47,7 @@ class UsernameOnlyMigrationTests(TransactionTestCase):
         self.assertEqual(migrated_user.password, old_user.password)
         self.assertTrue(migrated_user.check_password(password))
         self.assertTrue(migrated_user.is_staff)
+        self.assertTrue(migrated_user.handbook_seen)
         self.assertEqual(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).shortcut_overrides, {'commit': ['Shift+KeyT']})
         self.assertEqual(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).audio_display_mode, 'spectrum')
         self.assertIs(apps.get_model('accounts', 'PersonalSettings').objects.get(pk=old_settings.pk).mouse_sets_cue_boundary, True)
@@ -57,3 +59,34 @@ class UsernameOnlyMigrationTests(TransactionTestCase):
         self.assertEqual(self.client.get('/api/auth/session').json()['user'], {
             'id': old_user.pk, 'username': old_user.username, 'is_dev': False,
         })
+
+
+class HandbookMigrationTests(TransactionTestCase):
+    def setUp(self):
+        executor = MigrationExecutor(connection)
+        self.latest = executor.loader.graph.leaf_nodes()
+        self.before = [('accounts', '0005_personalsettings_mouse_sets_cue_boundary')]
+        executor.migrate(self.before)
+        self.old_apps = executor.loader.project_state(self.before).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(self.latest)
+        super().tearDown()
+
+    def test_only_previously_logged_in_users_skip_the_prompt(self):
+        from django.utils import timezone
+        OldUser = self.old_apps.get_model('accounts', 'User')
+        experienced = OldUser.objects.create(username='experienced', last_login=timezone.now(), password='retained-hash')
+        invited = OldUser.objects.create(username='never-logged-in', password='another-hash')
+        OldSettings = self.old_apps.get_model('accounts', 'PersonalSettings')
+        OldSettings.objects.create(user_id=experienced.pk, audio_display_mode='waveform', mouse_sets_cue_boundary=False,
+                                   shortcut_overrides={'commit': ['Shift+KeyT']})
+        MigrationExecutor(connection).migrate(self.latest)
+        self.assertTrue(User.objects.get(pk=experienced.pk).handbook_seen)
+        self.assertFalse(User.objects.get(pk=invited.pk).handbook_seen)
+        self.assertFalse(User.objects.create_user('new-after-upgrade').handbook_seen)
+        self.assertEqual(User.objects.get(pk=experienced.pk).password, 'retained-hash')
+        settings = OldSettings.objects.get(user_id=experienced.pk)
+        self.assertEqual(settings.shortcut_overrides, {'commit': ['Shift+KeyT']})
+        self.assertEqual(settings.audio_display_mode, 'waveform')
+        self.assertFalse(settings.mouse_sets_cue_boundary)

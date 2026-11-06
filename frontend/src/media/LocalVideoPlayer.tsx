@@ -1,4 +1,5 @@
 import { diagnostics } from '../diagnostics';
+import { HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MediaManifest } from '../contracts/projects';
 import { hashFile, matchesMedia } from './media-manifest';
@@ -14,13 +15,12 @@ interface Props {
   duration: number;
   onSeek: (milliseconds: number) => void;
   controls: ReactNode;
-  status?: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: { file: File; sha256: string };
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, status, expectedMedia, initialMedia, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -112,7 +112,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
       disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
     <div className="transport" role="group" aria-label="视频导入与播放控制">
       {controls}
-      {checking && <><span role="status">校验 {Math.round(progress * 100)}%</span><button onClick={() => { verification.current?.abort(); setChecking(false); }}>取消校验</button></>}
+      {checking && <HeaderNotice>校验 {Math.round(progress * 100)}%<button onClick={() => { verification.current?.abort(); setChecking(false); }}>取消校验</button></HeaderNotice>}
       <button type="button" className="file-picker" disabled={locked || checking} onClick={() => fileInput.current?.click()} title={locked
         ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。`
         : undefined}>导入视频</button>
@@ -122,6 +122,5 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
         e.target.value = '';
       }} />
     </div>
-    {status}
   </section>;
 }

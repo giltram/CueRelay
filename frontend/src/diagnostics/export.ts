@@ -1,4 +1,4 @@
-import { audioStatus, diagnostics, workspaceStatus } from './index';
+import { accountStatus, audioStatus, diagnostics, workspaceStatus } from './index';
 import { backendBuild } from './http';
 import { FORMAT_VERSION } from './schema';
 const build = import.meta.env.VITE_CUERELAY_BUILD || 'unknown';
@@ -8,6 +8,7 @@ const outcomeLabels: Record<string, string> = { error: '错误', conflict: '冲�
 export async function diagnosticReport() {
   const { events, coverage } = await diagnostics.collect();
   const workspace = workspaceStatus();
+  const account = accountStatus();
   const failures = events.filter(event => ['error', 'conflict', 'unknown'].includes(event.outcome)).slice(-10);
   const missing = [
     ...(coverage.storage === 'memory_fallback' ? ['浏览器持久化不可用或写入失败；仅包含可用内存及已读取记录。'] : []),
@@ -16,6 +17,7 @@ export async function diagnosticReport() {
     ...(coverage.evicted ? [`本页观察到 ${coverage.evicted} 条记录因预算或保留时间淘汰。`] : []),
     ...(coverage.truncated || events.some(event => event.truncated) ? ['部分字段已脱敏或截断。'] : []),
     ...(!workspace ? ['当前无可用工作区状态。'] : []),
+    ...(!account ? ['当前用户信息不可用（未登录、会话尚未确认或账号隔离校验失效）。'] : []),
     '仅覆盖近期有限记录；突然退出可能丢失最后一批。淘汰计数不包含其他已关闭页面的全部淘汰。',
   ];
   return {
@@ -25,11 +27,11 @@ export async function diagnosticReport() {
       unsaved: workspace?.unsaved === true ? '存在未保存修改或未提交时间输入。' : workspace?.unsaved === false ? '当前未观察到未保存修改。' : '未保存状态未知。',
       missingInformation: missing, conclusion: '摘要仅列出观测结果；证据不足以自动判定根因。网络请求未收到响应时，服务端是否已提交未知。' },
     environment: { frontendBuild, backendBuild, exportedAt: new Date().toISOString(),
-      page: diagnostics.contextSnapshot(), browser: browserEnvironment(), workspace, audioAnalysis: audioStatus(), network: { browserOnline: navigator.onLine, serverReachability: 'unknown' } },
+      account, page: diagnostics.contextSnapshot(), browser: browserEnvironment(), workspace, audioAnalysis: audioStatus(), network: { browserOnline: navigator.onLine, serverReachability: 'unknown' } },
     events,
     metadata: { formatVersion: FORMAT_VERSION, coverage, source: { tabId: diagnostics.tabId, sessionId: diagnostics.sessionId },
       ordering: '同一 sessionId 按 sequence 分析先后，elapsedMs 为单调时钟；跨来源不能仅凭墙上时间断言因果。',
-      collection: '默认有限记录。允许字幕业务正文；不含认证信息、媒体字节、文件名、摘要、原始请求/响应/console。不是文档备份或重放格式。' },
+      collection: '默认有限记录。包含用户名、用户 ID、dev 身份和当前组织角色/管理权限及字幕业务正文；不含密码、Cookie、Session、CSRF、令牌等认证凭证、媒体字节、媒体文件名、媒体摘要、原始请求/响应/console。不是文档备份或重放格式。' },
   };
 }
 function browserEnvironment() {
@@ -50,6 +52,13 @@ export async function downloadDiagnostics() {
   const url = URL.createObjectURL(blob);
   try {
     const anchor = document.createElement('a'); anchor.href = url;
-    anchor.download = `cuerelay-diagnostics-${new Date().toISOString().replace(/[:.]/g, '-')}.json`; anchor.click();
+    anchor.download = diagnosticFilename(report); anchor.click();
   } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
+export function diagnosticFilename(report: Awaited<ReturnType<typeof diagnosticReport>>) {
+  const { account, exportedAt } = report.environment;
+  const username = account?.username.replace(/[^\p{L}\p{N}_.@+-]/gu, '_').slice(0, 40) || 'unknown';
+  const groups = account ? [account.is_dev ? 'dev' : 'user', account.organization?.role].filter(Boolean).join('-') : '';
+  const identity = account ? `${username}-id-${account.id}-${groups}` : 'account-unavailable';
+  return `cuerelay-diagnostics-${identity}-${exportedAt.replace(/[:.]/g, '-')}.json`;
 }

@@ -44,7 +44,7 @@ try {
   const allDefaults = page.getByRole('button', { name: '全部恢复默认', exact: true });
   const mouse = page.getByLabel('鼠标点击设置字幕边界', { exact: true });
   const focusChoice = page.getByRole('combobox', { name: '字幕输入焦点切换', exact: true });
-  const status = page.getByRole('status');
+  const status = page.getByRole('status', { name: '个人设置反馈' });
   const beginSave = async () => {
     const observed = Promise.withResolvers();
     observePatch = observed.resolve;

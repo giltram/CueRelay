@@ -1,7 +1,7 @@
 import { DiagnosticRecorder } from './recorder';
 import { IndexedDiagnosticStorage } from './storage';
-import { safeError } from './safety';
-import type { WorkspaceStatus } from './schema';
+import { safeAccount, safeError } from './safety';
+import type { AccountStatus, WorkspaceStatus } from './schema';
 export { safeError } from './safety';
 export const diagnostics = new DiagnosticRecorder(new IndexedDiagnosticStorage(), fence => { try { channel?.postMessage(fence); } catch { /* optional */ } });
 let channel: BroadcastChannel | undefined;
@@ -17,6 +17,20 @@ export function startDiagnostics() {
   window.addEventListener('error', event => diagnostics.record('app', 'unhandled_exception', 'error', { error: safeError(event.error) }));
   window.addEventListener('unhandledrejection', event => diagnostics.record('app', 'unhandled_rejection', event.reason?.name === 'AbortError' ? 'cancelled' : 'error', { error: safeError(event.reason) }));
   window.addEventListener('pagehide', () => { void diagnostics.collect(); });
+}
+let account: { owner: number; scope: number; get: () => AccountStatus } | undefined;
+export function provideAccountStatus(owner: number, get: () => AccountStatus) {
+  const provider = { owner, scope: diagnostics.scope(), get }; account = provider;
+  return () => { if (account === provider) account = undefined; };
+}
+export function accountStatus(): AccountStatus | null {
+  try {
+    if (!account || account.scope !== diagnostics.scope() || !diagnostics.isOwner(account.owner)) return null;
+    const value = safeAccount(account.get());
+    if (value.id !== account.owner) return null;
+    if (value.organization?.id !== diagnostics.contextSnapshot().organizationId) value.organization = null;
+    return value;
+  } catch { return null; }
 }
 let workspace: { owner: number; organizationId?: number; get: () => WorkspaceStatus } | undefined;
 export function provideWorkspaceStatus(owner: number, get: () => WorkspaceStatus, organizationId?: number) {

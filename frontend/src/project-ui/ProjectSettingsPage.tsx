@@ -1,3 +1,4 @@
+import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Organization } from '../account-ui/api';
@@ -75,15 +76,14 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     } finally { setBusy(false); }
   }
 
-  return <main className="settings-page">
-    <header className="app-header"><h1><HomeLink navigate={navigate} /></h1>{header}</header>
+  return <PageLayout className="settings-page" title={<HomeLink navigate={navigate} />} navigation={header}>
     <h2 className="settings-title">项目设置</h2>
     <section className="settings-content project-settings-form" aria-label="项目设置">
-      {!organization ? <p role="alert">组织不存在或无权访问。</p>
+      {!organization ? <HeaderNotice role="alert">组织不存在或无权访问。</HeaderNotice>
         : project ? <>
           {organization.can_manage ? <form className="account-form" onSubmit={event => { event.preventDefault(); void saveMetadata(); }}>
             <h2>项目信息</h2>
-            {project.status === 'archived' && <p role="status">项目已归档，恢复后才能修改项目设置。</p>}
+            {project.status === 'archived' && <HeaderNotice>项目已归档，恢复后才能修改项目设置。</HeaderNotice>}
             <fieldset className="account-form" disabled={!enabled || busy || project.status !== 'active'}>
               <label>项目名称<input value={name} maxLength={100} required onChange={event => { setName(event.target.value); setMessage(''); }} /></label>
               <label>项目说明<textarea aria-label="项目说明" value={description} maxLength={2000} rows={5} onChange={event => { setDescription(event.target.value); setMessage(''); }} /></label>
@@ -98,14 +98,14 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
             <div className="controls"><button disabled={!enabled || busy} onClick={() => setStylesOpen(true)}>管理项目样式</button></div>
           </section>
           <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>刷新项目版本</button></div>
-          {message && <p role="status">{message}</p>}
-          {error && <p className="error" role="alert">{error}</p>}
-        </> : error ? <div className="account-form"><p className="error" role="alert">{error}</p>
+          {message && <HeaderNotice>{message}</HeaderNotice>}
+          {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
+        </> : error ? <div className="account-form"><HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>
           <button disabled={!enabled} onClick={() => setRetry(value => value + 1)}>重试</button></div>
-        : <p role="status">正在加载项目…</p>}
+        : <HeaderNotice>正在加载项目…</HeaderNotice>}
     </section>
     {stylesOpen && project && <ProjectStyleManager document={project.document} cueRows={cueRows} selectedCueId={null}
       editable={enabled && project.status === 'active'} persisted request={request} organizationId={organizationId}
       canManageTemplates={organization?.can_manage} projectName={project.name} onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
-  </main>;
+  </PageLayout>;
 }

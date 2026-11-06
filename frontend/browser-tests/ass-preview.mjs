@@ -198,6 +198,9 @@ try {
   assert(await originalCanvas.evaluate(el => el === document.querySelector('.ass-preview-canvas')));
   await importFile(fixture); await eventually(p => p.white > 200 && p.yellow > 200 && p.red === 0);
   await rows.first().click();
+  // Row selection seeks to its 1.20s in point; restore the 2.80s overlap
+  // before asserting that both white and yellow subtitles survive typing.
+  await seek(2.8); await eventually(p => p.white > 200 && p.yellow > 200);
   // Fast typing stays on one instance and only serializes the coalesced snapshot.
   const conversionsBefore = exports.length;
   const beforeRapid = (await pixels()).hash;

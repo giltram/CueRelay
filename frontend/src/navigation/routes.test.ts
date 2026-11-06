@@ -8,6 +8,7 @@ describe('resource routes', () => {
     { kind: 'project-settings', organizationId: 12, projectId: 34 },
     { kind: 'settings' }, { kind: 'organization-settings', organizationId: 12 },
     { kind: 'settings', organizationId: 12 }, { kind: 'local', organizationId: 12 },
+    { kind: 'handbook' }, { kind: 'handbook', organizationId: 12 },
   ])('round-trips $kind without reading application state', route => {
     expect(parseRoute(routePath(route))).toEqual(route);
   });
@@ -19,7 +20,8 @@ describe('resource routes', () => {
     '/organizations/9007199254740992/settings/organization', '/organizations/12/settings/other',
     '/organizations/0/projects/new', '/organizations/01/settings/personal', '/organizations/0/workspace/local',
     '/organizations/0/projects/2/settings', '/organizations/1/projects/0/settings',
-    '/organizations/1/projects/9007199254740992/settings', '/organizations/1/projects/no/settings'])('rejects %s', path => {
+    '/organizations/1/projects/9007199254740992/settings', '/organizations/1/projects/no/settings',
+    '/organizations/0/handbook', '/organizations/01/handbook', '/organizations/9007199254740992/handbook'])('rejects %s', path => {
     expect(parseRoute(path).kind).toBe('not-found');
   });
   it('normalizes trailing slashes while retaining explicit organization identity', () => {
@@ -49,5 +51,11 @@ describe('resource routes', () => {
     const route = parseRoute('/organizations/72/projects/new');
     expect(route).toEqual({ kind: 'projects', organizationId: 72 });
     expect(routePath(route)).toBe('/organizations/72/projects');
+  });
+  it('keeps handbook links independent of projects and retains optional organization context', () => {
+    expect(routeOrganization(parseRoute('/handbook'))).toBeUndefined();
+    const route = parseRoute('/organizations/72/handbook/');
+    expect(routeOrganization(route)).toBe(72);
+    expect(routePath(route)).toBe('/organizations/72/handbook');
   });
 });

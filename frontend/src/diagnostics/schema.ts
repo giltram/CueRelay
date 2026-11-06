@@ -3,6 +3,10 @@ export const FORMAT_VERSION = 1;
 export const LIMITS = { events: 1500, eventBytes: 16 * 1024, bytes: 2 * 1024 * 1024, ageMs: 24 * 60 * 60 * 1000, batchMs: 2000 };
 export type Outcome = 'start' | 'success' | 'error' | 'conflict' | 'cancelled' | 'stale' | 'ignored' | 'unknown' | 'changed';
 export interface Context { page: string; organizationId?: number; projectId?: number }
+export interface AccountStatus {
+  id: number; username: string; is_dev: boolean;
+  organization: { id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean } | null;
+}
 export interface EventData {
   operationId?: string; requestId?: string; method?: string; route?: string; status?: number; durationMs?: number;
   revision?: number; reason?: string; count?: number; cueId?: string;

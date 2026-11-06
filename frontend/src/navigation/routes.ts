@@ -5,6 +5,7 @@ export type Route =
   | { kind: 'project-settings'; organizationId: number; projectId: number }
   | { kind: 'local'; organizationId?: number }
   | { kind: 'settings'; organizationId?: number }
+  | { kind: 'handbook'; organizationId?: number }
   | { kind: 'organization-settings'; organizationId: number }
   | { kind: 'not-found'; path: string };
 
@@ -17,9 +18,11 @@ export function parseRoute(pathname: string): Route {
   if (path === '/projects') return { kind: 'projects' };
   if (path === '/workspace/local') return { kind: 'local' };
   if (path === '/settings') return { kind: 'settings' };
-  const contextual = /^\/organizations\/([^/]+)\/(workspace\/local|settings\/personal|projects\/new)$/.exec(path);
+  if (path === '/handbook') return { kind: 'handbook' };
+  const contextual = /^\/organizations\/([^/]+)\/(workspace\/local|settings\/personal|projects\/new|handbook)$/.exec(path);
   if (contextual && validId(contextual[1])) {
     const organizationId = Number(contextual[1]);
+    if (contextual[2] === 'handbook') return { kind: 'handbook', organizationId };
     // Retired creation URLs normalize to the list; creation is now a local modal.
     return { kind: contextual[2] === 'workspace/local' ? 'local' : contextual[2] === 'settings/personal' ? 'settings' : 'projects', organizationId };
   }
@@ -42,6 +45,7 @@ export function routePath(route: Route): string {
     case 'project-settings': return `/organizations/${route.organizationId}/projects/${route.projectId}/settings`;
     case 'local': return route.organizationId === undefined ? '/workspace/local' : `/organizations/${route.organizationId}/workspace/local`;
     case 'settings': return route.organizationId === undefined ? '/settings' : `/organizations/${route.organizationId}/settings/personal`;
+    case 'handbook': return route.organizationId === undefined ? '/handbook' : `/organizations/${route.organizationId}/handbook`;
     case 'organization-settings': return `/organizations/${route.organizationId}/settings/organization`;
     case 'not-found': return route.path;
   }

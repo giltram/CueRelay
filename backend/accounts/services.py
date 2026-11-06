@@ -15,10 +15,16 @@ def safe_user(user):
 
 def settings_for(user):
     row = PersonalSettings.objects.filter(user=user).first()
-    return {'shortcut_overrides': row.shortcut_overrides if row else {},
+    return {'handbook_seen': user.handbook_seen,
+            'shortcut_overrides': row.shortcut_overrides if row else {},
             'audio_display_mode': row.audio_display_mode if row else AudioDisplayMode.SPECTRUM,
             'mouse_sets_cue_boundary': row.mouse_sets_cue_boundary if row else True,
             'defaults': DEFAULTS}
+
+
+def acknowledge_handbook(user):
+    User.objects.filter(pk=user.pk).update(handbook_seen=True)
+    return {'handbook_seen': True}
 
 
 def save_settings(user, changes):

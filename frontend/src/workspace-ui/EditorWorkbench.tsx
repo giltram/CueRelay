@@ -1,3 +1,4 @@
+import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { diagnosticId } from '../diagnostics/identifier';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { diagnostics, noteIgnored, provideWorkspaceStatus, safeError } from '../diagnostics';
@@ -156,7 +157,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function selectCue(cue: Cue) {
-    edits.navigate(withSelection(edits.current(), cue)); cancelAudition();
+    const current = edits.current();
+    // Only changing the active row discards its uncommitted timing draft.
+    edits.navigate(current.selectedId === cue.id ? current : withSelection(current, cue)); cancelAudition();
   }
 
   function locate(cue: Cue) {
@@ -384,23 +387,20 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
 
   return (
-    <main className="editor-workbench" ref={workbench} tabIndex={-1} onBlurCapture={() => edits.finish()} onCompositionStartCapture={() => edits.beginComposition()} onCompositionEndCapture={() => edits.endComposition()} onClick={event => {
+    <PageLayout title={title ?? 'CueRelay'} navigation={header} className="editor-workbench" ref={workbench} tabIndex={-1} onBlurCapture={() => edits.finish()} onCompositionStartCapture={() => edits.beginComposition()} onCompositionEndCapture={() => edits.endComposition()} onClick={event => {
       // Mouse activation returns to timing shortcuts; keyboard activation keeps
       // native button focus. Boundary sliders retain focus for arrow-key edits.
       const button = (event.target as Element).closest('button');
-      if (event.detail > 0 && button && !button.closest('dialog') && button.getAttribute('role') !== 'slider') {
+      if (event.detail > 0 && button && !button.closest('dialog, [data-cue-search]') && button.getAttribute('role') !== 'slider') {
         event.currentTarget.focus({ preventScroll: true });
       }
-    }}>
-      <header className="app-header">
-        <h1>{title ?? 'CueRelay'}</h1>
+    }} actions={
         <div className="file-actions" aria-label="字幕文件操作">
           {project && <>
             <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? ' · 已归档，只读' : ' · 暂不可编辑' : ''}</span>
             <button onClick={onReload} disabled={busy}>重新加载项目</button>
             {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
           </>}
-          {busy && <span role="status">正在转换…</span>}
           {!project && <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); cancelAudition(); setStylesOpen(true); }}>管理样式</button>}
           {!project && <label className="file-picker">
             导入 ASS
@@ -420,13 +420,12 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             finally { setBusy(false); }
           })}>导出 ASS</button>
         </div>
-        {header}
-      </header>
-
-      {project && <p className="project-workspace-status" role="status">{readOnly
+      }>
+      {busy && <HeaderNotice>正在转换…</HeaderNotice>}
+      {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
         ? project.status === 'archived' ? '已归档项目仅可查看和导出。' : '当前无法验证项目访问权限，仅可查看和导出。请重新登录或检查组织权限。'
-        : !mediaVerified ? '请选择与项目基准一致的本地视频；完整校验通过后可编辑和保存。' : document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。'}</p>}
-      {saveMessage && <p role="status">{saveMessage}</p>}
+        : saveMessage || (document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。')}</HeaderNotice>}
+      {saveMessage && (!project || !mediaVerified || readOnly) && <HeaderNotice>{saveMessage}</HeaderNotice>}
       {pendingImport && (
         <div role="alert" className="confirm">
           <p>导入「{pendingImport.name}」将替换当前字幕，请先导出需要的修改。</p>
@@ -436,16 +435,20 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           </div>
         </div>
       )}
-      {error && <div className="error" role="alert">{error}</div>}
-      {outsideDuration && <div className="warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</div>}
+      {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
+      {outsideDuration && <HeaderNotice className="header-warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</HeaderNotice>}
 
-      <ResizableWorkbench media={
+      {subtitles.active && <HeaderNotice className="ass-preview-status" data-phase={subtitles.status.phase}>
+        {subtitles.status.phase === 'loading' ? '正在加载 ASS 字幕…' : subtitles.status.phase === 'error'
+          ? subtitles.status.message : preview.warning || '预览使用内置 Noto Sans SC；指定字体未提供时会替代，可能与最终效果有差异。'}
+      </HeaderNotice>}
+      <ResizableWorkbench subtitles={
+        <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
+          workspace={workbench} searchEnabled={visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen}
+          onSelect={selectCueFromTable} />
+      } media={
           <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
-            status={subtitles.active && <div className="ass-preview-status" role="status" data-phase={subtitles.status.phase}>
-              {subtitles.status.phase === 'loading' ? '正在加载 ASS 字幕…' : subtitles.status.phase === 'error'
-                ? subtitles.status.message : preview.warning || '预览使用内置 Noto Sans SC；指定字体未提供时会替代，可能与最终效果有差异。'}
-            </div>}
             controls={<>
             <button className="playback-button" aria-label="播放 / 暂停"
               disabled={!duration} onClick={() => run(togglePlayback)}>
@@ -472,23 +475,19 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <section className="cue-editor" aria-label="字幕编辑">
             <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">字幕编辑</legend>
-              <div className="editor-heading">
-                <div className="cue-options">
-                  <label>样式
-                    <select aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
-                      onChange={event => run(() => updateCue({ style_id: event.target.value }))}>
-                      {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
-                    </select>
-                  </label>
-                  <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
-                  <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>删除选中行</button>
-                </div>
-              </div>
-              <div className="time-points">
+              <div className="cue-fields">
                 <TimePointControl key={`start:${edits.epoch}:${selectedId}`} label="入点" value={startText}
                   onChange={(value, native) => changeTimeDraft('start', value, 'start', native)} />
                 <TimePointControl key={`end:${edits.epoch}:${selectedId}`} label="出点" value={endText}
                   onChange={(value, native) => changeTimeDraft('end', value, 'end', native)} />
+                <label className="cue-style">样式
+                  <select aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
+                    onChange={event => run(() => updateCue({ style_id: event.target.value }))}>
+                    {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
+                  </select>
+                </label>
+                <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
+                <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>删除选中行</button>
               </div>
               <label className="subtitle-input">
                 字幕文本
@@ -498,11 +497,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             </fieldset>
           </section>
       </>} />
-      <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
-        onSelect={selectCueFromTable} />
+
       {!project && stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
         persisted={false} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
         onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
-    </main>
+    </PageLayout>
   );
 }

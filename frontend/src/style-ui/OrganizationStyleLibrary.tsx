@@ -1,3 +1,4 @@
+import { HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useMemo, useState } from 'react';
 import type { AssDocument } from '../contracts/subtitles';
 import type { JsonRequest } from '../contracts/http';
@@ -48,8 +49,8 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
       void importAss(file).then(document => { setImported(document); setSourceLabel(file.name.slice(0, 500)); })
         .catch(reason => setError(reason.message)).finally(() => setBusy(false));
     }} /></label>}
-    {loading && <p role="status">正在加载样式库…</p>}
-    {error && !editor && !deleting && <p className="error" role="alert">{error}</p>}
+    {loading && <HeaderNotice>正在加载样式库…</HeaderNotice>}
+    {error && !editor && !deleting && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
     {imported && <div className="style-import-candidates"><p>来源：{sourceLabel} · 选择一个样式创建模板；引用原件不会自动更新模板。</p>
       <div className="controls">{imported.styles.map(style => <button key={style.id} disabled={busy || !enabled} onClick={() => {
         setEditor({ input: { name: style.name, fields: style.fields, reference: imported.script, source_label: sourceLabel } }); setError('');

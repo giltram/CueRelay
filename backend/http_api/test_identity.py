@@ -118,6 +118,35 @@ class IdentityTests(TestCase):
         self.assertEqual(self.client.get('/api/me/settings').json()['shortcut_overrides'], {})
         self.assertFalse(PersonalSettings.objects.filter(user=self.other).exists())
 
+    def test_handbook_confirmation_is_personal_idempotent_and_protected(self):
+        self.assertEqual(self.send('/me/handbook').status_code, 401)
+        self.login()
+        self.assertFalse(self.client.get('/api/me/settings').json()['handbook_seen'])
+        self.assertEqual(self.client.get('/api/me/handbook').status_code, 405)
+        self.assertEqual(self.send('/me/handbook', {'user_id': self.other.pk}).status_code, 400)
+        self.assertEqual(self.send('/me/settings', {'handbook_seen': True}, 'PATCH').status_code, 400)
+        response = self.client.post('/api/me/handbook', {}, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        response = self.client.post('/api/me/handbook', {}, content_type='application/json',
+                                    HTTP_X_CSRFTOKEN=self.client.cookies['csrftoken'].value,
+                                    HTTP_X_CUERELAY_USER=str(self.other.pk))
+        self.assertEqual(response.status_code, 409)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.handbook_seen)
+        for _ in range(2):
+            self.assertEqual(self.send('/me/handbook').json(), {'handbook_seen': True})
+        self.assertTrue(self.client.get('/api/me/settings').json()['handbook_seen'])
+        self.assertFalse(PersonalSettings.objects.exists())
+        self.assertEqual(self.send('/me/settings', {'audio_display_mode': 'waveform'}, 'PATCH').status_code, 200)
+        self.assertTrue(self.client.get('/api/me/settings').json()['handbook_seen'])
+        another_browser = Client()
+        another_browser.force_login(self.user)
+        self.assertTrue(another_browser.get('/api/me/settings').json()['handbook_seen'])
+        self.login(self.other)
+        self.assertFalse(self.client.get('/api/me/settings').json()['handbook_seen'])
+        self.login()
+        self.assertTrue(self.client.get('/api/me/settings').json()['handbook_seen'])
+
     def test_subtitle_focus_shortcut_persistence_validation_and_restore(self):
         self.login()
         initial = self.client.get('/api/me/settings').json()
