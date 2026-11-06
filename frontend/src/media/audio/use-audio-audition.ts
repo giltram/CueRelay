@@ -62,11 +62,12 @@ export function useAudioAudition(file: File | null, video: HTMLVideoElement | nu
   }, [file, video, visible]);
   const stop = useCallback(() => { pendingSeek.current = null; controller.current?.stop(); }, []);
   const getPosition = useCallback(() => controller.current?.getPosition() ?? null, []);
-  const start = useCallback(async (range: PlaybackRange | null) => {
+  const updateEnd = useCallback((end: number) => controller.current?.updateEnd(end) ?? false, []);
+  const start = useCallback(async (range: PlaybackRange | null, followEnd = false) => {
     if (!video || !controller.current) throw Error('请先加载可播放的本地视频');
     pendingSeek.current = video.seeking ? video.currentTime : null;
     video.pause();
-    if (range) { diagnostics.record('audio-audition', 'start', 'start'); await controller.current.start(range); } else controller.current.stop();
+    if (range) { diagnostics.record('audio-audition', 'start', 'start'); await controller.current.start(range, followEnd); } else controller.current.stop();
   }, [video]);
-  return { state, start, stop, getPosition };
+  return { state, start, stop, getPosition, updateEnd };
 }

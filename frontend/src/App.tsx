@@ -28,6 +28,7 @@ export default function App() {
   const [owner, setOwner] = useState<User | null>(null);
   const ownerRef = useRef(owner); ownerRef.current = owner;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [contextVersion, setContextVersion] = useState(0);
   const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings>(createDefaultSettings);
   const [settingsReady, setSettingsReady] = useState(false);
@@ -76,6 +77,7 @@ export default function App() {
     ]);
     if (epoch.current !== version) return;
     setOrganizations(orgs.organizations); setSettings(preferences); setSettingsReady(true);
+    setContextVersion(value => value + 1);
     if (selectInitial) setOrganizationId(routeOrganization(routeRef.current) ?? orgs.organizations[0]?.id ?? null);
   }, [api]);
 
@@ -232,7 +234,7 @@ export default function App() {
   return <>
     {owner ? <>
       {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
-        header={header} enabled={Boolean(user && settingsReady && !busy)} navigate={navigate}
+        header={header} enabled={Boolean(user && settingsReady && !busy)} refreshVersion={contextVersion} navigate={navigate}
         unavailableOrganization={organizationId !== null && !organization}
         onCreate={open => requestTransition('新建项目', async () => { workspaceState.clear(); open(); })}
         onCreated={(project, video) => {

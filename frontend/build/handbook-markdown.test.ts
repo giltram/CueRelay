@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { Marked, type Tokens } from 'marked';
 import { compileHandbook } from './handbook-markdown';
 import defaults from '../../shared/timing-shortcuts.json';
 
-const marker = '<!-- timing-shortcuts -->';
+const exampleTable = '| 功能 | 默认键位 |\n| --- | --- |\n| 提交并下一条 | `G` |\n| 撤销 | `Cmd+Z` |';
 
 describe('build-time handbook Markdown', () => {
-  it('compiles editable prose, stable chapter anchors and the shared shortcut table', () => {
-    const content = compileHandbook(`新手**说明**。\n\n## 自定义章节 {#custom}\n\n> 保留时间草稿。\n\n${marker}\n\n## 交接 {#handoff}\n\n| 操作 | 结果 |\n| --- | --- |\n| 保存 | 已应用内容 |`);
+  it('compiles editable prose, stable chapter anchors and standard Markdown tables', () => {
+    const content = compileHandbook(`新手**说明**。\n\n## 自定义章节 {#custom}\n\n> 保留时间草稿。\n\n${exampleTable}\n\n## 交接 {#handoff}\n\n| 操作 | 结果 |\n| --- | --- |\n| 保存 | 已应用内容 |`);
     expect(content.introduction).toContain('<strong>说明</strong>');
     expect(content.chapters.map(({ id, title }) => ({ id, title }))).toEqual([
       { id: 'custom', title: '自定义章节' }, { id: 'handoff', title: '交接' },
@@ -18,27 +19,49 @@ describe('build-time handbook Markdown', () => {
     expect(content.chapters[0].html).toContain('<code>Cmd+Z</code>');
     expect(content.chapters[1].html).toContain('handbook-table-scroll');
     expect(content.chapters[1].html).toContain('<td>已应用内容</td>');
-    expect(JSON.stringify(content)).not.toContain(marker);
+  });
+
+  it('keeps the complete shortcut table readable as plain Markdown and aligned with shared defaults', () => {
+    const source = readFileSync(new URL('../src/handbook-ui/handbook.md', import.meta.url), 'utf8');
+    const section = source.slice(source.indexOf('## 常用快捷键 {#shortcuts}'), source.indexOf('## Aegisub 用户速查 {#aegisub}'));
+    const tables = new Marked({ gfm: true }).lexer(section).filter((token): token is Tokens.Table => token.type === 'table');
+    expect(tables).toHaveLength(1);
+    const table = tables[0];
+    expect(table.header.map(cell => cell.text)).toEqual(['功能', '默认键位']);
+    expect(table.rows).toHaveLength(33);
+    for (const { label, bindings } of Object.values(defaults)) {
+      const rows = table.rows.filter(row => row[0].text.startsWith(label));
+      expect(rows, label).toHaveLength(1);
+      const keys = rows[0][1].text;
+      if (!bindings.length) expect(keys).toContain('默认未绑定');
+      for (const binding of bindings) {
+        const display = binding.replace(/Meta/g, 'Cmd').replace(/Key([A-Z])/g, '$1')
+          .replace(/Digit(\d)/g, '$1').replace(/NumpadEnter/g, '小键盘 Enter').replace(/Space/g, '空格');
+        expect(keys, label).toContain(`\`${display}\``);
+      }
+    }
+    const html = compileHandbook(section).chapters[0].html;
+    expect(html.match(/<table>/g)).toHaveLength(1);
+    expect(html.match(/<tr>/g)).toHaveLength(34);
+    expect(section).not.toContain('<!-- timing-shortcuts -->');
   });
 
   it('compiles the actual handbook without leftover JSX or heading metadata', () => {
     const source = readFileSync(new URL('../src/handbook-ui/handbook.md', import.meta.url), 'utf8');
     const content = compileHandbook(source);
-    expect(content.chapters).toHaveLength(6);
-    expect(content.chapters.map(chapter => chapter.id)).toEqual(['first-cue', 'timing', 'shortcuts', 'aegisub', 'saving', 'styles']);
-    expect(content.chapters[1].html).toContain('<code>\\N</code>');
-    expect(content.chapters[0].html).toContain('<strong>准备片源与字幕。</strong>');
+    const chapterIds = [...source.matchAll(/^## .+? \{#([a-z][a-z0-9-]*)\}$/gm)].map(match => match[1]);
+    expect(content.chapters.map(chapter => chapter.id)).toEqual(chapterIds);
+    expect(content.chapters.find(chapter => chapter.id === 'shortcuts')?.html).toContain('<code>\\N</code>');
+    expect(content.chapters[0].html).toContain('<strong>');
     expect(content.chapters.every(chapter => !chapter.html.includes('**'))).toBe(true);
     expect(JSON.stringify(content)).not.toMatch(/className|\{#|timing-shortcuts/);
   });
 
   it.each([
-    ['缺少锚点', `## 标题\n\n${marker}`, /稳定锚点/],
-    ['重复锚点', `## 第一节 {#same}\n\n${marker}\n\n## 第二节 {#same}`, /锚点重复/],
-    ['缺少快捷键表格', '## 标题 {#title}', /只包含一个/],
-    ['重复快捷键表格', `## 标题 {#title}\n\n${marker}\n\n${marker}`, /只包含一个/],
-    ['没有章节', marker, /至少需要一个/],
-    ['原始 HTML', `## 标题 {#title}\n\n${marker}\n\n<script>alert(1)</script>`, /不支持原始 HTML/],
+    ['缺少锚点', `## 标题\n\n${exampleTable}`, /稳定锚点/],
+    ['重复锚点', `## 第一节 {#same}\n\n${exampleTable}\n\n## 第二节 {#same}`, /锚点重复/],
+    ['没有章节', exampleTable, /至少需要一个/],
+    ['原始 HTML', `## 标题 {#title}\n\n${exampleTable}\n\n<script>alert(1)</script>`, /不支持原始 HTML/],
   ])('rejects %s during the build rather than shipping broken content', (_name, source, error) => {
     expect(() => compileHandbook(source)).toThrow(error);
   });

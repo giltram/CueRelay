@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { uiDocument } from './ass-codec.mjs';
+import { codec, uiDocument } from './ass-codec.mjs';
 import { checkShortcutFocus } from './shortcut-focus-checks.mjs';
 import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 
@@ -23,7 +23,10 @@ page.on('pageerror', error => errors.push(String(error)));
 let overrides = {};
 await context.route('**/api/**', async route => {
   if (await unavailableAssPreview(route)) return;
-  if (new URL(route.request().url()).pathname === '/api/ass/import') return route.continue();
+  if (new URL(route.request().url()).pathname === '/api/ass/import') {
+    const result = codec('parse', route.request().postDataJSON());
+    return route.fulfill({ status: result.status, json: result.body });
+  }
   const fixtures = {
     '/api/auth/session': { user: { id: 1, username: 'audition-fixture', is_dev: false } },
     '/api/organizations': { organizations: [] },
@@ -133,6 +136,52 @@ try {
   assert(report.stall.before < report.stall.out && report.stall.after > report.stall.out, JSON.stringify(report.stall));
   assert(report.stall.blocks > 20); assert.equal(report.stall.peak, .125); assert.equal(report.stall.afterOutPeak, 0); assert.equal(report.stall.phase, 'finished');
 
+  // Capture actual rendered audio: shortened deadlines remain sample-bounded, and extending
+  // beyond the originally decoded end fetches a continuous continuation on the same clock.
+  report.liveEnd = await page.evaluate(async () => {
+    const { AudioAuditionController } = await import('/src/media/audio/audition-controller.ts');
+    const results = [];
+    for (const [originalEnd, edits, finalEnd] of [[1200, [650], 650], [800, [500, 1200], 1200]]) {
+      const ctx = new AudioContext({ sampleRate: 48000 });
+      await ctx.audioWorklet.addModule('/experiments/audition-capture.worklet.js');
+      const capture = new AudioWorkletNode(ctx, 'audition-capture', { outputChannelCount: [2] });
+      capture.connect(ctx.destination);
+      const blocks = []; capture.port.onmessage = event => blocks.push(event.data);
+      const createGain = ctx.createGain.bind(ctx);
+      ctx.createGain = () => {
+        const output = createGain();
+        output.connect = () => AudioNode.prototype.connect.call(output, capture);
+        return output;
+      };
+      const source = { open: async () => ({ sampleRate: 48000, channels: 2 }), dispose() {},
+        read: async (start, end) => [{ timestamp: start, sampleRate: 48000,
+          channels: [new Float32Array(Math.round((end - start) * 48000)).fill(.125)] }] };
+      const controller = new AudioAuditionController(() => source, () => {}, () => ctx);
+      await controller.start({ start: 0, end: originalEnd }, true);
+      const origin = window.__audio.nodes.at(-1).starts[0][0];
+      while (ctx.currentTime < origin + .1) await new Promise(resolve => setTimeout(resolve, 5));
+      for (const end of edits) controller.updateEnd(end);
+      while (ctx.currentTime < origin + finalEnd / 1000 + .1) await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      let insideError = 0, afterOutPeak = 0, insideFrames = 0, firstMismatch = null;
+      for (const block of blocks) for (let i = 0; i < (block.channels[0]?.length ?? 0); i++) {
+        const time = (block.frame + i) / 48000, value = block.channels[0][i];
+        if (time > origin + .001 && time < origin + finalEnd / 1000 - .001) {
+          insideError = Math.max(insideError, Math.abs(value - .125)); insideFrames++;
+          if (value !== .125 && firstMismatch === null) firstMismatch = time - origin;
+        }
+        if (time > origin + finalEnd / 1000 + .001) afterOutPeak = Math.max(afterOutPeak, Math.abs(value));
+      }
+      results.push({ originalEnd, finalEnd, insideError, insideFrames, firstMismatch, afterOutPeak, phase: controller.state.phase });
+      controller.dispose(); capture.disconnect();
+    }
+    return results;
+  });
+  for (const result of report.liveEnd) {
+    assert(result.insideFrames > 30000); assert.equal(result.insideError, 0, JSON.stringify(result));
+    assert.equal(result.afterOutPeak, 0); assert.equal(result.phase, 'finished');
+  }
+
   // Actual independent Worker: MP4 decode, long streaming, replacement, errors, hide and unmount.
   await page.locator('#file').setInputFiles(file);
   const probePhase = phase => page.waitForFunction(phase => JSON.parse(document.querySelector('#state').textContent).phase === phase, phase);
@@ -181,6 +230,34 @@ try {
     assert.equal(Number(await timeline.getAttribute('data-audition-time')), endpoint);
     assert(await video.evaluate(v => v.paused && v.currentTime === 5));
   }
+  const clickEnd = async time => {
+    const stage = page.locator('.audio-stage'), rect = await stage.boundingBox();
+    const view = await timeline.evaluate(el => ({ start: +el.dataset.start, end: +el.dataset.end }));
+    await stage.click({ button: 'right', position: { x: (time / 1000 - view.start) / (view.end - view.start) * rect.width, y: rect.height * .65 } });
+  };
+  await start.fill('0:00:00.00'); await end.fill('0:00:02.00');
+  await audition('Space'); await clickEnd(3300);
+  await page.waitForFunction(() => +document.querySelector('.audio-timeline').dataset.auditionTime > 2100);
+  assert.equal(await timeline.getAttribute('data-audition-phase'), 'playing');
+  await phase('finished'); assert.equal(await timeline.getAttribute('data-audition-time'), '3300');
+  await end.fill('0:00:04.00'); await audition('Space'); await clickEnd(1500);
+  await phase('finished'); assert.equal(await timeline.getAttribute('data-audition-time'), '1500');
+  await end.fill('0:00:04.00'); await audition('Space');
+  const endHandle = page.getByRole('slider', { name: /^字幕出点/ });
+  const handleRect = await endHandle.boundingBox(), stageRect = await page.locator('.audio-stage').boundingBox();
+  const view = await timeline.evaluate(el => ({ start: +el.dataset.start, end: +el.dataset.end }));
+  await page.mouse.move(handleRect.x + handleRect.width / 2, handleRect.y + handleRect.height / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(stageRect.x + (2.2 - view.start) / (view.end - view.start) * stageRect.width, handleRect.y + handleRect.height / 2, { steps: 5 });
+  await page.mouse.up({ button: 'right' });
+  await phase('finished'); assert.equal(await timeline.getAttribute('data-audition-time'), '2200');
+  await end.fill('0:00:04.00'); await audition('Space');
+  await page.waitForFunction(() => +document.querySelector('.audio-timeline').dataset.auditionTime > 800);
+  await clickEnd(300); await phase('finished');
+  assert.equal(await timeline.getAttribute('data-audition-time'), '300');
+  assert(await page.evaluate(() => window.__audio.nodes.every(n => !n.connected)));
+  assert(await video.evaluate(v => v.paused && v.currentTime === 5));
+  report.liveBoundaryEdits = true;
   // Repeated requests start afresh; frequency view requests never cancel the audition.
   await start.fill('0:00:00.00'); await end.fill('0:00:15.00');
   await audition('Space'); await page.waitForTimeout(350);

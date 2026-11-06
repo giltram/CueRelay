@@ -18,12 +18,15 @@ interface Session {
   span: number;
   windows: ScheduledWindow[];
   loading: boolean;
+  followEnd: boolean;
+  output: GainNode;
 }
 
 /** Copy only selected sample frames. Timestamps retain offsets and gaps, never concatenate time. */
 export function scheduleAuditionChunks(
   context: BaseAudioContext, chunks: PcmChunk[], range: PlaybackRange, origin: number,
   nodes: Set<AudioBufferSourceNode>,
+  destination: AudioNode = context.destination,
 ) {
   const start = range.start / 1000, end = range.end / 1000;
   for (const chunk of chunks) {
@@ -34,7 +37,7 @@ export function scheduleAuditionChunks(
     chunk.channels.forEach((channel, index) => buffer.getChannelData(index).set(channel.subarray(first, last)));
     const node = context.createBufferSource();
     node.buffer = buffer;
-    node.connect(context.destination);
+    node.connect(destination);
     nodes.add(node);
     node.onended = () => { node.disconnect(); node.buffer = null; nodes.delete(node); };
     const timestamp = chunk.timestamp + first / chunk.sampleRate;
@@ -73,6 +76,7 @@ export class AudioAuditionController {
     this.timer = null;
     session?.windows.forEach(releaseWindow);
     session?.reader.dispose();
+    session?.output.disconnect();
   }
   stop() {
     this.release();
@@ -90,7 +94,7 @@ export class AudioAuditionController {
     this.publish({ phase: 'error', position: null, message: `音频试听失败：${(error as Error).message}` });
   }
 
-  async start(range: PlaybackRange) {
+  async start(range: PlaybackRange, followEnd = false) {
     if (this.disposed) return;
     this.stop();
     let session: Session | null = null;
@@ -103,8 +107,10 @@ export class AudioAuditionController {
       const resumed = context.resume();
       // Attach rejection immediately, even while the reader is still opening.
       void resumed.catch(() => {});
-      session = { reader: this.createReader(), range, origin: 0, next: range.start / 1000,
-        span: 0, windows: [], loading: false };
+      const output = context.createGain();
+      output.connect(context.destination);
+      session = { reader: this.createReader(), range: { ...range }, origin: 0, next: range.start / 1000,
+        span: 0, windows: [], loading: false, followEnd, output };
       this.session = session;
       this.publish({ phase: 'preparing', position: range.start, message: '正在准备音频试听…' });
       const metadata = await session.reader.open();
@@ -113,8 +119,8 @@ export class AudioAuditionController {
       if (!Number.isFinite(session.span) || session.span <= 0) throw Error('音轨采样格式无效');
       const prepared: { end: number; chunks: PcmChunk[] }[] = [];
       // Short ranges are fully prepared; long ranges start with two bounded windows.
-      while (prepared.length < 2 && session.next < range.end / 1000) {
-        const end = Math.min(range.end / 1000, session.next + session.span);
+      while (prepared.length < 2 && session.next < session.range.end / 1000) {
+        const end = Math.min(session.range.end / 1000, session.next + session.span);
         const chunks = await session.reader.read(session.next, end);
         if (this.session !== session) return;
         prepared.push({ end, chunks }); session.next = end;
@@ -123,6 +129,7 @@ export class AudioAuditionController {
       if (this.session !== session) return;
       if (context.state !== 'running') throw Error('浏览器尚未允许音频输出，请再次触发试听');
       session.origin = context.currentTime + 0.05;
+      this.scheduleEnd(session);
       for (const window of prepared) this.schedule(session, window.end, window.chunks);
       if (context.currentTime >= session.origin) throw Error('音频排程未及时完成，请重新试听');
       this.publish({ phase: 'playing', position: range.start, message: '' });
@@ -133,7 +140,36 @@ export class AudioAuditionController {
   private schedule(session: Session, end: number, chunks: PcmChunk[]) {
     const window = { end, nodes: new Set<AudioBufferSourceNode>() };
     session.windows.push(window);
-    scheduleAuditionChunks(this.context!, chunks, session.range, session.origin, window.nodes);
+    // Keep already decoded samples available if an out point is shortened and then extended.
+    // The session output enforces the current out point on the rendering clock.
+    scheduleAuditionChunks(this.context!, chunks, { start: session.range.start, end: end * 1000 },
+      session.origin, window.nodes, session.output);
+  }
+  private scheduleEnd(session: Session) {
+    const gain = session.output.gain;
+    gain.cancelScheduledValues(0);
+    gain.setValueAtTime(1, this.context!.currentTime);
+    gain.setValueAtTime(0, session.origin + (session.range.end - session.range.start) / 1000);
+  }
+  /** Update a live selection without seeking/restarting; fixed 500ms auditions stay fixed. */
+  updateEnd(end: number): boolean {
+    const session = this.session;
+    if (!session?.followEnd || !Number.isFinite(end)) return false;
+    // Never revive a range whose rendering deadline has already passed between ticks.
+    if (this.state.phase === 'playing' && this.getPosition()! >= session.range.end) {
+      this.finish(session); return true;
+    }
+    session.range.end = Math.max(session.range.start, end);
+    if (session.range.end <= this.getPosition()!) { this.finish(session); return true; }
+    if (this.state.phase === 'playing') {
+      this.scheduleEnd(session);
+      this.tick(session);
+    }
+    return true;
+  }
+  private finish(session: Session) {
+    this.release();
+    this.publish({ phase: 'finished', position: session.range.end, message: '' });
   }
   getPosition(): number | null {
     const session = this.session;
@@ -151,8 +187,7 @@ export class AudioAuditionController {
       return;
     }
     if (position >= session.range.end) {
-      this.release();
-      this.publish({ phase: 'finished', position: session.range.end, message: '' });
+      this.finish(session);
       return;
     }
     if (context.state !== 'running') { this.fail(session, Error('浏览器音频输出已中断，请重新试听')); return; }

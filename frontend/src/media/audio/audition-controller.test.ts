@@ -7,9 +7,12 @@ import type { AudioMetadata, PcmChunk } from './local-audio';
 const metadata: AudioMetadata = { sampleRate: 48000, channels: 2, codec: 'mp4a.40.2', firstTimestamp: 0, endTimestamp: 36000 };
 function audioClock() {
   const nodes: any[] = [];
+  const gain = { cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn() };
+  const output = { gain, connect: vi.fn(), disconnect: vi.fn() };
   const context = {
     currentTime: 10, state: 'running', destination: {},
     resume: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined),
+    createGain: () => output,
     createBuffer: vi.fn((channels: number, length: number, sampleRate: number) => {
       const data = Array.from({ length: channels }, () => new Float32Array(length));
       return { getChannelData: (i: number) => data[i], length, sampleRate, data };
@@ -19,7 +22,7 @@ function audioClock() {
       nodes.push(node); return node;
     },
   };
-  return { context: context as unknown as AudioContext, nodes };
+  return { context: context as unknown as AudioContext, nodes, gain, output };
 }
 function reader(): AuditionReader {
   return { open: vi.fn().mockResolvedValue(metadata), dispose: vi.fn(),
@@ -63,6 +66,73 @@ describe('sample-bounded scheduling', () => {
 });
 
 describe('independent audition session', () => {
+  it('shortens and re-extends a live selection on the same clock without discarding decoded audio', async () => {
+    const { context, nodes, gain } = audioClock(); const source = reader();
+    const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
+    await controller.start({ start: 1000, end: 4000 }, true);
+    const originalNodes = [...nodes];
+    Object.assign(context, { currentTime: 10.55 });
+    expect(controller.updateEnd(2000)).toBe(true);
+    expect(gain.setValueAtTime).toHaveBeenLastCalledWith(0, 11.05);
+    expect(controller.getPosition()).toBeCloseTo(1500);
+    controller.updateEnd(3500);
+    expect(gain.setValueAtTime).toHaveBeenLastCalledWith(0, 12.55);
+    expect(nodes).toEqual(originalNodes);
+    expect(source.read).toHaveBeenCalledTimes(2);
+    expect(source.dispose).not.toHaveBeenCalled();
+    Object.assign(context, { currentTime: 12.56 }); vi.advanceTimersByTime(25);
+    expect(controller.state).toEqual({ phase: 'finished', position: 3500, message: '' });
+    controller.dispose();
+  });
+  it('extends beyond the original decoded end by fetching only the continuation', async () => {
+    const { context, gain } = audioClock(); const source = reader();
+    const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
+    await controller.start({ start: 1000, end: 1800 }, true);
+    Object.assign(context, { currentTime: 10.25 });
+    controller.updateEnd(2800); await flush();
+    expect(source.read).toHaveBeenLastCalledWith(1.8, 2.8);
+    expect(controller.getPosition()).toBeCloseTo(1200);
+    expect(gain.setValueAtTime.mock.lastCall![1]).toBeCloseTo(11.85);
+    Object.assign(context, { currentTime: 10.95 }); vi.advanceTimersByTime(25);
+    expect(controller.state.phase).toBe('playing');
+    Object.assign(context, { currentTime: 11.86 }); vi.advanceTimersByTime(25);
+    expect(controller.state.position).toBe(2800);
+    controller.dispose();
+  });
+  it('immediately finishes when the new out point is behind the playhead', async () => {
+    const { context, nodes, output } = audioClock(); const source = reader();
+    const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
+    await controller.start({ start: 1000, end: 4000 }, true);
+    Object.assign(context, { currentTime: 11.05 });
+    controller.updateEnd(1500);
+    expect(controller.state).toEqual({ phase: 'finished', position: 1500, message: '' });
+    expect(nodes.every(node => node.buffer === null)).toBe(true);
+    expect(output.disconnect).toHaveBeenCalledOnce();
+    expect(controller.updateEnd(5000)).toBe(false);
+    controller.dispose();
+  });
+  it('uses end edits made during preparation, including an in-flight read', async () => {
+    const { context, gain } = audioClock(); const source = reader();
+    let complete!: (chunks: PcmChunk[]) => void;
+    vi.mocked(source.read).mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+    const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
+    const preparing = controller.start({ start: 1000, end: 1800 }, true); await flush();
+    controller.updateEnd(2500); complete([]); await preparing;
+    expect(source.read).toHaveBeenLastCalledWith(1.8, 2.5);
+    expect(gain.setValueAtTime).toHaveBeenLastCalledWith(0, 11.55);
+    expect(controller.state.phase).toBe('playing'); controller.dispose();
+  });
+  it('does not revive an elapsed range or change fixed auditions', async () => {
+    const { context } = audioClock(); const source = reader();
+    const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
+    await controller.start({ start: 0, end: 500 });
+    expect(controller.updateEnd(900)).toBe(false);
+    await controller.start({ start: 0, end: 500 }, true);
+    Object.assign(context, { currentTime: 10.6 });
+    controller.updateEnd(1500);
+    expect(controller.state).toEqual({ phase: 'finished', position: 500, message: '' });
+    controller.dispose();
+  });
   it('fully prepares a short selection and ends by audio clock, with no boundary callback required', async () => {
     const { context, nodes } = audioClock(); const source = reader();
     const controller = new AudioAuditionController(() => source, vi.fn(), () => context);

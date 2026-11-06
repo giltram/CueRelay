@@ -30,6 +30,7 @@ import { previewDocument } from './preview-document';
 import { useEditHistory } from './use-edit-history';
 import type { EditState } from './edit-history';
 import { orderCues } from '../subtitle-model/cue-order';
+import { subtitleExportFilename } from './export-filename';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -181,6 +182,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     cancelAudition(); setHasEdits(true);
   }
 
+  function changeAudioBoundary(point: 'start' | 'end', time: number) {
+    if (point !== 'end' || !audioAudition.updateEnd(Math.min(time, duration))) cancelAudition();
+    setHasEdits(true);
+  }
+
   function updateCue(patch: Partial<Cue>, inputKey?: string, nativeHistory = false) {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     const state = edits.current();
@@ -277,7 +283,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   async function playTiming(mode: AuditionMode) {
     if (!video || !duration) throw new Error('请先加载可播放的视频');
     const range = auditionRange(mode, parseTime(startText), parseTime(endText), duration);
-    await audioAudition.start(range);
+    await audioAudition.start(range, mode === 'selection');
   }
 
   useEffect(() => {
@@ -381,7 +387,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
 
   async function exportDraft() {
     if (!document) throw new Error('ASS 服务尚未就绪');
-    downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass');
+    const source = await exportAss(document);
+    downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name));
   }
   const hasContent = () => hasProtectedContent;
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
@@ -416,7 +423,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <button className="primary" disabled={busy || !document} onClick={() => run(async () => {
             if (!document) return;
             setBusy(true);
-            try { downloadFile(new Blob([await exportAss(document)], { type: 'text/plain;charset=utf-8' }), 'cuerelay.ass'); }
+            try { await exportDraft(); }
             finally { setBusy(false); }
           })}>导出 ASS</button>
         </div>
@@ -463,11 +470,14 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       } editor={<>
           <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
-            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && document ? (point, time) => changeTimeDraft(point, formatTime(time)) : undefined}
+            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && document ? (point, time) => {
+              edits.edit({ ...edits.current(), [point === 'start' ? 'startText' : 'endText']: formatTime(time) });
+              changeAudioBoundary(point, time);
+            } : undefined}
             onBoundaryGesture={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && document ? () => {
               const gesture = edits.beginGesture();
               return {
-                change: (point, time) => { gesture.change(state => ({ ...state, [point === 'start' ? 'startText' : 'endText']: formatTime(time) })); cancelAudition(); setHasEdits(true); },
+                change: (point, time) => { gesture.change(state => ({ ...state, [point === 'start' ? 'startText' : 'endText']: formatTime(time) })); changeAudioBoundary(point, time); },
                 end: gesture.end,
               };
             } : undefined}

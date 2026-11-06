@@ -14,11 +14,12 @@ interface Props {
   value: number;
   duration: number;
   view: AudioViewport;
+  pointerTime: (point: 'start' | 'end', seconds: number, width: number, view: AudioViewport, shiftKey: boolean) => number;
   onChange?: (point: 'start' | 'end', milliseconds: number) => void;
 }
 
 /** Updates the existing editor draft; the workbench owns validation, commit and row navigation. */
-export function AudioBoundary({ point, value, duration, view, onChange, onGesture, historyEpoch }: Props) {
+export function AudioBoundary({ point, value, duration, view, pointerTime, onChange, onGesture, historyEpoch }: Props) {
   const drag = useRef<{ pointerId: number; view: AudioViewport; grabOffset: number; gesture?: BoundaryGesture } | null>(null);
   const keys = useRef<{ code: string; gesture?: BoundaryGesture } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -66,7 +67,8 @@ export function AudioBoundary({ point, value, duration, view, onChange, onGestur
       if (!gesture || gesture.pointerId !== event.pointerId || !onChange) return;
       event.stopPropagation();
       const rect = event.currentTarget.parentElement!.getBoundingClientRect();
-      (gesture.gesture?.change ?? onChange)(point, boundaryTime(timeAtX(event.clientX - gesture.grabOffset - rect.left, rect.width, gesture.view), duration));
+      (gesture.gesture?.change ?? onChange)(point, pointerTime(point,
+        timeAtX(event.clientX - gesture.grabOffset - rect.left, rect.width, gesture.view), rect.width, gesture.view, event.shiftKey));
     }}
     onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag}
     onContextMenu={event => {

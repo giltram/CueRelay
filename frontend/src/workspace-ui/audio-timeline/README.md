@@ -10,7 +10,11 @@
 
 Spectrum 将 Worker 已有 -80..0dBFS 对应的归一化能量 `e` 映射为 `e ** (1 / verticalZoom)`，再查原 normal / inactive / active 色表。1.0 保持原图；增大提亮弱信号，减小压暗弱信号，零能量与满量程端点不动，避免整段高亮截断。频率采样、时间坐标及颜色方案保持，低于原 -80dBFS 分析阈值的信号不能通过显示缩放恢复。Waveform 只将峰值显示幅度乘以同一个值并限定在波形区域内，不修改峰值缓存或音频。
 
-Spectrum 本体（22px 标尺以下）左键单击设置入点草稿，右键按下设置出点草稿并阻止原生右键菜单；坐标复用 timeAtX / boundaryTime，吸附到既有 10ms 网格。右键使用 PointerEvent 的小数坐标，contextmenu 仅负责阻止菜单，避免该 MouseEvent 坐标取整引起一格偏差。左键移动超过 3px 仍为平移，不会顺带设置入点。播放头 / 入点边界的左键拖动优先，出点边界仅右键拖动，标尺与 Waveform 仍单击定位视频。
+Spectrum 本体（22px 标尺以下）左键单击设置入点草稿，右键按下设置出点草稿并阻止原生右键菜单；坐标复用 timeAtX，经过下述标记吸附后由 boundaryTime 限定到既有 10ms 网格。右键使用 PointerEvent 的小数坐标，contextmenu 仅负责阻止菜单，避免该 MouseEvent 坐标取整引起一格偏差。左键移动超过 3px 仍为平移，不会顺带设置入点。播放头 / 入点边界的左键拖动优先，出点边界仅右键拖动，标尺与 Waveform 仍单击定位视频。
+
+鼠标定时及边界拖动共用 `boundary-snap.ts`：默认吸附到 8 CSS px 范围内最近的可见标记，距离相同取较早者，Shift 临时取消。目标包含其他字幕的真实入出点、当前时间草稿另一端，以及显示播放头的实时位置（试听 getter 优先，否则 video.currentTime）。当前行的已应用旧边界不作为目标；视窗截断边缘不产生虚假标记，视窗外 / 超过媒体与 ASS 上限的目标被排除。目标距离按原始指针时间计算，最终仍限定到 10ms / 媒体范围；不改变非法区间校验、方向键 10/100ms 微调、草稿提交或历史分组。`AudioTimeline` 按 cues / selectionId 缓存其他行端点，目标可见性按指针手势的视窗快照判断，仅通过显式 pointerTime 回调把规则交给 AudioBoundary；不向下传字幕文档或历史状态。没有新增偏好或全局状态，依赖仍仅向 contracts / viewport。没有关键帧数据，暂不支持关键帧吸附。
+
+规则参考 Aegisub 的 [默认 Snap Distance/Enable](https://github.com/Aegisub/Aegisub/blob/master/src/libresrc/default_config.json)、[Shift 与像素距离换算](https://github.com/Aegisub/Aegisub/blob/master/src/audio_display.cpp) 和 [SnapMarkers 最近标记选择](https://github.com/Aegisub/Aegisub/blob/master/src/audio_timing_dialogue.cpp)。纯函数回归见 `boundary-snap.test.ts`；真实 Chrome 回归为 `npm run test:boundary-snap`（默认 5173，可用 BOUNDARY_SNAP_URL 覆盖，FFmpeg + 隔离 HTTP fixture，无开发数据库写入）。实际检查与限制见 [吸附验证记录](../../../../docs/experiments/boundary-snap.md)。
 
 onBoundaryChange 是统一的时间草稿回调：ASS 文档就绪、canEdit 通过、工作区可见、快捷键未暂停且无转换 / 待确认导入时可用，不要求已选字幕。G / Enter（或个人覆盖键）统一校验并进入下一条，逆序等非法区间由原校验处理，不自动交换边界。点击定时不定位视频、不移动视窗，也不重置缩放。浏览器验证见 `browser-tests/boundary-click-checks.mjs`。
 
@@ -72,6 +76,8 @@ Canvas 采用 getBoundingClientRect 的小数 CSS 尺寸，与 DOM 覆盖线一�
 ## 试听与视频时间的边界
 
 普通工作区 Space / S 和 Q / W / E / D 经原个人快捷键映射调用 media/audio 的独立试听控制器。开始时只暂停视频，不跳到选区；视频进度条 / ASS 始终读静止的 video，音频播放头 / footer 读控制器。组件仅通过 getAuditionPosition 读取音频时钟；preparing / error 显示在既有 footer，不自行创建声音或修改视频。频谱滚动 / 缩放请求仍只取消分析，不中断试听。主动拖动播放头 / 点击标尺定位仍走 onSeek，工作区先取消声音，再定位视频。普通播放及全屏 Space 继续使用 video。范围算法、焦点 / IME、个人配置及字幕草稿契约保持。
+
+选区试听（Space / S 或个人覆盖键）准备和播放期间，右键点击、出点拖动及边界方向键通过 EditorWorkbench 显式更新控制器出点，按视频时长截断；缩短 / 延长都保留音频时钟，新出点已经被播放头越过则立即停止。时间草稿和手势历史仍由工作区唯一拥有，时间轴不保存播放范围。改入点、手输时间和固定 500ms 试听期间的边界修改仍取消试听；完成后改出点不自动播放。真实输出、右键和拖动回归位于 `browser-tests/audio-audition.mjs`。
 
 控制器、独立 Worker、预算与测试见 [audio README](../../media/audio/README.md)；真实输出验证见 [试听记录](../../../../docs/experiments/audio-audition.md)。
 

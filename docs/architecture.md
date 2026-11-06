@@ -14,9 +14,15 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
-2026-11-07 手册 Markdown 化：正文迁到 `frontend/src/handbook-ui/handbook.md`，带稳定 ID 的二级标题唯一生成目录。Vite 构建插件使用 devDependency Marked 18.1.3 预编译介绍/章节 HTML，快捷键占位符从 shared JSON 展开；运行时只展示生成的 JS 模块，不加载原始文件、不携带解析器。构建工具只向下引用 `handbook-ui/content` 类型契约，页面不依赖构建工具。Markdown 的原始 HTML、缺少/重复章节 ID、缺少/重复快捷键占位符均在编译时拒绝。维护和验证见 [手册模块](../frontend/src/handbook-ui/README.md)。
+2026-11-07 鼠标定时吸附：`workspace-ui/audio-timeline/boundary-snap.ts` 统一点击 / 拖动的最近标记选择，沿用 Aegisub 默认 8 CSS px、Shift 临时取消，最后保留 10ms 精度。AudioTimeline 从只读 cues、当前草稿另一端和实时播放头派生目标，通过显式 pointerTime 回调交给 AudioBoundary；不引入偏好、文档 / 历史副本或反向依赖。当前未提取关键帧，不实现关键帧吸附。契约、源码依据及回归见 [时间轴模块](../frontend/src/workspace-ui/audio-timeline/README.md)。
 
-2026-11-07 首次使用手册：`accounts.User.handbook_seen` 拥有账号级确认状态，GET `/api/me/settings` 只读返回，POST `/api/me/handbook` 以空 JSON 幂等确认本人；原个人偏好 PATCH 和 safe_user 身份投影不变。accounts.0006 仅将升级前 last_login 非空的账号标记为已提示，未登录/新账号保留首次提示。App 组合 account-ui/HandbookPrompt、账号代次保护和工作区快捷键暂停；点击打开/稍后阅读/Escape 立即收起并异步持久化，失败不阻塞操作。navigation 拥有 `/handbook` 及带组织上下文的地址，设置与首次提示默认新开同一手册；`handbook-ui → {navigation, page-ui, shared JSON}` 只拥有静态正文/阅读样式，不依赖工作区内部或请求账号。目录只滚动正文、不添加路由历史。内容职责和维护点见 [手册模块](../frontend/src/handbook-ui/README.md)，检查及部署见 [验证记录](experiments/user-handbook.md)。
+2026-11-07 选区试听实时出点：EditorWorkbench 将音频时间轴的出点修改显式交给 `useAudioAudition.updateEnd`；控制器保持同一音频时钟，用会话 GainNode 排程新截止，延长时预取后续分段，新出点落在播放头后方立即停止。准备阶段同样接受更新，完成后不自动重播；固定 500ms 试听保留原行为。无新增模块依赖或历史状态，契约与回归见 [音频模块](../frontend/src/media/audio/README.md) 和 [时间轴模块](../frontend/src/workspace-ui/audio-timeline/README.md)。
+
+2026-11-07 项目列表静默更新：App 的会话/权限/偏好检查保留 focus、visibilitychange 和 30 秒检查；成功加载组织/个人设置后用版本号显式通知 ProjectsPanel 更新，不再依赖组织对象引用。已有同查询列表在后台请求中保留表格与分页交互，失败保留数据并提供重试；首次/新查询仍显示加载状态，权限或资源失效清除旧数据。无新增依赖方向或持久化，契约与浏览器回归见 [项目面板模块](../frontend/src/project-ui/README.md)。
+
+2026-11-07 手册 Markdown 化：正文迁到 `frontend/src/handbook-ui/handbook.md`，带稳定 ID 的二级标题唯一生成目录。Vite 构建插件使用 devDependency Marked 18.1.3 预编译介绍/章节 HTML；快捷键使用正文中的完整标准 Markdown 表格，可直接在 MarkText 阅读，测试核对 shared JSON 默认键位；运行时只展示生成的 JS 模块，不加载原始文件、不携带解析器。构建工具只向下引用 `handbook-ui/content` 类型契约，页面不依赖构建工具。Markdown 的原始 HTML、缺少/重复章节 ID 均在编译时拒绝。维护和验证见 [手册模块](../frontend/src/handbook-ui/README.md)。
+
+2026-11-07 首次使用手册：`accounts.User.handbook_seen` 拥有账号级确认状态，GET `/api/me/settings` 只读返回，POST `/api/me/handbook` 以空 JSON 幂等确认本人；原个人偏好 PATCH 和 safe_user 身份投影不变。accounts.0006 仅将升级前 last_login 非空的账号标记为已提示，未登录/新账号保留首次提示。App 组合 account-ui/HandbookPrompt、账号代次保护和工作区快捷键暂停；点击打开/稍后阅读/Escape 立即收起并异步持久化，失败不阻塞操作。navigation 拥有 `/handbook` 及带组织上下文的地址，设置与首次提示默认新开同一手册；`handbook-ui → {navigation, page-ui}` 只拥有静态正文/阅读样式，不依赖工作区内部或请求账号。目录只滚动正文、不添加路由历史。内容职责和维护点见 [手册模块](../frontend/src/handbook-ui/README.md)，检查及部署见 [验证记录](experiments/user-handbook.md)。
 
 2026-11-06 字幕文本查找与定位：`workspace-ui/cue-search.ts` 纯函数从现有字幕正文派生支持 ASS 标签/空白转义的字面匹配，复用 subtitle-model 时间排序和 cue ID 导航；`use-cue-search` 只拥有当前实例的开关、关键词和游标。CueTable 保留所有行/原文，用 React 文本节点高亮，仅显式跳转滚动，并通过既有 selectCueFromTable 处理选行、草稿和媒体。选行统一按 cue ID 判断：重复选择当前行保留原始时间草稿，真正换行才丢弃草稿；媒体定位/取消试听沿用原行为。查找不受编辑权限/媒体验证限制，Ctrl/Cmd+F 限可见且无弹窗的工作区，查找条隔离打轴快捷键及 IME；无数据契约、历史、保存或网络接口变更。职责/交互见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕文本查找)，实际检查及限制见 [验证记录](experiments/subtitle-search.md)。
 

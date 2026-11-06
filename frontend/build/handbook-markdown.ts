@@ -1,22 +1,8 @@
 import { Marked, Renderer, type Token } from 'marked';
-import defaults from '../../shared/timing-shortcuts.json' with { type: 'json' };
 import type { HandbookContent } from '../src/handbook-ui/content.ts';
-
-const shortcutMarker = '<!-- timing-shortcuts -->';
-const basicActions = ['commit', 'selection', 'before-start', 'after-end', 'first-500', 'last-500',
-  'toggle-text-focus', 'delete-row', 'undo', 'redo'] as const;
-
-function shortcutTable() {
-  const cell = (text: string) => text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-  const binding = (text: string) => text.replace(/Meta/g, 'Cmd').replace(/Key([A-Z])/g, '$1')
-    .replace(/Digit(\d)/g, '$1').replace(/NumpadEnter/g, '小键盘 Enter').replace(/Space/g, '空格');
-  return ['| 动作 | 默认键位 |', '| --- | --- |', ...basicActions.map(action =>
-    `| ${cell(defaults[action].label)} | ${defaults[action].bindings.map(key => `\`${cell(binding(key))}\``).join(' / ')} |`)].join('\n');
-}
 
 /** Compile the trusted repository handbook only, during Vite transforms/builds. */
 export function compileHandbook(source: string): HandbookContent {
-  if (source.split(shortcutMarker).length !== 2) throw new Error('手册必须包含且只包含一个 <!-- timing-shortcuts -->。');
   const renderTable = new Renderer().table;
   const markdown = new Marked({ async: false, gfm: true, renderer: {
     html({ text }) {
@@ -25,7 +11,7 @@ export function compileHandbook(source: string): HandbookContent {
     },
     table(token) { return `<div class="handbook-table-scroll">${renderTable.call(this, token)}</div>`; },
   } });
-  const tokens = markdown.lexer(source.replace(shortcutMarker, shortcutTable()));
+  const tokens = markdown.lexer(source);
   const content: HandbookContent = { introduction: '', chapters: [] };
   let body: Token[] = [];
   const flush = () => {

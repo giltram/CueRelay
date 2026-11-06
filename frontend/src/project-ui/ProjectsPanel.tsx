@@ -10,8 +10,9 @@ import { RouteLink } from '../navigation/RouteLink';
 import { HomeLink } from '../navigation/HomeLink';
 import type { Route } from '../navigation/routes';
 
-export function ProjectsPanel({ organization, request, header, enabled, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
+export function ProjectsPanel({ organization, request, header, enabled, refreshVersion, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
   organization: Organization | undefined; request: JsonRequest; header: ReactNode; enabled: boolean;
+  refreshVersion: number;
   navigate: (route: Route) => void; onCreate: (open: () => void) => void;
   onCreated: (project: ProjectDetail, video?: File) => void; onLifecycle: (project: ProjectSummary) => void;
   unavailableOrganization?: boolean;
@@ -30,14 +31,15 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
   const sequence = useRef(0);
   const context = `${status}:${query}:${page}`;
   const data = loaded?.context === context ? loaded : null;
-  const api = useMemo(() => projectApi(request, organization?.id ?? 0), [request, organization?.id]);
+  const organizationId = organization?.id;
+  const api = useMemo(() => projectApi(request, organizationId ?? 0), [request, organizationId]);
   useEffect(() => {
     const timer = setTimeout(() => { setQuery(search); setPage(1); }, 250);
     return () => clearTimeout(timer);
   }, [search]);
   useEffect(() => {
     const version = ++sequence.current;
-    if (!organization || !enabled) return;
+    if (!organizationId || !enabled) return;
     setLoading(true); setError('');
     void api.list(status, query, page).then(value => {
       if (sequence.current !== version) return;
@@ -45,10 +47,14 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
       if (page > lastPage) setPage(lastPage);
       else setLoaded({ ...value, context });
     })
-      .catch(reason => { if (sequence.current === version) setError(reason.message); })
+      .catch(reason => {
+        if (sequence.current !== version) return;
+        setError(reason.message);
+        if (['permission_denied', 'not_found', 'authentication_required', 'account_changed'].includes(reason.code)) setLoaded(null);
+      })
       .finally(() => { if (sequence.current === version) setLoading(false); });
     return () => { sequence.current++; };
-  }, [api, organization, status, query, page, refresh, enabled]);
+  }, [api, organizationId, status, query, page, refresh, refreshVersion, enabled]);
   function saved(project: ProjectDetail, video?: File) {
     setCreating(false); setRefresh(value => value + 1);
     onCreated(project, video);
@@ -68,9 +74,9 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         </div>
         <label>搜索项目<input type="search" value={search} maxLength={100} onChange={event => setSearch(event.target.value)} placeholder="按项目名称搜索" /></label>
       </div>
-      {loading && <HeaderNotice>正在加载项目…</HeaderNotice>}
+      {loading && !data && <HeaderNotice>正在加载项目…</HeaderNotice>}
       {error && !confirm && <HeaderNotice className="header-error" role="alert">{error}<button onClick={() => setRefresh(value => value + 1)}>重试</button></HeaderNotice>}
-      {!error && data && <div className="project-table-scroll"><table className="project-table"><thead><tr>
+      {data && <div className="project-table-scroll"><table className="project-table"><thead><tr>
         <th>项目</th><th>{status === 'active' ? '最近更新' : '归档时间'}</th><th>{status === 'active' ? '更新者' : '归档人'}</th><th>操作</th>
       </tr></thead><tbody>{data.projects.map(project => <tr key={project.id}>
         <td><RouteLink className="project-name" route={{ kind: 'project', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{project.name}</RouteLink>
@@ -90,8 +96,8 @@ export function ProjectsPanel({ organization, request, header, enabled, navigate
         </div>}
       </div>}
       {data && <div className="project-pagination"><span>共 {data.total} 个项目 · 第 {data.page} 页</span><div className="controls">
-        <button disabled={loading || page === 1} onClick={() => setPage(value => value - 1)}>上一页</button>
-        <button disabled={loading || !data.has_more} onClick={() => setPage(value => value + 1)}>下一页</button>
+        <button disabled={page === 1} onClick={() => setPage(value => value - 1)}>上一页</button>
+        <button disabled={!data.has_more} onClick={() => setPage(value => value + 1)}>下一页</button>
       </div></div>}
     </> : <div className="empty"><p role={unavailableOrganization ? 'alert' : undefined}>{unavailableOrganization
       ? '指定组织不存在或无权访问，请选择可访问的组织。'

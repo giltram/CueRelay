@@ -1,10 +1,11 @@
-import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { AuditionState } from '../../media/audio/audition-controller';
 import { useAudioAnalysis } from '../../media/audio/use-audio-analysis';
 import { formatTime } from '../../media/playback';
 import { drawAudio } from './draw-audio';
 import { AUDIO_RULER_HEIGHT } from './draw-ruler';
-import { boundaryTime, clampViewport, revealInterval, timeAtX, xAtTime, wheelViewport, type AudioViewport } from './viewport';
+import { clampViewport, revealInterval, timeAtX, xAtTime, wheelViewport, type AudioViewport } from './viewport';
+import { snapBoundaryTime, cueBoundaryMarkers } from './boundary-snap';
 import './audio-timeline.css';
 import type { AudioDisplayMode } from '../../media/audio/analysis-types';
 import type { SpectrumImageCache } from './draw-spectrum';
@@ -55,6 +56,14 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
   const [size, setSize] = useState(0);
   const liveView = useRef(view); liveView.current = view;
   const audioPosition = useRef(getAuditionPosition); audioPosition.current = getAuditionPosition;
+  const boundaryMarkers = useMemo(() => cueBoundaryMarkers(cues, selectionId), [cues, selectionId]);
+
+  function pointerBoundaryTime(point: 'start' | 'end', time: number, width: number, pointerView: AudioViewport, shiftKey: boolean) {
+    const opposite = selection?.[point === 'start' ? 'end' : 'start'];
+    const position = audioPosition.current?.() ?? (video ? video.currentTime * 1000 : currentTime);
+    return snapBoundaryTime(time, duration, pointerView, width,
+      [...boundaryMarkers, ...(opposite === undefined ? [] : [opposite]), position], shiftKey);
+  }
 
   useEffect(() => { setViewport({ start: 0, span: 10 }); follow.current = true; drag.current = null; }, [file]);
   useEffect(() => {
@@ -159,7 +168,7 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
           // Use fractional PointerEvent coordinates; contextmenu may round them to pixels.
           event.preventDefault(); follow.current = false;
           event.currentTarget.focus({ preventScroll: true });
-          onBoundaryChange?.('end', boundaryTime(timeAtX(event.clientX - stageRect.left, stageRect.width, view), duration));
+          onBoundaryChange?.('end', pointerBoundaryTime('end', timeAtX(event.clientX - stageRect.left, stageRect.width, view), stageRect.width, view, event.shiftKey));
           return;
         }
         if (event.button !== 0) return;
@@ -198,7 +207,7 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
           const time = timeAtX(event.clientX - rect.left, rect.width, drag.current.view);
           if (drag.current.click === 'start') {
             follow.current = false;
-            onBoundaryChange?.('start', boundaryTime(time, duration));
+            onBoundaryChange?.('start', pointerBoundaryTime('start', time, rect.width, drag.current.view, event.shiftKey));
           } else onSeek(time * 1000);
         }
         endDrag(event);
@@ -211,8 +220,8 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
       <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越亮能量越强'} />
       <AudioCueIntervals cues={cues} selectedId={selectionId} view={view} />
       {selection && <>
-        <AudioBoundary point="start" value={selection.start} duration={duration} view={view} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
-        <AudioBoundary point="end" value={selection.end} duration={duration} view={view} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
+        <AudioBoundary point="start" value={selection.start} duration={duration} view={view} pointerTime={pointerBoundaryTime} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
+        <AudioBoundary point="end" value={selection.end} duration={duration} view={view} pointerTime={pointerBoundaryTime} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
       </>}
       <div className="audio-playhead" ref={playhead} aria-label="音频播放头" hidden />
       {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频</p>}

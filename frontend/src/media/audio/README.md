@@ -48,6 +48,7 @@ AudioDisplayMode 仅是分析请求/输出的类型契约；个人偏好的保�
 依赖方向：`workspace-ui → use-audio-audition → {audition-controller, audition-reader}`；`audition-reader → audition.worker → local-audio`。协议 / 预算由 `audition-protocol.ts` 声明，控制器不依赖 React、video、账号、分析 Worker 或字幕。
 
 - `AudioAuditionController.start({start,end})` 接受毫秒容器时间；同步取消旧会话并在用户手势内创建 / resume AudioContext，进入 preparing。短范围全部准备，长范围先准备两窗后开始；准备期间不输出声音。
+- `start(range, true)` 开启选区出点跟随；`updateEnd(end)` 在 preparing / playing 更新出点，不重启会话、不改变起点或音频时钟。每次会话的 GainNode 在渲染时钟上排程截止，缩短后再延长仍复用已排程采样，超过已解码出点则串行预取续段；不增大原 PCM 窗口预算。新出点不晚于当前播放位置时同步结束；已结束的会话不因延长复活。固定 500ms 试听不接受出点跟随。
 - `state` / `getPosition()` 是只读输出：idle / preparing / playing / finished / error、毫秒 position（null 表示 UI 使用视频位置）、message。位置只由 AudioContext.currentTime 推导，正常结束固定在请求出点；不读取或写入 video.currentTime。
 - `scheduleAuditionChunks` 仅复制 `[start,end)` 中的采样到 AudioBuffer，保留 PCM 声道和 PTS；间隙通过未排程的时间自然静音，不把音轨首包移到零点。每块提前设置 start/stop，最后一帧按精确出点停止。50ms 初始排程余量只是开始前的准备时间，不缩短试听区间，不以提前停止补偿延迟。输出采样率转换 / 设备声道映射由 Web Audio 完成。
 - `audition.worker.ts` 每次会话独立创建，按需使用 `LocalAudioSource.readRange`；串行请求，PCM transferable 发回后不保留缓存。分段最多 2 秒 / 4 MiB，高采样率 / 多声道自动缩短每窗；两个已排程窗加一个正在读取的窗，连同一次 AudioBuffer 复制的逻辑 PCM 上界 16 MiB。已播窗口及时断连并置空 buffer，不累积全片。保留分析 LRU 32 MiB、每个源读取缓存 8 MiB；容器索引、原生解码器及 GC 瞬时驻留不属于这些预算。
