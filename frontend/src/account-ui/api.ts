@@ -16,7 +16,12 @@ export type AccountApi = ReturnType<typeof createAccountApi>;
 export function createAccountApi(onExpired: () => void) {
   let expectedUser: number | null = null;
   let identitySequence = 0;
+  let pendingIdentityChanges = 0;
   const request: AccountRequest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+    // Passive observations must not invalidate an explicit login or logout.
+    if (path === '/auth/session' && pendingIdentityChanges > 0) {
+      throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+    }
     // Only the CSRF cookie is readable. Session ID remains HttpOnly.
     const token = document.cookie.split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
     const actor = expectedUser;
@@ -26,23 +31,29 @@ export function createAccountApi(onExpired: () => void) {
     const protectedRequest = !['/auth/session', '/auth/login'].includes(path);
     const headers: Record<string, string> = method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRFToken': token };
     if (protectedRequest && actor !== null) headers['X-CueRelay-User'] = String(actor);
-    const response = await diagnosticFetch(`/api${path}`, {
-      method, credentials: 'same-origin', cache: 'no-store', headers,
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    const value = await response.json();
-    if (response.ok && identityRequest) {
-      if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
-      void diagnostics.identify(value.user?.id ?? null);
-      diagnostics.record('account', path === '/auth/login' ? 'login' : path === '/auth/logout' ? 'logout' : 'session_observed', 'success');
+    const identityChange = path === '/auth/login' || path === '/auth/logout';
+    if (identityChange) pendingIdentityChanges++;
+    try {
+      const response = await diagnosticFetch(`/api${path}`, {
+        method, credentials: 'same-origin', cache: 'no-store', headers,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      const value = await response.json();
+      if (response.ok && identityRequest) {
+        if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+        void diagnostics.identify(value.user?.id ?? null);
+        diagnostics.record('account', path === '/auth/login' ? 'login' : path === '/auth/logout' ? 'logout' : 'session_observed', 'success');
+      }
+      if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+      if (!response.ok) {
+        const error = new ApiError(value.error?.code || 'request_failed', value.error?.message || '请求失败', responseRequestId(response));
+        if (['authentication_required', 'account_changed'].includes(error.code)) onExpired();
+        throw error;
+      }
+      return value as T;
+    } finally {
+      if (identityChange) pendingIdentityChanges--;
     }
-    if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
-    if (!response.ok) {
-      const error = new ApiError(value.error?.code || 'request_failed', value.error?.message || '请求失败', responseRequestId(response));
-      if (['authentication_required', 'account_changed'].includes(error.code)) onExpired();
-      throw error;
-    }
-    return value as T;
   };
   return {
     request,

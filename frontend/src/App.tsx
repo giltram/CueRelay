@@ -2,7 +2,7 @@ import { ExportDiagnostics } from './diagnostics/ExportDiagnostics';
 import { diagnostics } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
-import { createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
+import { ApiError, createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './account-ui/Modal';
 import { SettingsPage } from './account-ui/SettingsPage';
@@ -99,7 +99,12 @@ export default function App() {
       } else {
         await accept(result.user);
       }
-    } catch (reason) { setMessage((reason as Error).message); }
+    } catch (reason) {
+      // Focus and visibility events can overlap. A newer observation owns the result.
+      if (version === epoch.current && !(reason instanceof ApiError && reason.code === 'request_superseded')) {
+        setMessage((reason as Error).message);
+      }
+    }
     finally { setInitializing(false); }
   }, [accept, loadContext, session]);
 
