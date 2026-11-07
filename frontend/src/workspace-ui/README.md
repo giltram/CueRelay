@@ -2,6 +2,22 @@
 
 EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-edit-history.ts` 唯一拥有本实例的可编辑状态，`edit-history.ts` 是无 React / DOM 依赖的不可变历史转换。依赖方向：EditorWorkbench → use-edit-history → edit-history → contracts；音频组件只报告操作与生命周期，不读取历史。
 
+## 字幕 QC
+
+字幕列表「查找」旁的 QC 按钮按需开关，不新增永久侧栏。下方区域可用宽度至少 1061px 时，原字幕表在左、QC 在右，QC 为 30% 且限制 320–480px，左侧至少约 740px；以容器查询判断，与上方视频的 900px 断点独立。更窄时仅在同一区域临时切换，关闭恢复原表。QC 只使用原字幕区高度；短窗口将继续导出和重新检查放在同一标题行，消息/问题内部滚动。窄容器隐藏非交互的「按时间排列」说明，保留查找和 QC。
+
+`use-subtitle-qc` 只拥有开关、显式检查请求及报告快照。检查使用当前不可变 document，包含未保存正文、样式和已提交时间；不查询项目服务器旧稿。时间草稿不隐式提交，面板提示原有保存/导出边界。文档或已知视频时长改变时报告立即失效、隐藏旧问题并显示待重查；在途请求取消，迟到结果按引用/时长/可用性隔离。仅手动打开、重查或导出时计算，不跟随播放头全量检查。隐藏、账号弹窗或替换实例仍沿原生命周期处理。
+
+`SubtitleQcPanel` 只展示严重度、中文原因和测量值；错误优先，其余保留规则结果顺序。全部问题计数，首次仅渲染 100 条，可按 100 条显示更多，重新检查后恢复首批。该限制来自实际 5000 问题的 DOM 长任务测量，不截断检查结果。`CueTable` 对未变化的表格节点作 memo，QC 进度变化不重建全部行；行事件通过显式 ref 调用最新工作区回调。
+
+问题点击复用 selectCueFromTable：选中现有 ID、取消试听、暂停视频并定位已应用入点，同时只滚动字幕表自身。无视频也可选行，超片长继续沿用原定位错误；同一行重选保留时间草稿，换行沿用原草稿处理。QC 不另建字幕编辑器、播放器或历史状态。面板按钮保留原生键盘行为并隔离打轴按键；面板内 Esc 或再次点击 QC 关闭。Ctrl/Cmd+F 在窄屏先显示原表格，再在渲染后聚焦原查找框；列宽、查找、选择及表格实例均保留。
+
+普通「导出 ASS」先执行 export 阶段检查，无问题直接下载，有问题在同一 QC 面板查看并继续导出。仅 error 禁用继续按钮，均对应原格式无效条件；warning/info 可继续。检查服务失败显示未完成，仍允许原导出器作最终校验。`WorkbenchHandle.exportDraft` 保持直接备份下载，离开/重载保护弹窗不被二次 QC 流程劫持。所有下载仍复用唯一序列化器与文件名规则。
+
+依赖：`EditorWorkbench → {use-subtitle-qc, SubtitleQcPanel, CueTable}`，`use-subtitle-qc → {subtitle-qc, project-data/ass-api}`，`subtitle-qc → {contracts, subtitle-model}`。纯规则和阈值见 [subtitle-qc](../subtitle-qc/README.md)；没有新保存模型、偏好、实时协作或运行时依赖。
+
+验证：`npm run test:subtitle-qc` 使用真实 Chrome、合成 MP4、真实纯 ASS codec 与隔离 HTTP，覆盖开关/导航/seek、未保存项目、草稿、过期结果、错误恢复、只读、备份与普通下载、响应式和 5000 行测量。见 [验证记录](../../../docs/experiments/subtitle-qc.md)。
+
 ## 历史契约
 
 每个状态包含 `document`、`selectedId`、可选多选 ID / 连选锚点、原始 `startText` / `endText`。文档和未修改子对象共享引用，每步保存 before/after 引用，最多 100 步；不逐步深拷贝。File、PCM、媒体位置、视窗/缩放、服务端 revision、savedDocument 均不在历史内。

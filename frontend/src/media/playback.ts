@@ -1,4 +1,5 @@
-export const MAX_TIME_MS = 35_999_990;
+import { MAX_TIME_MS, validateInterval } from '../subtitle-model/timing';
+export { MAX_TIME_MS, validateInterval } from '../subtitle-model/timing';
 
 export function snapTime(seconds: number): number {
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('播放器时间无效');
@@ -21,12 +22,6 @@ export function parseTime(text: string): number {
   return ((Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 100 + Number(match[4])) * 10;
 }
 
-export function validateInterval(start: number, end: number): void {
-  if ([start, end].some(t => !Number.isInteger(t) || t < 0 || t > MAX_TIME_MS || t % 10 !== 0)) {
-    throw new Error('时间必须非负且对齐 10ms 网格');
-  }
-  if (start >= end) throw new Error('入点必须早于出点，零长度字幕不会自动拉长');
-}
 
 export function seekVideo(video: HTMLVideoElement, milliseconds: number): void {
   if (!Number.isFinite(milliseconds) || milliseconds < 0 || !Number.isFinite(video.duration) || video.readyState < 1) {

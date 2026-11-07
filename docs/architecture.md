@@ -14,6 +14,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-07 自动字幕 QC：`subtitle-qc` 纯函数依赖 contracts/subtitle-model，检查当前内存中已应用字幕；共享字素统计与时间契约下移 subtitle-model，media/playback 保持原接口重导出。`ass_format.inspection` 复用 codec 的文档/逐行验证和完整导出，POST `/api/ass/inspect` 仅作无状态只读适配，无数据库访问或第二套格式规则。workspace-ui/use-subtitle-qc 持有一次检查的文档引用与时长，修改立即标记待重查、取消过期请求，不接管编辑历史/保存 revision；未提交时间草稿只提示、不自动应用。QC 按钮位于查找旁，宽容器在原字幕区右侧按 30% / 320–480px 显示，窄容器临时切换，视频与频谱尺寸不变。问题复用原选行/定位，普通导出预检可继续 Warning，离页备份保持直接下载。5000 问题实测后仅对未变表格作 memo、问题按 100 条逐批展示，不引入 Worker/增量框架或依赖。规则、接口、所有权与限制见 [QC 核心](../frontend/src/subtitle-qc/README.md)、[工作区](../frontend/src/workspace-ui/README.md#字幕-qc)；实际检查见 [验证记录](experiments/subtitle-qc.md)。
+
 2026-11-07 项目视频本机恢复：media/video-file-access 封装只读选片及 IndexedDB 句柄记录，按账号/组织/项目/媒体 SHA-256 与大小隔离；use-video-source 统一手动/自动完整校验、取消和授权状态，LocalVideoPlayer 继续唯一拥有视频节点和 Object URL。新建项目显式传递 SelectedVideo，App 注入当前可访问账号身份，工作区隐藏/身份失效取消未完成恢复。刷新/新标签页读取服务器字幕后尝试恢复片源，校验通过前仍禁编辑；无授权须点击重新授权，失败保留手动入口。只记句柄，不复制/上传视频，不恢复字幕草稿、历史或播放位置。普通本地工作区不恢复。职责、依赖和限制见 [媒体模块](../frontend/src/media/README.md)，验证见 [实验记录](experiments/video-restore.md)。
 
 2026-11-07 开源发布材料：自有代码 GPL-3.0-only；`licenses/` 唯一持有第三方版本、声明、资产与上游源码哈希，`scripts/prepare_open_source.py` 验证并生成应用/依赖源码与许可静态目录，Vite 的 `build/open-source-plugin.ts` 仅作构建/开发适配。手册普通链接访问 `/open-source/`，无业务 API 或新运行时依赖；nginx 为该目录隔离 SPA 回退。源码归档使用显式目录/文件类型且不遍历符号链接，排除环境、数据库、片源和构建输出。维护、WASM 固定提交与替换方法见 [许可材料](../licenses/README.md)。

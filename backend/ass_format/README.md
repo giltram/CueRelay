@@ -7,6 +7,7 @@
 - `parse_ass(source: str) -> document`：完整预检；失败抛 `AssError`，`issue` 含 code/message 和可获得的源行号。调用者负责 UTF-8 字节解码。
 - `serialize_ass(document: dict) -> str`：校验完整快照，输出 UTF-8 可编码的 ASS 文本。再次预检输出，失败不产出部分文档。
 - `empty_document() -> document`：空文档与基础默认样式，客户端不自行生成 ASS。
+- `inspect_document(document) -> issues`：只读复用 `_document_layout` / `_cue_record`，每条字幕返回首个致命错误及可获得的 cue_id；有效行全部通过后复用完整 serialize_ass 检查输出限制。每项包含原 code/message/可选 line 和 type（invalid-time/missing-style/unsupported-ass）。文档级错误没有 cue_id；空列表保证当前快照可序列化。实现位于 inspection.py，不导入 Django、不修改输入；HTTP 薄适配为 POST `/api/ass/inspect`，请求仅含 document，200 返回检查问题，非法请求/超限沿用 400/413。检查不是保存或修复。
 
 `document = {schema_version: 2, source, script, styles, cues}`。`script` 包含 `play_res_x` / `play_res_y` / `scaled_border_and_shadow`；缺失的原始值用 null 保留，不根据视频推断。其他脚本元数据继续由 source 保留。
 
@@ -33,6 +34,8 @@ pysubs2 1.8.1 的裸序列化会丢分号注释，读取器忽略文件 Format�
 本模块不保存原始字节文件，不能拿编辑导出来替代原件。导出换行规范为 LF；语义保留与原件字节保留是两个契约。
 
 测试：`python manage.py test ass_format`；样本在 `fixtures/`。HTTP 的 JSON 边界见 `http_api/ass_views.py` 与契约测试，测试不建立数据库。
+
+检查回归：`test_inspection.py` / `http_api/test_qc.py`，验证每行定位、与导出相同的标签/时间/样式规则、输出超限、空轴及 5000 事件。`AssError.category` 仅为纯校验的分类元数据，既有 issue code/导出错误响应不变。
 
 ## 拆分
 

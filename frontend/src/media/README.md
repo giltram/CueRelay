@@ -2,6 +2,8 @@
 
 本模块拥有本地视频选择、完整 SHA-256 校验、视频节点及 Object URL 生命周期。不上传视频，不读取账号服务，不保存字幕或播放位置。音频提取/试听见 [audio](audio/README.md)。
 
+`playback.ts` 的 MAX_TIME_MS / validateInterval 下移至纯 `subtitle-model/timing`，本模块继续重导出原接口，供媒体操作与 QC 共享同一时间契约。新增依赖方向为 media/playback → subtitle-model → contracts，无反向依赖。
+
 ## 公开接口与职责
 
 - `video-file-access.ts`：`SelectedVideo { file, handle? }` / `InitialVideo { file, handle?, sha256 }` 为显式内存交接契约；`VideoFileHandle` 仅申请 read。`videoStorageKey(actorId, organizationId, projectId, media)` 按账号、组织、项目、SHA-256 和大小隔离；`readVideoHandle` / `rememberVideoHandle` 在 origin 内的 IndexedDB `cuerelay-local-video/handles` 读写句柄，不存视频字节、文件路径或校验通过标记。事务完成才认为写入成功。

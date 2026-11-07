@@ -1,6 +1,14 @@
 import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
 import { documentV2 } from './document-version';
+import type { AssFormatIssue } from '../contracts/subtitle-qc';
+
+export async function inspectAss(document: AssDocument, signal?: AbortSignal): Promise<AssFormatIssue[]> {
+  const response = await checked(await diagnosticFetch('/api/ass/inspect', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document }), signal,
+  }));
+  return (await response.json()).issues;
+}
 
 async function checked(response: Response): Promise<Response> {
   if (response.ok) return response;

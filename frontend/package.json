@@ -33,6 +33,7 @@
     "test:tab-navigation": "node browser-tests/tab-navigation.mjs",
     "test:subtitle-focus": "node browser-tests/subtitle-focus.mjs",
     "test:subtitle-search": "node browser-tests/subtitle-search.mjs",
+    "test:subtitle-qc": "node browser-tests/subtitle-qc.mjs",
     "test:compact-layout": "node browser-tests/compact-layout.mjs",
     "test:workbench-resize": "node browser-tests/workbench-resize.mjs",
     "build": "tsc --noEmit && vite build",

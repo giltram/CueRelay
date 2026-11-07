@@ -37,6 +37,8 @@ import { useEditHistory } from './use-edit-history';
 import { sameEdit, type EditState } from './edit-history';
 import { orderCues } from '../subtitle-model/cue-order';
 import { subtitleExportFilename } from './export-filename';
+import { useSubtitleQc } from './use-subtitle-qc';
+import { SubtitleQcPanel } from './SubtitleQcPanel';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -114,6 +116,16 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }, [visible, shortcutsPaused, busy, stylesOpen, pasteOver, pendingImport]);
   const selectedIds = selectedLineIds(edits.state);
   const selected = document?.cues.find(cue => cue.id === selectedId);
+  const qcEnabled = visible && !shortcutsPaused && !pendingImport && !stylesOpen && !pasteOver;
+  const qc = useSubtitleQc(document, project?.media.duration_ms ?? (duration > 0 ? duration : null), qcEnabled);
+  const [qcReveal, setQcReveal] = useState<{ id: string; request: number } | null>(null);
+  const pendingTiming = Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms)));
+  function closeQc() { qc.close(); workbench.current?.focus({ preventScroll: true }); }
+  function selectQcCue(cue: Cue) {
+    selectCueFromTable(cue);
+    setQcReveal(previous => ({ id: cue.id, request: (previous?.request ?? 0) + 1 }));
+    workbench.current?.focus({ preventScroll: true });
+  }
   const textFocusBinding = effectiveBindings('toggle-text-focus', shortcutOverrides)[0];
   const cueRows = useMemo(() => orderCues(document?.cues ?? []), [document?.cues]);
   const preview = useMemo(() => previewDocument(document, selectedId, startText, endText), [document, selectedId, startText, endText]);
@@ -332,6 +344,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('[data-cue-qc]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
       const blocked = busy || transforming.current || pendingImport || stylesOpen || pasteOver || shortcutsPaused || !visible;
       if (candidate && blocked) noteIgnored('editor', stylesOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
@@ -432,6 +445,17 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const source = await exportAss(document);
     downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name));
   }
+  async function downloadDraft() {
+    setBusy(true);
+    try { await exportDraft(); }
+    finally { setBusy(false); }
+  }
+  async function exportWithQc() {
+    const report = await qc.run('export');
+    if (!report) return;
+    if (report.issues.length || report.formatError) qc.show();
+    else await downloadDraft();
+  }
   const hasContent = () => hasProtectedContent;
   useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
 
@@ -440,7 +464,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -465,12 +489,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               event.target.value = '';
             }} />
           </label>}
-          <button className="primary" disabled={busy || !document} onClick={() => run(async () => {
-            if (!document) return;
-            setBusy(true);
-            try { await exportDraft(); }
-            finally { setBusy(false); }
-          })}>导出 ASS</button>
+          <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(exportWithQc)}>导出 ASS</button>
         </div>
       }>
       {busy && <HeaderNotice>正在转换…</HeaderNotice>}
@@ -500,6 +519,14 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           onAction={action => run(action === 'delete-row' ? deleteSelectedCue : () => lineCommands.run(action))}
           editable={canEdit} hasVideo={Boolean(video && mediaFile && duration)} shortcutOverrides={shortcutOverrides}
           workspace={workbench} searchEnabled={visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver}
+          revealCueId={qcReveal}
+          qc={{ open: qc.open, onToggle: () => { if (qc.open) closeQc(); else qc.toggle(); }, onClose: qc.close,
+            label: qc.checking ? 'QC · 检查中' : qc.stale ? 'QC · 待重查' : qc.report ? `QC · ${qc.report.issues.length}${qc.report.formatError ? ' · 未完成' : ''}` : 'QC',
+            panel: <SubtitleQcPanel cues={document?.cues ?? []} issues={qc.report?.issues ?? []}
+              phase={qc.report?.phase ?? 'editing'} hasResult={Boolean(qc.report)} checking={qc.checking} stale={qc.stale}
+              formatError={qc.report?.formatError ?? ''} pendingTiming={pendingTiming} disabled={!qcEnabled || busy}
+              onRun={() => { void qc.run(); }} onSelect={selectQcCue} onClose={closeQc}
+              onExport={() => { if (qc.report && !qc.stale && qc.report.phase === 'export') run(downloadDraft); }} /> }}
           onSelect={selectCueFromTable} />
       } media={
           <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}

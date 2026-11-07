@@ -6,6 +6,21 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from ass_format import AssError, empty_document as make_empty, parse_ass, serialize_ass, split_document, apply_style_operation, style_usage
 from ass_format import copy_lines, paste_lines
+from ass_format import inspect_document
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def inspect_ass(request):
+    """Stateless inspection of an in-memory subtitle snapshot; no project writes."""
+    try:
+        data = _payload(request)
+        if not isinstance(data, dict) or set(data) != {"document"}:
+            return Response({"issues": [{"code": "invalid_request", "message": "仅接受 document 字段"}]}, status=400)
+        return Response({"issues": inspect_document(data['document'])})
+    except RequestDataTooBig:
+        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
 
 
 def _payload(request):

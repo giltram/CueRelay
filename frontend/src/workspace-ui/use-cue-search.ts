@@ -9,13 +9,15 @@ interface Options {
   workspace: RefObject<HTMLElement | null>;
   onSelect: (cue: Cue) => void;
   onReveal: (cueId: string) => void;
+  onShow?: () => void;
 }
 
 /** Local UI state only. Typing never calls the workspace navigation entry point. */
-export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, onReveal }: Options) {
+export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, onReveal, onShow }: Options) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [cursorId, setCursorId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   const matches = useMemo(() => findCueMatches(cues, open ? query : ''), [cues, query, open]);
@@ -25,8 +27,10 @@ export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, o
   function focus() { input.current?.focus({ preventScroll: true }); input.current?.select(); }
   function show() {
     if (!enabled) return;
-    if (open) focus();
-    else setOpen(true);
+    onShow?.();
+    setOpen(true);
+    // A containing pane may need to become visible before an existing input can focus.
+    setFocusRequest(value => value + 1);
   }
   function close() {
     setOpen(false); setCursorId(null);
@@ -42,7 +46,7 @@ export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, o
     onReveal(cue.id);
     input.current?.focus({ preventScroll: true });
   }
-  useEffect(() => { if (open) focus(); }, [open]);
+  useEffect(() => { if (open) focus(); }, [open, focusRequest]);
   // Once a result disappears it cannot silently become current if undo restores it.
   useEffect(() => { if (cursorId && index < 0) setCursorId(null); }, [cursorId, index]);
   useEffect(() => {
@@ -57,7 +61,7 @@ export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, o
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.code === 'KeyF') {
         event.preventDefault();
         if (!event.repeat) show();
-      } else if (open && event.key === 'Escape') {
+      } else if (open && event.key === 'Escape' && !target.closest('[data-cue-qc]')) {
         event.preventDefault(); event.stopPropagation(); close();
       }
     };

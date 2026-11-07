@@ -57,9 +57,9 @@ def _time(value, line):
 
 def _interval(start, end, line=None):
     if any(type(t) is not int or t < 0 or t > MAX_TIME or t % 10 for t in (start, end)):
-        _fail("时间须为 0–35999990 的整数毫秒，并对齐 10ms", line)
+        _fail("时间须为 0–35999990 的整数毫秒，并对齐 10ms", line, category='invalid-time')
     if start >= end:
-        _fail("入点必须早于出点，不能创建零长度字幕", line)
+        _fail("入点必须早于出点，不能创建零长度字幕", line, category='invalid-time')
 
 
 def _format_time(ms):
@@ -231,8 +231,8 @@ def parse_ass(source):
     return {"schema_version": 2, "source": source, "script": layout.script, "styles": styles, "cues": cues}
 
 
-def serialize_ass(document):
-    """Validate a complete in-memory snapshot; preserve raw non-editable records."""
+def _document_layout(document):
+    """Shared preflight for serialization and read-only inspection."""
     if (not isinstance(document, dict) or set(document) != {"schema_version", "source", "script", "styles", "cues"}
             or type(document.get("schema_version")) is not int or document["schema_version"] != 2):
         _fail("文档契约已升级为 v2；请先导出旧页面稿件，再刷新客户端")
@@ -244,48 +244,59 @@ def serialize_ass(document):
     cues = document["cues"]
     if not isinstance(cues, list) or len(cues) > MAX_CUES:
         _fail("cues 须为不超过 5000 行的数组")
+    return layout, by_id, by_source, cues
+
+
+def _cue_record(cue, layout, by_id, seen):
+    """One validated Dialogue record; used by export and inspection."""
+    required = {"id", "start_ms", "end_ms", "text", "style_id"}
+    if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id", "ass_fields"}:
+        _fail("字幕行字段不符合契约")
+    cue_id = cue["id"]
+    if not isinstance(cue_id, str) or not cue_id or len(cue_id) > 100 or cue_id in seen:
+        _fail("字幕 ID 须唯一且不超过 100 字符")
+    seen.add(cue_id)
+    _interval(cue["start_ms"], cue["end_ms"])
+    _text(cue["text"])
+    if not isinstance(cue["style_id"], str) or cue["style_id"] not in by_id:
+        _fail("字幕引用了不存在的样式", category='missing-style')
+    source_id = cue.get("source_id", cue_id)
+    if "source_id" in cue and (not cue_id.startswith("new-") or not isinstance(source_id, str) or source_id not in layout.records):
+        _fail("拆分字幕的 source_id 必须引用模板中的原始字幕")
+    if cue_id in layout.records:
+        index, fields, raw_parts = layout.records[cue_id]
+        values = dict(zip(fields, raw_parts))
+    elif cue_id.startswith("new-"):
+        index, fields = None, layout.event_format
+        if "source_id" in cue:
+            _, source_fields, source_parts = layout.records[source_id]
+            values = dict(zip(source_fields, source_parts))
+        else:
+            values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
+    else:
+        _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
+    if 'ass_fields' in cue:
+        metadata = cue['ass_fields']
+        if (not cue_id.startswith('new-') or not isinstance(metadata, dict) or set(metadata) != CUE_FIELDS
+                or any(not isinstance(value, str) or len(value) > 16384
+                       or ',' in value or any(ord(char) < 32 for char in value) for value in metadata.values())):
+            _fail('新行 ASS 保留字段须完整包含 Layer/Name/MarginL/MarginR/MarginV 字符串')
+        values.update(metadata)
+    values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=by_id[cue["style_id"]]["name"])
+    return "Dialogue: " + ",".join(values[f] for f in fields)
+
+
+def serialize_ass(document):
+    """Validate a complete in-memory snapshot; preserve raw non-editable records."""
+    layout, by_id, by_source, cues = _document_layout(document)
     replacements, records, seen = {}, [], set()
     for cue in cues:
-        required = {"id", "start_ms", "end_ms", "text", "style_id"}
-        if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id", "ass_fields"}:
-            _fail("字幕行字段不符合契约")
-        cue_id = cue["id"]
-        if not isinstance(cue_id, str) or not cue_id or len(cue_id) > 100 or cue_id in seen:
-            _fail("字幕 ID 须唯一且不超过 100 字符")
-        seen.add(cue_id)
-        _interval(cue["start_ms"], cue["end_ms"])
-        _text(cue["text"])
-        if not isinstance(cue["style_id"], str) or cue["style_id"] not in by_id:
-            _fail("字幕引用了不存在的样式")
-        source_id = cue.get("source_id", cue_id)
-        if "source_id" in cue and (not cue_id.startswith("new-") or not isinstance(source_id, str) or source_id not in layout.records):
-            _fail("拆分字幕的 source_id 必须引用模板中的原始字幕")
-        if cue_id in layout.records:
-            index, fields, raw_parts = layout.records[cue_id]
-            values = dict(zip(fields, raw_parts))
-        elif cue_id.startswith("new-"):
-            index, fields = None, layout.event_format
-            if "source_id" in cue:
-                _, source_fields, source_parts = layout.records[source_id]
-                values = dict(zip(source_fields, source_parts))
-            else:
-                values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
-        else:
-            _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
-        if 'ass_fields' in cue:
-            metadata = cue['ass_fields']
-            if (not cue_id.startswith('new-') or not isinstance(metadata, dict) or set(metadata) != CUE_FIELDS
-                    or any(not isinstance(value, str) or len(value) > 16384
-                           or ',' in value or any(ord(char) < 32 for char in value) for value in metadata.values())):
-                _fail('新行 ASS 保留字段须完整包含 Layer/Name/MarginL/MarginR/MarginV 字符串')
-            values.update(metadata)
-        values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=by_id[cue["style_id"]]["name"])
-        record = "Dialogue: " + ",".join(values[f] for f in fields)
-        records.append(record)
+        records.append(_cue_record(cue, layout, by_id, seen))
     # Existing Dialogue slots retain the positions of surrounding comments. Fill
     # them in document order; overflow goes at the end of Events. IDs still own
     # metadata, independently of output position.
     dialogue_lines = sorted(record[0] for record in layout.records.values())
+    dialogue_slots = set(dialogue_lines)
     for slot, record in zip(dialogue_lines, records):
         replacements[slot] = record
     additions = records[len(dialogue_lines):]
@@ -321,7 +332,7 @@ def serialize_ass(document):
         if index in replacements:
             if replacements[index] is not None:
                 output.append(replacements[index])
-        elif index not in dialogue_lines:
+        elif index not in dialogue_slots:
             output.append(layout.lines[index])
     result = "\n".join(output) + "\n"
     _inspect(result)  # Export is held to exactly the same supported subset.
