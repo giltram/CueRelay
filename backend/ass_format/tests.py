@@ -38,15 +38,17 @@ class CodecTests(unittest.TestCase):
         original = deepcopy(document)
         document["cues"][0].update(start_ms=1230, end_ms=3450, text="修改中文\\N换行{\\u1}强调{\\u0}", style_id=document["styles"][1]["id"])
         document["cues"].append({"id": "new-example", "start_ms": 200, "end_ms": 500, "style_id": document["styles"][0]["id"], "text": "追加行"})
-        # The chronological view may sort, but export keeps original event order.
+        # The chronological view sorts independently; export follows document order.
         document["cues"].reverse()
         output = serialize_ass(document)
         result = parse_ass(output)
-        self.assertEqual(result["cues"][0]["start_ms"], 1230)
-        self.assertEqual(result["cues"][0]["text"], "修改中文\\N换行{\\u1}强调{\\u0}")
-        self.assertEqual(named_cues(result)[0]["style"], "Emphasis")
-        self.assertEqual(named_cues(result)[1], named_cues(original)[1])
-        self.assertEqual(result["cues"][2]["text"], "追加行")
+        self.assertEqual(result["cues"][2]["start_ms"], 1230)
+        self.assertEqual(result["cues"][2]["text"], "修改中文\\N换行{\\u1}强调{\\u0}")
+        self.assertEqual(named_cues(result)[2]["style"], "Emphasis")
+        # ASS IDs re-anchor on parse, compare payloads rather than source positions.
+        self.assertEqual({k: v for k, v in named_cues(result)[1].items() if k != 'id'},
+                         {k: v for k, v in named_cues(original)[1].items() if k != 'id'})
+        self.assertEqual(result["cues"][0]["text"], "追加行")
         self.assertIn("译者,0000,0000,0000,,", output)
         self.assertIn("Comment:", output)
 

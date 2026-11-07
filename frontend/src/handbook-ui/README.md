@@ -16,4 +16,6 @@
 
 正文维护点：打轴练习、频谱和波形差异、焦点与输入、时间草稿/提交/保存、默认快捷键、Aegisub 迁移、多人版本冲突、项目拆分保存例外、样式和 ASS 限制。产品操作或默认键变化时同步检查正文。当前不提供搜索、步骤向导、已读进度或版本弹窗。
 
+致谢章节的普通链接 `/open-source/` 指向构建拥有的静态许可和源码下载目录，材料由根 `licenses/` 及 `scripts/prepare_open_source.py` 维护；手册不复制许可全文、不生成源码或导入打包工具。
+
 回归：build/handbook-markdown.test.ts 覆盖正文/标准 Markdown 表格编译、快捷键完整性与共享默认一致性和编译失败约束；navigation/routes.test.ts；browser-tests/handbook.mjs（Chrome，隔离 HTTP fixture，不写开发数据库）。用生产预览服务运行 `HANDBOOK_PRODUCTION=1 npm run test:handbook`，额外检查没有 `.md` 网络请求。

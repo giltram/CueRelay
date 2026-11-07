@@ -25,7 +25,7 @@
 
 并发拆分、删除快照、编辑保存或归档只有符合 revision 的一个写入成功，其余得到 409。没有通用离线队列或自动重试。网络丢失响应可能发生在数据库提交之后，此时本地仍保留原稿；需要显式重载确认服务端结果，旧 revision 重试不会重复插入。
 
-原始 ASS 行 ID 是模板锚点，无法兼作两条新的 UUID。因此 `Cue` 增加可选 `source_id`，仅允许 new 行引用原模板中的 Dialogue。序列化保留该锚点的 Layer/Name/Margins/Effect，并使用结果行的时间、文字和样式。重复拆分沿用同一锚点；Comment/原模板不变。新行沿既有规则追加到 ASS Events 末尾；工作区仍按时间排序，原有其他行的时间和事件顺序不变。
+原始 ASS 行 ID 是模板锚点，无法兼作两条新的 UUID。因此 `Cue` 增加可选 `source_id`，仅允许 new 行引用原模板中的 Dialogue。序列化保留该锚点的 Layer/Name/Margins/Effect，并使用结果行的时间、文字和样式。重复拆分沿用同一锚点；Comment/原模板不变。2026-11-07 起，ASS Dialogue 按 document.cues 顺序输出；拆分结果保持原 cue 的文档位置，source_id 只绑定元数据。Comment/其他模板记录保留，工作区仍按时间排序。详见 [字幕行操作](subtitle-line-operations.md)。
 
 ## 升级与验证
 

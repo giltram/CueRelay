@@ -12,9 +12,9 @@
 
 `styles` 包含 `{id, name, fields, source_name, origin}`。id 是导入时生成并持久保留的 UUID；name 是唯一 ASS 导出名称；fields 使用标准 ASS 字段名称和值字符串（不含 Name）。source_name 绑定原始样式记录与 Comment 引用，复制/新建为 null；origin 是可选的 `{template_id, revision}` 快照说明，不代表继承。
 
-`cues` 仅包含 Dialogue，基础字段为 `{id, start_ms, end_ms, text, style_id}`，拆分行可有 source_id。时间是非负整数毫秒、10ms 网格且 `start < end`，上限 35999990ms。文本使用 ASS 原始转义，不转换 HTML。没有同时可写的 style 名称字段。
+`cues` 仅包含 Dialogue，基础字段为 `{id, start_ms, end_ms, text, style_id}`，拆分行可有 source_id，剪贴板插入的新行可有 ass_fields（Layer/Name/MarginL/MarginR/MarginV），只用于保留隐藏元数据。时间是非负整数毫秒、10ms 网格且 `start < end`，上限 35999990ms。文本使用 ASS 原始转义，不转换 HTML。没有同时可写的 style 名称字段。
 
-源 Dialogue ID 为 `source-<原始零基行号>`，绑定原始记录锚点；新行以 `new-` 开头且唯一，追加在 Events section 结尾。省略源行表示删除 Dialogue。样式/脚本覆盖时不重新导入导出稿，因此 Cue ID、source_id 和辅助字段仍绑定原始模板。ASS 本身不保存内部 UUID；重新导入是一个新文档，产生新样式身份。
+源 Dialogue ID 为 `source-<原始零基行号>`，绑定原始记录锚点；新行以 `new-` 开头且唯一，文档 cues 数组决定 Dialogue 输出顺序（依次填原槽位，多出部分置于 Events 末尾），与元数据锚点分开。省略源行表示删除 Dialogue。样式/脚本覆盖时不重新导入导出稿，因此 Cue ID、source_id 和辅助字段仍绑定原始模板。ASS 本身不保存内部 UUID；重新导入是一个新文档，产生新样式身份。
 
 `apply_style_operation` 提供不可变、整批成功或失败的 create/update/copy/delete/batch/assign/script 操作，生成新 ID、校验完整最终输出。`import_style` / `import_style_snapshots` 接收调用层已鉴权并检查版本的模板快照；不读取数据库。`style_usage` 返回 Dialogue 与 Comment 的分开计数。使用中或最后一个样式不可删除。字段验证在 styles.py，操作在 style_operations.py；迁移专用 upgrade_legacy_document 在 migration.py，普通 HTTP 写入拒绝 v1。
 
@@ -38,6 +38,10 @@ pysubs2 1.8.1 的裸序列化会丢分号注释，读取器忽略文件 Format�
 
 公开纯函数 `split_document(document, cue_id, mode, position)` 在 `splitting.py`，返回 `{document, first_id, second_id}`，不修改输入。playhead position 为 10ms 网格毫秒，只拆严格空文本；text position 为浏览器 UTF-16 光标偏移，只拆普通文本，按 Unicode 字符比例舍入时间，拒绝端点、空白侧、标签/转义、代理对和常见组合字符内部位置。前后均复用 serialize_ass 验证全部限制。
 
-Cue 可额外包含 source_id：仅 new 行可引用模板内原始 Dialogue 的 ID，复用 Layer/Name/Margins 等未暴露元数据。两条拆分结果用新 UUID，删除旧身份；重复拆分保留同一 source_id。原始模板、Comment 和其他原行保持，拆分新行与原有 new 行一样追加到 Events 末尾。拆分保留 style_id，不改变样式定义。
+Cue 可额外包含 source_id：仅 new 行可引用模板内原始 Dialogue 的 ID，复用 Layer/Name/Margins 等未暴露元数据。两条拆分结果用新 UUID，删除旧身份；重复拆分保留同一 source_id。原始模板、Comment 和其他原行保持，拆分结果位于原 cue 的文档位置，导出同样按 cues 顺序输出。拆分保留 style_id，不改变样式定义。
 
 格式/拆分回归：`test_splitting.py`；保存与协作限制见 [编辑操作契约](../../docs/editing-operations.md)。
+
+## 字幕行剪贴板
+
+`copy_lines(document, ids) -> str` / `paste_lines(document, text, active_id, ids, fields=None) -> {document, selected_ids}` 在 clipboard.py；标准 ASS Dialogue / 普通文本互通，复用 codec 验证，插入时以 new 行可选 ass_fields 保留五项有界字符串，不替换 source/styles/script；覆盖仅修改四项结构化字段并保留目标隐藏元数据。新行和完整输出继续受 1MiB / 5000 事件限制。无网络/存储依赖，格式与顺序回归在 test_clipboard.py。完整契约见 [字幕行操作](../../docs/subtitle-line-operations.md)。

@@ -64,7 +64,7 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
         {shortcutDefaults['toggle-text-focus'].allowed_bindings.map(binding => <option key={binding} value={binding}>{binding}</option>)}
       </select>
     </label>
-    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd）；撤销 / 重做、播放头及拆分动作还支持 Ctrl/Meta/Alt/Shift 组合。</p>
+    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd）；字幕行菜单、撤销 / 重做、播放头及拆分动作还支持 Ctrl/Meta/Alt/Shift 组合。</p>
     {timingActions.filter(action => action !== 'toggle-text-focus').map(action => <div className="shortcut-row" key={action}>
       <label>{shortcutDefaults[action].label}<input disabled={busy} aria-label={`${shortcutDefaults[action].label}绑定`} value={shortcutDrafts[action] ?? effectiveBindings(action, parseShortcutDrafts(shortcutDrafts)).join(', ')}
         onChange={event => setShortcutDrafts({ ...shortcutDrafts, [action]: event.target.value })} /></label>

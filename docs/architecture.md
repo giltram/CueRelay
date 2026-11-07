@@ -14,6 +14,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-07 开源发布材料：自有代码 GPL-3.0-only；`licenses/` 唯一持有第三方版本、声明、资产与上游源码哈希，`scripts/prepare_open_source.py` 验证并生成应用/依赖源码与许可静态目录，Vite 的 `build/open-source-plugin.ts` 仅作构建/开发适配。手册普通链接访问 `/open-source/`，无业务 API 或新运行时依赖；nginx 为该目录隔离 SPA 回退。源码归档使用显式目录/文件类型且不遍历符号链接，排除环境、数据库、片源和构建输出。维护、WASM 固定提交与替换方法见 [许可材料](../licenses/README.md)。
+
 2026-11-07 鼠标定时吸附：`workspace-ui/audio-timeline/boundary-snap.ts` 统一点击 / 拖动的最近标记选择，沿用 Aegisub 默认 8 CSS px、Shift 临时取消，最后保留 10ms 精度。AudioTimeline 从只读 cues、当前草稿另一端和实时播放头派生目标，通过显式 pointerTime 回调交给 AudioBoundary；不引入偏好、文档 / 历史副本或反向依赖。当前未提取关键帧，不实现关键帧吸附。契约、源码依据及回归见 [时间轴模块](../frontend/src/workspace-ui/audio-timeline/README.md)。
 
 2026-11-07 选区试听实时出点：EditorWorkbench 将音频时间轴的出点修改显式交给 `useAudioAudition.updateEnd`；控制器保持同一音频时钟，用会话 GainNode 排程新截止，延长时预取后续分段，新出点落在播放头后方立即停止。准备阶段同样接受更新，完成后不自动重播；固定 500ms 试听保留原行为。无新增模块依赖或历史状态，契约与回归见 [音频模块](../frontend/src/media/audio/README.md) 和 [时间轴模块](../frontend/src/workspace-ui/audio-timeline/README.md)。
@@ -54,7 +56,7 @@ Spectrum 本体左键单击设置入点、右键设置出点，统一经 onBound
 
 连续打轴由 `workspace-ui/commit-timing.ts` 纯函数负责：校验当前时间草稿、写回当前行，选择已有下一行；末尾才新增空文本行，起点等于本次出点、时长 2000ms、样式继承当前行。“创建新行”和“循环试听 / 提交并下一条”按钮行均已移除，保留 G / Enter 提交。页面默认行直接作为当前行写回；删除所有行后再从空草稿提交仍可创建当前行和下一条。非空文档未选择行时要求先选择，不隐式覆盖或追加。`subtitle-model/cue-order.ts` 是 CueTable、提交导航与项目设置共同的时间排序规则，下一条取自提交前显示顺序，原始 ASS 事件数组顺序保持。新增行不会按视频时长截断；若超出既有 10 小时支持范围则整次操作拒绝，保留草稿与文档。测试见 cue-defaults / commit-timing 与 `browser-tests/commit-timing-checks.mjs`。
 
-delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接受 Backspace）；共享 JSON 唯一声明四个默认别名，覆盖替换全部默认、空列表禁用、删除覆盖恢复默认，不再有固定删行分支。只有此动作额外接受 Ctrl/Meta+Delete/Backspace；输入框 / IME / 重复保护复用 allowsShortcutFocus；所有动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `delete-cue.ts`，删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 delete-cue / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
+delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接受 Backspace）；共享 JSON 唯一声明四个默认别名，覆盖替换全部默认、空列表禁用、删除覆盖恢复默认，不再有固定删行分支。只有此动作额外接受 Ctrl/Meta+Delete/Backspace；输入框 / IME / 重复保护复用 allowsShortcutFocus；所有动作按共享默认与个人覆盖精确匹配修饰键，保持原始 KeyboardEvent，不复制其原型属性。按钮与快捷键统一调用 `line-edits.ts/deleteLines`（2026-11-07 扩展为多选批量删除），删除后选显示顺序的下一行、没有下一行则选上一行，删空时清除选择并重置 0 / 0 草稿；不定位或截断视频，不改变剩余 ASS 事件顺序。单元回归见 line-edits / timing-shortcuts，真实浏览器同时验证输入框和待确认导入不能被删行快捷键穿透。
 
 2026-10-30 字幕输入焦点切换：shared/timing-shortcuts.json 的 toggle-text-focus 唯一声明默认 Tab 和 Tab / Ctrl+Space 两个 allowed_bindings；前后端要求恰选一个，并纳入现有有效绑定冲突检查。个人设置用独立下拉框复用 shortcut_overrides 保存，无模型迁移；改绑后旧 Tab 恢复原生导航，全部恢复默认回到 Tab。EditorWorkbench 由个人覆盖计算当前键位，显式传给 workspace-ui/subtitle-focus.ts；后者只在 main、音频 audio-stage（含边界滑块）与字幕 textarea 间切换，保留光标和选区。普通 timingShortcut 排除导航动作，避免进入试听分派；工作区保留转换 / 拆分 / 导入确认 / 弹窗 / 暂停 / 可见性、可编辑选中行和非全屏保护。焦点来自 DOM，不新增模式状态或改动字幕 / 时间 / 保存；长按只切换一次，IME、Shift+Tab、其他修饰组合和控件保留原行为。契约和真实浏览器验证见 [焦点切换记录](experiments/subtitle-focus.md)。
 
@@ -89,7 +91,7 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 - `styles.css` 的 `.video-stage` 始终保持 16:9，以媒体栏宽度和可用高度共同限制尺寸；`.media-panel` 提供尺寸容器，预留 96px 给独立进度条、导入 / 播放 / 时钟 / 字幕开关共用控制栏及窄栏换行余量，禁止 flex 将视频框压扁。不同画幅片源通过 object-fit: contain 等比显示。快捷键说明展开项已删除，快捷键本身保留；时间 / 样式合并与顶栏压缩省出的高度由下方字幕列表承接。编辑器内部滚动，长错误在顶栏内滚动，不挤走字幕表。900px 以下隐藏分隔线并恢复页面纵向滚动，依次展示紧凑视频 / 播放控制、音频 / 编辑器和字幕表，返回桌面时复用用户比例和同一个 video。
 - `ass-preview` 已恢复实时 ASS 渲染，核心 hook 接收 workspace-ui 注入的 serialize 函数；StyleSamplePreview 组合组件直接使用 project-data.exportAss，统一复用后端序列化。LocalVideoPlayer 通过 controls 插槽组合播放 / 字幕开关，预览状态由 EditorWorkbench 直接渲染到顶栏，媒体验证进度及取消按钮也进入顶栏，全屏包含 video/canvas；不增加媒体层对渲染器的依赖。字体管理、定位测量和手输时间跳转仍未提供；保留按字幕行定位和区间试听所需的内部 seek。`CueTable.tsx` 的时间显示排序不修改 ASS 事件顺序。
 
-当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → {accounts, ass_format}`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, style-ui, navigation, app-workspace}`，`{project-ui, account-ui/SettingsPage} → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`、`workspace-ui → ass-preview → {contracts, project-data, JASSUB}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，`{workspace-ui, project-ui} → style-ui → {project-data, ass-preview, account-ui/Modal}`；App 通过 SettingsPage 的 ReactNode 插槽组合组织库，style-ui 不访问工作区内部。底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
+当前后端依赖是 `application → http_api → {accounts, organizations, projects, ass_format}`，`application → {accounts, organizations}` 负责 Admin 协调，`projects → {organizations, accounts, ass_format}`，`organizations → {accounts, ass_format}`，`ass_format → pysubs2`；accounts/ass_format/media 不反向感知组织。前端 `App → {account-ui, project-ui, workspace-ui, style-ui, navigation, app-workspace}`，`{project-ui, account-ui/SettingsPage} → navigation`，`app-workspace → {project-data, contracts, navigation 路由类型}`，`project-ui/workspace-ui → {project-data, media}`、`workspace-ui → ass-preview → {contracts, project-data, JASSUB}`，`project-data` / `workspace-ui` / `CueTable` 引用 `contracts`，`{workspace-ui, project-ui} → style-ui → {project-data, ass-preview, page-ui/Modal}`；App 通过 SettingsPage 的 ReactNode 插槽组合组织库，style-ui 不访问工作区内部。底层不反向依赖 UI。媒体字节不会进入转换 DTO。导出使用后端序列化器。时间采集吸附 10ms，不宣称可靠逐帧。编辑导出保留受支持语义。
 
 ## 紧凑页面顶栏（2026-11-06）
 
@@ -289,3 +291,7 @@ EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编�
 `diagnostics/errors` 的 `captureDiagnosticOrigin()` 在操作起点捕获账号代次及页面上下文，`reportFailure` 必须显式接收此 origin；同账号切页保留原组织/项目，账号变化丢弃旧错误，业务模块仍向下依赖诊断叶子。身份确认取消待写定时器时重置句柄，后续事件继续 2 秒批写。
 
 账号、项目与 ASS 客户端共用 HTTP 包装，X-Request-ID 追踪单次请求；后端最外层中间件覆盖成功、认证/CSRF 拒绝、冲突和异常。无响应标记结果未知，不推断服务端未提交。服务端默认 stderr JSON 行，可选单进程 5MiB × 4 轮换文件；多进程交给部署日志管理器做有界轮换。维护者按 requestId 查询，不新增日志下载接口。未来 command_id 与本次 requestId 含义不同，未提前实现协作框架。详细格式/接入/运维与已知限制见模块 README，实际验证见 [诊断验证记录](experiments/diagnostics-v1.md)。
+
+## 字幕行菜单与批量操作（2026-11-07）
+
+字幕行右键菜单、Ctrl/Cmd 多选 / Shift 连选、插入 / 视频帧插入 / 重复 / 帧前后分割 / 剪切复制粘贴 / 四字段粘贴覆盖统一接入既有内存编辑历史。列表继续时间排序，文档 cues 顺序拥有导出 Dialogue 顺序；source ID / 新行可选 ass_fields 仅保留元数据，项目原始模板不替换。`line-selection` / `line-edits` 是纯转换，`use-line-commands` 编排实际帧时间和系统剪贴板，并校验迟到响应的快照、可见性及权限。`http_api → ass_format/clipboard → codec` 为无状态转换，无项目或数据库写入；设置通过原共享 JSON 声明新命令和默认。通用 Modal 下移 page-ui，避免 workspace-ui 与 account-ui 的反向依赖。规则、公开契约与验证入口见 [字幕行操作](subtitle-line-operations.md)。

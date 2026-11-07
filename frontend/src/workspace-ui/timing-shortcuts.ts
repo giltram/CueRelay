@@ -1,4 +1,5 @@
 import defaults from '../../../shared/timing-shortcuts.json';
+import { isLineAction } from './line-actions';
 import { allowsShortcutFocus, isShortcutSuppressed, type ShortcutEvent } from '../media/playback';
 
 export type EditingShortcut = 'set-start-playhead' | 'set-end-playhead' | 'split-playhead' | 'split-text';
@@ -16,10 +17,10 @@ export function bindingFor(event: Pick<ShortcutEvent, 'code' | 'shiftKey' | 'ctr
   return `${event.ctrlKey ? 'Ctrl+' : ''}${event.metaKey ? 'Meta+' : ''}${event.altKey ? 'Alt+' : ''}${event.shiftKey ? 'Shift+' : ''}${event.code}`;
 }
 
-/** Existing explicit bindings win over newly introduced history defaults. */
+/** Existing explicit bindings win over newly introduced command defaults. */
 export function effectiveBindings(action: TimingShortcut, overrides: ShortcutOverrides): string[] {
   const bindings = overrides[action] ?? defaults[action].bindings;
-  if ((action === 'undo' || action === 'redo') && overrides[action] === undefined) {
+  if ((action === 'undo' || action === 'redo' || isLineAction(action)) && overrides[action] === undefined) {
     const explicit = Object.values(overrides).flat();
     return bindings.filter(binding => !explicit.includes(binding));
   }
@@ -37,7 +38,7 @@ export function validateOverrides(overrides: ShortcutOverrides): string | undefi
     for (const binding of bindings) {
       const standard = /^(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space|Shift\+(Key[A-Z]|Digit[0-9]))$/.test(binding);
       const deletion = action === 'delete-row' && /^(Ctrl|Meta)\+(Delete|Backspace)$/.test(binding);
-      const editing = (isEditingShortcut(action) || action === 'undo' || action === 'redo') && /^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$/.test(binding);
+      const editing = (isEditingShortcut(action) || isLineAction(action) || action === 'undo' || action === 'redo') && /^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$/.test(binding);
       if (action !== 'toggle-text-focus' && !standard && !deletion && !editing) {
         return '快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。';
       }

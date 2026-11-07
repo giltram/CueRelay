@@ -2,7 +2,7 @@
 
 Public DTO v2: structured styles/script and cue.style_id. source is a template,
 not a storage key. Every conversion re-preflights it. Original Dialogue IDs
-identify raw line anchors; new IDs append events without reordering comments.
+identify metadata anchors; cues define Dialogue order without reordering comments.
 pysubs2 parses canonical mapped records; it never serializes the source file.
 """
 
@@ -19,6 +19,7 @@ MAX_BYTES = 1024 * 1024
 MAX_CUES = 5000
 MAX_TIME = 35_999_990  # ASS workbench supports 0:00:00.00 through 9:59:59.99.
 EVENT_FIELDS = "Layer Start End Style Name MarginL MarginR MarginV Effect Text".split()
+CUE_FIELDS = {'Layer', 'Name', 'MarginL', 'MarginR', 'MarginV'}
 TIME = re.compile(r"([0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{2})")
 TAG_BLOCK = re.compile(r"(?:\\[bius][01])+")
 
@@ -243,10 +244,10 @@ def serialize_ass(document):
     cues = document["cues"]
     if not isinstance(cues, list) or len(cues) > MAX_CUES:
         _fail("cues 须为不超过 5000 行的数组")
-    replacements, additions, seen = {}, [], set()
+    replacements, records, seen = {}, [], set()
     for cue in cues:
         required = {"id", "start_ms", "end_ms", "text", "style_id"}
-        if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id"}:
+        if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id", "ass_fields"}:
             _fail("字幕行字段不符合契约")
         cue_id = cue["id"]
         if not isinstance(cue_id, str) or not cue_id or len(cue_id) > 100 or cue_id in seen:
@@ -271,13 +272,23 @@ def serialize_ass(document):
                 values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
         else:
             _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
+        if 'ass_fields' in cue:
+            metadata = cue['ass_fields']
+            if (not cue_id.startswith('new-') or not isinstance(metadata, dict) or set(metadata) != CUE_FIELDS
+                    or any(not isinstance(value, str) or len(value) > 16384
+                           or ',' in value or any(ord(char) < 32 for char in value) for value in metadata.values())):
+                _fail('新行 ASS 保留字段须完整包含 Layer/Name/MarginL/MarginR/MarginV 字符串')
+            values.update(metadata)
         values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=by_id[cue["style_id"]]["name"])
         record = "Dialogue: " + ",".join(values[f] for f in fields)
-        if index is None:
-            additions.append(record)
-        else:
-            replacements[index] = record
-    dialogue_lines = {record[0] for record in layout.records.values()}
+        records.append(record)
+    # Existing Dialogue slots retain the positions of surrounding comments. Fill
+    # them in document order; overflow goes at the end of Events. IDs still own
+    # metadata, independently of output position.
+    dialogue_lines = sorted(record[0] for record in layout.records.values())
+    for slot, record in zip(dialogue_lines, records):
+        replacements[slot] = record
+    additions = records[len(dialogue_lines):]
     # Overlay styles/script without reparsing exported text, which would shift cue anchors.
     for name, (index, fields, _) in layout.style_records.items():
         style = by_source.get(name)

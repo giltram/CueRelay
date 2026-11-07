@@ -1,0 +1,13 @@
+Noto Sans SC Regular, Version 2.004
+Copyright (c) 2014-2021 Adobe (http://www.adobe.com/).
+Noto is a trademark of Google Inc.
+Unmodified font from notofonts/noto-cjk; SIL Open Font License 1.1.
+
+Liberation Sans, Version 2.00.5 (JASSUB default.woff2)
+Digitized data copyright (c) 2010 Google Corporation.
+Copyright (c) 2012 Red Hat, Inc.
+Liberation is a trademark of Red Hat, Inc. registered in U.S. Patent and Trademark Office and certain other jurisdictions.
+License: SIL Open Font License 1.1, as recorded in the font name table.
+The WOFF2 conversion is distributed unchanged from JASSUB revision 482a2fed6c8976550f09383e90d92b6ac3360fc9.
+
+Both fonts retain their original names and metadata. Full OFL text accompanies this notice in OFL-1.1.txt.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AssDocument } from '../contracts/subtitles';
 import { commitTiming } from './commit-timing';
-import { deleteCue } from './delete-cue';
+import { deleteLines } from './line-edits';
 import { createHistory, endGroup, navigate, record, redo, undo, type EditState } from './edit-history';
 
 const doc = { schema_version: 2, source: '', script: {}, styles: [{ id: 'style' }], cues: [
@@ -93,7 +93,7 @@ describe('workspace edit history', () => {
     expect(ids).toBe(1);
   });
   it('restores deletion of the last cue including its draft', () => {
-    const result = deleteCue(doc, 'a');
+    const result = deleteLines(doc, ['a'], doc.cues);
     const h = record(createHistory(initial), { document: result.document, selectedId: null, startText: '0', endText: '0' });
     expect(h.present.document?.cues).toHaveLength(0);
     expect(undo(h).present).toBe(initial);

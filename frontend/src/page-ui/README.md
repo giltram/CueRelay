@@ -7,3 +7,5 @@
 依赖：React / ReactDOM。页面、账号、项目、工作区、样式及诊断展示组件可向下依赖此模块；此模块不读取路由、业务数据或网络。
 
 浏览器验证：`frontend/browser-tests/compact-layout.mjs`。
+
+`Modal.tsx` 拥有所有页面共用的原生 dialog 展示、焦点约束 / 恢复、Escape 与文件 input cancel 边界。2026-11-07 从 account-ui 原样下移，账号 / 项目 / 样式 / 工作区均显式依赖 page-ui；不读取业务状态，调用者通过 onClose / showCloseButton 控制可关闭性。此所有权避免新增粘贴覆盖弹窗使 workspace-ui 反向依赖 account-ui。

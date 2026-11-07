@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from ass_format import AssError, empty_document as make_empty, parse_ass, serialize_ass, split_document, apply_style_operation, style_usage
+from ass_format import copy_lines, paste_lines
 
 
 def _payload(request):
@@ -85,3 +86,23 @@ def local_styles(request):
         return Response({"issues": [error.issue]}, status=422)
     except RequestDataTooBig:
         return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def clipboard(request):
+    """ASS clipboard conversion only; project persistence remains an explicit save."""
+    try:
+        data = _payload(request)
+        if not isinstance(data, dict):
+            return Response({'issues': [{'code': 'invalid_request', 'message': '剪贴板请求字段不符合契约'}]}, status=400)
+        if set(data) == {'document', 'ids'}:
+            return Response({'text': copy_lines(**data)})
+        if set(data) == {'document', 'text', 'active_id', 'ids', 'fields'}:
+            return Response(paste_lines(**data))
+        return Response({'issues': [{'code': 'invalid_request', 'message': '剪贴板请求字段不符合契约'}]}, status=400)
+    except AssError as error:
+        return Response({'issues': [error.issue]}, status=422)
+    except RequestDataTooBig:
+        return Response({'issues': [{'code': 'too_large', 'message': '请求体过大'}]}, status=413)

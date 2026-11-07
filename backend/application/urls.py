@@ -1,11 +1,12 @@
 from django.contrib import admin
 from django.urls import path
-from http_api.ass_views import import_ass, export_ass, empty_document, split_ass, local_styles
+from http_api.ass_views import import_ass, export_ass, empty_document, split_ass, local_styles, clipboard
 from http_api import identity_views as identity
 from http_api import project_views as projects
 from http_api import style_views as styles
 
 urlpatterns = [
+    path('api/ass/clipboard', clipboard),
     path('api/ass/styles', local_styles),
     path('api/organizations/<int:organization_id>/style-templates', styles.templates),
     path('api/organizations/<int:organization_id>/style-templates/<uuid:template_id>', styles.template_detail),

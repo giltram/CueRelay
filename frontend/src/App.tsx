@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
 import { ApiError, createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
-import { Modal } from './account-ui/Modal';
+import { Modal } from './page-ui/Modal';
 import { SettingsPage } from './account-ui/SettingsPage';
 import { HandbookPrompt } from './account-ui/HandbookPrompt';
 import { HandbookPage } from './handbook-ui/HandbookPage';

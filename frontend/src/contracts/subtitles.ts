@@ -7,8 +7,10 @@ export interface Cue {
   end_ms: number;
   text: string;
   style_id: string;
-  /** Original ASS metadata anchor for a new UUID created by splitting. */
+  /** Original ASS metadata anchor retained when splitting or duplicating a source row. */
   source_id?: string;
+  /** Clipboard-only preservation of hidden ASS fields; no editable UI for these. */
+  ass_fields?: { Layer: string; Name: string; MarginL: string; MarginR: string; MarginV: string };
 }
 
 /** source is a validated raw template, owned by the backend codec. */

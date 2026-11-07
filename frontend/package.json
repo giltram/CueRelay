@@ -1,6 +1,7 @@
 {
   "name": "cuerelay-workbench",
   "private": true,
+  "license": "GPL-3.0-only",
   "version": "0.1.0",
   "type": "module",
   "engines": {
@@ -37,7 +38,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test:editing-operations": "node browser-tests/editing-operations.mjs",
     "test:workspace-history": "node browser-tests/workspace-history.mjs",
-    "test:diagnostics": "node browser-tests/diagnostics.mjs && node browser-tests/diagnostics-errors.mjs"
+    "test:diagnostics": "node browser-tests/diagnostics.mjs && node browser-tests/diagnostics-errors.mjs",
+    "test:subtitle-line-menu": "node browser-tests/subtitle-line-menu.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

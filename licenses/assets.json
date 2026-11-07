@@ -1,0 +1,22 @@
+[
+  {
+    "path": "frontend/src/ass-preview/fonts/NotoSansSC-Regular.otf",
+    "sha256": "faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9"
+  },
+  {
+    "path": "frontend/node_modules/jassub/dist/default.woff2",
+    "sha256": "886929903707c5bb28b07cd2eed69921b3d5ef5c49c73a0dd1e187ebf6546a4c"
+  },
+  {
+    "path": "frontend/node_modules/jassub/dist/wasm/jassub-worker.wasm",
+    "sha256": "2b7e65f65ab7c84736dbcc5f2bbe3af9536db142f65ca8673b54bca21f38fbf8"
+  },
+  {
+    "path": "frontend/node_modules/jassub/dist/wasm/jassub-worker-modern.wasm",
+    "sha256": "e6b436efa71e03274cdb993d38553f7870f37e798d7c83ba7856651c66bb087d"
+  },
+  {
+    "path": "frontend/node_modules/jassub/src/jassub.ts",
+    "sha256": "28be6dd979a0c52678ea845db8c4b407ba9c27f8ff6e160054e663f196e03aff"
+  }
+]

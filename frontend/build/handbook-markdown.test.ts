@@ -23,26 +23,29 @@ describe('build-time handbook Markdown', () => {
 
   it('keeps the complete shortcut table readable as plain Markdown and aligned with shared defaults', () => {
     const source = readFileSync(new URL('../src/handbook-ui/handbook.md', import.meta.url), 'utf8');
-    const section = source.slice(source.indexOf('## 常用快捷键 {#shortcuts}'), source.indexOf('## Aegisub 用户速查 {#aegisub}'));
+    const start = source.lastIndexOf('## ', source.indexOf('{#shortcuts}'));
+    const next = source.indexOf('\n## ', start + 3);
+    const section = source.slice(start, next < 0 ? undefined : next);
     const tables = new Marked({ gfm: true }).lexer(section).filter((token): token is Tokens.Table => token.type === 'table');
     expect(tables).toHaveLength(1);
     const table = tables[0];
     expect(table.header.map(cell => cell.text)).toEqual(['功能', '默认键位']);
-    expect(table.rows).toHaveLength(33);
+    expect(table.rows).toHaveLength(44);
     for (const { label, bindings } of Object.values(defaults)) {
-      const rows = table.rows.filter(row => row[0].text.startsWith(label));
+      const displays = bindings.map(binding => binding.replace(/Meta/g, 'Cmd').replace(/Key([A-Z])/g, '$1')
+        .replace(/Digit(\d)/g, '$1').replace(/NumpadEnter/g, '小键盘 Enter').replace(/Space/g, '空格'));
+      let rows = table.rows.filter(row => row[0].text.startsWith(label));
+      // Editorial labels may differ from settings; bound actions still have one
+      // identifiable row containing their complete physical-key aliases.
+      if (!rows.length && displays.length) rows = table.rows.filter(row => displays.every(key => row[1].text.includes(`\`${key}\``)));
       expect(rows, label).toHaveLength(1);
       const keys = rows[0][1].text;
       if (!bindings.length) expect(keys).toContain('默认未绑定');
-      for (const binding of bindings) {
-        const display = binding.replace(/Meta/g, 'Cmd').replace(/Key([A-Z])/g, '$1')
-          .replace(/Digit(\d)/g, '$1').replace(/NumpadEnter/g, '小键盘 Enter').replace(/Space/g, '空格');
-        expect(keys, label).toContain(`\`${display}\``);
-      }
+      for (const display of displays) expect(keys, label).toContain(`\`${display}\``);
     }
     const html = compileHandbook(section).chapters[0].html;
     expect(html.match(/<table>/g)).toHaveLength(1);
-    expect(html.match(/<tr>/g)).toHaveLength(34);
+    expect(html.match(/<tr>/g)).toHaveLength(45);
     expect(section).not.toContain('<!-- timing-shortcuts -->');
   });
 

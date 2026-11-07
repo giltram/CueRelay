@@ -41,3 +41,14 @@ class HistoryShortcutTests(SimpleTestCase):
                       {'undo': ['Alt+KeyZ'], 'redo': ['Alt+KeyZ']}]:
             with self.assertRaises(ValidationError):
                 validate_overrides(value)
+
+
+class LineShortcutTests(SimpleTestCase):
+    def test_defaults_custom_disable_and_legacy_precedence(self):
+        validate_overrides({})
+        validate_overrides({'insert-before': ['Alt+KeyI'], 'paste-lines': []})
+        legacy = {'split-text': ['Ctrl+KeyD']}
+        self.assertEqual(validate_overrides(legacy), legacy)
+        self.assertEqual(effective_bindings('split-frame-before', legacy), ['Meta+KeyD'])
+        with self.assertRaises(ValidationError):
+            validate_overrides({**legacy, 'split-frame-before': ['Ctrl+KeyD']})

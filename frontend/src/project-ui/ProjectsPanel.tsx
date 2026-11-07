@@ -2,7 +2,7 @@ import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Organization } from '../account-ui/api';
 import type { JsonRequest } from '../contracts/http';
-import { Modal } from '../account-ui/Modal';
+import { Modal } from '../page-ui/Modal';
 import type { ProjectDetail, ProjectPage, ProjectSummary } from '../contracts/projects';
 import { projectApi } from '../project-data/projects-api';
 import { ProjectForm } from './ProjectForm';

@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { randomBytes } from 'node:crypto';
 import { handbookMarkdown } from './build/handbook-plugin.ts';
+import { openSourceRelease } from './build/open-source-plugin.ts';
 
 const nonce = randomBytes(18).toString('base64');
 const apiTarget = process.env.CUERELAY_API_TARGET || 'http://127.0.0.1:8000';
@@ -14,7 +15,7 @@ const headers = {
 const proxy = { '/api': apiTarget, '/admin': apiTarget, '/static': apiTarget };
 
 export default defineConfig({
-  plugins: [handbookMarkdown(), react(), {
+  plugins: [openSourceRelease(), handbookMarkdown(), react(), {
     name: 'local-resource-audit',
     configureServer(server) {
       if (process.env.CUERELAY_AUDIT !== '1') return;

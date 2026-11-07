@@ -55,3 +55,19 @@ export async function splitAss(request: SplitRequest): Promise<SplitResult> {
   }));
   return response.json();
 }
+
+export type PasteField = 'start_ms' | 'end_ms' | 'style_id' | 'text';
+export async function copyAssLines(document: AssDocument, ids: string[]): Promise<string> {
+  const response = await checked(await diagnosticFetch('/api/ass/clipboard', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document, ids }),
+  }));
+  return (await response.json()).text;
+}
+
+export async function pasteAssLines(document: AssDocument, text: string, active_id: string | null, ids: string[], fields: PasteField[] | null): Promise<{ document: AssDocument; selected_ids: string[] }> {
+  const response = await checked(await diagnosticFetch('/api/ass/clipboard', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document, text, active_id, ids, fields }),
+  }));
+  const result = await response.json();
+  return { ...result, document: documentV2(result.document) };
+}

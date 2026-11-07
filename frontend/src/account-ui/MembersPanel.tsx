@@ -2,7 +2,7 @@ import { HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useState } from 'react';
 import { type AccountRequest, type Member, type Organization } from './api';
-import { Modal } from './Modal';
+import { Modal } from '../page-ui/Modal';
 
 export function MembersPanel({ request: api, currentUserId, isDev, organization, onChanged, onLeave }: {
   request: AccountRequest; currentUserId: number; isDev: boolean;

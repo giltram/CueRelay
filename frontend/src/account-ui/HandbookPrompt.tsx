@@ -1,6 +1,6 @@
 import { RouteLink } from '../navigation/RouteLink';
 import type { Route } from '../navigation/routes';
-import { Modal } from './Modal';
+import { Modal } from '../page-ui/Modal';
 
 /** Confirmation is account-owned; opening the handbook keeps native new-tab behavior. */
 export function HandbookPrompt({ organizationId, navigate, onDismiss }: {

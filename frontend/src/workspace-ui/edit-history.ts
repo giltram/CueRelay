@@ -4,6 +4,8 @@ import type { AssDocument } from '../contracts/subtitles';
 export interface EditState {
   document: AssDocument | null;
   selectedId: string | null;
+  selectedIds?: readonly string[];
+  selectionAnchorId?: string | null;
   startText: string;
   endText: string;
 }
@@ -32,7 +34,11 @@ function sameDocument(a: AssDocument | null, b: AssDocument | null): boolean {
   });
 }
 export function sameEdit(a: EditState, b: EditState): boolean {
-  return sameDocument(a.document, b.document) && a.selectedId === b.selectedId && a.startText === b.startText && a.endText === b.endText;
+  const aIds = a.selectedIds ?? (a.selectedId ? [a.selectedId] : []);
+  const bIds = b.selectedIds ?? (b.selectedId ? [b.selectedId] : []);
+  return sameDocument(a.document, b.document) && a.selectedId === b.selectedId && a.startText === b.startText && a.endText === b.endText
+    && aIds.length === bIds.length && aIds.every((id, index) => id === bIds[index])
+    && (a.selectionAnchorId ?? a.selectedId) === (b.selectionAnchorId ?? b.selectedId);
 }
 export function endGroup(history: EditHistory): EditHistory {
   return history.group === null ? history : { ...history, group: null, groupBase: null };

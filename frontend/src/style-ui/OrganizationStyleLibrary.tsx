@@ -5,7 +5,7 @@ import type { JsonRequest } from '../contracts/http';
 import type { StyleTemplate, TemplateInput } from '../contracts/styles';
 import { importAss, loadEmptyDocument } from '../project-data/ass-api';
 import { templateApi } from '../project-data/styles-api';
-import { Modal } from '../account-ui/Modal';
+import { Modal } from '../page-ui/Modal';
 import { StyleSamplePreview } from '../ass-preview/StyleSamplePreview';
 import { ScriptSettingsEditor, StyleFieldsEditor } from './StyleFieldsEditor';
 import { sampleStyleDocument } from './style-fields';

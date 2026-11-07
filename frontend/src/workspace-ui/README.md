@@ -4,7 +4,7 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 ## 历史契约
 
-每个状态包含 `document`、`selectedId`、原始 `startText` / `endText`。文档和未修改子对象共享引用，每步保存 before/after 引用，最多 100 步；不逐步深拷贝。File、PCM、媒体位置、视窗/缩放、服务端 revision、savedDocument 均不在历史内。
+每个状态包含 `document`、`selectedId`、可选多选 ID / 连选锚点、原始 `startText` / `endText`。文档和未修改子对象共享引用，每步保存 before/after 引用，最多 100 步；不逐步深拷贝。File、PCM、媒体位置、视窗/缩放、服务端 revision、savedDocument 均不在历史内。
 
 所有修改入口经 `edit`：边界单击、时间输入、文本、行样式、播放头裁剪、提交、删除、拆分、本地样式/脚本操作。纯选行经 `navigate`，不生成步骤，但下一编辑准确捕获当时的选行及草稿。纯媒体动作不改编辑状态。成功加载/导入经 `baseline`；失败、相同值和校验拒绝不增加步骤，也不清除重做分支。新编辑清除重做。
 
@@ -75,3 +75,9 @@ ResizeObserver 观察布局容器、上方区域和字幕容器，读取实际�
 `workbench-sizing.ts` 是纯尺寸公式入口；`workbench-sizing.test.ts` 验证高度预算及宽度边界。`npm run test:workbench-resize` 用实际工作区、真实 Chrome/MP4 与隔离 HTTP 检查拖动增高、最低高度、窗口缩小、双击/键盘、断点释放和媒体/字幕草稿不变。
 
 实际结果与限制见 [分隔栏验证](../../../docs/experiments/workbench-resize.md)。
+
+## 字幕行右键菜单
+
+CueTable 显式接收完整选择、右键选行、命令与可用性；右键不 seek，已选中行保留整组选区，列表仍按时间排序。line-selection.ts / line-edits.ts 分别拥有纯选择和结构转换，use-line-commands.ts 编排系统剪贴板、media/video-frame 的实际帧时间、快照有效性及粘贴覆盖弹窗；EditorWorkbench 通过 applyLineEdit 一次写入既有历史，项目仍显式保存。已移除旧单行 delete-cue 实现，所有删除复用批量转换。
+
+CueContextMenu 鼠标打开时聚焦容器、不预选操作，键盘打开时聚焦首个可用项；展示平台适用的首个有效键位，完整别名在设置维护；键盘导航隔离工作区快捷键。PasteOverDialog 只提供四项覆盖，使用共享 page-ui/Modal。账号设置向下读取 timing-shortcuts / line-actions 叶子，工作区不导入 account-ui。规则、接口、媒体/剪贴板边界及回归见 [字幕行操作](../../../docs/subtitle-line-operations.md)。

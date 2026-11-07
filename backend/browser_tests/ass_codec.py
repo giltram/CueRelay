@@ -4,10 +4,12 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ass_format import (AssError, empty_document, parse_ass, serialize_ass, split_document,
-                        apply_style_operation, import_style, style_usage)
+                        apply_style_operation, import_style, style_usage, copy_lines, paste_lines)
 
 
 def execute(action, data):
+    if action == 'clipboard':
+        return {'text': copy_lines(**data)} if set(data) == {'document', 'ids'} else paste_lines(**data)
     if action == 'empty':
         return {'document': empty_document()}
     if action == 'parse':

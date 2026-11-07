@@ -1,7 +1,7 @@
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useRef, useState } from 'react';
 import type { Organization } from '../account-ui/api';
-import { Modal } from '../account-ui/Modal';
+import { Modal } from '../page-ui/Modal';
 import type { ProjectDetail, MediaManifest } from '../contracts/projects';
 import { createMediaManifest } from '../media/media-manifest';
 import { importAss, loadEmptyDocument } from '../project-data/ass-api';

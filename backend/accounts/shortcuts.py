@@ -10,7 +10,11 @@ BINDING = re.compile(r'^(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space|Shift\+(Key
 DELETION_BINDING = re.compile(r'^(Ctrl|Meta)\+(Delete|Backspace)$')
 
 
-EDITING_ACTIONS = {'set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text', 'undo', 'redo'}
+LINE_ACTIONS = {'insert-before', 'insert-after', 'insert-video-before', 'insert-video-after',
+                'duplicate-lines', 'split-frame-before', 'split-frame-after',
+                'cut-lines', 'copy-lines', 'paste-lines', 'paste-lines-over'}
+
+EDITING_ACTIONS = {'set-start-playhead', 'set-end-playhead', 'split-playhead', 'split-text', 'undo', 'redo'} | LINE_ACTIONS
 EDITING_BINDING = re.compile(r'^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$')
 
 
@@ -40,9 +44,9 @@ def validate_overrides(value):
 
 
 def effective_bindings(action, overrides, explicit=None):
-    """Old explicit bindings take precedence over new undo/redo defaults."""
+    """Old explicit bindings take precedence over new command defaults."""
     bindings = overrides.get(action, DEFAULTS[action]['bindings'])
-    if action in {'undo', 'redo'} and action not in overrides:
+    if action in {'undo', 'redo'} | LINE_ACTIONS and action not in overrides:
         explicit = explicit if explicit is not None else {binding for values in overrides.values() for binding in values}
         return [binding for binding in bindings if binding not in explicit]
     return bindings

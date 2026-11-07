@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AssDocument, Cue, StyleResult } from '../contracts/subtitles';
 import type { JsonRequest } from '../contracts/http';
 import type { ImportStyle, ProjectStyle, StyleField, StyleFields, StyleOperation, StyleUsage } from '../contracts/styles';
-import { Modal } from '../account-ui/Modal';
+import { Modal } from '../page-ui/Modal';
 import { StyleSamplePreview } from '../ass-preview/StyleSamplePreview';
 import { localStyleOperation, templateApi } from '../project-data/styles-api';
 import { StyleFieldsEditor, ScriptSettingsEditor } from './StyleFieldsEditor';

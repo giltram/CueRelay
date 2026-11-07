@@ -6,7 +6,7 @@ App 编排会话、组织上下文、登录/保护弹窗及工作区所有权。
 
 会话观察以最新请求为准；focus、visibilitychange、30 秒检查重叠产生的 request_superseded 由 App 静默忽略，不作为账号变更提示显示。主动登录/退出期间，客户端直接丢弃后台会话观察，避免观察请求使主动操作过期；主动操作完成或失败后恢复检查。原有旧账号响应过滤与真正账号切换的稿件保护仍生效。回归：api.test.ts；`npm run test:session-observation`（真实 Chrome、默认 5173 服务，SESSION_URL 可覆盖；HTTP 隔离夹具，不写开发数据库）。
 
-Modal 使用原生 dialog 的焦点约束和焦点恢复。showCloseButton 默认为 true，归档确认框设为 false，保留底部取消按钮；此属性只控制标题旁关闭按钮，不影响 Escape。onCancel 只响应弹窗自身（event.target === event.currentTarget），忽略文件 input 冒泡的 cancel，避免取消选片关闭整个表单；真正的 Escape 仍经 onClose 关闭，未提供 onClose 时阻止默认关闭。App 通过 shortcutsPaused 暂停工作区快捷键，通过 WorkbenchHandle.hasContent/exportDraft 处理切换前的本地稿件。普通会话检查或同账号重新登录不能重建工作区。
+`page-ui/Modal`（共享展示模块）使用原生 dialog 的焦点约束和焦点恢复。showCloseButton 默认为 true，归档确认框设为 false，保留底部取消按钮；此属性只控制标题旁关闭按钮，不影响 Escape。onCancel 只响应弹窗自身（event.target === event.currentTarget），忽略文件 input 冒泡的 cancel，避免取消选片关闭整个表单；真正的 Escape 仍经 onClose 关闭，未提供 onClose 时阻止默认关闭。App 通过 shortcutsPaused 暂停工作区快捷键，通过 WorkbenchHandle.hasContent/exportDraft 处理切换前的本地稿件。普通会话检查或同账号重新登录不能重建工作区。
 
 MembersPanel 隐藏 organizer 对其他 organizer 的角色修改和移除入口（dev 除外），后端仍独立校验。移除其他成员使用 Modal 二次确认，移除自己经 App 的退出/稿件保护流程。组织名与添加成员表单共用 member-form 栅格对齐。账号入口、成员表和移除确认统一只显示 username，不重复展示另一份账号名。PersonalPanel 不提供显示名或资料字段；新密码/确认新密码前后端均校验，成功清空三项密码，个人设置仅保留退出账号入口。
 
@@ -33,3 +33,5 @@ toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字
 诊断：api 的会话/登录/退出成功响应只发布 user.id 给 diagnostics 身份边界，不传密码/CSRF/Session 或完整响应；异步旧身份响应隔离。诊断身份持久化不阻塞账号请求。账号/项目请求与 ASS 共用 diagnosticFetch，请求正文/认证头不采集。详见 ../diagnostics/README.md。
 
 页面顶栏由 `page-ui/PageLayout` 统一，PersonalPanel 的保存/录制反馈、MembersPanel 页内错误等通过 HeaderNotice 显示在 44px 栏内，不增加表单高度。dialog 的校验仍留在弹窗。个人设置正文独有诊断导出按钮；ExportDiagnostics 通过 onError 把错误交给 SettingsPage，诊断模块不反向依赖页面布局。回归：`npm run test:compact-layout`、`npm run test:personal-settings-pending`。
+
+字幕行菜单动作也由 shared/timing-shortcuts.json 自动枚举，可录制、禁用和恢复默认，双端允许 Ctrl/Meta/Alt/Shift 组合。旧显式绑定压过新增默认，但两个显式绑定仍拒绝冲突。详见 [字幕行操作](../../../docs/subtitle-line-operations.md)。
