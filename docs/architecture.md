@@ -95,6 +95,8 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 
 ## 紧凑页面顶栏（2026-11-06）
 
+2026-11-07 编辑控件外点击：workspace-ui/EditorWorkbench 与 TimePointControl 使用独立的窄 label 关联字幕正文、入点、出点及样式控件，布局容器不再充当输入激活区；工作区普通空白鼠标点击显式聚焦 main，交互控件保持自身规则。无新增状态或模块依赖，焦点契约及浏览器回归见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕输入焦点)。
+
 [page-ui](../frontend/src/page-ui/README.md) 唯一负责 PageLayout 页面壳和 HeaderNotice 的页面局部 portal 目标，依赖 React / ReactDOM，不读取业务状态。登录/会话初始化、项目列表、个人/组织设置、项目设置、路由状态页及工作区共用 44px 顶栏和 28px 栏内按钮。保存、加载、报错、会话及预览等页面反馈由调用模块保留状态，声明 HeaderNotice 后显示到自己的顶栏，文本过长在栏内滚动，不新增内容行；隐藏工作区仍拥有独立目标。弹窗的确认和校验留在 dialog 内，不破坏焦点 / 可访问性边界。前端 UI 模块可向下依赖 page-ui，diagnostics 不导入 page-ui，而由 SettingsPage 通过 onError 接收下载错误。
 
 诊断入口仅在个人设置正文，已移除公共顶栏、登录页及会话初始化页入口；说明保留导出内容，删除“不包含密码等认证凭证”半句。项目未校验片源时不再显示选片提示，编辑与保存的校验规则保持不变。工作区入点 / 出点 / 样式共用一行，上方编辑区域减少 52px；字幕表继续填满剩余视口。实际检查见 [紧凑布局记录](experiments/compact-layout.md)。

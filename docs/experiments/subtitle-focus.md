@@ -41,3 +41,12 @@ PERSONAL_SETTINGS_URL=http://127.0.0.1:5184 npm run test:personal-settings-pendi
 - IME 生命周期、isComposing / 229、修饰键及已处理事件使用合成事件验证过滤，不宣称覆盖真实操作系统输入法候选窗。只读 / 权限和隐藏分支经代码检查，未新增项目数据库场景验收。
 - 浏览器无 pageerror 或非预期 API 请求。JSON 报告写入运行时临时目录；Ctrl+Space 按键为自动化浏览器事件，不代表已验证真实 Windows / macOS 系统保留键。系统或输入法抢占时需用户调整系统设置或使用默认 Tab；真实输入法和熟练打轴试用仍待实际使用验证。
 - 整页蓝框修正：真实 Chrome 检查 Tab 返回 main 后 outline 为 none；textarea、按钮、音频画布仍为 2px solid 焦点提示，qwg 输入和返回后 G 提交通过。已检查页面截图，生产构建（含类型检查）及 git diff --check 通过；本次纯样式修正未重跑全部单元测试。
+
+## 2026-11-07 文本框外点击
+
+- 修改前真实 Chrome 复现：点击字幕标题右侧空白，textarea 仍聚焦。独立窄 label / textarea 与工作区空白点击显式聚焦 main 修正后，空字符串和 `qwg` 两种情况均验证标题旁空白、2px 标签间隙、左/右/下近邻留白离开 textarea；正文、时间草稿、视频位置、音频视窗和页面滚动保持不变。左侧命中分隔线时保留分隔线焦点，实际标签文字仍聚焦 textarea。
+- `SUBTITLE_FOCUS_URL=http://127.0.0.1:5184 npm run test:subtitle-focus` 完整通过，Chrome 147.0.7727.101，无 pageerror 或非预期 API 请求。现有原生 Tab 顺序断言同步到紧凑布局的实际顺序：入点、出点、样式、定位、删除、正文；未修改键盘导航实现。
+- `npm run build`（含类型检查）及 `git diff --check` 通过；构建仍提示大于 500 kB 的包体积。已检查无视频工作区截图，标签、间距和文本框布局正常。本次未重跑全部单元测试。
+- 浏览器报告与截图：运行时临时目录 `cuerelay-subtitle-focus-KedHt2` 的 `report.json` 和 `outside-focus.png`。
+
+同日将独立窄 label 关联扩展到入点 / 出点 input 和样式 select。修改前新增回归在「入点标题旁空白仍聚焦」处失败；修改后上述完整浏览器套件通过，新增覆盖三个控件的标题旁空白、标签间隙、左/右/下近邻留白，时间输入分别使用空值、未完成输入 `unfinished` 和原始有效值，确认草稿、样式、正文和媒体状态不变；实际标签文字及控件点击仍正常聚焦。浏览器无 pageerror / 非预期请求，报告与已检查的截图位于临时目录 `cuerelay-subtitle-focus-TbE71Z`。`npm run build`（含类型检查）通过，仍有既有包体积提示；未新增模块依赖或焦点状态。

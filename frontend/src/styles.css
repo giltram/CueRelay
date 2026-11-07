@@ -130,11 +130,12 @@ summary { cursor: pointer; font-size: 13px; }
 .audio-panel > span { font-size: 12px; }
 .cue-editor { min-width: 0; min-height: 0; flex-shrink: 1; overflow: auto; }
 .cue-fields { display: grid; grid-template-columns: minmax(112px, 1fr) minmax(112px, 1fr) minmax(88px, 1fr) auto auto; align-items: end; gap: 8px; overflow-x: auto; }
-.time-point label, .cue-style { gap: 2px; font-size: 12px; }
+.time-point, .cue-style { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .time-point input { font-size: 16px; font-variant-numeric: tabular-nums; padding: 4px 8px; }
 .cue-style select { height: 34px; padding: 4px 8px; }
 .cue-fields button { min-height: 34px; font-size: 12px; padding: 4px 8px; }
-.subtitle-input { margin: 4px 0; gap: 2px; font-size: 12px; }
+.subtitle-input { display: flex; flex-direction: column; margin: 4px 0; gap: 2px; font-size: 12px; }
+.subtitle-input > label, .time-point > label, .cue-style > label { align-self: flex-start; font-size: inherit; }
 .subtitle-input textarea { font-size: 14px; min-height: 48px; max-height: 160px; padding: 2px 8px; }
 .cue-list { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: var(--subtitle-min-height, 144px); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .section-heading { display: flex; flex-shrink: 0; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 12px; }

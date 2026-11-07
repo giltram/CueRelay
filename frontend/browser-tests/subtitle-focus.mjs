@@ -56,6 +56,7 @@ const snapshot = () => page.evaluate(() => ({
   rows: document.querySelector('.cue-list tbody').innerText,
   start: document.querySelector('[aria-label="入点"]').value,
   end: document.querySelector('[aria-label="出点"]').value,
+  style: document.querySelector('[aria-label="字幕样式"]').value,
   time: document.querySelector('video').currentTime,
   view: [document.querySelector('.audio-timeline').dataset.start, document.querySelector('.audio-timeline').dataset.end],
   scroll: [window.scrollX, window.scrollY],
@@ -77,6 +78,72 @@ try {
   page.on('dialog', async dialog => { unloadDialogs++; await dialog.accept(); });
   await page.reload(); await text.waitFor(); assert.equal(unloadDialogs, 0);
   checks.push('focus works without video and does not dirty the document');
+
+  // Nearby whitespace must leave text entry, with or without any typed text.
+  for (const value of ['', 'qwg']) {
+    await text.fill(value);
+    const beforeClick = await snapshot();
+    const box = await text.boundingBox();
+    const points = [
+      ['label-row whitespace', box.x + box.width / 2, box.y - 8],
+      ['label gap', box.x + box.width / 2, box.y - 1],
+      ['left margin', box.x - 2, box.y + box.height / 2],
+      ['right margin', box.x + box.width + 2, box.y + box.height / 2],
+      ['bottom margin', box.x + box.width / 2, box.y + box.height + 2],
+    ];
+    for (const [name, x, y] of points) {
+      await text.click();
+      await page.mouse.click(x, y);
+      assert.equal(await focused(text), false, `${name} should leave the textbox (${JSON.stringify(value)})`);
+      // The left edge may hit the focusable pane divider instead of blank space.
+      if (name !== 'left margin') assert(await focused(main), `${name} should return focus to the workbench`);
+      assert.equal(await text.inputValue(), value);
+      assert.deepEqual(await snapshot(), beforeClick);
+    }
+    // The actual label and textbox still focus the textbox normally.
+    await page.locator('.subtitle-input label').click();
+    assert(await focused(text));
+    await text.click(); assert(await focused(text));
+    await start.click(); assert(await focused(start));
+    await end.click(); assert(await focused(end));
+  }
+  await text.fill(''); await main.focus();
+  for (const [control, container] of [
+    [start, page.locator('.time-point').nth(0)],
+    [end, page.locator('.time-point').nth(1)],
+    [page.getByLabel('字幕样式'), page.locator('.cue-style')],
+  ]) {
+    const original = await control.inputValue();
+    const isTime = await control.evaluate(el => el.tagName === 'INPUT');
+    for (const value of isTime ? ['', 'unfinished', original] : [original]) {
+      if (isTime) await control.fill(value);
+      const beforeClick = await snapshot();
+      const box = await control.boundingBox();
+      const points = [
+        ['label-row whitespace', box.x + box.width / 2, box.y - 8],
+        ['label gap', box.x + box.width / 2, box.y - 1],
+        ['left margin', box.x - 2, box.y + box.height / 2],
+        ['right margin', box.x + box.width + 2, box.y + box.height / 2],
+        ['bottom margin', box.x + box.width / 2, box.y + box.height + 1],
+      ];
+      for (const [name, x, y] of points) {
+        await control.focus();
+        await page.mouse.click(x, y);
+        assert.equal(await focused(control), false, `${await control.getAttribute('aria-label')}: ${name} should leave the control`);
+        if (name !== 'left margin') assert(await focused(main), `${name} should return focus to the workbench`);
+        assert.equal(await control.inputValue(), value);
+        assert.deepEqual(await snapshot(), beforeClick);
+      }
+      await container.locator('label').click();
+      assert(await focused(control));
+      await page.keyboard.press('Escape');
+      await control.click(); await page.keyboard.press('Escape'); assert(await focused(control));
+    }
+  }
+  await main.focus();
+  await page.screenshot({ path: join(artifacts, 'outside-focus.png'), fullPage: true });
+  checks.push('nearby whitespace exits empty/nonempty subtitle input without changing drafts/media; label and form controls retain native focus');
+  checks.push('time/style whitespace exits controls, including empty/unfinished time drafts; labels and control clicks retain native focus');
 
   await page.getByLabel('导入本地视频').setInputFiles(file);
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
@@ -117,9 +184,14 @@ try {
     await page.keyboard.press('Tab'); assert(await focused(main));
   }
   await start.focus(); await page.keyboard.press('Tab'); assert(await focused(end));
-  await page.keyboard.press('Tab'); assert(await focused(text));
-  await page.keyboard.press('Shift+Tab'); assert(await focused(end));
+  // The compact editor places style and row actions before the subtitle input.
+  await page.keyboard.press('Tab'); assert(await focused(page.getByLabel('字幕样式')));
   const locate = page.getByRole('button', { name: '定位选中行', exact: true });
+  const remove = page.getByRole('button', { name: '删除选中行', exact: true });
+  await page.keyboard.press('Tab'); assert(await focused(locate));
+  await page.keyboard.press('Tab'); assert(await focused(remove));
+  await page.keyboard.press('Tab'); assert(await focused(text));
+  await page.keyboard.press('Shift+Tab'); assert(await focused(remove));
   await locate.focus(); await page.keyboard.press('Tab');
   assert(await focused(page.getByRole('button', { name: '删除选中行', exact: true })));
   for (const selector of ['.video-progress', '.audio-vertical-zoom input', '[role="scrollbar"]', '[role="separator"]']) {

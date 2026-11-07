@@ -40,6 +40,8 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 默认 Tab，可在个人快捷键设置选择 Ctrl+Space。共享 JSON 唯一声明默认和允许列表，EditorWorkbench 通过 effectiveBindings 计算当前绑定并显式传给 subtitle-focus.ts。后者仅在 main、audio-stage（含边界滑块）和当前字幕 textarea 之间切换 DOM 焦点，保留光标、选区及现有可用性 / IME / 长按保护。timingShortcut 不返回该导航动作，避免进入提交或试听分派。改绑释放旧 Tab，其他控件和 Shift+Tab 保持原生导航；切换不进入编辑历史。验证见 [焦点切换记录](../../../docs/experiments/subtitle-focus.md)。
 
+字幕正文、入点、出点及样式均使用独立 label（仅文字宽度）通过实例级 useId 关联各自的 textarea / input / select，外层 div 只负责布局；标题旁空白和标题/控件间隙不再激活输入。EditorWorkbench 的鼠标点击处理将普通空白与按钮点击交回 main（preventScroll），输入、标签文字、链接、视频、可聚焦控件、弹窗及查找条保留自身焦点规则。点击控件四周空白会结束输入分组，不修改正文、样式或提交时间草稿（包括空值和未完成输入）；邻接分隔线保留自身焦点。
+
 ## 诊断
 
 use-edit-history 向只读 edit-diagnostics 观察器报告已有 before/after 引用，按连续输入/手势合并逐行差异；诊断自身 flush 不结束历史分组。导出通过账号/组织受限 getter 读取未保存状态、当前 revision、video 技术状态、试听和预览，不提交时间草稿或操纵业务状态。范围/敏感边界/预算见 [diagnostics](../diagnostics/README.md)。

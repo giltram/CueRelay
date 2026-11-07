@@ -2,7 +2,7 @@ import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { diagnosticId } from '../diagnostics/identifier';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { diagnostics, noteIgnored, provideWorkspaceStatus, safeError } from '../diagnostics';
-import { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, Cue, SplitRequest, SplitResult, StyleResult } from '../contracts/subtitles';
 import type { StyleOperation } from '../contracts/styles';
@@ -91,6 +91,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const composing = useRef(false);
   const workbench = useRef<HTMLElement>(null);
   const textEditor = useRef<HTMLTextAreaElement>(null);
+  const textEditorId = useId();
+  const styleSelectId = useId();
   const transforming = useRef(false);
   const lineCommands = useLineCommands({ current: edits.current, apply: applyLineEdit, overwrite: overwriteLineFields,
     active: visible && !shortcutsPaused && !pendingImport && !stylesOpen, editable: canEdit,
@@ -433,10 +435,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
 
   return (
     <PageLayout title={title ?? 'CueRelay'} navigation={header} className="editor-workbench" ref={workbench} tabIndex={-1} onBlurCapture={() => edits.finish()} onCompositionStartCapture={() => edits.beginComposition()} onCompositionEndCapture={() => edits.endComposition()} onClick={event => {
-      // Mouse activation returns to timing shortcuts; keyboard activation keeps
-      // native button focus. Boundary sliders retain focus for arrow-key edits.
-      const button = (event.target as Element).closest('button');
-      if (event.detail > 0 && button && !button.closest('dialog, [data-cue-search]') && button.getAttribute('role') !== 'slider') {
+      // Blank space and ordinary mouse buttons return to timing shortcuts.
+      // Form controls, labels and focusable timing surfaces keep their own focus.
+      const target = event.target as Element;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search]')) return;
+      const button = target.closest('button');
+      const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
+      if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
         event.currentTarget.focus({ preventScroll: true });
       }
     }} actions={
@@ -531,20 +536,21 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
                   onChange={(value, native) => changeTimeDraft('start', value, 'start', native)} />
                 <TimePointControl key={`end:${edits.epoch}:${selectedId}`} label="出点" value={endText}
                   onChange={(value, native) => changeTimeDraft('end', value, 'end', native)} />
-                <label className="cue-style">样式
-                  <select aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
+                <div className="cue-style">
+                  <label htmlFor={styleSelectId}>样式</label>
+                  <select id={styleSelectId} aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
                     onChange={event => run(() => updateCue({ style_id: event.target.value }))}>
                     {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
                   </select>
-                </label>
+                </div>
                 <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
                 <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>删除选中行</button>
               </div>
-              <label className="subtitle-input">
-                字幕文本
-                <textarea key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title={`${textFocusBinding} 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航`} rows={2} disabled={!selected} value={selected?.text || ''}
+              <div className="subtitle-input">
+                <label htmlFor={textEditorId}>字幕文本</label>
+                <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title={`${textFocusBinding} 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航`} rows={2} disabled={!selected} value={selected?.text || ''}
                   placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
-              </label>
+              </div>
             </fieldset>
           </section>
       </>} />
