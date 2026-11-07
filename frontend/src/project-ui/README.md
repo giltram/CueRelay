@@ -14,7 +14,7 @@ App 在成功加载会话上下文（组织/个人设置）后递增 `contextVer
 
 音频时间轴只接收已接受的同一 File 和只读字幕/草稿。边界点击只修改草稿，个人提交快捷键统一提交并下一行；项目保存仍只含已提交时间。新增固定删行组合键和边界回调遵守同一 canEdit/弹窗暂停保护。跨模块回归见 `frontend/browser-tests/main-audio-integration.mjs`。
 
-工作区列表、项目名称/项目设置和本地工作区链接默认新开标签页；同页历史返回列表才隐藏现有编辑器。「新建项目」是当前列表的按钮，经 App 的旧稿保护后设置本地 form=new 并打开 ProjectForm，不改地址或新增标签页。名称/说明和视频/字幕都在同一表单，没有上一步/下一步。成功显式传递 ProjectDetail 和本页选择的 File，App adopt 后 push 工作区地址；取消仅关闭弹窗。File 不放 history state，不跨窗口传递。登录/直达/刷新继续指定项目和错误状态由 App/app-workspace/navigation 组合处理。回归入口新增 browser-tests/navigation.mjs。
+工作区列表、项目名称/项目设置和本地工作区链接默认新开标签页；同页历史返回列表才隐藏现有编辑器。「新建项目」是当前列表的按钮，经 App 的旧稿保护后设置本地 form=new 并打开 ProjectForm，不改地址或新增标签页。名称/说明和视频/字幕都在同一表单，没有上一步/下一步。成功显式传递 ProjectDetail 和本页选择的 SelectedVideo（File/可选只读句柄），App adopt 后 push 工作区地址；取消仅关闭弹窗。File 不放 history state，不跨窗口传递。登录/直达/刷新继续指定项目和错误状态由 App/app-workspace/navigation 组合处理。回归入口新增 browser-tests/navigation.mjs。
 
 项目列表的更新者和归档者直接显示 username，与 Session/成员身份一致，不存在显示名字段或名称回退。
 
@@ -29,3 +29,5 @@ App 在成功加载会话上下文（组织/个人设置）后递增 `contextVer
 设置页元数据保存、样式保存、显式刷新共用一份 ProjectDetail/revision 和 busy 状态；名称/说明草稿独立保留。样式保存使用已保存文档，不提交工作区未保存的字幕/时间输入。冲突/失败保留输入，显式刷新展示服务器最新名称/说明并更新保存基准。设置页不更新保留工作区的文档或 revision，旧工作区保存继续冲突，明确重载后才接受新样式。直接访问、登录后继续和刷新均保留目标组织/项目；不存在/无权限/归档有明确状态。回归：`npm run test:project-settings`、`npm run test:style-management` 使用 HTTP 测试夹具，不访问开发数据库。
 
 本次验证及限制见 [项目设置记录](../../../docs/experiments/project-settings.md)。
+
+本机片源恢复：ProjectForm 复用 media/VideoFilePicker，在支持的安全上下文中使用文件句柄选择器，其他环境/选择器失败时回退普通文件 input；取消保留原选择。SelectedVideo 只经创建回调与 app-workspace 显式传给播放器，不进入创建请求。句柄仅由媒体模块在播放器校验后持久化；完整职责和浏览器测试见 [media README](../media/README.md)。

@@ -10,6 +10,7 @@ import type { JsonRequest } from '../contracts/http';
 import { localStyleOperation } from '../project-data/styles-api';
 import { ProjectStyleManager } from '../style-ui/ProjectStyleManager';
 import '../style-ui/style-management.css';
+import { videoStorageKey, type InitialVideo } from '../media/video-file-access';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
 import { auditionRange, formatTime, isFullscreenPlaybackShortcut, parseTime, seekVideo, snapTime, type AuditionMode } from '../media/playback';
 import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
@@ -51,7 +52,8 @@ interface Props {
   audioMode?: AudioDisplayMode;
   mouseSetsCueBoundary?: boolean;
   project?: ProjectDetail;
-  initialMedia?: { file: File; sha256: string };
+  initialMedia?: InitialVideo;
+  mediaOwnerId?: number;
   readOnly?: boolean;
   visible?: boolean;
   onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
@@ -62,7 +64,7 @@ interface Props {
   onReload?: () => void;
 }
 
-export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
   const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' }, diagnosticOwner);
   const { document, selectedId, startText, endText } = edits.state;
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -500,7 +502,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           workspace={workbench} searchEnabled={visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver}
           onSelect={selectCueFromTable} />
       } media={
-          <LocalVideoPlayer expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
+          <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}
+            enabled={visible && (!project || mediaOwnerId !== undefined)} expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
             controls={<>
             <button className="playback-button" aria-label="播放 / 暂停"

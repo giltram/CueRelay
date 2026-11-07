@@ -5,6 +5,7 @@ import type { JsonRequest } from '../contracts/http';
 import { Modal } from '../page-ui/Modal';
 import type { ProjectDetail, ProjectPage, ProjectSummary } from '../contracts/projects';
 import { projectApi } from '../project-data/projects-api';
+import type { SelectedVideo } from '../media/video-file-access';
 import { ProjectForm } from './ProjectForm';
 import { RouteLink } from '../navigation/RouteLink';
 import { HomeLink } from '../navigation/HomeLink';
@@ -14,7 +15,7 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
   organization: Organization | undefined; request: JsonRequest; header: ReactNode; enabled: boolean;
   refreshVersion: number;
   navigate: (route: Route) => void; onCreate: (open: () => void) => void;
-  onCreated: (project: ProjectDetail, video?: File) => void; onLifecycle: (project: ProjectSummary) => void;
+  onCreated: (project: ProjectDetail, video?: SelectedVideo) => void; onLifecycle: (project: ProjectSummary) => void;
   unavailableOrganization?: boolean;
 }) {
   const [status, setStatus] = useState<'active' | 'archived'>('active');
@@ -55,7 +56,7 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
       .finally(() => { if (sequence.current === version) setLoading(false); });
     return () => { sequence.current++; };
   }, [api, organizationId, status, query, page, refresh, refreshVersion, enabled]);
-  function saved(project: ProjectDetail, video?: File) {
+  function saved(project: ProjectDetail, video?: SelectedVideo) {
     setCreating(false); setRefresh(value => value + 1);
     onCreated(project, video);
   }

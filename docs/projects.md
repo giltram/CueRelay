@@ -22,7 +22,7 @@ member 可查看本组织项目并编辑/保存字幕，不能管理项目元数
 
 同标签页通过历史导航浏览同组织列表或设置页时，保留已经挂载的编辑器、字幕、时间草稿、选中行、File/Object URL 和视频节点，同时暂停隐藏的播放和全局快捷键。返回同一工作区不重建；打开其他项目或本地工作区、换组织/账号、主动退出及重新加载时，先提供导出、取消或明确放弃。新建前先处理当前文档保留的旧稿；确认后在列表打开表单。创建成功使用返回的详情及原 File，push 新项目地址，回退返回原列表；明确取消仅关闭弹窗。导航取消恢复原 URL 和页面，单纯浏览列表不要求放弃。
 
-项目工作区初次、直接访问或整页刷新时，按 URL 加载指定组织和项目的数据库快照，不能回退到默认组织或列表。新标签页/刷新拥有独立工作区，需重新选择同一视频并完成摘要核对。无权限、不存在及失败有明确状态、返回列表和重试入口；归档在原地址只读打开。未匹配前可浏览字幕，修改与提交禁用；归档始终只读。保存只含已应用的字幕，未提交时间须先按提交快捷键提交，界面明确说明。导出仍使用公开 /api/ass/export，会话失效也能导出本地稿。
+项目工作区初次、直接访问或整页刷新时，按 URL 加载指定组织和项目的数据库快照，不能回退到默认组织或列表。新标签页/刷新拥有独立工作区，优先尝试读取本机记住的视频句柄并重新完成完整 SHA-256 校验；授权失效时点击「重新授权视频」，文件不可读、校验失败或无记录时仍可手动选择同一视频。支持文件句柄的浏览器首次通过校验后仅在本机记住句柄，视频不复制、不上传。无权限、不存在及失败有明确状态、返回列表和重试入口；归档在原地址只读打开。未匹配前可浏览字幕，修改与提交禁用；归档始终只读。保存只含已应用的字幕，未提交时间须先按提交快捷键提交，界面明确说明。导出仍使用公开 /api/ass/export，会话失效也能导出本地稿。
 
 每次手动保存提交 revision；服务器拒绝旧版本，保留客户端输入并提示重新加载。多个浏览器不会悄悄互相覆盖，也不会自动合并。app-workspace 轮询观察归档/访问权限状态，本页归档/恢复也即时同步状态；不将取得的服务器文档/revision 覆盖到编辑器；有新版本须经保护步骤显式重载。会话失效后同账号登录继续当前工作区。
 
@@ -54,7 +54,7 @@ Session/CSRF、账号变更头、no-store、错误格式复用既有 HTTP 边界
 
 测试命令见根 README。浏览器测试使用新建的 cuerelay_projects_browser 数据库，设置 PGDATABASE、DEBUG=1、BROWSER_TEST_PASSWORD 后执行 migrate 和 `python backend/manage.py shell < backend/browser_tests/seed_projects.py`；启动该库的后端及 Vite，运行 `BROWSER_TEST_PASSWORD=... node frontend/browser-tests/projects.mjs`，可用 PROJECTS_URL 指定地址（默认 5177）。播种拒绝已有账号数据库，测试输出截图目录。实际结果见 [验收记录](experiments/projects.md)。
 
-前端路由/保留实例的职责分别见 [navigation](../frontend/src/navigation/README.md) 与 [app-workspace](../frontend/src/app-workspace/README.md)。深路径部署及导航回归运行方式见 [前端部署](frontend-deployment.md)。URL 和 history 不保存正文、视频或草稿，不新增持久化或跨标签页同步。
+前端路由/保留实例的职责分别见 [navigation](../frontend/src/navigation/README.md) 与 [app-workspace](../frontend/src/app-workspace/README.md)。深路径部署及导航回归运行方式见 [前端部署](frontend-deployment.md)。URL 和 history 不保存正文、视频或草稿；仅 media 模块将只读文件句柄存入本机 IndexedDB，不新增字幕持久化或跨标签页草稿同步。
 
 项目列表右上角的「设置」进入个人/组织设置独立页面，路径和职责见 [账号界面](../frontend/src/account-ui/README.md)。已移除「返回工作区」入口；默认点击同项目链接仍新开独立工作区；只有同文档浏览器前进/回退恢复保留实例。组织切换器仅在项目列表，工作区和设置页不保留。
 

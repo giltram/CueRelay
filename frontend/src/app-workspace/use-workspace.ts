@@ -4,9 +4,10 @@ import type { JsonRequest } from '../contracts/http';
 import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
 import type { AssDocument, SplitRequest } from '../contracts/subtitles';
 import { projectApi } from '../project-data/projects-api';
+import type { InitialVideo, SelectedVideo } from '../media/video-file-access';
 import type { Route } from '../navigation/routes';
 
-interface Workspace { project?: ProjectDetail; initialMedia?: { file: File; sha256: string }; generation: number }
+interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; generation: number }
 interface LoadState { key: string; status: 'loading' | 'ready' | 'error'; error?: Error }
 const projectKey = (organizationId: number, projectId: number) => `${organizationId}:${projectId}`;
 const matches = (workspace: Workspace | null, organizationId: number, projectId: number) =>
@@ -25,9 +26,9 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     sequence.current++; created.current = null;
     setWorkspace(null); setLoad(null); setAccessDenied(false);
   }, []);
-  const adoptCreated = useCallback((project: ProjectDetail, file?: File) => {
+  const adoptCreated = useCallback((project: ProjectDetail, video?: SelectedVideo) => {
     sequence.current++; created.current = projectKey(project.organization_id, project.id);
-    setWorkspace({ project, generation: ++generation.current, ...(file ? { initialMedia: { file, sha256: project.media.sha256 } } : {}) });
+    setWorkspace({ project, generation: ++generation.current, ...(video ? { initialMedia: { ...video, sha256: project.media.sha256 } } : {}) });
     setLoad({ key: created.current, status: 'ready' }); setAccessDenied(false);
   }, []);
   const organizationId = route.kind === 'project' ? route.organizationId : undefined;

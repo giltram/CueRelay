@@ -16,6 +16,8 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
 writeFileSync(join(artifacts, 'invalid.ass'), 'invalid subtitle');
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+// This existing suite covers the native fallback; video-restore.mjs covers remembered handles.
+await context.addInitScript(() => { window.showOpenFilePicker = undefined; });
 context.setDefaultTimeout(15000);
 const page = await context.newPage();
 const errors = [], checks = [];
@@ -31,7 +33,8 @@ async function checkFields(name, description) {
 }
 async function cancelPicker(input) {
   // An empty intercepted chooser exercises the no-selection change path.
-  const chooser = page.waitForEvent('filechooser'); await input.click(); await (await chooser).setFiles([]);
+  const trigger = await input.isVisible() ? input : modal.getByRole('button', { name: '选择基准视频', exact: true });
+  const chooser = page.waitForEvent('filechooser'); await trigger.click(); await (await chooser).setFiles([]);
   // Native file input cancel bubbles. Dispatch the exact event that previously
   // reached Modal.onCancel; the baseline was reproduced before the fix.
   await input.dispatchEvent('cancel', { bubbles: true, cancelable: false });

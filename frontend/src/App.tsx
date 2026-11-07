@@ -266,7 +266,7 @@ export default function App() {
           notFound={route.kind === 'not-found'} error={projectLoad?.error} organizationId={routeOrganization(route)} navigate={navigate}
           retry={route.kind === 'project' ? workspaceState.retry : undefined} exportDraft={workspace ? () => void exportDraft() : undefined} />}
       {workspace && <div hidden={!visible}><EditorWorkbench key={workspace.generation} ref={workbench} header={visible ? header : null} title={<HomeLink navigate={navigate} />}
-        diagnosticOwner={owner.id} visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
+        diagnosticOwner={owner.id} mediaOwnerId={user && !workspaceState.accessDenied ? user.id : undefined} visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}

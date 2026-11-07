@@ -2,7 +2,9 @@ import { diagnostics } from '../diagnostics';
 import { HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MediaManifest } from '../contracts/projects';
-import { hashFile, matchesMedia } from './media-manifest';
+import { VideoFilePicker } from './VideoFilePicker';
+import { useVideoSource } from './use-video-source';
+import type { InitialVideo } from './video-file-access';
 import { formatTime } from './playback';
 
 interface Props {
@@ -16,41 +18,23 @@ interface Props {
   onSeek: (milliseconds: number) => void;
   controls: ReactNode;
   expectedMedia?: MediaManifest;
-  initialMedia?: { file: File; sha256: string };
+  initialMedia?: InitialVideo;
+  persistenceKey?: string;
+  enabled?: boolean;
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(() => initialMedia && expectedMedia && matchesMedia(initialMedia.file, initialMedia.sha256, expectedMedia) ? initialMedia.file : null);
-  const [locked, setLocked] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const source = useVideoSource({ expectedMedia, initialMedia, persistenceKey, enabled, onError, onVerifiedChange, onDuration });
+  const { file, locked, checking, progress } = source;
   const [fullscreen, setFullscreen] = useState(false);
-  const verification = useRef<AbortController | null>(null);
-  useEffect(() => () => verification.current?.abort(), []);
   useEffect(() => {
     const changed = () => setFullscreen(document.fullscreenElement === stage.current);
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
-
-  async function chooseFile(picked: File) {
-    diagnostics.record('media', 'select_file', 'start');
-    onVerifiedChange?.(false);
-    if (!expectedMedia) { setFile(picked); onError(''); return; }
-    if (picked.size !== expectedMedia.size) { diagnostics.record('media', 'validation', 'conflict', { reason: 'size_mismatch' }); onError('片源大小与项目基准不一致，请选择同一视频。'); return; }
-    const task = new AbortController(); verification.current?.abort(); verification.current = task;
-    setChecking(true); setProgress(0); onError('');
-    try {
-      const digest = await hashFile(picked, task.signal, setProgress);
-      if (!matchesMedia(picked, digest, expectedMedia)) throw new Error('片源 SHA-256 与项目基准不一致，字幕未被修改。');
-      if (!task.signal.aborted) setFile(picked);
-    } catch (reason) { if (!task.signal.aborted) onError((reason as Error).message); }
-    finally { if (verification.current === task) setChecking(false); }
-  }
 
   useEffect(() => { onFile(file); return () => onFile(null); }, [file, onFile]);
 
@@ -75,26 +59,16 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
       <video ref={ref} playsInline preload="metadata"
         onLoadedMetadata={e => {
           diagnostics.record('media', 'load_metadata', 'success');
-          const duration = e.currentTarget.duration;
-          if (!Number.isFinite(duration) || duration <= 0 || duration >= 36000) {
-            onError('视频时长无效或超过验证台 10 小时范围，请选择其他文件');
-            setLocked(false); setFile(null); onDuration(0); onVerifiedChange?.(false); return;
-          }
-          setLocked(true); onDuration(duration * 1000); onVerifiedChange?.(true);
+          source.loaded(e.currentTarget.duration);
         }}
         onTimeUpdate={e => onTime(e.currentTarget.currentTime * 1000)}
         onSeeked={e => onTime(e.currentTarget.currentTime * 1000)}
         onError={() => {
           if (!file) return;
           diagnostics.record('media', 'video_error', 'error', { status: ref.current?.error?.code });
-          onVerifiedChange?.(false);
-          if (locked) {
-            onError('已固定的片源播放中断，可能存在解码或文件读取问题。请先导出字幕，再刷新页面检查；本次会话不能改换片源。');
-            onDuration(0);
-            return;
-          }
-          onError('浏览器无法播放这个文件（容器或编码不受支持、文件损坏等）。请保留原件；失败选片可重新选择。');
-          setLocked(false); setFile(null); onDuration(0);
+          source.failed(locked
+            ? '已固定的片源播放中断，可能存在解码或文件读取问题。请先导出字幕，再刷新页面检查；本次会话不能改换片源。'
+            : '浏览器无法播放这个文件（容器或编码不受支持、文件损坏等）。请保留原件；失败选片可重新选择。');
         }} />
       {!file && <div className="video-placeholder">导入本地视频<span>视频不会上传</span></div>}
       {file && <button type="button" className="video-fullscreen" aria-label="切换视频全屏" aria-pressed={fullscreen}
@@ -112,15 +86,12 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
       disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
     <div className="transport" role="group" aria-label="视频导入与播放控制">
       {controls}
-      {checking && <HeaderNotice>校验 {Math.round(progress * 100)}%<button onClick={() => { verification.current?.abort(); setChecking(false); }}>取消校验</button></HeaderNotice>}
-      <button type="button" className="file-picker" disabled={locked || checking} onClick={() => fileInput.current?.click()} title={locked
-        ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。`
-        : undefined}>导入视频</button>
-      <input ref={fileInput} hidden aria-label="导入本地视频" type="file" accept="video/*,.mkv" disabled={locked || checking} onChange={e => {
-        const picked = e.target.files?.[0];
-        if (picked) void chooseFile(picked);
-        e.target.value = '';
-      }} />
+      {checking && <HeaderNotice>校验 {Math.round(progress * 100)}%<button onClick={source.cancel}>取消校验</button></HeaderNotice>}
+      {source.notice && <HeaderNotice>{source.notice}{source.needsAuthorization &&
+        <button disabled={checking || !enabled} onClick={source.authorize}>重新授权视频</button>}</HeaderNotice>}
+      <VideoFilePicker label="导入本地视频" disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
+        onSelect={value => void source.choose(value)} onError={onError} title={locked
+          ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。` : undefined}>导入视频</VideoFilePicker>
     </div>
   </section>;
 }

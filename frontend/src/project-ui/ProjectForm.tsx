@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Organization } from '../account-ui/api';
 import { Modal } from '../page-ui/Modal';
 import type { ProjectDetail, MediaManifest } from '../contracts/projects';
+import { VideoFilePicker } from '../media/VideoFilePicker';
+import type { SelectedVideo } from '../media/video-file-access';
 import { createMediaManifest } from '../media/media-manifest';
 import { importAss, loadEmptyDocument } from '../project-data/ass-api';
 import type { JsonRequest } from '../contracts/http';
@@ -13,12 +15,12 @@ import type { projectApi } from '../project-data/projects-api';
 
 export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   organization: Organization; api: ReturnType<typeof projectApi>; request: JsonRequest;
-  onClose: () => void; onSaved: (project: ProjectDetail, video?: File) => void;
+  onClose: () => void; onSaved: (project: ProjectDetail, video?: SelectedVideo) => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [media, setMedia] = useState<MediaManifest | null>(null);
-  const selectedFile = useRef<File | undefined>(undefined);
+  const selectedFile = useRef<SelectedVideo | undefined>(undefined);
   const [fileName, setFileName] = useState('');
   const [source, setSource] = useState<string | null>(null);
   const [assName, setAssName] = useState('');
@@ -39,11 +41,12 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   }, []);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  async function inspect(file: File) {
+  async function inspect(selection: SelectedVideo) {
+    const { file } = selection;
     const origin = captureDiagnosticOrigin();
     controller.current?.abort();
     const task = new AbortController(); controller.current = task;
-    selectedFile.current = file;
+    selectedFile.current = selection;
     setBusy(true); setError(''); setMedia(null); setProgress(0); setFileName(file.name);
     try {
       const value = await createMediaManifest(file, task.signal, setProgress);
@@ -64,9 +67,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
       <label>项目名称<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
       <label>项目说明<textarea aria-label="项目说明" disabled={busy} value={description} maxLength={2000} rows={3} onChange={event => setDescription(event.target.value)} /></label>
       <p>每个项目绑定一个固定视频和一份 ASS。只发送摘要和字幕，视频保留在本机。</p>
-      <label>基准视频<input type="file" accept="video/*,.mkv" disabled={busy} onChange={event => {
-        const file = event.target.files?.[0]; if (file) void inspect(file); event.target.value = '';
-      }} /></label>
+      <div>基准视频 <VideoFilePicker label="基准视频" disabled={busy} onSelect={value => void inspect(value)} onError={setError}>选择基准视频</VideoFilePicker></div>
       {fileName && <p>{fileName} · {media ? '完整校验通过' : `校验进度 ${Math.round(progress * 100)}%`}</p>}
       {busy && controller.current && !media && <button type="button" onClick={() => { controller.current?.abort(); setBusy(false); setFileName(''); }}>取消校验</button>}
       <label>初始字幕<select aria-label="初始字幕" disabled={busy} value={mode} onChange={event => setMode(event.target.value as 'empty' | 'import')}>
