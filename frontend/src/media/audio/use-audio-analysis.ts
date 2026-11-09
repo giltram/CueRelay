@@ -18,6 +18,7 @@ export function useAudioAnalysis(file: File | null, start: number, end: number, 
   const [readyFile, setReadyFile] = useState<File | null>(null);
   const viewKey = `${start}:${end}:${mode}`;
   const [state, setState] = useState<AnalysisState>({ file: null, status: 'empty', tiles: [], message: '', cacheBytes: 0, decodedSegments: 0, viewKey: '' });
+  const latestState = useRef(state); latestState.current = state;
   useEffect(() => {
     const scope = diagnostics.scope(), context = diagnostics.contextSnapshot();
     if (file) diagnostics.record('audio-analysis', 'open', 'start', {}, scope, context);
@@ -49,8 +50,11 @@ export function useAudioAnalysis(file: File | null, start: number, end: number, 
   useEffect(() => {
     if (!file || readyFile !== file || !worker.current || end <= start) return;
     const id = ++requestId.current;
-    setState(s => ({ ...s, status: 'loading', viewKey, message: '', tiles: s.tiles.filter(t => t.end > start && t.start < end) }));
-    worker.current.postMessage({ type: 'view', id, start, end, mode } satisfies AudioWorkerRequest);
+    const current = latestState.current;
+    const tiles = current.file === file ? current.tiles.filter(t => t.end > start && t.start < end) : [];
+    setState(s => ({ ...s, status: 'loading', viewKey, message: '', tiles }));
+    worker.current.postMessage({ type: 'view', id, start, end, mode,
+      retained: tiles.map(tile => ({ start: tile.start, spectrum: !!tile.spectrum })) } satisfies AudioWorkerRequest);
   }, [file, readyFile, start, end, mode]);
   useEffect(() => reportAudio('analysis', state.status), [state.status]);
   // Never show a previous file's analysis during the render before effect cleanup.

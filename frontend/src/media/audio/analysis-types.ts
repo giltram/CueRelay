@@ -33,7 +33,9 @@ export interface AudioTile {
 
 export type AudioWorkerRequest =
   | { type: 'open'; file: File }
-  | { type: 'view'; id: number; start: number; end: number; mode: AudioDisplayMode };
+  | { type: 'view'; id: number; start: number; end: number; mode: AudioDisplayMode;
+      /** Only tiles still held by this File's current UI window. Analysis parameters are fixed. */
+      retained?: { start: number; spectrum: boolean }[] };
 export type AudioWorkerResponse =
   | { type: 'ready'; metadata: AudioMetadata }
   | { type: 'tile'; id: number; tile: AudioTile }

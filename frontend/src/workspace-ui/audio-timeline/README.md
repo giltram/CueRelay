@@ -39,6 +39,8 @@ onBoundaryChange 是统一的时间草稿回调：ASS 文档就绪、canEdit 通
 
 播放头 RAF 从独立试听控制器 getter 读取音频位置（完成后保持出点），idle 时回到 video.currentTime；只更新一条 DOM 线和 footer 时钟，波形仅在数据 / 视窗 / 尺寸 / 显示状态变化时重绘。视窗在无视频元数据时不被跟随逻辑重置。字幕行选择经 revealInterval，仅在区间超出视窗时移动；已可见的下一行保留视窗与之前区间的上下文，输入时间草稿不会重置缩放或平移。已有 seekVideo / EditorWorkbench 的操作仍是播放和字幕状态入口。
 
+`visible` 从 EditorWorkbench 显式传入。只有可见工作区、可见标签页中的视频播放/音频试听运行持续 RAF；暂停、结束、隐藏、卸载取消。play / pause / seeking / seeked / timeupdate、试听阶段/终点、视窗/尺寸变化及 visibilitychange 作离散刷新；恢复显示读取当前时钟。时钟、播放头位置/hidden 和试听 data 属性仅在值变化时写 DOM。无定时轮询，不改变普通视频和独立试听的时钟所有权。`npm run test:audio-reuse` 对暂停两秒零 RAF/DOM 写入、隐藏零持续 RAF、恢复后暂停定位、模式/tile 复用作真实浏览器断言。
+
 音频画布也在 verticalZoom 变化时重绘；React effect 经 requestAnimationFrame 合并更新，每帧使用最新参数。主 canvas 只在实际尺寸 / DPR 变化时调整 backing store，普通重绘重设坐标矩阵并覆写背景，避免重复清空 / 分配画布。验证命令：`cd frontend && node browser-tests/vertical-zoom.mjs`，默认连接 5173（可用 AUDIO_TIMELINE_URL 覆盖），API 使用浏览器内 fixture，无需数据库；真实 Chrome / FFmpeg 验证颜色、拖动、复位、缓冲复用、模式切换、水平缩放、播放头 / 标尺和窄屏。详情见 [垂直缩放记录](../../../../docs/experiments/vertical-zoom.md)。
 
 红色播放头的可拖命中区为 12px，悬停光标为 ew-resize，没有新增悬浮提示。AudioTimeline 的同一个 pointer capture 生命周期通过 `TimelineDrag.kind` 区分视窗平移与播放头定位；按下时记录既有 AudioViewport 和抓取偏移，拖动通过 timeAtX → 原 onSeek → seekVideo 更新视频时间。拖动期间阻止视窗自动跟随 / 滚轮缩放平移，指针出界时限定到当前可见范围；不自动延伸视窗。定位保留视频原来的播放 / 暂停状态，不修改字幕草稿。

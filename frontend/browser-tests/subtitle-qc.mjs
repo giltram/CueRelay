@@ -239,7 +239,8 @@ try {
     end_ms: index * 2500 + 2000, style_id: largeDocument.styles[0].id, text: '' }));
   await large.route('**/api/ass/empty', route => route.fulfill({ json: { document: largeDocument } }));
   await large.goto(`${origin}/workspace/local`);
-  await large.getByRole('button', { name: '选择第 5000 行', exact: true }).waitFor({ state: 'attached' });
+  await large.locator('.cue-list table[aria-rowcount="5001"]').waitFor();
+  assert(await large.locator('tr[data-cue-id]').count() < 100);
   await large.evaluate(() => {
     window.qcLongTasks = [];
     window.qcPerformanceObserver = new PerformanceObserver(list => window.qcLongTasks.push(...list.getEntries().map(entry => entry.duration)));

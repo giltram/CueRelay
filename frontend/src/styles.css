@@ -153,6 +153,7 @@ summary { cursor: pointer; font-size: 13px; }
 .search-current td:last-child { box-shadow: inset 2px 0 var(--accent); }
 .count { margin-left: 8px; }
 .table-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.table-scroll[data-windowed] { overflow-anchor: none; }
 table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
 thead { position: sticky; top: 0; z-index: 1; background: var(--subtle); }
 th { padding: 6px 12px; color: var(--text-muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
@@ -167,6 +168,7 @@ tr.playing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .cue-text { display: block; width: 100%; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cue-text em { font-size: 12px; color: var(--text-muted); font-style: italic; }
 .cue-list table { table-layout: fixed; }
+.cue-list .cue-spacer td { padding: 0; border: 0; }
 .cue-list th, .cue-list td { width: auto; padding-inline: 6px; }
 .cue-list th { position: relative; }
 .cue-list .cps-cell { text-align: center; font-variant-numeric: tabular-nums; }

@@ -29,6 +29,8 @@ LocalVideoPlayer 的 onFile 发布同一已选 File；EditorWorkbench 将 File�
 
 Worker 每次只处理最新视窗，以 2 秒段读取 PCM，用 4096 个 min/max 桶保留约 0.5ms 的瞬态；渲染时按像素合并桶。反相声道不会因下混而消失。单个 ByteCache 以 PCM + 分析 typed arrays 的实际 byteLength 计费，上限 32 MiB；视图只保留当前窗口相交的分析 tiles（视窗最多 60 秒），不接收 PCM。没有多级缓存或全片扫描。
 
+视窗请求的 `retained` 仅声明同一 File/Worker 下 UI 当前仍持有的 tile 起点和 spectrum 能力；固定分段与分析参数保证这些结果可复用。Worker 跳过已满足模式的 tile，不重复 postMessage typed arrays；波形升级频谱或新进入视窗的分段仍照常分析/发送。hook 先裁剪到当前窗口，不新增永久 Map、不 transfer Worker 唯一缓存。旧请求 id、换片/卸载隔离不变，已有 tile/spectrum 对象身份保留后 UI 的 WeakMap 图像自然复用。若未来增加 FFT/分析参数，须同时扩展此复用契约，不能只按起点复用。回归见 `audio-worker.test.ts`、`npm run test:audio-reuse` 和 [性能验证](../../../../docs/experiments/browser-performance.md)。
+
 每个 File 单独拥有 Worker；替换 / 卸载直接 terminate。视窗请求带递增 id，Worker 取消旧 readRange，UI 忽略旧 id；缓存命中循环也让出事件队列，避免旧视窗阻挡新请求。重计算和解码不在主线程。视窗 Worker 始终只做分析；普通播放头读取 video.currentTime，独立试听时读取试听控制器，完成时保留音频出点。手动平移暂时停止跟随，主动定位 / seeked 恢复。
 
 ## 频谱

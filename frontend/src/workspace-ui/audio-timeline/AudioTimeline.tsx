@@ -15,6 +15,7 @@ import { AudioScrollbar } from './AudioScrollbar';
 import type { Cue } from '../../contracts/subtitles';
 
 interface Props {
+  visible?: boolean;
   historyEpoch?: number;
   onBoundaryGesture?: () => BoundaryGesture;
   file: File | null;
@@ -37,7 +38,7 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
   | { kind: 'seek'; grabOffset: number }
 );
 
-export function AudioTimeline({ file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange, onBoundaryGesture, historyEpoch }: Props) {
+export function AudioTimeline({ visible = true, file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange, onBoundaryGesture, historyEpoch }: Props) {
   const auditionTime = audition?.position ?? null;
   const seconds = duration / 1000;
   const stageId = useId();
@@ -95,6 +96,7 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
     // Only offscreen selections move the view; typing times never changes zoom/pan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionId, historyEpoch]);
+  const refreshPlayhead = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!video || !seconds) {
       if (playhead.current) playhead.current.hidden = true;
@@ -102,31 +104,54 @@ export function AudioTimeline({ file, video, duration, currentTime, audition, ge
     }
     let frame = 0;
     const show = (force = false) => {
+      if (!visible || document.hidden) return;
       const audioTime = audioPosition.current?.() ?? null;
       const current = audioTime === null ? video.currentTime : audioTime / 1000;
-      if (timeDisplay.current) timeDisplay.current.textContent = formatTime(current * 1000);
+      const clock = formatTime(current * 1000);
+      if (timeDisplay.current && timeDisplay.current.textContent !== clock) timeDisplay.current.textContent = clock;
       if (panel.current) {
-        if (audioTime === null) delete panel.current.dataset.auditionTime;
-        else panel.current.dataset.auditionTime = String(audioTime);
+        if (audioTime === null) {
+          if (panel.current.dataset.auditionTime !== undefined) delete panel.current.dataset.auditionTime;
+        } else if (panel.current.dataset.auditionTime !== String(audioTime)) panel.current.dataset.auditionTime = String(audioTime);
       }
-      const visible = liveView.current;
+      const currentView = liveView.current;
       // Media seeks can round to microseconds; an edge seek must not trigger a pan.
-      const outside = current < visible.start - 1e-6 || current > visible.start + visible.span + 1e-6;
+      const outside = current < currentView.start - 1e-6 || current > currentView.start + currentView.span + 1e-6;
       if (drag.current?.kind !== 'seek' && (force || follow.current) && outside) {
         setViewport(value => clampViewport({ ...value, start: current - value.span * 0.15 }, seconds));
       }
       if (playhead.current) {
-        const position = xAtTime(current, 100, visible);
-        playhead.current.style.left = `${Math.max(0, Math.min(100, position))}%`;
-        playhead.current.hidden = !Number.isFinite(position) || outside;
+        const position = xAtTime(current, 100, currentView);
+        const left = `${Math.max(0, Math.min(100, position))}%`;
+        const hidden = !Number.isFinite(position) || outside;
+        if (playhead.current.style.left !== left) playhead.current.style.left = left;
+        if (playhead.current.hidden !== hidden) playhead.current.hidden = hidden;
       }
     };
-    const tick = () => { show(); frame = requestAnimationFrame(tick); };
-    const seeked = () => { follow.current = true; show(true); };
+    const running = () => visible && !document.hidden &&
+      ((!video.paused && !video.ended) || audition?.phase === 'playing');
+    const tick = () => { show(); frame = running() ? requestAnimationFrame(tick) : 0; };
+    const refresh = () => {
+      cancelAnimationFrame(frame); frame = 0;
+      show();
+      if (running()) frame = requestAnimationFrame(tick);
+    };
+    const seeked = () => { follow.current = true; show(true); refresh(); };
+    const events = ['play', 'pause', 'ended', 'seeking', 'timeupdate'] as const;
+    events.forEach(event => video.addEventListener(event, refresh));
     video.addEventListener('seeked', seeked);
-    frame = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(frame); video.removeEventListener('seeked', seeked); };
-  }, [video, seconds]);
+    document.addEventListener('visibilitychange', refresh);
+    refreshPlayhead.current = refresh;
+    refresh();
+    return () => {
+      cancelAnimationFrame(frame); refreshPlayhead.current = null;
+      events.forEach(event => video.removeEventListener(event, refresh));
+      video.removeEventListener('seeked', seeked);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [video, seconds, visible, audition?.phase]);
+  // Paused seeks, audition completion, resize and panning still refresh once.
+  useEffect(() => { refreshPlayhead.current?.(); }, [currentTime, auditionTime, view.start, view.span, size]);
   useEffect(() => {
     const element = stage.current;
     if (!element) return;

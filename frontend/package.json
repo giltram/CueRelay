@@ -41,7 +41,9 @@
     "test:editing-operations": "node browser-tests/editing-operations.mjs",
     "test:workspace-history": "node browser-tests/workspace-history.mjs",
     "test:diagnostics": "node browser-tests/diagnostics.mjs && node browser-tests/diagnostics-errors.mjs",
-    "test:subtitle-line-menu": "node browser-tests/subtitle-line-menu.mjs"
+    "test:subtitle-line-menu": "node browser-tests/subtitle-line-menu.mjs",
+    "test:cue-window": "node browser-tests/cue-window.mjs",
+    "test:audio-reuse": "node browser-tests/audio-reuse.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

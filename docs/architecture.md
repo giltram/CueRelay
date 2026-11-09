@@ -14,6 +14,14 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-07 浏览器性能优化：workspace-ui/CueRow 按不可变 cue 与逐行标志 memo，CPS 只随正文/已应用时间计算；use-cue-window / cue-window 只拥有超过 200 行的 DOM 窗口、高度测量和 reveal，完整字幕/选择/搜索/历史仍归原模块。AudioTimeline 接收显式 visible，仅在可见播放/试听期间持续 RAF；media/audio 的视窗请求声明当前仍持有的分析 tile，Worker 只发送缺失/模式升级数据，复用既有 WeakMap 图像，不改变 32MiB LRU。没有新增运行时依赖或反向依赖；ASS 序列化/预览调度与保存协议不变。职责与回归见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕表渲染与滚动)、[音频模块](../frontend/src/media/audio/README.md)；数据及待测边界见 [性能验证](experiments/browser-performance.md)。
+
+2026-11-08 窗口化检查 R1/R2 修复：use-cue-window 以可见行 ID / 行内偏移持有阅读锚点，统一在布局提交中测量高度、更新累计偏移并恢复；定位目标保持到新窗口测量稳定。零尺寸隐藏不失效缓存，实际调宽后按同一锚点恢复；窗口化容器禁用浏览器原生滚动锚定，用户原生滚动/焦点移动优先接管。职责、依赖、字幕/选择/保存所有权不变，F3/F6 保留原边界。连续多行与软换行回归及验证见 [修复记录](experiments/browser-performance-window-fixes.md)。
+
+2026-11-09 R3 阈值切换：use-cue-window 的阅读锚点跟踪覆盖原生小列表和窗口化模式；小列表用实际 DOM 更新当前阅读行/偏移与测量，跨 200 行时显式交接，避免删除/撤销恢复旧锚点。原生模式只在模式边界恢复锚点，普通布局继续沿用浏览器行为；滚动状态不进入编辑历史。依赖和公开接口不变，回归与范围见 [R3 记录](experiments/browser-performance-window-fixes.md#r3跨-200-行阈值的阅读位置交接2026-11-09)。
+
+2026-11-10 R4 删除阅读锚点：use-cue-window 在读取新布局前，基于上次提交的行顺序将被删除的锚点交给仍存在的后继，无后继再取最近前驱；沿用行内偏移并由现有行高恢复逻辑限制。cue-window 纯函数拥有相邻行选择，hook 仅保留行数组引用，不依赖字幕选择或编辑历史；原生模式普通布局规则、窗口化阈值及模块依赖不变。回归与实际验证见 [R4 记录](experiments/browser-performance-window-fixes.md#r4删除阅读锚点时的相邻行交接2026-11-10)。
+
 2026-11-07 自动字幕 QC：`subtitle-qc` 纯函数依赖 contracts/subtitle-model，检查当前内存中已应用字幕；共享字素统计与时间契约下移 subtitle-model，media/playback 保持原接口重导出。`ass_format.inspection` 复用 codec 的文档/逐行验证和完整导出，POST `/api/ass/inspect` 仅作无状态只读适配，无数据库访问或第二套格式规则。workspace-ui/use-subtitle-qc 持有一次检查的文档引用与时长，修改立即标记待重查、取消过期请求，不接管编辑历史/保存 revision；未提交时间草稿只提示、不自动应用。QC 按钮位于查找旁，宽容器在原字幕区右侧按 30% / 320–480px 显示，窄容器临时切换，视频与频谱尺寸不变。问题复用原选行/定位，普通导出预检可继续 Warning，离页备份保持直接下载。5000 问题实测后仅对未变表格作 memo、问题按 100 条逐批展示，不引入 Worker/增量框架或依赖。规则、接口、所有权与限制见 [QC 核心](../frontend/src/subtitle-qc/README.md)、[工作区](../frontend/src/workspace-ui/README.md#字幕-qc)；实际检查见 [验证记录](experiments/subtitle-qc.md)。
 
 2026-11-07 项目视频本机恢复：media/video-file-access 封装只读选片及 IndexedDB 句柄记录，按账号/组织/项目/媒体 SHA-256 与大小隔离；use-video-source 统一手动/自动完整校验、取消和授权状态，LocalVideoPlayer 继续唯一拥有视频节点和 Object URL。新建项目显式传递 SelectedVideo，App 注入当前可访问账号身份，工作区隐藏/身份失效取消未完成恢复。刷新/新标签页读取服务器字幕后尝试恢复片源，校验通过前仍禁编辑；无授权须点击重新授权，失败保留手动入口。只记句柄，不复制/上传视频，不恢复字幕草稿、历史或播放位置。普通本地工作区不恢复。职责、依赖和限制见 [媒体模块](../frontend/src/media/README.md)，验证见 [实验记录](experiments/video-restore.md)。

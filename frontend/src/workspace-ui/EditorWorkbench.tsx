@@ -544,7 +544,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? '隐藏字幕' : '显示字幕'}</button>
           </>} />
       } editor={<>
-          <AudioTimeline file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
+          <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
             onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver && document ? (point, time) => {
               edits.edit({ ...edits.current(), [point === 'start' ? 'startText' : 'endText']: formatTime(time) });
