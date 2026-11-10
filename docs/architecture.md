@@ -22,6 +22,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-11-10 R4 删除阅读锚点：use-cue-window 在读取新布局前，基于上次提交的行顺序将被删除的锚点交给仍存在的后继，无后继再取最近前驱；沿用行内偏移并由现有行高恢复逻辑限制。cue-window 纯函数拥有相邻行选择，hook 仅保留行数组引用，不依赖字幕选择或编辑历史；原生模式普通布局规则、窗口化阈值及模块依赖不变。回归与实际验证见 [R4 记录](experiments/browser-performance-window-fixes.md#r4删除阅读锚点时的相邻行交接2026-11-10)。
 
+2026-11-10 性能后续验证：混合行高的生产操作序列暴露模型偏移与 DOM 偏移不一致，跨阈值时发生数像素阅读位置变化。use-cue-window 现在对已挂载锚点统一读取/恢复真实 DOM 位置，未挂载才使用累计高度模型，保持现有测量提交、删除邻行、短行截断和所有权。新增删除边界回归；生产性能/真实媒体内存驱动及 FFmpeg 素材生成入口归入 [浏览器测试说明](../frontend/browser-tests/README.md)。实际结果、复验命令与待测范围见 [后续验证记录](experiments/browser-performance-follow-up.md)，未扩大性能重构或引入运行时依赖。
+
 2026-11-07 自动字幕 QC：`subtitle-qc` 纯函数依赖 contracts/subtitle-model，检查当前内存中已应用字幕；共享字素统计与时间契约下移 subtitle-model，media/playback 保持原接口重导出。`ass_format.inspection` 复用 codec 的文档/逐行验证和完整导出，POST `/api/ass/inspect` 仅作无状态只读适配，无数据库访问或第二套格式规则。workspace-ui/use-subtitle-qc 持有一次检查的文档引用与时长，修改立即标记待重查、取消过期请求，不接管编辑历史/保存 revision；未提交时间草稿只提示、不自动应用。QC 按钮位于查找旁，宽容器在原字幕区右侧按 30% / 320–480px 显示，窄容器临时切换，视频与频谱尺寸不变。问题复用原选行/定位，普通导出预检可继续 Warning，离页备份保持直接下载。5000 问题实测后仅对未变表格作 memo、问题按 100 条逐批展示，不引入 Worker/增量框架或依赖。规则、接口、所有权与限制见 [QC 核心](../frontend/src/subtitle-qc/README.md)、[工作区](../frontend/src/workspace-ui/README.md#字幕-qc)；实际检查见 [验证记录](experiments/subtitle-qc.md)。
 
 2026-11-07 项目视频本机恢复：media/video-file-access 封装只读选片及 IndexedDB 句柄记录，按账号/组织/项目/媒体 SHA-256 与大小隔离；use-video-source 统一手动/自动完整校验、取消和授权状态，LocalVideoPlayer 继续唯一拥有视频节点和 Object URL。新建项目显式传递 SelectedVideo，App 注入当前可访问账号身份，工作区隐藏/身份失效取消未完成恢复。刷新/新标签页读取服务器字幕后尝试恢复片源，校验通过前仍禁编辑；无授权须点击重新授权，失败保留手动入口。只记句柄，不复制/上传视频，不恢复字幕草稿、历史或播放位置。普通本地工作区不恢复。职责、依赖和限制见 [媒体模块](../frontend/src/media/README.md)，验证见 [实验记录](experiments/video-restore.md)。

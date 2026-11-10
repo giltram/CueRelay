@@ -22,11 +22,13 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 用户滚动接管锚点并取消待定位；浏览器 focus/scrollIntoView 可能早于 scroll 事件移动容器，布局提交同样识别该移动，不能用旧锚点把点击目标移走。删除锚点时先按上次提交的行顺序寻找仍存在的后继，无后继再找最近前驱，沿用行内偏移并由行高限制；没有存活相邻行时清空。hook 仅保留上次行数组引用用于交接，在读取新 DOM 前完成，避免跨阈值时用旧像素位置猜测阅读行。焦点移交仍等待目标布局完成，滚动状态不进入编辑历史。
 
-阅读位置跟踪覆盖原生小列表和窗口化两种模式，不随 200 行阈值停止。小列表从实际 DOM 读取行 ID / 行内偏移并更新已挂载行的测量；跨阈值时显式交接该锚点，进入小列表清理窗口化的待定位/焦点校正状态。普通小列表布局仍由原生滚动处理，仅切换模式时恢复阅读锚点；不因小列表测量变化额外发起测量提交。删除/撤销/重做即使多次跨越阈值，也以当前阅读位置交接，不能复用上次窗口化期间的旧锚点。
+阅读位置跟踪覆盖原生小列表和窗口化两种模式，不随 200 行阈值停止。两种模式均从实际 DOM 读取已挂载阅读行的行内偏移；恢复时也优先使用该行相对 sticky header 的真实位置，避免累计高度模型与混合行高/占位布局的误差进入阈值交接。目标未挂载才使用模型，随后在测量提交中继续校正。小列表更新已挂载行的测量，跨阈值时显式交接锚点，进入小列表清理窗口化的待定位/焦点校正状态。普通小列表布局仍由原生滚动处理，仅切换模式时恢复阅读锚点；不因小列表测量变化额外发起测量提交。删除/撤销/重做即使多次跨越阈值，也以当前阅读位置交接，不能复用上次窗口化期间的旧锚点。
 
-回归：`cue-window.test.ts`、`npm run test:cue-window`（2000 行、长文本、完整搜索、跨窗口批量选择/撤销、焦点、菜单、QC、列宽、窄屏/恢复）及原 cue-table / subtitle-search / subtitle-line-menu / workspace-history / subtitle-qc。测量与兼容性边界见 [性能验证](../../../../docs/experiments/browser-performance.md)。
+回归：`cue-window.test.ts`、`npm run test:cue-window`（2000 行、长文本、完整搜索、跨窗口批量选择/撤销、焦点、菜单、QC、列宽、窄屏/恢复）及原 cue-table / subtitle-search / subtitle-line-menu / workspace-history / subtitle-qc。测量与兼容性边界见 [性能验证](../../../docs/experiments/browser-performance.md)。
 
-`browser-tests/cue-window-layout-checks.mjs` 额外覆盖 2000 条连续四次换行的搜索/QC 定位、手动滚到中段后的隐藏恢复，以及真实软换行高度变化下的窗口、列宽、QC 分栏锚点；稳定后断言行 ID 和行内偏移。检查报告 R1/R2 的修复与复测见 [窗口化修复记录](../../../../docs/experiments/browser-performance-window-fixes.md)。
+后续生产性能与真实媒体内存驱动已纳入仓库，命令、素材生成和指标边界见 [浏览器测试入口](../../browser-tests/README.md)；本轮发现与实际测量见 [后续验证](../../../docs/experiments/browser-performance-follow-up.md)。
+
+`browser-tests/cue-window-layout-checks.mjs` 额外覆盖 2000 条连续四次换行的搜索/QC 定位、手动滚到中段后的隐藏恢复，以及真实软换行高度变化下的窗口、列宽、QC 分栏锚点；稳定后断言行 ID 和行内偏移。检查报告 R1/R2 的修复与复测见 [窗口化修复记录](../../../docs/experiments/browser-performance-window-fixes.md)。
 
 `browser-tests/cue-window-threshold-checks.mjs` 由同一 `test:cue-window` 调用，覆盖 R3 的 201→200→滚动→撤销、双向交接、重复重做/撤销和顶端阅读位置，以及 R4 的单行/批量删除包含阅读锚点后的后继交接与撤销/重做；断言阅读行 ID / 行内偏移及窗口化挂载上限。纯函数测试补充原顺序优先、无后继、空列表与无存活邻行。
 

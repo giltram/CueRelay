@@ -116,7 +116,25 @@ export async function checkCueWindowThreshold(browser, origin) {
     sameReading({ ...beforeBatchDelete, first: 'new-102' }, afterBatchDelete, 'batch deletion→first surviving successor');
     await key('Control+z', 201);
     sameReading(afterBatchDelete, await snapshot('windowed-batch-anchor-delete-undo'), 'batch anchor deletion undo');
+
+    // Mixed wrapping heights expose the difference between modeled offsets and actual table geometry.
+    fixture.cues = Array.from({ length: 201 }, (_, index) => ({ id: `new-${index}`, start_ms: index * 500,
+      end_ms: index * 500 + 450, style_id: fixture.styles[0].id,
+      text: `target${index + 1}end 性能测量 ${index % 4 === 0 ? '多行文本\\N'.repeat(4) : '普通字幕'}` }));
+    await page.reload();
+    await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+    await page.getByLabel('字幕中文文本').press('End');
+    await page.getByLabel('字幕中文文本').pressSequentially('abcdefghijklmnopqrstuvwx'.repeat(3));
+    await page.getByRole('button', { name: '查找字幕', exact: true }).click();
+    await page.getByRole('button', { name: '查找字幕', exact: true }).click();
+    await page.locator('.table-scroll').evaluate(container => { container.scrollTop = 1500; });
+    const mixed = await snapshot('mixed-before-threshold');
+    await key('Control+Delete', 200);
+    const mixedNative = await snapshot('mixed-native-after-delete');
+    sameReading(mixed, mixedNative, 'mixed heights 201→200');
+    await key('Control+z', 201);
+    sameReading(mixedNative, await snapshot('mixed-windowed-after-undo'), 'mixed heights 200→201');
     assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-    return { thresholdUndo: true, bidirectionalHandoff: true, deletedAnchor: true, batchDeletedAnchor: true, snapshots };
+    return { thresholdUndo: true, bidirectionalHandoff: true, deletedAnchor: true, batchDeletedAnchor: true, mixedHeights: true, snapshots };
   } finally { await page.close(); }
 }

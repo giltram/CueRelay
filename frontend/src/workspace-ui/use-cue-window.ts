@@ -45,7 +45,7 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
     }
     // A large direct scroll may land in an unmounted spacer. Use its model position until mounted.
     const index = first ? rows.findIndex(cue => cue.id === first.id) : cueIndexAtOffset(offsets, container.scrollTop);
-    return rows[index] ? { id: rows[index].id, inset: !enabled && first ? header - first.top : container.scrollTop - offsets[index] } : null;
+    return rows[index] ? { id: rows[index].id, inset: first ? header - first.top : container.scrollTop - offsets[index] } : null;
   }
 
   useLayoutEffect(() => {
@@ -113,8 +113,19 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
     }
     const targetIndex = rows.findIndex(cue => cue.id === pendingReveal.current);
     const header = container.querySelector('thead')?.getBoundingClientRect().height ?? 0;
-    const top = targetIndex >= 0 ? cueRevealScrollTop(nextOffsets, targetIndex, container.scrollTop, container.clientHeight, header)
-      : anchor.current && (enabled || modeChanged) ? cueAnchorScrollTop(rows, nextOffsets, anchor.current) : null;
+    let anchorTop: number | null = null;
+    if (anchor.current && (enabled || modeChanged)) {
+      const element = elements.current.get(anchor.current.id);
+      if (element) {
+        // Collapsed table borders and separate retained rows can make DOM positions differ
+        // from cumulative model offsets. Restore against mounted geometry, then repeat after
+        // measured spacer updates; the model is only a fallback until the anchor mounts.
+        const rect = element.getBoundingClientRect();
+        const headerBottom = container.querySelector('thead')?.getBoundingClientRect().bottom ?? container.getBoundingClientRect().top;
+        anchorTop = Math.max(0, container.scrollTop + rect.top - headerBottom + Math.min(anchor.current.inset, rect.height - 1));
+      } else anchorTop = cueAnchorScrollTop(rows, nextOffsets, anchor.current);
+    }
+    const top = targetIndex >= 0 ? cueRevealScrollTop(nextOffsets, targetIndex, container.scrollTop, container.clientHeight, header) : anchorTop;
     if (top !== null && Math.abs(container.scrollTop - top) > .5) {
       container.scrollTop = top;
     }

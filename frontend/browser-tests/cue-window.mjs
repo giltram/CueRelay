@@ -5,6 +5,7 @@ import { uiDocument, codec } from './ass-codec.mjs';
 import { sameTab } from './link-navigation.mjs';
 import { checkMultilineWindow } from './cue-window-layout-checks.mjs';
 import { checkCueWindowThreshold } from './cue-window-threshold-checks.mjs';
+import { checkCueWindowDeletion } from './cue-window-deletion-checks.mjs';
 
 const documentFixture = uiDocument();
 documentFixture.cues = Array.from({ length: 2000 }, (_, index) => ({ id: `new-${index}`, start_ms: index * 3000,
@@ -46,6 +47,7 @@ const visible = async number => assert(await row(number).evaluate(el => {
 }));
 try {
   const threshold = await checkCueWindowThreshold(browser, process.env.CUE_WINDOW_URL || 'http://127.0.0.1:5173');
+  const deletion = await checkCueWindowDeletion(browser, process.env.CUE_WINDOW_URL || 'http://127.0.0.1:5173');
   const multiline = await checkMultilineWindow(browser, process.env.CUE_WINDOW_URL || 'http://127.0.0.1:5173');
   await page.goto(`${process.env.CUE_WINDOW_URL || 'http://127.0.0.1:5173'}/workspace/local`);
   await row(1).waitFor();
@@ -120,7 +122,7 @@ try {
   assert.equal(await handle.getAttribute('aria-valuenow'), '320');
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
   console.log(JSON.stringify({ boundedRows: true, variableHeight: true, fullSearchAndSelection: true,
-    undoAndReordering: true, offscreenFocusAndTab: true, menu: true, qcReveal: true, resizeAndRestore: true, multiline, threshold }));
+    undoAndReordering: true, offscreenFocusAndTab: true, menu: true, qcReveal: true, resizeAndRestore: true, multiline, threshold, deletion }));
 } catch (error) {
   console.error(error);
   console.error(await page.evaluate(() => ({ rows: document.querySelector('.cue-list table')?.getAttribute('aria-rowcount'),
