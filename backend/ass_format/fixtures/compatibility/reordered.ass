@@ -1,0 +1,28 @@
+[Script Info]
+; Synthetic CueRelay corpus, authored for redistribution.
+Title: 兼容性自制样本
+ScriptType: v4.00+
+PlayResX: 640
+PlayResY: 360
+ScaledBorderAndShadow: yes
+WrapStyle: 0
+YCbCr Matrix: TV.709
+Timer: 100.0000
+Custom Key: retained, opaque
+
+[V4+ Styles]
+Format: Fontsize, Name, Fontname, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: 28,Default,Local Test Font,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,20,20,20,1
+Style: 3e1,强调,Local Test Font,&H0000FFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,+100,100.,.5,-0.5,1,2,0,8,10,20,30,1
+
+[Events]
+Format: Start, End, Layer, Name, Style, MarginV, MarginL, MarginR, Effect, Text
+; event anchor
+Dialogue: 0:00:02.01,0:00:04.99,2,译者,Default,0033,0011,0022,,  中文, "引号" (括号) [方括号] <>& / é é 😀𠮷\N硬换行\n软换行\h空格
+Comment: 0:00:00.00,0:00:00.10,0,备注,强调,0003,0001,0002,,{\u1}保留,comment{\u0}
+Dialogue: 0:00:01.23,0:00:03.45,2,,强调,0000,0000,0000,,{\b1\i1\u1\s1}同层重叠{\s0\u0\i0\b0}
+Dialogue: 0:00:00.00,0:00:00.01,0,,Default,0000,0000,0000,,
+Dialogue: 9:59:59.98,9:59:59.99,0,,Default,0000,0000,0000,,末尾
+
+[Aegisub Project Garbage]
+Video File: https://example.invalid/never-fetch.mp4

@@ -14,6 +14,10 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-11 ASS 兼容性修复：纯 `ass_format` 在既有 v2 契约内收紧结构化脚本键、样式名称与数字词法，按源行定位引用错误，并在导入返回前复用完整序列化预检，避免接受无法原样导出的文档。保留原始模板锚点、UUID、保存/revision 路径与模块依赖方向；没有新增解析框架或更改协作/UI。兼容边界只维护于 [格式模块](../backend/ass_format/README.md#文件兼容性契约)，自制语料/HTTP/项目闭环及独立 WASM 对照见 [验证记录](experiments/ass-compatibility.md)。该对照修正了第一阶段 F4 将 Default 回退误判为空白归一化的结论。
+
+同日复核补修 R1–R3：语法规范化仅处理 ASCII 空格/Tab，先保留并校验原始字段，名称/字体定义不删除尾空白；共享样式身份校验拒绝 Default 非规范大小写变体，保留普通大小写名称区分。新增原始词法语料及逐 Cue 模型/引擎样式一致性对照，避免只检查文件往返相等。依赖及公共契约不变；证据与结果仍归上述格式模块和验证记录。
+
 2026-11-07 浏览器性能优化：workspace-ui/CueRow 按不可变 cue 与逐行标志 memo，CPS 只随正文/已应用时间计算；use-cue-window / cue-window 只拥有超过 200 行的 DOM 窗口、高度测量和 reveal，完整字幕/选择/搜索/历史仍归原模块。AudioTimeline 接收显式 visible，仅在可见播放/试听期间持续 RAF；media/audio 的视窗请求声明当前仍持有的分析 tile，Worker 只发送缺失/模式升级数据，复用既有 WeakMap 图像，不改变 32MiB LRU。没有新增运行时依赖或反向依赖；ASS 序列化/预览调度与保存协议不变。职责与回归见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕表渲染与滚动)、[音频模块](../frontend/src/media/audio/README.md)；数据及待测边界见 [性能验证](experiments/browser-performance.md)。
 
 2026-11-08 窗口化检查 R1/R2 修复：use-cue-window 以可见行 ID / 行内偏移持有阅读锚点，统一在布局提交中测量高度、更新累计偏移并恢复；定位目标保持到新窗口测量稳定。零尺寸隐藏不失效缓存，实际调宽后按同一锚点恢复；窗口化容器禁用浏览器原生滚动锚定，用户原生滚动/焦点移动优先接管。职责、依赖、字幕/选择/保存所有权不变，F3/F6 保留原边界。连续多行与软换行回归及验证见 [修复记录](experiments/browser-performance-window-fixes.md)。

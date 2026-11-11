@@ -11,6 +11,7 @@ FLAGS = ("Bold", "Italic", "Underline", "StrikeOut")
 NUMBERS = ("Fontsize", "ScaleX", "ScaleY", "Spacing", "Angle", "Outline", "Shadow")
 INTEGERS = ("BorderStyle", "Alignment", "MarginL", "MarginR", "MarginV", "Encoding")
 MAX_STYLES = 1000  # Also subject to the existing 1MiB exported document limit.
+DECIMAL_NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
 
 def validate_name(value, line=None):
@@ -27,10 +28,11 @@ def validate_name(value, line=None):
 def validate_values(values, line=None):
     if not isinstance(values, dict) or set(values) != set(STYLE_FIELDS) or any(not isinstance(v, str) for v in values.values()):
         fail("样式必须包含完整标准 ASS 字段，属性值须为字符串", line)
-    if any(len(value) > 100 or value != value.strip() or any(ord(c) < 32 or c in ',\u0085\u2028\u2029' for c in value) for value in values.values()):
-        fail("样式字段须为不超过 100 字符的单行值，不能包含逗号或首尾空白", line)
-    for name in ("Name", "Fontname"):
-        validate_name(values[name], line)
+    for name, value in values.items():
+        if len(value) > 100 or value != value.strip() or any(ord(c) < 32 or c in ',\u0085\u2028\u2029' for c in value):
+            fail(f"样式字段 {name} 须为不超过 100 字符的单行值，不能包含逗号或首尾空白", line)
+    validate_style_name(values["Name"], line)
+    validate_name(values["Fontname"], line)
     for name in COLORS:
         if not re.fullmatch(r"&H[0-9a-fA-F]{8}", values[name]):
             fail("样式颜色须为 &HAABBGGRR（AA=00 不透明，FF 透明）", line)
@@ -38,6 +40,8 @@ def validate_values(values, line=None):
         if values[name] not in ("0", "-1"):
             fail("样式布尔值须为 0 或 -1", line)
     for name in NUMBERS:
+        if not DECIMAL_NUMBER.fullmatch(values[name]):
+            fail(f"非法样式数字 {name}：须使用 ASCII 十进制数字", line)
         try:
             number = Decimal(values[name])
         except InvalidOperation:
@@ -53,6 +57,19 @@ def validate_values(values, line=None):
             fail(f"非法样式整数 {name}", line)
     if values["BorderStyle"] not in ("1", "3") or int(values["Alignment"]) not in range(1, 10):
         fail("非法 BorderStyle 或 Alignment", line)
+
+
+def validate_style_name(value, line=None):
+    validate_name(value, line)
+    # libass strips leading asterisks from style definitions. Do not create
+    # independent IDs for names that the renderer can collapse into one name.
+    if value.startswith('*'):
+        fail("样式名称不能以 * 开头，渲染器会将其解释为其他样式名称", line)
+    # Default is special in libass lookup: its case variants can resolve to a
+    # different Default definition. Ordinary names (foo/Foo) remain case-sensitive.
+    if value.lower() == 'default' and value != 'Default':
+        fail("保留样式名 Default 须精确使用此大小写，不能使用 default/DEFAULT 等变体", line)
+    return value
 
 
 def validate_fields(fields):
@@ -90,7 +107,7 @@ def validate_styles(styles, source_names):
         if not isinstance(style, dict) or set(style) != {"id", "name", "fields", "source_name", "origin"}:
             fail("样式对象字段不符合 v2 契约")
         validate_id(style["id"])
-        validate_name(style["name"])
+        validate_style_name(style["name"])
         validate_fields(style["fields"])
         if style["id"] in ids or style["name"] in names:
             fail("样式 ID 与名称须分别唯一")

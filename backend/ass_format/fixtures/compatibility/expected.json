@@ -1,0 +1,398 @@
+{
+  "valid": {
+    "text-and-metadata.ass": {
+      "script": {
+        "play_res_x": 640,
+        "play_res_y": 360,
+        "scaled_border_and_shadow": true
+      },
+      "styles": {
+        "Default": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "28",
+          "PrimaryColour": "&H00FFFFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "0",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "100",
+          "ScaleY": "100",
+          "Spacing": "0",
+          "Angle": "0",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "2",
+          "MarginL": "20",
+          "MarginR": "20",
+          "MarginV": "20",
+          "Encoding": "1"
+        },
+        "强调": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "3e1",
+          "PrimaryColour": "&H0000FFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "-1",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "+100",
+          "ScaleY": "100.",
+          "Spacing": ".5",
+          "Angle": "-0.5",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "8",
+          "MarginL": "10",
+          "MarginR": "20",
+          "MarginV": "30",
+          "Encoding": "1"
+        }
+      },
+      "cues": [
+        {
+          "start_ms": 2010,
+          "end_ms": 4990,
+          "text": "  中文, \"引号\" (括号) [方括号] <>& / é é 😀𠮷\\N硬换行\\n软换行\\h空格",
+          "style": "Default"
+        },
+        {
+          "start_ms": 1230,
+          "end_ms": 3450,
+          "text": "{\\b1\\i1\\u1\\s1}同层重叠{\\s0\\u0\\i0\\b0}",
+          "style": "强调"
+        },
+        {
+          "start_ms": 0,
+          "end_ms": 10,
+          "text": "",
+          "style": "Default"
+        },
+        {
+          "start_ms": 35999980,
+          "end_ms": 35999990,
+          "text": "末尾",
+          "style": "Default"
+        }
+      ],
+      "events": [
+        "Dialogue: 2,0:00:02.01,0:00:04.99,Default,译者,0011,0022,0033,,  中文, \"引号\" (括号) [方括号] <>& / é é 😀𠮷\\N硬换行\\n软换行\\h空格",
+        "Comment: 0,0:00:00.00,0:00:00.10,强调,备注,0001,0002,0003,,{\\u1}保留,comment{\\u0}",
+        "Dialogue: 2,0:00:01.23,0:00:03.45,强调,,0000,0000,0000,,{\\b1\\i1\\u1\\s1}同层重叠{\\s0\\u0\\i0\\b0}",
+        "Dialogue: 0,0:00:00.00,0:00:00.01,Default,,0000,0000,0000,,",
+        "Dialogue: 0,9:59:59.98,9:59:59.99,Default,,0000,0000,0000,,末尾"
+      ],
+      "preserved_lines": [
+        "Title: 兼容性自制样本",
+        "WrapStyle: 0",
+        "YCbCr Matrix: TV.709",
+        "Timer: 100.0000",
+        "Custom Key: retained, opaque",
+        "; event anchor",
+        "Video File: https://example.invalid/never-fetch.mp4"
+      ]
+    },
+    "reordered.ass": {
+      "script": {
+        "play_res_x": 640,
+        "play_res_y": 360,
+        "scaled_border_and_shadow": true
+      },
+      "styles": {
+        "Default": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "28",
+          "PrimaryColour": "&H00FFFFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "0",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "100",
+          "ScaleY": "100",
+          "Spacing": "0",
+          "Angle": "0",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "2",
+          "MarginL": "20",
+          "MarginR": "20",
+          "MarginV": "20",
+          "Encoding": "1"
+        },
+        "强调": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "3e1",
+          "PrimaryColour": "&H0000FFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "-1",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "+100",
+          "ScaleY": "100.",
+          "Spacing": ".5",
+          "Angle": "-0.5",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "8",
+          "MarginL": "10",
+          "MarginR": "20",
+          "MarginV": "30",
+          "Encoding": "1"
+        }
+      },
+      "cues": [
+        {
+          "start_ms": 2010,
+          "end_ms": 4990,
+          "text": "  中文, \"引号\" (括号) [方括号] <>& / é é 😀𠮷\\N硬换行\\n软换行\\h空格",
+          "style": "Default"
+        },
+        {
+          "start_ms": 1230,
+          "end_ms": 3450,
+          "text": "{\\b1\\i1\\u1\\s1}同层重叠{\\s0\\u0\\i0\\b0}",
+          "style": "强调"
+        },
+        {
+          "start_ms": 0,
+          "end_ms": 10,
+          "text": "",
+          "style": "Default"
+        },
+        {
+          "start_ms": 35999980,
+          "end_ms": 35999990,
+          "text": "末尾",
+          "style": "Default"
+        }
+      ],
+      "events": [
+        "Dialogue: 0:00:02.01,0:00:04.99,2,译者,Default,0033,0011,0022,,  中文, \"引号\" (括号) [方括号] <>& / é é 😀𠮷\\N硬换行\\n软换行\\h空格",
+        "Comment: 0:00:00.00,0:00:00.10,0,备注,强调,0003,0001,0002,,{\\u1}保留,comment{\\u0}",
+        "Dialogue: 0:00:01.23,0:00:03.45,2,,强调,0000,0000,0000,,{\\b1\\i1\\u1\\s1}同层重叠{\\s0\\u0\\i0\\b0}",
+        "Dialogue: 0:00:00.00,0:00:00.01,0,,Default,0000,0000,0000,,",
+        "Dialogue: 9:59:59.98,9:59:59.99,0,,Default,0000,0000,0000,,末尾"
+      ],
+      "preserved_lines": [
+        "Title: 兼容性自制样本",
+        "WrapStyle: 0",
+        "YCbCr Matrix: TV.709",
+        "Timer: 100.0000",
+        "Custom Key: retained, opaque",
+        "; event anchor",
+        "Video File: https://example.invalid/never-fetch.mp4"
+      ]
+    },
+    "empty.ass": {
+      "script": {
+        "play_res_x": null,
+        "play_res_y": null,
+        "scaled_border_and_shadow": null
+      },
+      "styles": {
+        "Default": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "28",
+          "PrimaryColour": "&H00FFFFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "0",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "100",
+          "ScaleY": "100",
+          "Spacing": "0",
+          "Angle": "0",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "2",
+          "MarginL": "20",
+          "MarginR": "20",
+          "MarginV": "20",
+          "Encoding": "1"
+        },
+        "强调": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "3e1",
+          "PrimaryColour": "&H0000FFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "-1",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "+100",
+          "ScaleY": "100.",
+          "Spacing": ".5",
+          "Angle": "-0.5",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "8",
+          "MarginL": "10",
+          "MarginR": "20",
+          "MarginV": "30",
+          "Encoding": "1"
+        }
+      },
+      "cues": [],
+      "events": [],
+      "preserved_lines": [
+        "Title: 兼容性自制样本",
+        "WrapStyle: 0",
+        "YCbCr Matrix: TV.709",
+        "Timer: 100.0000",
+        "Custom Key: retained, opaque"
+      ]
+    },
+    "comments-only.ass": {
+      "script": {
+        "play_res_x": null,
+        "play_res_y": null,
+        "scaled_border_and_shadow": null
+      },
+      "styles": {
+        "Default": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "28",
+          "PrimaryColour": "&H00FFFFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "0",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "100",
+          "ScaleY": "100",
+          "Spacing": "0",
+          "Angle": "0",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "2",
+          "MarginL": "20",
+          "MarginR": "20",
+          "MarginV": "20",
+          "Encoding": "1"
+        },
+        "强调": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "3e1",
+          "PrimaryColour": "&H0000FFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "-1",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "+100",
+          "ScaleY": "100.",
+          "Spacing": ".5",
+          "Angle": "-0.5",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "8",
+          "MarginL": "10",
+          "MarginR": "20",
+          "MarginV": "30",
+          "Encoding": "1"
+        }
+      },
+      "cues": [],
+      "events": [
+        "Comment: 0,0:00:00.00,0:00:00.10,强调,备注,0001,0002,0003,,{\\u1}保留,comment{\\u0}"
+      ],
+      "preserved_lines": [
+        "Title: 兼容性自制样本",
+        "WrapStyle: 0",
+        "YCbCr Matrix: TV.709",
+        "Timer: 100.0000",
+        "Custom Key: retained, opaque"
+      ]
+    }
+  },
+  "invalid": {
+    "noncanonical-playres.ass": {
+      "message": "PlayResX",
+      "line": 5
+    },
+    "renderer-style-alias.ass": {
+      "message": "样式名称",
+      "line": 16
+    },
+    "python-number.ass": {
+      "message": "Fontsize",
+      "line": 15
+    },
+    "missing-style.ass": {
+      "message": "Missing",
+      "line": 21
+    },
+    "unsupported-tag.ass": {
+      "message": "标签",
+      "line": 22
+    },
+    "invalid-time.ass": {
+      "message": "h:mm:ss.cc",
+      "line": 21
+    },
+    "missing-format-field.ass": {
+      "message": "Format",
+      "line": 19
+    },
+    "unknown-section.ass": {
+      "message": "section",
+      "line": 27
+    },
+    "script-key-nbsp.ass": {
+      "message": "PlayResX",
+      "line": 5
+    },
+    "script-value-nbsp.ass": {
+      "message": "PlayRes",
+      "line": 5
+    },
+    "style-number-nbsp.ass": {
+      "message": "首尾空白",
+      "line": 13
+    },
+    "style-name-trailing-space.ass": {
+      "message": "首尾空白",
+      "line": 14
+    },
+    "style-name-nbsp.ass": {
+      "message": "首尾空白",
+      "line": 14
+    },
+    "style-font-trailing-space.ass": {
+      "message": "首尾空白",
+      "line": 13
+    },
+    "reserved-default-case.ass": {
+      "message": "Default",
+      "line": 14
+    }
+  }
+}

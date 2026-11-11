@@ -22,6 +22,7 @@ EVENT_FIELDS = "Layer Start End Style Name MarginL MarginR MarginV Effect Text".
 CUE_FIELDS = {'Layer', 'Name', 'MarginL', 'MarginR', 'MarginV'}
 TIME = re.compile(r"([0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{2})")
 TAG_BLOCK = re.compile(r"(?:\\[bius][01])+")
+ASCII_WHITESPACE = " \t"  # ASS syntax must not inherit Python's Unicode whitespace rules.
 
 
 def _text(value, line=None):
@@ -48,7 +49,7 @@ def _text(value, line=None):
 
 
 def _time(value, line):
-    match = TIME.fullmatch(value.strip())
+    match = TIME.fullmatch(value.strip(ASCII_WHITESPACE))
     if not match:
         _fail("时间须使用 h:mm:ss.cc（0–9 小时）", line)
     # Delegate conversion only after rejecting the library's permissive syntax.
@@ -70,7 +71,7 @@ def _format_time(ms):
 
 
 def _fields(value, expected, line):
-    fields = [part.strip() for part in value.split(",")]
+    fields = [part.strip(ASCII_WHITESPACE) for part in value.split(",")]
     if len(fields) != len(expected) or set(fields) != set(expected):
         _fail("Format 包含缺失、重复或不支持的字段", line)
     if "Text" in expected and fields[-1] != "Text":
@@ -108,6 +109,7 @@ def _inspect(source):
     seen = set()
     style_format = event_format = None
     styles, cues, records, canonical_events, canonical_styles = [], [], {}, [], []
+    style_references = []
     script_type = None
     insertion = len(lines)
     style_insertion = script_insertion = len(lines)
@@ -115,7 +117,7 @@ def _inspect(source):
     script = {"play_res_x": None, "play_res_y": None, "scaled_border_and_shadow": None}
     for index, raw in enumerate(lines):
         line = index + 1
-        stripped = raw.strip()
+        stripped = raw.strip(ASCII_WHITESPACE)
         if not stripped or stripped.startswith(";"):
             continue
         if stripped.startswith("["):
@@ -132,20 +134,24 @@ def _inspect(source):
             continue
         if ":" not in raw:
             _fail("无法识别的 ASS 记录", line)
-        key, value = raw.lstrip().split(":", 1)
+        key, value = raw.lstrip(ASCII_WHITESPACE).split(":", 1)
         value = value.removeprefix(" ")
         if section in {"[Script Info]", "[Aegisub Project Garbage]"}:
             if section == "[Script Info]" and key == "ScriptType":
                 if script_type is not None:
                     _fail("ScriptType 重复", line)
-                script_type = value.strip()
+                script_type = value.strip(ASCII_WHITESPACE)
             script_keys = {"PlayResX": "play_res_x", "PlayResY": "play_res_y", "ScaledBorderAndShadow": "scaled_border_and_shadow"}
+            # Broad matching detects malformed spellings for rejection; it must
+            # never normalize the actual key into an effective script setting.
             script_key = next((known for known in script_keys if known.casefold() == key.strip().casefold()), None)
             if section == "[Script Info]" and script_key:
                 if script_key in script_records:
                     _fail(f"{script_key} 重复，不能安全编辑脚本设置", line)
+                if key != script_key:
+                    _fail(f"脚本设置键须为 {script_key}，非规范大小写或空白可能改变渲染含义", line)
                 script_records[script_key] = index
-                raw = value.strip()
+                raw = value.strip(ASCII_WHITESPACE)
                 if script_key == "ScaledBorderAndShadow":
                     if raw.lower() not in ("yes", "no"):
                         _fail("ScaledBorderAndShadow 须为 yes/no", line)
@@ -162,7 +168,12 @@ def _inspect(source):
                 parts = value.split(",")
                 if len(parts) != len(STYLE_FIELDS):
                     _fail("Style 字段数错误", line)
-                values = dict(zip(style_format, (p.strip() for p in parts)))
+                # libass skips leading ASCII whitespace in names but preserves
+                # their tails. Numeric fields allow ASCII padding on both ends.
+                # Keep all other boundary characters for the shared validator;
+                # strip() here would erase invalid source lexemes before checks.
+                values = {field: part.lstrip(ASCII_WHITESPACE) if field in ("Name", "Fontname")
+                          else part.strip(ASCII_WHITESPACE) for field, part in zip(style_format, parts)}
                 _style(values, line)
                 if values["Name"] in styles:
                     _fail("样式名重复", line)
@@ -179,14 +190,22 @@ def _inspect(source):
                 if len(parts) != len(EVENT_FIELDS):
                     _fail("事件字段数错误", line)
                 values = dict(zip(event_format, parts))
-                if any(not re.fullmatch(r"[0-9]{1,5}", values[f].strip()) for f in ("Layer", "MarginL", "MarginR", "MarginV")):
+                if any(not re.fullmatch(r"[0-9]{1,5}", values[f].strip(ASCII_WHITESPACE)) for f in ("Layer", "MarginL", "MarginR", "MarginV")):
                     _fail("事件 Layer/Margin 须为非负整数", line)
-                if values["Effect"].strip():
+                if values["Effect"].strip(ASCII_WHITESPACE):
                     _fail("非空 Effect 不支持可编辑导入", line)
                 start, end = _time(values["Start"], line), _time(values["End"], line)
                 _interval(start, end, line)
                 _text(values["Text"], line)
-                style = values["Style"].strip()
+                # libass skips leading ASCII whitespace, but trailing whitespace
+                # causes lookup failure and a silent Default fallback. Trimming
+                # both ends would change rendering on export (even if a test
+                # using only Default appeared to work).
+                style = values["Style"].lstrip(ASCII_WHITESPACE)
+                if style != style.strip():
+                    _fail("样式引用不能含尾部空白或非 ASCII 前导空白；渲染器可能回退到 Default", line)
+                values["Style"] = style
+                style_references.append((style, line))
                 canonical_events.append(key + ": " + ",".join(values[f] for f in EVENT_FIELDS))
                 # Comment is validated but never exposed as an editable cue.
                 if key == "Comment":
@@ -205,16 +224,17 @@ def _inspect(source):
         _fail("验证台最多接受 5000 个事件")
     if len(styles) > MAX_STYLES:
         _fail(f"文档最多接受 {MAX_STYLES} 个样式")
+    for name, line in style_references:
+        if name not in style_records:
+            _fail(f"事件引用了不存在的样式：{name}", line, category='missing-style')
     # pysubs2 ignores Format lines, so feed it records already mapped by Format.
     canonical = "[Script Info]\nScriptType: v4.00+\n[V4+ Styles]\n" + "\n".join(canonical_styles) + "\n[Events]\n" + "\n".join(canonical_events)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            parsed = pysubs2.SSAFile.from_string(canonical, format_="ass")
+            pysubs2.SSAFile.from_string(canonical, format_="ass")
     except (ValueError, TypeError, RuntimeWarning) as error:
         raise AssError("ASS 字段无法安全解析") from error
-    if any(event.style not in styles for event in parsed.events):
-        _fail("事件引用了不存在的样式")
     validate_script(script, allow_partial=True)
     return {"source": source, "styles": styles, "cues": cues}, _Layout(
         lines, records, event_format, insertion, style_format, style_records,
@@ -228,7 +248,11 @@ def parse_ass(source):
                "source_name": name, "origin": None} for name, (_, _, values) in layout.style_records.items()]
     names = {style["name"]: style["id"] for style in styles}
     cues = [{**{key: value for key, value in cue.items() if key != "style"}, "style_id": names[cue["style"]]} for cue in original["cues"]]
-    return {"schema_version": 2, "source": source, "script": layout.script, "styles": styles, "cues": cues}
+    document = {"schema_version": 2, "source": source, "script": layout.script, "styles": styles, "cues": cues}
+    # Normalization can grow the output (record spacing or a final LF). Reject
+    # before import succeeds if this unedited snapshot cannot be exported.
+    serialize_ass(document)
+    return document
 
 
 def _document_layout(document):

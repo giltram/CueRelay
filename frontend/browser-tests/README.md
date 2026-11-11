@@ -2,6 +2,10 @@
 
 现有功能套件入口见 `package.json` 的 `test:*`，要求已安装 Chrome、FFmpeg、Node 和仓库 `.venv`。`ass-codec.mjs` 调用后端纯 codec 创建合法夹具，不访问数据库。脚本分别使用各自的 URL 环境变量，默认地址请查看对应文件。
 
+## ASS 独立引擎兼容性
+
+`npm run test:ass-compatibility` 在 Node 中直接加载已安装 JASSUB WASM 与仓库 Noto Sans SC 字体，不需要 Chrome、FFmpeg、HTTP 服务或数据库。仅将引擎的文件传输适配为本地 WASM 字节，不替换解析/渲染。检查 F1–F4 及复核 R1–R3 的真实解释差异、受支持 ASCII 数字/语法空白、完整语料的事件/样式/顺序及字形几何与位图哈希往返；每条有效 Cue 还将模型 style_id 解析出的名称/字号/字体与实际引擎引用直接比较。受影响的 Default/Emphasis 分别在 2s/3.6s 渲染，避免只在未受影响时刻比较。明确区分 libass 的文件行尾空白处理与 DTO 原文保留。它不是完整浏览器预览验收，浏览器生命周期/播放/Canvas 路径仍由 `test:ass-preview` 覆盖。
+
 ## 窗口化回归
 
 ```sh
