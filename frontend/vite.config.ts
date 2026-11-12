@@ -36,5 +36,5 @@ export default defineConfig({
   },
   preview: { port: 5173, strictPort: true, headers, proxy },
   worker: { format: 'es' },
-  test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'browser-tests/**'] },
+  test: { environment: 'node', exclude: ['node_modules/**', 'dist/**', 'browser-tests/**', 'regression/**'] },
 });

@@ -1,0 +1,19 @@
+name: cuerelay-regression
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cuerelay_test
+      POSTGRES_PASSWORD: cuerelay-test-only
+      POSTGRES_DB: postgres
+    ports:
+      - '127.0.0.1:${CUERELAY_TEST_PGPORT:-55433}:5432'
+    # No named volume or development data mounts; down discards all test data.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cuerelay_test -d postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30

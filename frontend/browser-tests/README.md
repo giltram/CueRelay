@@ -1,5 +1,7 @@
 # 浏览器验证
 
+首轮接入真实 Django/PostgreSQL 的自动回归位于相邻 `regression/`，由 Django LiveServerTestCase 启动，不依赖本目录的 HTTP fixture 或外部服务。新克隆运行命令和 CI 范围见 [测试运行手册](../../docs/testing.md)。本目录旧脚本继续作为专项检查保留，未全部纳入 CI。
+
 现有功能套件入口见 `package.json` 的 `test:*`，要求已安装 Chrome、FFmpeg、Node 和仓库 `.venv`。`ass-codec.mjs` 调用后端纯 codec 创建合法夹具，不访问数据库。脚本分别使用各自的 URL 环境变量，默认地址请查看对应文件。
 
 ## ASS 独立引擎兼容性

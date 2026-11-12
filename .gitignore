@@ -4,6 +4,10 @@ __pycache__/
 *.py[cod]
 node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+# CI rollout is deferred; keep the local draft until explicitly enabled.
+/.github/workflows/regression.yml
 *.tsbuildinfo
 *.log
 .env

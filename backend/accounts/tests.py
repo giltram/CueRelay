@@ -252,6 +252,9 @@ class LoginConcurrencyTests(TransactionTestCase):
 
     def test_separate_processes_share_http_login_state(self):
         env = os.environ.copy()
+        # The child reads the explicit PG* connection copied below. A parent
+        # test settings module may intentionally ignore PG* for safety.
+        env['DJANGO_SETTINGS_MODULE'] = 'application.settings'
         for name, field in [('PGDATABASE', 'NAME'), ('PGUSER', 'USER'), ('PGPASSWORD', 'PASSWORD'),
                             ('PGHOST', 'HOST'), ('PGPORT', 'PORT')]:
             env[name] = str(connection.settings_dict[field])

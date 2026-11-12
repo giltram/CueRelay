@@ -69,18 +69,19 @@ npm run dev
 
 ## 验证
 
+自动化回归的全新克隆安装、专用测试数据库、Vitest/Playwright 命令、覆盖索引和 CI 说明见 [测试运行手册](docs/testing.md)。首轮审计和范围见 [回归实施计划](docs/plans/regression-testing.md)。该入口不读取 `.env` 或使用开发/生产数据库。
+
 首次登录提示可在新标签页打开使用手册，之后从「个人设置 → 使用手册」再次打开。
 手册地址为 `/handbook` 或带来源组织的 `/organizations/:organizationId/handbook`，包含新手打轴流程、常用快捷键、Aegisub 迁移速查和保存/样式/ASS 边界。
 正文在 [handbook.md](frontend/src/handbook-ui/handbook.md) 维护，目录由章节标题生成；构建时预编译并打包进前端，更新文案后需重新构建部署。快捷键表格仍从共享默认配置生成。维护语法见 [手册模块](frontend/src/handbook-ui/README.md)。
 升级需运行 `python backend/manage.py migrate` 应用 accounts.0006，并同步更新前后端；已经登录过的旧账号不弹首次提示，尚未登录/新账号会提示，确认按账号持久化。浏览器回归：`cd frontend && npm run test:handbook`（默认本地前端 5198，HANDBOOK_URL 可覆盖，隔离接口夹具，不写开发数据库）。
 
-加载 .env 后：
+按 [测试运行手册](docs/testing.md) 启动专用测试数据库后，从仓库根目录运行（无需加载 `.env`）：
 
 ```sh
-source .venv/bin/activate
-cd backend
-python manage.py check
-python manage.py test accounts ass_format http_api organizations projects
+.venv/bin/python backend/manage.py check --settings=application.test_settings
+.venv/bin/python backend/manage.py test accounts ass_format http_api organizations projects diagnostics --settings=application.test_settings --noinput
+.venv/bin/python backend/manage.py test browser_tests.regression --settings=application.test_settings --noinput
 ```
 
 ```sh

@@ -263,6 +263,8 @@ Alpha 期间保留项目全部业务历史与成功命令回执，不截断审�
 
 ## 9. 验证与后续维护
 
+2026-11-11 回归基础：统一运行和覆盖索引见 [测试运行手册](testing.md)，审计/首轮范围见 [实施计划](plans/regression-testing.md)。`application.test_settings` 固定本机专用测试库连接，Django 创建并销毁独有测试数据库；`browser_tests.regression` 用 LiveServerTestCase 编排真实后端、隔离数据和 FFmpeg 合成视频，`frontend/regression` 复用已有 Playwright 包并管理 Vite/Chromium。测试编排向下依赖现有公开服务，不增加产品接口或改变业务模块依赖；纯规则/权限/样式继续复用既有 Django/Vitest/独立 JASSUB 测试。GitHub Actions 按用户要求暂缓，workflow 草案仅保留本地并由 `.gitignore` 忽略，当前统一入口为本地测试命令。
+
 测试分层为纯格式/状态测试、PostgreSQL 事务竞争测试、HTTP/WS 契约与故障注入、浏览器端到端测试、真实用户打轴验收。按 [不变量](invariants.md) 建立测试索引，按 [里程碑](milestones.md) 把实时协作放到早期可测切片。所有数据修改入口都应被同一组业务测试覆盖，不为每种传输重复实现规则。
 
 首个切片已建立格式 / HTTP 契约 / 时间与快捷键测试，执行结果见实验记录；当前只检查实际模块的依赖方向，未来协作事务和恢复验证尚未执行。每个任务更新涉及的公共接口与架构说明，只在出现实际职责分离需求时提取新模块。
