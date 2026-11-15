@@ -141,11 +141,11 @@ export async function checkCommitTiming(browser, url, videoFile) {
     await assertContext([[1.2, 2.4], [2.4, 5.1]]);
 
     // Invalid ranges and typing Enter inside a time field cannot advance the selection.
-    await end.fill('0:00:05.10'); await commit('KeyG');
+    await end.fill('0:00:05.00'); await commit('KeyG');
     assert.equal(await rows.count(), 3);
     assert.equal(await selected(3), 'true');
-    assert.equal(await end.inputValue(), '0:00:05.10');
-    assert((await page.locator('.error').textContent()).includes('入点必须早于出点'));
+    assert.equal(await end.inputValue(), '0:00:05.00');
+    assert((await page.locator('.error').textContent()).includes('入点不能晚于出点'));
     await end.fill('0:00:08.00'); await page.keyboard.press('Enter');
     assert.equal(await rows.count(), 3);
     assert.deepEqual(await times(2), ['0:00:05.10', '0:00:07.10']);

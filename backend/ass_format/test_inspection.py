@@ -11,7 +11,7 @@ class InspectionTests(unittest.TestCase):
         return document
 
     def test_valid_empty_and_supported_documents_are_unchanged_and_exportable(self):
-        for document in [empty_document(), self.document(text=r'{\b1\i1}中文{\b0}\NEnglish\htext')]:
+        for document in [empty_document(), self.document(end_ms=1000), self.document(text=r'{\b1\i1}中文{\b0}\NEnglish\htext')]:
             before = deepcopy(document)
             self.assertEqual(inspect_document(document), [])
             self.assertEqual(document, before)

@@ -3,7 +3,7 @@ import { diagnosticId } from '../diagnostics/identifier';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { diagnostics, noteIgnored, provideWorkspaceStatus, safeError } from '../diagnostics';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useImperativeHandle, type Ref, type ReactNode } from 'react';
-import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
+import type { ProjectDetail, ProjectSummary, ProjectSaveRequest, ProjectSaveResult } from '../contracts/projects';
 import type { AssDocument, Cue, SplitRequest, SplitResult, StyleResult } from '../contracts/subtitles';
 import type { StyleOperation } from '../contracts/styles';
 import type { JsonRequest } from '../contracts/http';
@@ -23,6 +23,7 @@ import { commitTiming } from './commit-timing';
 import { playheadBoundary } from './playhead-boundary';
 import { deleteLines, type LineEditResult } from './line-edits';
 import { lineSelection, selectedLineIds, type SelectionModifiers } from './line-selection';
+import { assignLineStyle, selectedLineStyle } from './line-styles';
 import { isLineAction } from './line-actions';
 import { useLineCommands } from './use-line-commands';
 import type { PasteField } from '../project-data/ass-api';
@@ -38,6 +39,8 @@ import { sameEdit, type EditState } from './edit-history';
 import { orderCues } from '../subtitle-model/cue-order';
 import { subtitleExportFilename } from './export-filename';
 import { useSubtitleQc } from './use-subtitle-qc';
+import { GlossaryPanel } from '../glossary-ui/GlossaryPanel';
+import { useTermInsertion } from './use-term-insertion';
 import { SubtitleQcPanel } from './SubtitleQcPanel';
 
 export interface WorkbenchHandle {
@@ -58,7 +61,7 @@ interface Props {
   mediaOwnerId?: number;
   readOnly?: boolean;
   visible?: boolean;
-  onSave?: (document: AssDocument, revision: number) => Promise<ProjectSummary>;
+  onSave?: (input: ProjectSaveRequest) => Promise<ProjectSaveResult>;
   onSplit?: (request: SplitRequest, revision: number) => Promise<SplitResult & { project: ProjectSummary }>;
   styleRequest?: JsonRequest;
   styleOrganizationId?: number;
@@ -116,8 +119,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }, [visible, shortcutsPaused, busy, stylesOpen, pasteOver, pendingImport]);
   const selectedIds = selectedLineIds(edits.state);
   const selected = document?.cues.find(cue => cue.id === selectedId);
+  const selectedStyleId = document ? selectedLineStyle(document, selectedIds) : '';
   const qcEnabled = visible && !shortcutsPaused && !pendingImport && !stylesOpen && !pasteOver;
   const qc = useSubtitleQc(document, project?.media.duration_ms ?? (duration > 0 ? duration : null), qcEnabled);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const termInsertion = useTermInsertion({ cueId: selectedId, text: selected?.text ?? '', epoch: edits.epoch,
+    editor: textEditor, enabled: canEdit && qcEnabled && !busy && Boolean(selected), isComposing: () => composing.current,
+    onEdit: text => updateCue({ text }) });
   const [qcReveal, setQcReveal] = useState<{ id: string; request: number } | null>(null);
   const pendingTiming = Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms)));
   function closeQc() { qc.close(); workbench.current?.focus({ preventScroll: true }); }
@@ -237,6 +245,17 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     setHasEdits(true);
   }
 
+  function updateSelectedStyle(styleId: string) {
+    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    const state = edits.current();
+    const ids = selectedLineIds(state);
+    if (!state.document || !ids.length) throw new Error('请先选择一条字幕行');
+    const document = assignLineStyle(state.document, ids, styleId);
+    if (document === state.document) return;
+    edits.edit({ ...state, document });
+    setHasEdits(true);
+  }
+
   function commitAndAdvance() {
     if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
     if (!document) throw new Error('ASS 服务尚未就绪');
@@ -344,7 +363,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-cue-qc]')) return;
+      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
       const blocked = busy || transforming.current || pendingImport || stylesOpen || pasteOver || shortcutsPaused || !visible;
       if (candidate && blocked) noteIgnored('editor', stylesOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
@@ -415,13 +434,15 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function saveProject() {
-    if (!document || !onSave || !canEdit) return;
+    if (!document || !savedDocument || !onSave || !canEdit) return;
     diagnostics.record('editor', 'save', 'start', { revision: savedRevision });
     setBusy(true); setSaveMessage('');
+    edits.finish();
     try {
-      const result = await onSave(document, savedRevision);
-      setSavedRevision(result.revision); setSavedDocument(document);
-      diagnostics.record('editor', 'save', 'success', { revision: result.revision });
+      const result = await onSave({ document, revision: savedRevision, baseDocument: savedDocument, requiredStyleIds: edits.styleIds() });
+      const saved = result.document === document ? document : edits.adoptStyles(result.document).document!;
+      setSavedRevision(result.project.revision); setSavedDocument(saved);
+      diagnostics.record('editor', 'save', 'success', { revision: result.project.revision });
       setSaveMessage('项目已保存。尚未应用的时间输入不包含在本次保存中。');
     } finally { setBusy(false); }
   }
@@ -453,7 +474,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   async function exportWithQc() {
     const report = await qc.run('export');
     if (!report) return;
-    if (report.issues.length || report.formatError) qc.show();
+    if (report.issues.length || report.formatError) { setGlossaryOpen(false); qc.show(); }
     else await downloadDraft();
   }
   const hasContent = () => hasProtectedContent;
@@ -464,7 +485,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -520,7 +541,12 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           editable={canEdit} hasVideo={Boolean(video && mediaFile && duration)} shortcutOverrides={shortcutOverrides}
           workspace={workbench} searchEnabled={visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver}
           revealCueId={qcReveal}
-          qc={{ open: qc.open, onToggle: () => { if (qc.open) closeQc(); else qc.toggle(); }, onClose: qc.close,
+          glossary={project && styleRequest && mediaOwnerId !== undefined ? { open: glossaryOpen,
+            onToggle: () => { qc.close(); setGlossaryOpen(value => !value); }, onClose: () => setGlossaryOpen(false),
+            panel: <GlossaryPanel key={`${mediaOwnerId}:${project.organization_id}:${project.id}`} request={styleRequest}
+              organizationId={project.organization_id} projectId={project.id} enabled={qcEnabled && glossaryOpen}
+              editable={!readOnly} canInsert={canEdit && qcEnabled && !busy && Boolean(selected)} onInsert={termInsertion.insert} /> } : undefined}
+          qc={{ open: qc.open, onToggle: () => { if (qc.open) closeQc(); else { setGlossaryOpen(false); qc.toggle(); } }, onClose: qc.close,
             label: qc.checking ? 'QC · 检查中' : qc.stale ? 'QC · 待重查' : qc.report ? `QC · ${qc.report.issues.length}${qc.report.formatError ? ' · 未完成' : ''}` : 'QC',
             panel: <SubtitleQcPanel cues={document?.cues ?? []} issues={qc.report?.issues ?? []}
               phase={qc.report?.phase ?? 'editing'} hasResult={Boolean(qc.report)} checking={qc.checking} stale={qc.stale}
@@ -568,8 +594,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
                   onChange={(value, native) => changeTimeDraft('end', value, 'end', native)} />
                 <div className="cue-style">
                   <label htmlFor={styleSelectId}>样式</label>
-                  <select id={styleSelectId} aria-label="字幕样式" disabled={!selected} value={selected?.style_id || document?.styles[0]?.id || ''}
-                    onChange={event => run(() => updateCue({ style_id: event.target.value }))}>
+                  <select id={styleSelectId} aria-label="字幕样式" disabled={!selectedIds.length} value={selectedStyleId}
+                    onChange={event => run(() => updateSelectedStyle(event.target.value))}>
+                    {!selectedStyleId && <option value="" disabled>{selectedIds.length ? '多种样式' : '请选择字幕'}</option>}
                     {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
                   </select>
                 </div>
@@ -579,6 +606,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               <div className="subtitle-input">
                 <label htmlFor={textEditorId}>字幕文本</label>
                 <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title={`${textFocusBinding} 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航`} rows={2} disabled={!selected} value={selected?.text || ''}
+                  onSelect={termInsertion.remember} onBlur={termInsertion.remember}
                   placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
               </div>
             </fieldset>

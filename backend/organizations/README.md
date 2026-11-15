@@ -17,3 +17,7 @@ PostgreSQL 竞争测试：tests.py（多线程独立连接，同时降级/移除
 `style_templates.py` 是公开模板边界：list_templates / template_snapshot 返回独立 JSON 快照，create_template / update_template / delete_template 执行写入。OrganizationStyleTemplate 存名称、完整 ASS 属性、参考脚本设置、可编辑来源说明、自身 revision 与创建/更新者时间；同组织名称唯一，最多 1000 个。项目仅保留来源 UUID/revision，没有删除级联或动态继承。
 
 写锁顺序 User → Organization → Template；在组织锁下重查 organizer/dev 权限、模板归属、唯一名称与预期 revision。成员可读，不能写。template_snapshot 供持有组织锁的 projects 创建/导入事务调用；同组织锁覆盖模板编辑/删除，版本不匹配抛 TemplateConflict。无 Admin 写入口和历史事件平行机制。来源说明仅为文字，不读取路径/URL或上传字体。
+
+## 组织默认术语表
+
+默认术语表身份和词条由独立 glossary 模块拥有，organizations 不反向导入 glossary/projects，也不在 Organization 上增加反向外键。组织设置通过 App 的独立资源插槽展示维护界面；项目空FK解析组织默认，成员显式fork后得到不再同步的项目副本。组织行锁串行化术语写入/fork和成员撤权；权限/迁移见 [术语契约](../../docs/glossary.md)。

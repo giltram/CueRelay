@@ -17,6 +17,7 @@ import { RouteStatus } from './navigation/RouteStatus';
 import { routeOrganization, routePath, type Route } from './navigation/routes';
 import { useWorkspace } from './app-workspace/use-workspace';
 import './style-ui/style-management.css';
+import { OrganizationGlossary } from './glossary-ui/OrganizationGlossary';
 import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
 
 interface Transition { label: string; action: () => Promise<void> }
@@ -246,6 +247,8 @@ export default function App() {
         organization={organization} organizationId={route.organizationId} projectId={route.projectId}
         request={api} header={header} enabled={Boolean(user && settingsReady && !busy && !transition)} navigate={navigate} />}
       {isSettings && <SettingsPage user={user ?? owner} organization={organization}
+        organizationGlossary={organization && <OrganizationGlossary key={`glossary:${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
+          enabled={Boolean(user && settingsReady && !busy && !transition && route.kind === 'organization-settings')} />}
         organizationStyles={organization && <OrganizationStyleLibrary key={`${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
           canManage={organization.can_manage} enabled={Boolean(user && settingsReady && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}

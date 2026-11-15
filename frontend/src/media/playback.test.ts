@@ -9,12 +9,13 @@ describe('10ms timing contract', () => {
       expect(parseTime(formatTime(milliseconds))).toBe(milliseconds);
     }
   });
-  it('rejects zero length, negative, inverted and off-grid intervals', () => {
-    for (const [start, end] of [[0, 0], [-10, 100], [100, 10], [1, 100], [0, 101], [0, Infinity], [0, 36_000_000]]) {
+  it('allows zero duration but rejects negative, inverted and off-grid intervals', () => {
+    for (const [start, end] of [[-10, 100], [100, 10], [1, 100], [0, 101], [0, Infinity], [0, 36_000_000]]) {
       expect(() => validateInterval(start, end)).toThrow();
     }
     expect(() => validateInterval(10, 20)).not.toThrow();
-    expect(() => validateInterval(snapTime(1.001), snapTime(1.004))).toThrow();
+    expect(() => validateInterval(0, 0)).not.toThrow();
+    expect(() => validateInterval(snapTime(1.001), snapTime(1.004))).not.toThrow();
   });
   it('rejects malformed times and invalid player captures', () => {
     for (const text of ['0:00:60.00', '0:60:00.00', '-0:00:01.00', '0:00:01.001', '', 'NaN', '10:00:00.00']) {

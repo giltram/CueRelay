@@ -168,7 +168,7 @@ Planning Review 已结束，用户已确认并授权第 5 节首个 Coding Task�
 
 ### 验证方式与完成标准
 
-- 自动检查：后端运行 `python manage.py check`、`python manage.py test ass_format http_api`；前端运行 `npm run typecheck`、`npm run test -- --run`、`npm run build`。覆盖时间网格/零长度拒绝、中文/换行/样式往返和不支持内容拒绝，避免铺开完整故障矩阵。
+- 自动检查：后端运行 `python manage.py check`、`python manage.py test ass_format http_api`；前端运行 `npm run typecheck`、`npm run test -- --run`、`npm run build`。覆盖时间网格/倒序拒绝/零时长往返、中文/换行/样式往返和不支持内容拒绝，避免铺开完整故障矩阵。
 - 浏览器操作：加载一份典型真实片源，完成至少 5 分钟、20 行的制作，实际使用快捷键、入出点、微调、循环试听和字幕定位；记录卡顿、精度与缺少波形是否阻断。首轮抽测至少 20 个时间点并记录寻址到画面稳定耗时及已知参考点误差，不以时间输入成功宣称逐帧可靠。
 - ASS 交付：导入→不修改导出→重新解析的基础字段语义相同；修改后的文本/时间正确保留，导出可由 Aegisub 打开，并用同一测试字体抽检显示；不支持输入有明确原因且原件可取得。
 - 网络检查：浏览器请求中没有视频、音频或帧数据；ASS 转换只传字幕内容，第三方渲染器不产生意外外部请求。

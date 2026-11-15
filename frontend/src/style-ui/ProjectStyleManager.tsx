@@ -64,8 +64,7 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
   const disabled = pending || !editable;
   return <Modal title={persisted ? '项目样式管理' : '本地样式管理'} onClose={pending ? undefined : onClose}>
     <div className="style-manager">
-      <p className="hint">{persisted ? '修改使用项目已保存的字幕快照；工作区未保存的字幕和时间输入不会被提交。已打开的工作区需重新加载项目后使用新样式。'
-        : '本地样式保留在当前页面，导出 ASS 后可复用。'}{!editable && ' 当前只读。'}</p>
+      {(!persisted || !editable) && <p className="hint">{!persisted && '本地样式保留在当前页面，导出 ASS 后可复用。'}{!editable && ' 当前只读。'}</p>}
       <div className="style-manager-layout">
         <section className="style-list" aria-label="样式列表">
           <label>搜索样式<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>

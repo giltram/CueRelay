@@ -41,6 +41,8 @@ await context.route('**/api/**', async route => {
     '/api/organizations': { organizations: [{ id: 1, name: '布局组织', role: 'organizer', can_manage: true }] },
     '/api/me/settings': settings, '/api/ass/empty': { document: documentFixture },
     '/api/organizations/1/projects/7': { project },
+        '/api/organizations/1/glossary': { association_version: 1, table: null, uses_organization_default: true, archived: false, entries: [], total: 0, page: 1, has_more: false, empty: true },
+        '/api/organizations/1/projects/7/glossary': { association_version: 1, table: null, uses_organization_default: true, archived: project.status === 'archived', entries: [], total: 0, page: 1, has_more: false, empty: true },
     '/api/organizations/1/projects': { projects: [], total: 0, page: 1, has_more: false },
     '/api/organizations/1/members': { members: [] },
   };

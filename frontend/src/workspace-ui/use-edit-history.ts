@@ -2,6 +2,8 @@ import { EditDiagnostics } from './edit-diagnostics';
 import { diagnostics } from '../diagnostics';
 import { useEffect, useRef, useState } from 'react';
 import { createHistory, endGroup, navigate, record, redo, sameEdit, undo, type EditState } from './edit-history';
+import { adoptHistoryStyles, historyStyleIds } from './history-styles';
+import type { AssDocument } from '../contracts/subtitles';
 
 /** Synchronous ref makes multi-event gestures and React batching deterministic. */
 export function useEditHistory(initial: EditState, diagnosticOwner?: number) {
@@ -27,6 +29,13 @@ export function useEditHistory(initial: EditState, diagnosticOwner?: number) {
     state, epoch,
     current: () => history.current.present,
     finish,
+    styleIds: () => historyStyleIds(history.current),
+    adoptStyles(snapshot: AssDocument) {
+      finish();
+      history.current = adoptHistoryStyles(history.current, snapshot);
+      setEpoch(value => value + 1); publish();
+      return history.current.present;
+    },
     beginComposition() { finish(); composition.current = true; },
     endComposition() { composition.current = false; finish(); },
     edit(next: EditState, inputKey?: string, nativeHistory = false) {

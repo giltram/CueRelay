@@ -4,8 +4,13 @@ from http_api.ass_views import import_ass, export_ass, empty_document, split_ass
 from http_api import identity_views as identity
 from http_api import project_views as projects
 from http_api import style_views as styles
+from http_api import glossary_views as glossary
 
 urlpatterns = [
+    path('api/organizations/<int:organization_id>/glossary', glossary.organization_glossary),
+    path('api/organizations/<int:organization_id>/glossary/<uuid:table_id>/entries/<uuid:entry_id>', glossary.organization_entry),
+    path('api/organizations/<int:organization_id>/projects/<int:project_id>/glossary', glossary.project_glossary),
+    path('api/organizations/<int:organization_id>/projects/<int:project_id>/glossary/<uuid:table_id>/entries/<uuid:entry_id>', glossary.entry),
     path('api/ass/inspect', inspect_ass),
     path('api/ass/clipboard', clipboard),
     path('api/ass/styles', local_styles),

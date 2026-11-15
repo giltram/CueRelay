@@ -22,13 +22,20 @@ describe('Aegisub line insertions', () => {
     expect(insertLine(original, 'active', false, ids()).selected[0]).toMatchObject({ start_ms: 4500, end_ms: 5000 });
     expect(insertLine(original, 'active', true, ids()).selected[0]).toMatchObject({ start_ms: 6000, end_ms: 7000 });
   });
-  it('clamps before zero and rejects no gap and time-range overflow without mutation', () => {
-    expect(insertLine(doc(cue('a', 1000, 2000)), 'a', false, ids()).selected[0].start_ms).toBe(0);
-    for (const original of [doc(cue('a', 0, 1000)), doc(cue('p', 0, 1000), cue('a', 1000, 2000))]) {
+  it('inserts zero-duration empty cues at touching boundaries and before time zero without mutation', () => {
+    for (const after of [false, true]) {
+      const original = doc(cue('a', 1000, 3000), cue('b', 3000, 5000));
       const snapshot = structuredClone(original);
-      expect(() => insertLine(original, 'a', false, ids())).toThrow(/没有可插入/);
+      const result = insertLine(original, after ? 'a' : 'b', after, ids());
+      expect(result.document.cues.map(c => c.id)).toEqual(['a', 'new-1', 'b']);
+      expect(result.selected[0]).toEqual({ id: 'new-1', start_ms: 3000, end_ms: 3000, text: '', style_id: 'Default' });
+      expect(duplicateLines(result.document, ['new-1'], () => 'new-copy').selected[0]).toMatchObject({ start_ms: 3000, end_ms: 3000 });
       expect(original).toEqual(snapshot);
     }
+    expect(insertLine(doc(cue('a', 0, 1000)), 'a', false, ids()).selected[0]).toMatchObject({ start_ms: 0, end_ms: 0 });
+  });
+  it('clamps before zero and rejects time-range overflow without mutation', () => {
+    expect(insertLine(doc(cue('a', 1000, 2000)), 'a', false, ids()).selected[0].start_ms).toBe(0);
     expect(() => insertLine(doc(cue('a', 35997000, 35998000)), 'a', true, ids())).toThrow(/时间范围/);
   });
   it('video insertion uses frame start without shortening against neighboring cues', () => {

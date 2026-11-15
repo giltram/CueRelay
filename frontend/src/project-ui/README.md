@@ -26,8 +26,10 @@ App 在成功加载会话上下文（组织/个人设置）后递增 `contextVer
 
 项目设置页不提供「返回项目列表」按钮；页头 CueRelay 首页链接和浏览器历史继续可用。
 
-设置页元数据保存、样式保存、显式刷新共用一份 ProjectDetail/revision 和 busy 状态；名称/说明草稿独立保留。样式保存使用已保存文档，不提交工作区未保存的字幕/时间输入。冲突/失败保留输入，显式刷新展示服务器最新名称/说明并更新保存基准。设置页不更新保留工作区的文档或 revision，旧工作区保存继续冲突，明确重载后才接受新样式。直接访问、登录后继续和刷新均保留目标组织/项目；不存在/无权限/归档有明确状态。回归：`npm run test:project-settings`、`npm run test:style-management` 使用 HTTP 测试夹具，不访问开发数据库。
+设置页元数据保存、样式保存、显式刷新共用一份 ProjectDetail/revision 和 busy 状态；名称/说明草稿独立保留。每次打开样式管理前读取最新项目，成功后才打开弹窗，失败保留页面与输入；自动刷新和样式保存成功只更新未修改的元数据字段；若名称/说明同字段也有远端竞争，标记待核对，显式刷新前禁止覆盖，避免样式版本前进绕过元数据冲突。样式保存使用已保存文档，不提交工作区未保存的字幕/时间输入。`project-data/project-style-save.ts` 唯一拥有一次安全重试：仅明确 project_conflict 且最新 source/styles/script 全部未变时，用最新完整文档与 revision 重试；分配样式还检查目标 Cue 存在且原分配未变。任何样式定义变化均保守拒绝合并，使用数/权限/格式继续由后端验证；网络失败、模板冲突、归档和第二次竞争不重试。最终失败保留输入和旧基准，显式刷新展示服务器最新名称/说明并更新保存基准。设置页不直接更新保留工作区的文档或 revision；工作台可在显式保存时安全合并仅样式的远端变化，具体基准/历史保护见 app-workspace 与 workspace-ui README，真实字幕竞争仍保留冲突。直接访问、登录后继续和刷新均保留目标组织/项目；不存在/无权限/归档有明确状态。策略测试：`project-data/project-style-save.test.ts`；真实数据库回归：`WorkspaceRegressionTests.test_project_styles_refresh_and_retry`。`npm run test:project-settings`、`npm run test:style-management` 使用 HTTP 测试夹具，不访问开发数据库。
 
 本次验证及限制见 [项目设置记录](../../../docs/experiments/project-settings.md)。
 
 本机片源恢复：ProjectForm 复用 media/VideoFilePicker，在支持的安全上下文中使用文件句柄选择器，其他环境/选择器失败时回退普通文件 input；取消保留原选择。SelectedVideo 只经创建回调与 app-workspace 显式传给播放器，不进入创建请求。句柄仅由媒体模块在播放器校验后持久化；完整职责和浏览器测试见 [media README](../media/README.md)。
+
+项目设置另组合公开 glossary-ui/GlossarySettings：项目默认只读组织当前表，活动项目成员可显式fork当前组织词条成为项目副本，再自由添加/编辑；organizer/dev可切回组织默认，副本不合并删除。表单/分页和工作区共用 glossary-data，不导入工作区内部。术语保存及关联使用独立 token，不读取/更新本页 ProjectDetail 的字幕 revision，不提交样式或其他工作区草稿；归档只读。详见 [术语模块](../glossary-ui/README.md) 与 `npm run test:glossary`。

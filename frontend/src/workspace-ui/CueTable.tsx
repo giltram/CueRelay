@@ -27,10 +27,11 @@ interface Props {
   searchEnabled: boolean;
   workspace: RefObject<HTMLElement | null>;
   qc?: { open: boolean; label: string; panel: ReactNode; onToggle: () => void; onClose: () => void };
+  glossary?: { open: boolean; panel: ReactNode; onToggle: () => void; onClose: () => void };
   revealCueId?: { id: string; request: number } | null;
 }
 
-export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, workspace, qc, revealCueId }: Props) {
+export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, workspace, qc, glossary, revealCueId }: Props) {
   const [menu, setMenu] = useState<{ x: number; y: number; cueId: string; keyboard: boolean } | null>(null);
   useEffect(() => { if (!searchEnabled || (menu && !cues.some(cue => cue.id === menu.cueId))) setMenu(null); }, [searchEnabled, cues, menu]);
   const closeMenu = () => { setMenu(null); workspace.current?.focus({ preventScroll: true }); };
@@ -42,7 +43,7 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
   const reveal = rowWindow.reveal;
   useEffect(() => { if (revealCueId) reveal(revealCueId.id); }, [revealCueId, qc?.open]);
   const search = useCueSearch({ cues, selectedId, enabled: searchEnabled, workspace, onSelect, onReveal: reveal,
-    onShow() { if (pane.current && !pane.current.getClientRects().length) qc?.onClose(); } });
+    onShow() { if (pane.current && !pane.current.getClientRects().length) { qc?.onClose(); glossary?.onClose(); } } });
   const highlights = useMemo(() => new Map(search.matches.map(match => [match.cueId, match.ranges])), [search.matches]);
   const handlers = useRef({ onSelect, onContextSelect });
   handlers.current = { onSelect, onContextSelect };
@@ -85,16 +86,18 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
         <tr aria-hidden="true" className="cue-spacer"><td colSpan={6} style={{ height: rowWindow.offsets[rows.length] - rowWindow.offsets[rowWindow.indices.at(-1)! + 1] }} /></tr>}
       </tbody>
     </table>;
-  return <section className="cue-list" data-qc-open={qc?.open || undefined}>
+  return <section className="cue-list" data-qc-open={qc?.open || glossary?.open || undefined}>
     <div className="section-heading"><h2>字幕 <span className="count">{cues.length} 行</span></h2>
       <div className="cue-list-actions"><span title="Ctrl/Cmd 单击多选，Shift 单击连选；右键打开操作">按时间排列</span><button data-cue-search aria-label="查找字幕" aria-expanded={search.open} aria-pressed={search.open}
         disabled={!searchEnabled} onClick={search.toggle}>查找</button>
         {qc && <button data-cue-qc aria-label="字幕质量检查" aria-expanded={qc.open} aria-pressed={qc.open}
-          disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}</div></div>
+          disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}
+        {glossary && <button data-glossary aria-label="术语表" aria-expanded={glossary.open} aria-pressed={glossary.open}
+          disabled={!searchEnabled} onClick={glossary.onToggle}>术语表</button>}</div></div>
     <div className="cue-list-body"><div className="cue-table-pane" ref={pane}>
     {search.open && <CueSearchBar search={search} enabled={searchEnabled} />}
     <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">还没有字幕。选好入点和出点，按 G / Enter 提交并开始下一条。</p>}</div>
-    </div>{qc?.open && qc.panel}</div>
+    </div>{qc?.open && qc.panel}{glossary?.open && glossary.panel}</div>
     {menu && searchEnabled && <CueContextMenu x={menu.x} y={menu.y} keyboard={menu.keyboard} editable={editable} hasVideo={hasVideo} overrides={shortcutOverrides}
       onClose={closeMenu} onAction={onAction} />}
   </section>;

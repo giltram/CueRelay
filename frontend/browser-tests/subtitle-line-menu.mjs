@@ -103,6 +103,38 @@ try {
   await undo(); await count(4); assert.equal(await start.inputValue(), '0:'); assert.deepEqual(await selected(), ['A']);
   checks.push('chronological table; Ctrl/Shift selection; right click preserves selection; undo restores raw draft and selection');
 
+  const style = page.getByLabel('字幕样式', { exact: true });
+  const styleNames = () => rows.locator('.style-cell').allTextContents();
+  for (const modifier of [multiModifier, 'Shift']) {
+    await row('A').click(); await row('C').click({ modifiers: [modifier] });
+    const selection = modifier === 'Shift' ? ['A', 'B', 'C'] : ['A', 'C'];
+    await start.fill('0:'); await end.fill('');
+    await style.selectOption(fixture.styles[1].id);
+    assert.deepEqual(await selected(), selection);
+    assert.deepEqual(await styleNames(), modifier === 'Shift' ? ['Other', 'Other', 'Other', 'Default'] : ['Other', 'Default', 'Other', 'Default']);
+    assert.equal(await start.inputValue(), '0:'); assert.equal(await end.inputValue(), '');
+    await undo();
+    assert.deepEqual(await styleNames(), ['Default', 'Default', 'Default', 'Default']);
+    assert.deepEqual(await selected(), selection);
+    assert.equal(await start.inputValue(), '0:'); assert.equal(await end.inputValue(), '');
+    await main.focus(); await page.keyboard.press('Control+Shift+z');
+    assert.equal(await row('C').locator('.style-cell').innerText(), 'Other');
+    await undo();
+  }
+  // The active row already has Default; mixed selection must still allow choosing it.
+  await row('A').click(); await style.selectOption(fixture.styles[1].id);
+  await row('C').click({ modifiers: [multiModifier] });
+  assert.equal(await style.inputValue(), '');
+  assert.equal(await style.locator('option:checked').innerText(), '多种样式');
+  await style.selectOption(fixture.styles[0].id);
+  assert.deepEqual(await styleNames(), ['Default', 'Default', 'Default', 'Default']);
+  await undo(); assert.equal(await style.inputValue(), '');
+  assert.deepEqual(await styleNames(), ['Other', 'Default', 'Default', 'Default']);
+  await undo();
+  await row('A').click(); await row('A').click({ modifiers: [multiModifier] });
+  assert.equal(await style.isDisabled(), true);
+  checks.push('Cmd/Ctrl/Shift batch styles, mixed styles, atomic undo/redo, selection/raw drafts and unselected rows preserved');
+
   await row('A').click(); await row('C').click({ modifiers: [multiModifier] });
   await menu('C', '复制字幕行');
   await page.waitForFunction(() => !document.body.textContent.includes('正在转换…'));
@@ -121,6 +153,21 @@ try {
   assert.equal(await start.inputValue(), '0:00:03.00'); assert.equal(await end.inputValue(), '0:00:05.00');
   await undo(); await count(4);
   checks.push('ordinary insertion uses 3s default shortened to available nearest boundaries');
+
+  // The first insertion fills A→B's gap; inserting again now creates a 3s→3s row.
+  await menu('A', '在当前行后插入字幕'); await count(5);
+  await menu('A', '在当前行后插入字幕'); await count(6);
+  assert.equal(await start.inputValue(), '0:00:03.00'); assert.equal(await end.inputValue(), '0:00:03.00');
+  assert.equal(await text.inputValue(), '');
+  await undo(); await count(5);
+  await main.focus(); await page.keyboard.press('Control+Shift+z'); await count(6);
+  assert.equal(await start.inputValue(), '0:00:03.00'); assert.equal(await end.inputValue(), '0:00:03.00');
+  await end.fill('0:00:05.00'); await text.fill('parallel subtitle');
+  await main.focus(); await page.keyboard.press('KeyG');
+  assert.deepEqual(await row('parallel subtitle').locator('.time-cell').allTextContents(), ['0:00:03.00', '0:00:05.00']);
+  await undo(); await undo(); await undo(); await count(6);
+  await undo(); await count(5); await undo(); await count(4);
+  checks.push('touching insertion creates a selected zero-duration empty row; undo/redo and extension work');
 
   await page.getByLabel('导入本地视频', { exact: true }).setInputFiles(file);
   await page.waitForFunction(() => document.querySelector('video')?.readyState >= 2);
@@ -236,6 +283,9 @@ try {
     const readonly = await context.newPage(); readonly.on('pageerror', error => errors.push(String(error)));
     await readonly.goto(`${process.env.LINE_MENU_URL || 'http://127.0.0.1:5201'}/organizations/1/projects/${id}/workspace`);
     const target = readonly.locator('.cue-list tbody tr').first(); await target.waitFor();
+    await target.click();
+    await readonly.locator('.cue-list tbody tr').nth(2).click({ modifiers: ['Shift'] });
+    assert.equal(await readonly.getByLabel('字幕样式', { exact: true }).isDisabled(), true);
     await target.click({ button: 'right' });
     const copy = readonly.getByRole('menuitem', { name: '复制字幕行' });
     assert.equal(await copy.isEnabled(), true);
@@ -255,12 +305,31 @@ try {
   await verified.evaluate(() => navigator.clipboard.writeText('Dialogue: 3,0:00:04.00,0:00:04.80,Default,clipboard actor,0010,0020,0030,,saved paste'));
   await verified.locator('main.editor-workbench').focus(); await verified.keyboard.press('Control+v');
   await verified.waitForFunction(() => document.querySelectorAll('.cue-list tbody tr').length === 5);
+  await verified.locator('.cue-text', { hasText: 'saved paste' }).click({ button: 'right' });
+  await verified.getByRole('menuitem', { name: '在当前行前插入字幕', exact: false }).click();
+  await verified.waitForFunction(() => document.querySelectorAll('.cue-list tbody tr').length === 6);
+  // Fill the gap once, then insert against its touching end to get 4s→4s.
+  await verified.locator('.cue-text', { hasText: 'saved paste' }).click({ button: 'right' });
+  await verified.getByRole('menuitem', { name: '在当前行前插入字幕', exact: false }).click();
+  await verified.waitForFunction(() => document.querySelectorAll('.cue-list tbody tr').length === 7);
+  assert.equal(await verified.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:04.00');
+  assert.equal(await verified.getByRole('textbox', { name: '出点', exact: true }).inputValue(), '0:00:04.00');
+  const projectRow = value => verified.locator('.cue-list tbody tr').filter({ has: verified.locator('.cue-text', { hasText: new RegExp(`^${value}$`) }) });
+  await projectRow('A').click(); await projectRow('C').click({ modifiers: [multiModifier] });
+  await verified.getByLabel('字幕样式', { exact: true }).selectOption(fixture.styles[1].id);
+  assert.equal(savedProject, null); // Style editing stays local until explicit save.
   await verified.getByRole('button', { name: '保存项目', exact: true }).click();
   await verified.waitForFunction(() => document.body.textContent.includes('项目已保存。'));
-  assert.equal(savedProject.cues.length, 5);
+  assert.equal(savedProject.cues.length, 7);
+  assert.deepEqual(savedProject.cues.filter(cue => ['A', 'C'].includes(cue.text)).map(cue => cue.style_id), [fixture.styles[1].id, fixture.styles[1].id]);
+  assert.equal(savedProject.cues.find(cue => cue.text === 'B').style_id, fixture.styles[0].id);
+  assert(savedProject.cues.some(cue => cue.start_ms === 4000 && cue.end_ms === 4000 && cue.text === ''));
   assert(codec('export', { document: savedProject }).body.text.includes('3,0:00:04.00,0:00:04.80,Default,clipboard actor,0010,0020,0030,,saved paste'));
   await verified.reload();
   await verified.locator('.cue-text', { hasText: 'saved paste' }).waitFor();
+  assert.equal(await verified.locator('.cue-list tbody tr').count(), 7);
+  assert.equal(await projectRow('A').locator('.style-cell').innerText(), 'Other');
+  assert.equal(await projectRow('C').locator('.style-cell').innerText(), 'Other');
   await verified.close();
   checks.push('verified project pastes preserve immutable template/styles/script, pass real codec export, and save/reload with hidden ASS metadata');
 

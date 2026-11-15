@@ -9,6 +9,8 @@ import type { StyleResult } from '../contracts/subtitles';
 import { HomeLink } from '../navigation/HomeLink';
 import type { Route } from '../navigation/routes';
 import { projectApi } from '../project-data/projects-api';
+import { saveProjectStyles } from '../project-data/project-style-save';
+import { GlossarySettings } from '../glossary-ui/GlossarySettings';
 import { ProjectStyleManager } from '../style-ui/ProjectStyleManager';
 import { orderCues } from '../subtitle-model/cue-order';
 
@@ -21,6 +23,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [metadataNeedsReview, setMetadataNeedsReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -37,13 +40,42 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     return () => { active = false; };
   }, [api, projectId, enabled, organization, project, retry]);
 
+  function adoptProject(latest: ProjectDetail) {
+    // Refresh pristine metadata, but preserve explicit name/description drafts.
+    // Advancing the style revision must not silently authorize a metadata overwrite.
+    const nameConflict = project && name !== project.name && latest.name !== project.name && name !== latest.name;
+    const descriptionConflict = project && description !== project.description
+      && latest.description !== project.description && description !== latest.description;
+    if (nameConflict || descriptionConflict) setMetadataNeedsReview(true);
+    setName(value => value === project?.name ? latest.name : value);
+    setDescription(value => value === project?.description ? latest.description : value);
+    setProject(latest);
+  }
+
+  async function openStyles() {
+    if (!project || !enabled || busy) return;
+    const origin = captureDiagnosticOrigin();
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const latest = await api.get(project.id);
+      adoptProject(latest);
+      setStylesOpen(true);
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
+    finally { setBusy(false); }
+  }
+
   async function saveMetadata() {
     if (!project || !enabled || busy || !organization?.can_manage || project.status !== 'active') return;
+    if (metadataNeedsReview) {
+      setError('项目名称或说明已被其他操作更新，请点击「刷新项目版本」核对后再保存；当前输入已保留。');
+      return;
+    }
     const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
       const latest = await api.update(project, name, description);
       setProject(latest); setName(latest.name); setDescription(latest.description);
+      setMetadataNeedsReview(false);
       setMessage('项目设置已保存。');
     } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setBusy(false); }
@@ -56,6 +88,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     try {
       const latest = await api.get(project.id);
       setProject(latest);
+      setMetadataNeedsReview(false);
       setMessage(`当前服务器版本：${latest.name}；说明：${latest.description || '无'}。你的输入已保留，请核对后再保存。`);
     } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
     finally { setBusy(false); }
@@ -66,9 +99,9 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
-      const result = await api.styles(project, project.document, operation);
-      setProject({ ...project, ...result.project, document: result.document });
-      setMessage('项目样式已保存。已打开的工作区需重新加载项目后使用新样式。');
+      const result = await saveProjectStyles(api, project, operation);
+      adoptProject(result.project);
+      setMessage('项目样式已保存。工作区下次保存时会尝试合并新样式。');
       return result;
     } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin);
       if ((reason as { code?: string }).code === 'project_archived') setProject({ ...project, status: 'archived' });
@@ -93,10 +126,12 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
             <p>只有组织管理员可以修改项目名称和说明。</p></div>}
           <section className="account-form" aria-label="项目样式">
             <h2>项目样式</h2>
-            <p className="hint">共 {project.document.styles.length} 个样式。使用已保存的字幕快照；其他工作区未保存的字幕和时间输入不会被提交。修改后，已打开的工作区需重新加载项目。</p>
+            <p className="hint">共 {project.document.styles.length} 个样式。使用已保存的字幕快照；其他工作区未保存的字幕和时间输入不会被提交。工作区下次保存时会尝试合并新样式。</p>
             {project.status === 'archived' && <p className="hint">项目已归档，样式仅可查看。</p>}
-            <div className="controls"><button disabled={!enabled || busy} onClick={() => setStylesOpen(true)}>管理项目样式</button></div>
+            <div className="controls"><button disabled={!enabled || busy} onClick={() => void openStyles()}>管理项目样式</button></div>
           </section>
+          <GlossarySettings request={request} organizationId={organizationId} projectId={projectId}
+            enabled={enabled} archived={project.status === 'archived'} canManage={organization.can_manage} />
           <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>刷新项目版本</button></div>
           {message && <HeaderNotice>{message}</HeaderNotice>}
           {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}

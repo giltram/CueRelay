@@ -46,7 +46,8 @@
     "test:cue-window": "node browser-tests/cue-window.mjs",
     "test:audio-reuse": "node browser-tests/audio-reuse.mjs",
     "test:browser-performance": "node browser-tests/browser-performance.mjs",
-    "test:media-memory": "node browser-tests/media-memory.mjs"
+    "test:media-memory": "node browser-tests/media-memory.mjs",
+    "test:glossary": "node browser-tests/glossary.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",

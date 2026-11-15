@@ -14,6 +14,14 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-15 工作区批量行样式：EditorWorkbench 的样式下拉框消费完整多选 ID，沿用 Cmd/Ctrl/Shift 选取规则；line-styles.ts 仅依赖 contracts，提供共同样式投影（混合为空）及不可变批量分配。一次历史编辑保留选择、活动行、锚点和原始时间草稿，无变化不增加历史步骤；仍显式保存项目。契约与测试见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕行样式)。
+
+2026-11-15 工作台保存接纳远端样式：contracts/projects 显式声明当前/已保存文档、revision、历史样式引用的内存输入及实际保存结果；app-workspace → project-data/project-document-save 在明确冲突且远端 cues/source 未变时，用最新定义与本地 cues 安全重试一次。所有历史样式引用必须仍有效，成功后 workspace-ui/history-styles 统一更新当前/past/future 定义，保留文档共享、字幕编辑、草稿、多选与媒体实例，撤销不回退远端样式。subtitle-model/style-snapshot 提供向下共享的纯转换；不新增后端协议/迁移或反向依赖，不在后台接纳版本。真实字幕竞争、删除历史所需样式或未知失败均保留旧状态。详见 [工作区契约](../frontend/src/workspace-ui/README.md#保存与生命周期) 和 [实施记录](plans/workspace-style-save.md)。
+
+2026-11-14 项目样式保存：ProjectSettingsPage 每次打开管理器前读取最新项目；project-data/project-style-save 在明确版本冲突且 source/styles/script 未变时，使用最新完整字幕快照和 revision 安全重试一次，assign 额外校验目标 Cue 原分配。真实样式冲突、网络未知结果和第二次竞争保留输入；后端 CAS/事务/权限/验证不变，不新增 API、持久字段或反向依赖。工作台仍显式重载接受样式，媒体及历史不自动替换。职责与测试见 [项目面板](../frontend/src/project-ui/README.md)，约束见 [实施记录](plans/project-style-save.md)。
+
+2026-11-12 零时长插入：按用户确认，普通前后插入遇紧贴边界时创建起止相同的空行。subtitle-model/timing 与 ass_format/codec 统一允许 start ≤ end，供编辑、预览、复制、保存及 ASS 往返；不新增临时行状态、持久化路径或模块依赖。QC 以短时长警告并跳过零时长 CPS，空选区试听不播放；视频帧读取及拆分仍保留正时长要求。契约与验证见 [字幕行操作](subtitle-line-operations.md) 和 [实施记录](plans/zero-duration-insertion.md)。
+
 2026-11-11 ASS 兼容性修复：纯 `ass_format` 在既有 v2 契约内收紧结构化脚本键、样式名称与数字词法，按源行定位引用错误，并在导入返回前复用完整序列化预检，避免接受无法原样导出的文档。保留原始模板锚点、UUID、保存/revision 路径与模块依赖方向；没有新增解析框架或更改协作/UI。兼容边界只维护于 [格式模块](../backend/ass_format/README.md#文件兼容性契约)，自制语料/HTTP/项目闭环及独立 WASM 对照见 [验证记录](experiments/ass-compatibility.md)。该对照修正了第一阶段 F4 将 Default 回退误判为空白归一化的结论。
 
 同日复核补修 R1–R3：语法规范化仅处理 ASCII 空格/Tab，先保留并校验原始字段，名称/字体定义不删除尾空白；共享样式身份校验拒绝 Default 非规范大小写变体，保留普通大小写名称区分。新增原始词法语料及逐 Cue 模型/引擎样式一致性对照，避免只检查文件往返相等。依赖及公共契约不变；证据与结果仍归上述格式模块和验证记录。
@@ -317,3 +325,9 @@ EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编�
 ## 字幕行菜单与批量操作（2026-11-07）
 
 字幕行右键菜单、Ctrl/Cmd 多选 / Shift 连选、插入 / 视频帧插入 / 重复 / 帧前后分割 / 剪切复制粘贴 / 四字段粘贴覆盖统一接入既有内存编辑历史。列表继续时间排序，文档 cues 顺序拥有导出 Dialogue 顺序；source ID / 新行可选 ass_fields 仅保留元数据，项目原始模板不替换。`line-selection` / `line-edits` 是纯转换，`use-line-commands` 编排实际帧时间和系统剪贴板，并校验迟到响应的快照、可见性及权限。`http_api → ass_format/clipboard → codec` 为无状态转换，无项目或数据库写入；设置通过原共享 JSON 声明新命令和默认。通用 Modal 下移 page-ui，避免 workspace-ui 与 account-ui 的反向依赖。规则、公开契约与验证入口见 [字幕行操作](subtitle-line-operations.md)。
+
+## 组织默认术语表与项目副本
+
+2026-11-13（调整2026-11-12首版）：glossary拥有组织唯一默认表、词条及fork快照；projects拥有可空关联、独立关联版本、有效表解析和包含归档的使用计数。`projects/glossary_services → glossary/services → organizations/accounts`，无反向私有ORM或signals。项目默认只读组织表；成员明确fork当前组织词条后，自由维护副本，复制后的新旧词条无区别，不再同步/回写。组织默认只在「设置→组织设置」维护；App通过organizationGlossary插槽组合公开UI，account-ui只做布局。organizer/dev可切回默认，旧表/词条不合并删除；既有显式关联迁移保留。
+
+前端 `{App,workspace-ui,project-ui} → glossary-ui → glossary-data/contracts`，复用表单、分页和冲突草稿；工作区与QC共用侧栏。术语/fork只更新独立资源及关联列，不touch字幕revision/document/保存基准，插入才进入正常字幕历史。打开/返回/明确刷新时获取最新数据，无多人实时同步。迁移 glossary.0002 / projects.0004、锁序/权限/归档/接口见 [当前术语契约](glossary.md)、[后端模块](../backend/glossary/README.md) 和 [本轮验证](experiments/organization-glossary.md)。

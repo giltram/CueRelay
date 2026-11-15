@@ -157,7 +157,7 @@ try {
   assert.deepEqual(await savedTimes(), ['0:00:02.00', '0:00:03.00']);
   await page.locator('video').evaluate(video => { video.currentTime = 1; });
   await page.keyboard.press('Control+m');
-  await page.getByRole('alert').filter({ hasText: '入点必须早于出点' }).waitFor();
+  await page.getByRole('alert').filter({ hasText: '入点不能晚于出点' }).waitFor();
   assert.deepEqual(await savedTimes(), ['0:00:02.00', '0:00:03.00']);
   await stage.dispatchEvent('compositionstart'); await page.keyboard.press('Control+b'); await stage.dispatchEvent('compositionend');
   assert.deepEqual(await savedTimes(), ['0:00:02.00', '0:00:03.00']);

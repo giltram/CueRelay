@@ -15,10 +15,15 @@ it('projects timing without committing, preserving style, source, order and spli
   expect(doc.cues[0].end_ms).toBe(3000);
 });
 it('retains original timing while a time draft is partial, inverted or out of range', () => {
-  for (const [start, end] of [['0:', '0:00:03.00'], ['0:00:03.00', '0:00:03.00'], ['0:00:04.00', '0:00:03.00'], ['10:00:00.00', '10:00:01.00']]) {
+  for (const [start, end] of [['0:', '0:00:03.00'], ['0:00:04.00', '0:00:03.00'], ['10:00:00.00', '10:00:01.00']]) {
     const result = previewDocument(doc, 'source-1', start, end);
     expect(result.document).toBe(doc); expect(result.warning).toBeTruthy();
   }
+});
+it('projects zero-duration timing without a warning or automatic extension', () => {
+  const result = previewDocument(doc, 'source-1', '0:00:03.00', '0:00:03.00');
+  expect(result.warning).toBeUndefined();
+  expect(result.document?.cues[0]).toMatchObject({ start_ms: 3000, end_ms: 3000 });
 });
 it('preserves identity on selection without edits, deletion, and remote replacement', () => {
   expect(previewDocument(doc, 'source-1', '0:00:01.00', '0:00:03.00').document).toBe(doc);

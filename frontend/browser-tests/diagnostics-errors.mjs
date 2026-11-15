@@ -27,6 +27,7 @@ try {
         '/api/auth/session': { user }, '/api/organizations': { organizations },
         '/api/me/settings': { audio_display_mode: 'spectrum', shortcut_overrides: {}, mouse_sets_cue_boundary: true },
         '/api/organizations/1/projects/7': { project },
+        '/api/organizations/1/projects/7/glossary': { association_version: 1, table: null, uses_organization_default: true, archived: project.status === 'archived', entries: [], total: 0, page: 1, has_more: false, empty: true },
         '/api/organizations/1/projects': { projects: [], total: 0, page: 1, has_more: false },
         '/api/organizations/2/projects': { projects: [], total: 0, page: 1, has_more: false },
       };

@@ -37,6 +37,13 @@
 .organization-style-library { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
 .organization-style-library .style-library-toolbar { align-items: flex-end; }
 .style-library-toolbar input[type="search"], .style-library-toolbar > button { height: 38px; }
+@media (min-width: 701px) {
+  .account-dialog:has(.style-manager) { display: flex; flex-direction: column; height: 85dvh; overflow: hidden; }
+  .account-dialog:has(.style-manager) > .dialog-heading { flex-shrink: 0; }
+  .style-manager, .style-manager-layout { flex: 1; min-height: 0; }
+  .style-manager-layout > .style-list, .style-manager-layout > .style-detail { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+  .style-manager-layout > .style-detail > * { flex-shrink: 0; }
+}
 @media (max-width: 700px) {
   .style-manager-layout { grid-template-columns: minmax(0, 1fr); }
   .style-list { border-right: 0; padding-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 12px; }

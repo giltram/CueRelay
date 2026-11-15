@@ -40,3 +40,13 @@ migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 P
 维护入口 `python manage.py check_style_migration [--database default]` 只读扫描全部快照，调用同一个 `ass_format.migration.upgrade_legacy_document` 验证 v1，验证已升级 v2 时调用 serialize_ass；逐项报告不兼容项目 ID/原因并非零退出，不更改 source、名称或 UUID。无需先应用 projects.0002，亦不触发迁移。历史严格拒绝夹具与真实迁移事务回滚见 `ass_format/fixtures/legacy-v1/` 和 `test_style_migration.py`；测试从空测试库撤销数据迁移的应用记录以建立 v1 状态，再执行真实迁移，不对不可逆迁移编造降级函数。
 
 本阶段没有 WS、不可变修改历史或审核对象，仅记录现有最近修改者/时间并保护冲突。按已确认方案 A，其他成员显式重载才接受新样式；不要把 JASSUB 本地实时预览描述为多人实时同步。
+
+## 术语表关联
+
+`glossary_services.py` 拥有项目上下文解析、关联/CAS、使用计数及组织设置聚合，不访问 glossary 私有 ORM；下层只通过公开服务管理默认身份、词条和快照复制。Project.glossary=null 表示动态使用组织默认表，非空为显式项目表；glossary_version 独立于字幕 revision。
+
+默认组织表在项目上下文严格只读，只能在组织设置维护。活动项目 member/organizer/dev 可「创建项目副本」：User → Organization → Project 锁下调用 fork_organization_table，当前组织词条按快照全部复制（新ID/revision1），再原子更新 FK/version。副本新旧词条无区别、自由编辑；与源没有任何后续同步/回写。组织写入同组织锁串行，竞争fork仅一个成功、失败不留下空副本。
+
+organizer/dev 可明确切回默认，旧副本保留、不合并/删除；不再有任意表选择/空白新建接口。归档上下文只读不可fork/切换。默认使用计数包括所有空FK项目及归档项目，旧显式共享引用仍保留。
+
+关联只save glossary/glossary_version两列，不touch字幕document/revision/media/updated_at/updated_by，不让维护操作接纳远端字幕保存基准。词条自身另有revision。新增 glossary.0002 标识组织唯一默认表，projects.0004 移除旧auto_created特例；旧FK/词条ID/保存边界不变，不合并已有表。测试 test_glossary.py / test_glossary_migration.py 覆盖真实数据库竞争、权限、双向隔离、失败回滚及迁移后继续保存。详见 [当前契约](../../docs/glossary.md)。

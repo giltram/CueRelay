@@ -1,0 +1,19 @@
+.glossary-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; font-size: 13px; }
+.glossary-panel > h2 { padding: 8px 12px; flex-shrink: 0; font-size: 14px; margin: 0; }
+.glossary-browser { display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow: auto; overflow-wrap: anywhere; }
+.glossary-panel > .glossary-association { padding: 0 12px 12px; margin-bottom: 12px; flex-shrink: 0; }
+.glossary-panel .glossary-browser { padding: 0 12px 12px; flex-shrink: 0; overflow: visible; }
+.glossary-browser label, .glossary-association label { display: flex; flex-direction: column; gap: 4px; }
+.glossary-browser p { margin: 0; }
+.glossary-entries { list-style: none; margin: 0; padding: 0; }
+.glossary-entries > li { border-top: 1px solid var(--border); padding: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.glossary-form { border-top: 1px solid var(--border); padding-top: 12px; }
+.glossary-browser input, .glossary-browser textarea, .glossary-association input, .glossary-association select { width: 100%; min-width: 0; }
+.glossary-table-scroll { overflow-x: auto; }
+.organization-glossary { margin-top: 16px; }
+.glossary-table-scroll th:first-child, .glossary-table-scroll td:first-child { width: 25%; }
+.glossary-table-scroll td { white-space: pre-wrap; vertical-align: top; }
+.glossary-association { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+@container (min-width: 1061px) {
+  .glossary-panel { flex: 0 0 clamp(320px, 30cqw, 480px); max-width: calc(100cqw - 741px); border-left: 1px solid var(--border); }
+}

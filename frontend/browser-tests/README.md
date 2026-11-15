@@ -49,3 +49,9 @@ MEDIA_FILE='/absolute/path/video.mp4' MEDIA_ASS='/absolute/path/subtitles.ass' \
 另启动 Vite 开发服务后，可指定 `MEDIA_DEV_URL=http://127.0.0.1:5173`，增加既有 `experiments/audio-lifecycle.html` 的同文件重新选择、区间变化和 React 卸载。生产固定选片流程不因测试而放宽；开发探针结果单独记录。
 
 每秒通过 CDP 获取本次 Chrome 的进程 ID，再由 `ps` 获取 RSS，按 browser/renderer/GPU 等进程类型汇总。结果只含规格/计数，不含媒体、完整字幕或文件名。当前 RSS 采样依赖 macOS/Linux 的 `ps`，不能在 Windows 原样使用。RSS 总和可能重复计算共享页面，不是独占物理内存、GPU 显存或精确 WASM 分配；一秒采样也可能错过峰值。Worker terminate / AudioContext close 计数表示调用次数（JSON 的 terminated / closed），不是原生内存释放证明；预算检查和有限观察中的平台内存趋势也不能证明无泄漏。真实素材规格、轮次和总时长必须一起报告；普通双声道素材不能代表高规格多声道验收。
+
+## 术语表
+
+`npm run test:glossary` 使用 GLOSSARY_URL（默认 `http://127.0.0.1:5227`），先启动相应 Vite；真实 Chrome、合成视频和纯 ASS codec，术语 HTTP 是有版本冲突/迟到响应的内存 fixture。覆盖组织设置维护/默认只读/项目fork快照/双向隔离/搜索/失败保留/冲突重载、管理员切回默认/归档、同侧栏断点、光标插入/选区/切行/历史、IME/快捷键及无字幕保存、播放器不重建、真实 App 项目/账号替换和撤权隔离。截图和结果写新临时目录。真实 PostgreSQL 并发/权限/迁移另由 projects.test_glossary / test_glossary_migration 验证。
+
+真实组织维护→项目fork→修改旧词条/新增词条双向隔离→刷新持久化另有 regression/workspace.spec.mjs 的 organization glossary fork stays isolated；由 Django browser_tests.regression 自动播种隔离库和启动后端/Vite，不使用HTTP fixture。

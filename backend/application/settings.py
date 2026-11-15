@@ -15,7 +15,7 @@ AUTH_USER_MODEL = 'accounts.User'
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-    'rest_framework', 'accounts', 'organizations', 'projects', 'application.apps.ApplicationConfig',
+    'rest_framework', 'accounts', 'organizations', 'glossary', 'projects', 'application.apps.ApplicationConfig',
 ]
 MIDDLEWARE = [
     'diagnostics.middleware.RequestDiagnosticsMiddleware',

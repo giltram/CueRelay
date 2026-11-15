@@ -13,7 +13,7 @@
 
 `styles` 包含 `{id, name, fields, source_name, origin}`。id 是导入时生成并持久保留的 UUID；name 是唯一 ASS 导出名称；fields 使用标准 ASS 字段名称和值字符串（不含 Name）。source_name 绑定原始样式记录与 Comment 引用，复制/新建为 null；origin 是可选的 `{template_id, revision}` 快照说明，不代表继承。
 
-`cues` 仅包含 Dialogue，基础字段为 `{id, start_ms, end_ms, text, style_id}`，拆分行可有 source_id，剪贴板插入的新行可有 ass_fields（Layer/Name/MarginL/MarginR/MarginV），只用于保留隐藏元数据。时间是非负整数毫秒、10ms 网格且 `start < end`，上限 35999990ms。文本使用 ASS 原始转义，不转换 HTML。没有同时可写的 style 名称字段。
+`cues` 仅包含 Dialogue，基础字段为 `{id, start_ms, end_ms, text, style_id}`，拆分行可有 source_id，剪贴板插入的新行可有 ass_fields（Layer/Name/MarginL/MarginR/MarginV），只用于保留隐藏元数据。时间是非负整数毫秒、10ms 网格且 `start ≤ end`，上限 35999990ms。零时长行可导入、保存、复制和导出，不自动拉长；拆分仍要求两半至少 10ms。文本使用 ASS 原始转义，不转换 HTML。没有同时可写的 style 名称字段。
 
 源 Dialogue ID 为 `source-<原始零基行号>`，绑定原始记录锚点；新行以 `new-` 开头且唯一，文档 cues 数组决定 Dialogue 输出顺序（依次填原槽位，多出部分置于 Events 末尾），与元数据锚点分开。省略源行表示删除 Dialogue。样式/脚本覆盖时不重新导入导出稿，因此 Cue ID、source_id 和辅助字段仍绑定原始模板。ASS 本身不保存内部 UUID；重新导入是一个新文档，产生新样式身份。
 
@@ -40,7 +40,7 @@ pysubs2 1.8.1 的裸序列化会丢分号注释，读取器忽略文件 Format�
 - `ScriptType: v4.00+` 必需。三个结构化设置的键必须精确为 `PlayResX`、`PlayResY`、`ScaledBorderAndShadow`；键前可有 ASCII 空格/Tab，键与冒号之间不能有额外空白。值周围仅规范化 ASCII 空格/Tab，非 ASCII 边界空白拒绝，不能让原本无效的键/值在导出后开始影响渲染；大小写变体重复检查保留。缺失值保持 null，不根据视频推断。其他已校验语法 token（如 Format 字段、时间、Layer/Margin、空 Effect）同样只按 ASCII 空格/Tab 处理边界空白。
 - 其他 Script Info 键（如 Title、Timer、WrapStyle、YCbCr Matrix、自定义元数据）原文保留，**不校验其完整合法性、重复值或解释**。保留不等于已验证这些设置的渲染语义，不宣称任意元数据均兼容。非法值暂不自动修正。
 - Dialogue 可编辑、Comment 保护性保留。二者引用样式都允许引擎正确跳过的前导 ASCII 空格/Tab；尾部空白或非 ASCII 前导空白拒绝。libass 不会去掉引用尾部空白，而会静默回退 Default，故不能用 `.strip()` 规范化并声称保真。缺失引用在收集全部定义后检查，错误含样式名和事件源行号，支持 Styles 位于 Events 之后。
-- `h:mm:ss.cc`、0–35999990ms、10ms 网格且入点早于出点；允许时间重叠、同层重叠及非时间顺序。保留 Layer、Name、MarginL/R/V 与事件顺序，不自行按时间排序。
+- `h:mm:ss.cc`、0–35999990ms、10ms 网格且入点不晚于出点；允许零时长、时间重叠、同层重叠及非时间顺序。保留 Layer、Name、MarginL/R/V 与事件顺序，不自行按时间排序。
 - 文本按原始 ASS 字符串保留，支持 Unicode、空正文、首尾空格、逗号/引号/普通括号；仅支持 `\N`、`\n`、`\h` 转义及 `\b0/1`、`\i0/1`、`\u0/1`、`\s0/1` override 组合。其他转义、标签、绘图、动画、卡拉 OK、任意花括号或控制字符在接受前整份拒绝。libass 自身会忽略文件文本末尾 ASCII 空白，DTO/导出仍保留这些字符。
 - 文件入口严格 UTF-8（可含 BOM），支持 LF/CRLF/CR 及混合换行；非法字节在请求前拒绝。输出统一 LF、补末尾换行，可去掉 BOM。规范化输出超限时即拒绝导入，不先返回不可导出的文档。
 

@@ -83,7 +83,7 @@ class ClipboardTests(unittest.TestCase):
             serialize_ass(invalid)
 
     def test_invalid_clipboard_and_selection_rejected(self):
-        for text in ['', 'Dialogue: incomplete', '[Events]', 'Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,,bad', r'{\k20}unsupported']:
+        for text in ['', 'Dialogue: incomplete', '[Events]', 'Dialogue: 0,0:00:00.01,0:00:00.00,Default,,0,0,0,,bad', r'{\k20}unsupported']:
             with self.subTest(text=text), self.assertRaises(AssError):
                 paste_lines(self.document, text, self.ids[0], [self.ids[0]])
         for ids in [[], [self.ids[0], self.ids[0]], ['missing'], [None], 'not-list']:
@@ -92,3 +92,12 @@ class ClipboardTests(unittest.TestCase):
         for fields in [[], ['Layer'], ['text', 'text'], [None]]:
             with self.subTest(fields=fields), self.assertRaises(AssError):
                 paste_lines(self.document, 'valid', self.ids[0], [self.ids[0]], fields)
+
+    def test_zero_duration_clipboard_copy_and_paste_remain_editable(self):
+        self.document['cues'][0].update(start_ms=3000, end_ms=3000, text='')
+        text = copy_lines(self.document, [self.ids[0]])
+        result = paste_lines(self.document, text, self.ids[1], [self.ids[1]])
+        inserted = next(c for c in result['document']['cues'] if c['id'] in result['selected_ids'])
+        self.assertEqual((inserted['start_ms'], inserted['end_ms'], inserted['text']), (3000, 3000, ''))
+        inserted['end_ms'] = 5000
+        serialize_ass(result['document'])

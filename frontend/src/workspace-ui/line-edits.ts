@@ -47,7 +47,6 @@ export function insertLine(document: AssDocument, activeId: string, after: boole
     end = active.start_ms; start = Math.max(0, end - INSERT_DURATION_MS);
     for (const cue of document.cues) if (cue.end_ms <= end) start = Math.max(start, cue.end_ms);
   }
-  if (start >= end) throw new Error('相邻时间边界之间没有可插入的时长');
   if (end > MAX_TIME_MS) throw new Error('插入字幕超出支持的时间范围');
   const cue: Cue = { id: createId(), start_ms: start, end_ms: end, text: '', style_id: active.style_id };
   const cues = [...document.cues]; cues.splice(index + Number(after), 0, cue);
@@ -72,6 +71,9 @@ export function duplicateLines(document: AssDocument, ids: readonly string[], cr
           const boundary = after ? frame.end : frame.start;
           original = { ...original, end_ms: boundary };
           copy = { ...copy, start_ms: boundary };
+        }
+        if (original.start_ms === original.end_ms || copy.start_ms === copy.end_ms) {
+          throw new Error('分割后不能产生零长度字幕');
         }
       }
       cues.push(original); block.push(copy); copies.push(copy);

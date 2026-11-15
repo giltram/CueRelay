@@ -1,9 +1,10 @@
 import { diagnostics } from '../diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
-import type { ProjectDetail, ProjectSummary } from '../contracts/projects';
-import type { AssDocument, SplitRequest } from '../contracts/subtitles';
+import type { ProjectDetail, ProjectSummary, ProjectSaveRequest } from '../contracts/projects';
+import type { SplitRequest } from '../contracts/subtitles';
 import { projectApi } from '../project-data/projects-api';
+import { saveProjectDocument } from '../project-data/project-document-save';
 import type { InitialVideo, SelectedVideo } from '../media/video-file-access';
 import type { Route } from '../navigation/routes';
 
@@ -63,12 +64,12 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
   const updateSummary = useCallback((summary: ProjectSummary) => {
     setWorkspace(value => matches(value, summary.organization_id, summary.id) ? { ...value!, project: { ...value!.project!, ...summary } } : value);
   }, []);
-  const save = useCallback(async (document: AssDocument, revision: number) => {
+  const save = useCallback(async (input: ProjectSaveRequest) => {
     const project = workspace?.project;
     if (!project) throw new Error('尚未打开项目。');
     try {
-      const summary = await projectApi(request, project.organization_id).save({ ...project, revision }, document);
-      updateSummary(summary); return summary;
+      const result = await saveProjectDocument(projectApi(request, project.organization_id), project, input);
+      updateSummary(result.project); return result;
     } catch (reason) {
       if ((reason as { code?: string }).code === 'project_archived') {
         setWorkspace(value => matches(value, project.organization_id, project.id)

@@ -12,7 +12,7 @@ checkSubtitles(document, { phase: 'editing' | 'export', videoDurationMs, thresho
 
 | 类型 | 判定 | 严重度 |
 | --- | --- | --- |
-| invalid-time | 复用 subtitle-model/timing 的整数/10ms/范围/start < end 契约 | error |
+| invalid-time | 复用 subtitle-model/timing 的整数/10ms/范围/start ≤ end 契约；零时长仅触发时长过短，不计算 CPS | error |
 | duration-short / duration-long | 时长 <500ms 或 >7000ms | warning |
 | overlap | 时间排序中相邻且同样式，重叠 >100ms 且占较短行 >25% | warning |
 | outside-video | 出点超过已知有限正片长 | warning |

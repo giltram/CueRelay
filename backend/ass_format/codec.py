@@ -59,8 +59,8 @@ def _time(value, line):
 def _interval(start, end, line=None):
     if any(type(t) is not int or t < 0 or t > MAX_TIME or t % 10 for t in (start, end)):
         _fail("时间须为 0–35999990 的整数毫秒，并对齐 10ms", line, category='invalid-time')
-    if start >= end:
-        _fail("入点必须早于出点，不能创建零长度字幕", line, category='invalid-time')
+    if start > end:
+        _fail("入点不能晚于出点", line, category='invalid-time')
 
 
 def _format_time(ms):

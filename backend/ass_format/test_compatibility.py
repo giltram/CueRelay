@@ -184,7 +184,7 @@ class CompatibilityCorpusTests(unittest.TestCase):
             ('unknown event', source.replace('Dialogue:', 'Picture:', 1), '事件'),
             ('effect in comment', source.replace('0000,,保留注释', '0000,Scroll up,保留注释'), 'Effect'),
             ('bad precision', source.replace('0:00:01.20', '0:00:01.2'), 'h:mm:ss.cc'),
-            ('zero duration', source.replace('0:00:03.40', '0:00:01.20'), '早于'),
+            ('inverted duration', source.replace('0:00:03.40', '0:00:01.19'), '晚于'),
             ('invalid minute', source.replace('0:00:01.20', '0:60:01.20'), 'h:mm:ss.cc'),
             ('ssa', source.replace('v4.00+', 'v4.00'), 'v4.00+'),
             ('drawing', source.replace('保留注释', r'{\p1}m 0 0 l 1 1'), '标签'),

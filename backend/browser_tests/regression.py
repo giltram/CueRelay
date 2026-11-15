@@ -71,3 +71,15 @@ class WorkspaceRegressionTests(LiveServerTestCase):
 
     def test_conflict_preserves_local_edits(self):
         self.run_browser('conflict preserves local edits')
+
+    def test_project_styles_refresh_and_retry(self):
+        self.run_browser('project styles refresh and retry')
+
+    def test_workspace_saves_after_style_changes(self):
+        self.run_browser('workspace saves after style changes')
+
+    def test_workspace_protects_deleted_history_styles(self):
+        self.run_browser('workspace protects history styles deleted remotely')
+
+    def test_organization_glossary_fork_stays_isolated(self):
+        self.run_browser('organization glossary fork stays isolated')

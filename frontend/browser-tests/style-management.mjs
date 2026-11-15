@@ -45,8 +45,11 @@ await context.route('**/api/**', async route => {
     const result = codec(action, data ?? {});
     return action === 'export' && result.status === 200 ? route.fulfill({ contentType: 'text/plain', body: result.body.text }) : route.fulfill({ status: result.status, json: result.body });
   };
+  if (method === 'GET' && path === '/api/organizations/1/glossary') return reply({ association_version: 1, table: null, uses_organization_default: true, archived: false, entries: [], total: 0, page: 1, has_more: false, empty: true });
+  if (method === 'GET' && path === '/api/organizations/1/projects/1/glossary') return reply({ association_version: 1, table: null, uses_organization_default: true, archived: project.status === 'archived', entries: [], total: 0, page: 1, has_more: false, empty: true });
   if (path === '/api/ass/empty') return reply({ document: uiDocument() });
   if (path === '/api/ass/export') return pure('export');
+  if (path === '/api/ass/inspect') return pure('inspect');
   if (path === '/api/ass/styles') return pure('styles');
   if (path === '/api/ass/import') return pure('parse');
   if (path === '/api/auth/session') return reply({ user });
@@ -144,6 +147,25 @@ try {
   await page.getByLabel('项目说明', { exact: true }).fill('保留的项目说明草稿');
   await openManager();
   await readyPreview();
+  // Scrolling the editor keeps the style picker and dialog heading in place.
+  for (const height of [1000, 600]) {
+    await page.setViewportSize({ width: 1440, height });
+    const picker = manager.getByRole('region', { name: '样式列表', exact: true });
+    const detail = manager.getByRole('region', { name: '样式属性', exact: true });
+    const pickerBefore = await picker.boundingBox();
+    const headingBefore = await manager.locator('.dialog-heading').boundingBox();
+    const editorBox = await detail.boundingBox();
+    await page.mouse.move(editorBox.x + editorBox.width - 10, editorBox.y + editorBox.height / 2);
+    await page.mouse.wheel(0, 500);
+    await page.waitForFunction(() => document.querySelector('dialog .style-detail').scrollTop > 0);
+    assert.deepEqual(await picker.boundingBox(), pickerBefore);
+    assert.deepEqual(await manager.locator('.dialog-heading').boundingBox(), headingBefore);
+    assert.equal(await picker.evaluate(el => el.scrollTop), 0);
+    assert.equal(await manager.evaluate(el => el.scrollTop), 0);
+    assert(await manager.evaluate(el => el.scrollHeight <= el.clientHeight + 1));
+    await detail.evaluate(el => el.scrollTop = 0);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await manager.getByRole('button', { name: '复制当前样式', exact: true }).click();
   await manager.getByRole('textbox', { name: '样式名称', exact: true }).fill('人物乙');
   await manager.getByRole('textbox', { name: '主颜色', exact: true }).fill('&H000000FF');
@@ -282,7 +304,8 @@ try {
   await manager.screenshot({ path: join(artifacts, 'manager-mobile.png') });
   await page.setViewportSize({ width: 1440, height: 1000 });
   // A remote change must not be silently overwritten; preserve the form and local cue draft.
-  project = { ...project, revision: project.revision + 1 };
+  project = { ...project, revision: project.revision + 1, document: { ...project.document,
+    styles: project.document.styles.map((style, index) => index === 0 ? { ...style, fields: { ...style.fields, Fontsize: '57' } } : style) } };
   await manager.getByRole('textbox', { name: '样式名称', exact: true }).fill('冲突后保留');
   await apply();
   await manager.getByRole('alert').filter({ hasText: '项目已被其他操作更新' }).waitFor();

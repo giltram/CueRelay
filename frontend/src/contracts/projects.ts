@@ -9,3 +9,12 @@ export interface ProjectSummary {
 }
 export interface ProjectDetail extends ProjectSummary { media: MediaManifest; document: AssDocument }
 export interface ProjectPage { projects: ProjectSummary[]; total: number; page: number; has_more: boolean }
+
+/** In-memory workspace contract; baseline/history references never enter HTTP. */
+export interface ProjectSaveRequest {
+  document: AssDocument;
+  revision: number;
+  baseDocument: AssDocument;
+  requiredStyleIds: readonly string[];
+}
+export interface ProjectSaveResult { project: ProjectSummary; document: AssDocument }

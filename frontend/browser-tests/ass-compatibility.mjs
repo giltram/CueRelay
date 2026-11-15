@@ -66,6 +66,20 @@ function rejects(source) {
 
 try {
   const basic = readFileSync(new URL('../../backend/ass_format/fixtures/basic.ass', import.meta.url), 'utf8');
+  // A zero-duration cue remains in the ASS track but has no visible interval.
+  // Extending it must restore rendering without rebuilding a special draft row.
+  const zeroDocument = codec('parse', { source: basic }).body.document;
+  zeroDocument.cues = [{ ...zeroDocument.cues[0], start_ms: 3000, end_ms: 3000 }];
+  const zeroExport = codec('export', { document: zeroDocument });
+  assert.equal(zeroExport.status, 200);
+  assert.equal(track(zeroExport.body.text).events.length, 1);
+  for (const time of [2.99, 3, 3.01]) assert.deepEqual(render(time), []);
+  zeroDocument.cues[0].end_ms = 5000;
+  const extendedExport = codec('export', { document: zeroDocument });
+  assert.equal(extendedExport.status, 200);
+  track(extendedExport.body.text);
+  assert(render(3).length > 0);
+
   const canonical = track(basic);
   const canonicalImages = render();
   assert.ok(canonicalImages.length > 0, 'font-backed actual render must produce images');

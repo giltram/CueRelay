@@ -52,13 +52,17 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 - 文本和时间输入按字段、选中行分组，连续输入间隔不超过 1 秒；blur、其他操作、compositionstart/end 结束分组，IME 合成期间不按停顿拆组。原始时间字符串直接保存，非法/未完成输入也可恢复。
 - 输入框内 Cmd/Ctrl+Z、Shift+Z 留给原生输入。收到真实 `inputType=historyUndo/historyRedo` 且值实际变化时，应用字段级修改并建立**新的工作区历史基线**，清除工作区过去/未来，保留浏览器自己的重做。浏览器栈不可枚举，这个显式安全边界避免重复重做或重放过期快照。工作区撤销/重做及换行选择通过元素 key 重建相关输入，阻断旧行或旧快照的原生栈。无需猜测浏览器原生分组与工作区分组一致。
 - G/Enter 的提交、选下一条和末尾新增行作为一条原子步骤。重做直接复用生成后的文档和 UUID。删除含删空同样恢复原选择和草稿。
-- 文本、时间、字幕样式和本地样式管理按顺序撤销。完整文档快照包含样式定义与引用，因此不会把旧时间快照盖到较新文字上或产生悬空 style_id。样式管理弹窗本身暂停工作区快捷键；其表单草稿不入字幕历史，应用成功才入历史。项目设置页修改独立服务器快照，保留工作区通过显式重载接纳。
+- 文本、时间、字幕样式和本地样式管理按顺序撤销。完整文档快照包含样式定义与引用，因此不会把旧时间快照盖到较新文字上或产生悬空 style_id。样式管理弹窗本身暂停工作区快捷键；其表单草稿不入字幕历史，应用成功才入历史。项目设置页修改独立服务器快照；工作台可在显式保存时安全合并仅样式的变化，或通过显式重载替换文档。
 
 撤销/重做取消旧试听，不 seek 视频，也不触发选择导致的音频 revealInterval；保留视窗和缩放。全局快捷键复用可见性、忙碌、权限、媒体验证、待确认导入、弹窗与 IME 过滤，不抢原生输入撤销。默认键唯一来源为 shared/timing-shortcuts.json。已有个人显式绑定优先于新增 undo/redo 默认别名；显式配置之间冲突仍由前后端拒绝。
 
 ## 保存与生命周期
 
 手动保存不清空历史；savedRevision / savedDocument 独立更新，撤销后仍按最新 revision 手动保存。时间草稿仍需提交才进入保存快照。
+
+工作台通过 contracts/projects.ProjectSaveRequest 显式传递当前 document、已保存 baseDocument/revision 和历史所需样式 ID 给 onSave；app-workspace/project-data 返回实际保存的 document 与摘要。明确 project_conflict 后，只有服务器 cues 与 baseDocument 完全相同、source 不变、本地样式/脚本仍等于基准、当前与全部 past/future 引用的 style_id 仍存在，才把最新定义与本地 cues 组合重试一次。远端字幕编辑（包括仅分配样式）、样式删除影响历史、未知网络结果或第二次竞争保留原文档、草稿、历史和 revision；不自动选择替代样式。拆分接口仍沿用原有冲突保护，不自动重试。
+
+只有保存成功后，use-edit-history.adoptStyles 调用 history-styles.adoptHistoryStyles 将权威 source/styles/script 映射到当前及撤销/重做的每个文档。按原文档引用缓存转换，保留共享引用与保存按钮基准，不增加历史步骤、不清空重做分支，不改变 cues、选择或时间字符串。epoch 更新使旧原生输入栈失效；媒体/视窗/实例不重建。historyStyleIds 包括已删除/已撤销的行，防止将来撤销恢复悬空样式引用。本地工作区样式编辑保持原有可撤销语义，不走此流程。
 
 项目拆分成功立即保存完整快照，并独立更新 revision/保存基准；本地一步历史可恢复拆分前完整编辑状态。撤销不发送请求，下一次手动保存才更新服务器；失败不修改内容、草稿或历史。本地拆分无持久化。
 
@@ -116,8 +120,24 @@ ResizeObserver 观察布局容器、上方区域和字幕容器，读取实际�
 
 实际结果与限制见 [分隔栏验证](../../../docs/experiments/workbench-resize.md)。
 
+## 字幕行样式
+
+工作区「样式」下拉框作用于完整多选：macOS Cmd / Windows、Linux Ctrl 单击增减选行，Shift 按可见时间顺序连选，沿用 line-selection.ts 的锚点规则。样式不一致时显示不可选的「多种样式」，用户可选择任一真实样式统一分配（包括当前活动行已有样式）。
+
+line-styles.ts 只拥有共同样式投影和按 ID 不可变分配，依赖 contracts；EditorWorkbench 从 edits.current 读取完整选择，一次 edits.edit 写入，不重置活动行、选择锚点或原始时间草稿，不自动保存。无变化不产生历史步骤，整批作为一步撤销/重做；文字与时间仍只编辑当前活动行。权限、片源校验和忙碌禁用沿用原编辑区。
+
+验证：line-styles.test.ts、npm run test:subtitle-line-menu（含多选、混合样式、整批历史、只读与项目保存/重载）。
+
 ## 字幕行右键菜单
 
 CueTable 显式接收完整选择、右键选行、命令与可用性；右键不 seek，已选中行保留整组选区，列表仍按时间排序。line-selection.ts / line-edits.ts 分别拥有纯选择和结构转换，use-line-commands.ts 编排系统剪贴板、media/video-frame 的实际帧时间、快照有效性及粘贴覆盖弹窗；EditorWorkbench 通过 applyLineEdit 一次写入既有历史，项目仍显式保存。已移除旧单行 delete-cue 实现，所有删除复用批量转换。
 
 CueContextMenu 鼠标打开时聚焦容器、不预选操作，键盘打开时聚焦首个可用项；展示平台适用的首个有效键位，完整别名在设置维护；键盘导航隔离工作区快捷键。PasteOverDialog 只提供四项覆盖，使用共享 page-ui/Modal。账号设置向下读取 timing-shortcuts / line-actions 叶子，工作区不导入 account-ui。规则、接口、媒体/剪贴板边界及回归见 [字幕行操作](../../../docs/subtitle-line-operations.md)。
+
+## 术语侧栏与插入
+
+项目工作区在「查找 / QC」旁组合 glossary-ui/GlossaryPanel，本地工作区无入口。与 QC 共用 CueTable 的同一区域和1061px断点，同时只显示一个面板；打开/查询不受本地片源校验限制。项目默认只读组织表，显式「创建项目副本」fork当前组织词条后才可维护，新旧词条同样可编辑且不再同步/回写。模块只传项目身份、JsonRequest、可见/可维护性和同步 onInsert，不向术语模块传 document 或保存接口。查询/维护/切表不改变字幕保存基准、媒体节点或编辑历史。设置页通过公开同层组件复用，没有相互内部导入。
+
+`use-term-insertion.ts → term-insertion.ts` 拥有字幕输入当前行的 UTF-16 光标/选区：onSelect/onBlur 记录，切行立即清除，没有当前选区追加末尾。同步插入检查既有 canEdit、忙碌/可见性与 composition，调用 updateCue 的单次历史编辑并在布局提交后恢复焦点/光标；不提交时间、不保存。无行/未验证片源/归档时只禁插入，仍可查询。data-glossary 控件隔离工作区快捷键，use-cue-search 的捕获监听也跳过此区域。词条输入使用普通原生输入行为，不调用字幕撤销。
+
+术语数据刷新/草稿/冲突由 glossary-data / glossary-ui 拥有。关闭面板结束未保存词条表单；隐藏保留实例时暂停请求，重新可见时重取，迟到响应隔离；不影响字幕草稿。测试：term-insertion.test.ts、`npm run test:glossary`，契约见 [术语表](../../../docs/glossary.md)。

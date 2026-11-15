@@ -18,3 +18,13 @@ it('reads actual MP4 presentation intervals with B-frame reordering and rejects 
     await expect(readVideoFrame(file, 2)).rejects.toThrow(/没有可读取/);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
+
+it('still rejects a frame whose endpoints collapse on the 10ms grid', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'cuerelay-short-frames-'));
+  try {
+    const path = join(folder, 'short-frames.mp4');
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=s=64x64:r=240:d=0.1',
+      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', path]);
+    await expect(readVideoFrame(new Blob([readFileSync(path)]), 0)).rejects.toThrow(/不足 10ms/);
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});

@@ -52,11 +52,11 @@ export function checkSubtitles(document: AssDocument, options: QcOptions = {}): 
     const visible = visibleSubtitleText(cue.text).replace(/\s+/gu, ' ').trim();
     texts.set(cue.id, visible);
     const characters = subtitleCharacterCount(cue.text);
-    if (!valid) add('invalid-time', [cue], 'error', `时间区间无效：入点 ${cue.start_ms}ms，出点 ${cue.end_ms}ms。入点须早于出点，时间须为非负整数、对齐 10ms，且不超过 9:59:59.99。`, { startMs: cue.start_ms, endMs: cue.end_ms });
+    if (!valid) add('invalid-time', [cue], 'error', `时间区间无效：入点 ${cue.start_ms}ms，出点 ${cue.end_ms}ms。入点不能晚于出点，时间须为非负整数、对齐 10ms，且不超过 9:59:59.99。`, { startMs: cue.start_ms, endMs: cue.end_ms });
     else {
       if (duration < thresholds.minimumDurationMs) add('duration-short', [cue], 'warning', `持续 ${duration}ms，短于 ${thresholds.minimumDurationMs}ms。`, { durationMs: duration });
       if (duration > thresholds.maximumDurationMs) add('duration-long', [cue], 'warning', `持续 ${(duration / 1000).toFixed(2)} 秒，长于 ${thresholds.maximumDurationMs / 1000} 秒。`, { durationMs: duration });
-      const cps = characters * 1000 / duration;
+      const cps = duration > 0 ? characters * 1000 / duration : 0;
       if (cps > thresholds.maximumCps) add('high-cps', [cue], 'warning', `阅读速度 ${cps.toFixed(1)} 字/秒，超过 ${thresholds.maximumCps} 字/秒。`, { cps, characters, durationMs: duration });
       if (typeof videoDuration === 'number' && Number.isFinite(videoDuration) && videoDuration > 0 && cue.end_ms > videoDuration) {
         const excess = cue.end_ms - videoDuration;

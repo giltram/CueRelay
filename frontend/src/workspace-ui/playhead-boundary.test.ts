@@ -9,7 +9,11 @@ describe('playhead endpoint edits', () => {
     expect(cue.start_ms).toBe(10000);
     expect(cue.end_ms).toBe(16000);
   });
-  it.each([['start', 16], ['start', 17], ['end', 10], ['end', 9], ['start', -1], ['end', NaN], ['end', 36000]] as const)(
+  it('allows endpoints to meet without extending the cue', () => {
+    expect(playheadBoundary(cue, 'start', 16)).toMatchObject({ start_ms: 16000, end_ms: 16000 });
+    expect(playheadBoundary(cue, 'end', 10)).toMatchObject({ start_ms: 10000, end_ms: 10000 });
+  });
+  it.each([['start', 17], ['end', 9], ['start', -1], ['end', NaN], ['end', 36000]] as const)(
     'rejects %s at %s without mutation', (point, seconds) => {
       expect(() => playheadBoundary(cue, point, seconds)).toThrow();
       expect(cue).toEqual({ id: 'source-1', start_ms: 10000, end_ms: 16000, text: '保留', style_id: 'Default' });

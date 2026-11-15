@@ -29,11 +29,18 @@ describe('audition ranges in milliseconds', () => {
   });
 
   it('uses existing timing validation and requires a playable duration', () => {
-    for (const [start, end] of [[1000, 1000], [3000, 1000], [-10, 1000], [1, 1000]]) {
+    for (const [start, end] of [[3000, 1000], [-10, 1000], [1, 1000]]) {
       expect(() => auditionRange('selection', start, end, 5000)).toThrow();
     }
     for (const duration of [0, -1, NaN, Infinity]) {
       expect(() => auditionRange('selection', 1000, 3000, duration)).toThrow();
     }
+  });
+  it('keeps zero-duration selection auditions empty while allowing before/after context', () => {
+    for (const mode of ['selection', 'first-500', 'last-500'] as const) {
+      expect(auditionRange(mode, 1000, 1000, 5000)).toBeNull();
+    }
+    expect(auditionRange('before-start', 1000, 1000, 5000)).toEqual({ start: 500, end: 1000 });
+    expect(auditionRange('after-end', 1000, 1000, 5000)).toEqual({ start: 1000, end: 1500 });
   });
 });

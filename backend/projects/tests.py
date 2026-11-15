@@ -153,9 +153,22 @@ class ProjectContractTests(TestCase):
         bad = with_cue(self.project.document, r'{\pos(1,2)}bad')
         self.assertEqual(self.send(f'/{self.project.pk}/document', {'revision': 1, 'document': bad}, 'PUT').status_code, 422)
         invalid = with_cue(self.project.document)
-        invalid['cues'][0]['end_ms'] = 0
+        invalid['cues'][0]['start_ms'] = 2000
         self.assertEqual(self.send(f'/{self.project.pk}/document', {'revision': 1, 'document': invalid}, 'PUT').status_code, 422)
         self.project.refresh_from_db(); self.assertEqual(self.project.revision, 1)
+
+    def test_zero_duration_cue_can_be_saved_reloaded_and_extended(self):
+        document = with_cue(self.project.document, '')
+        document['cues'][0].update(start_ms=3000, end_ms=3000)
+        response = self.send(f'/{self.project.pk}/document', {'revision': 1, 'document': document}, 'PUT')
+        self.assertEqual(response.status_code, 200)
+        restored = self.client.get(self.base + f'/{self.project.pk}').json()['project']
+        self.assertEqual(restored['revision'], 2)
+        self.assertEqual(restored['document']['cues'], document['cues'])
+        document['cues'][0].update(end_ms=5000, text='同时开始')
+        self.assertEqual(self.send(f'/{self.project.pk}/document', {'revision': 2, 'document': document}, 'PUT').status_code, 200)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.document['cues'], document['cues'])
 
     def test_csrf_authentication_inactive_and_revoked_membership(self):
         response = self.client.post(self.base, {}, content_type='application/json')

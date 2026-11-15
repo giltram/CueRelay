@@ -52,15 +52,26 @@ class CodecTests(unittest.TestCase):
         self.assertIn("译者,0000,0000,0000,,", output)
         self.assertIn("Comment:", output)
 
-    def test_time_grid_and_zero_length_rejected(self):
-        for start, end in [(0, 0), (10, 10), (20, 10), (-10, 100), (1, 100), (0, 101), (True, 100), (0, 100.0), (0, 36_000_000)]:
+    def test_time_grid_and_inverted_intervals_rejected(self):
+        for start, end in [(20, 10), (-10, 100), (1, 100), (0, 101), (True, 100), (0, 100.0), (0, 36_000_000)]:
             with self.subTest(start=start, end=end):
                 document = parse_ass(basic_source())
                 document["cues"][0].update(start_ms=start, end_ms=end)
                 with self.assertRaises(AssError):
                     serialize_ass(document)
         with self.assertRaises(AssError):
-            parse_ass(basic_source().replace("0:00:03.40", "0:00:01.20"))
+            parse_ass(basic_source().replace("0:00:03.40", "0:00:01.19"))
+
+    def test_zero_duration_roundtrip_preserves_times_and_text_without_extension(self):
+        for at in [0, 3000, 35_999_990]:
+            for text in ['', '待调整']:
+                with self.subTest(at=at, text=text):
+                    document = parse_ass(basic_source())
+                    document['cues'][0].update(start_ms=at, end_ms=at, text=text)
+                    restored = parse_ass(serialize_ass(document))['cues'][0]
+                    self.assertEqual((restored['start_ms'], restored['end_ms'], restored['text']), (at, at, text))
+        parsed = parse_ass(basic_source().replace('0:00:03.40', '0:00:01.20'))
+        self.assertEqual(parsed['cues'][0]['start_ms'], parsed['cues'][0]['end_ms'])
 
     def test_reordered_format_is_mapped_before_pysubs2(self):
         source = basic_source().replace("Layer, Start, End", "Start, Layer, End")

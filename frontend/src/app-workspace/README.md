@@ -2,7 +2,7 @@
 
 `useWorkspace` 拥有单个工作区实例、初始化 ProjectDetail/File、挂载代号、按路由加载状态、显式保存/重载和归档/权限观察。字幕正文、选中行、时间草稿、视频节点和播放状态仍唯一属于 EditorWorkbench/LocalVideoPlayer。
 
-公开接口：workspace/visible/projectLoad/accessDenied；clear、adoptCreated、save、split、reload、updateSummary、retry。App 在获得切换许可后调用 clear；在列表点击新建时先处理该文档保留的旧稿保护，再打开本地单页表单；创建成功后把已有详情与所选 File/可选只读句柄交给 adoptCreated，再 push 工作区 URL。创建表单不拥有页面路由，不新开标签页。初始化 File 只留本标签页内存，不放 URL/history/Storage；media 模块在播放器校验通过后仅将句柄存入本机 IndexedDB。
+公开接口：workspace/visible/projectLoad/accessDenied；clear、adoptCreated、save、split、reload、updateSummary、retry。save 接收 contracts/projects.ProjectSaveRequest（document、上次成功保存的 baseDocument/revision、历史所需样式 ID），返回 ProjectSaveResult（project 摘要和实际保存 document）；基准与历史信息只在内存传递，不进入 HTTP。App 在获得切换许可后调用 clear；在列表点击新建时先处理该文档保留的旧稿保护，再打开本地单页表单；创建成功后把已有详情与所选 File/可选只读句柄交给 adoptCreated，再 push 工作区 URL。创建表单不拥有页面路由，不新开标签页。初始化 File 只留本标签页内存，不放 URL/history/Storage；media 模块在播放器校验通过后仅将句柄存入本机 IndexedDB。
 
 路由进入项目时调用既有 projects-api.get，序号与 effect 清理隔离已过期响应。重返同组织同项目只更新归档状态，不替换内存文档或保存 revision；新标签页/刷新没有保留实例，加载服务器快照；media 按当前账号、组织、项目和媒体基准尝试恢复本机句柄，重新完整校验，失败则手动选片。轮询/焦点检查也只观察状态，不悄悄接受远端 revision；撤权/不存在时禁止继续编辑并保留导出。显式 reload 在 App 的导出/取消/明确放弃流程后读取新快照并更换挂载代号。
 
@@ -12,8 +12,10 @@
 
 `split` 与 save 使用同一个 account request、显式 revision、updateSummary 与归档错误处理，经 projects-api.split 调用后端。只返回结果给 EditorWorkbench，由后者成功后替换自己的 document/savedRevision。请求期间编辑器冻结本次快照；失败继续保留当前内容。没有轮询采用远端文档或第二份字幕 store。项目拆分本身会保存完整工作快照（含当前时间草稿），详见 docs/editing-operations.md。
 
-项目样式保存由独立 ProjectSettingsPage 直接调用 projectApi.styles，本模块不再提供样式回调。设置页保存不修改保留工作区的文档或 revision；旧工作区保存继续冲突，明确重载后才接受新样式。本地工作区保留样式管理，模板另存请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。
+项目样式保存由独立 ProjectSettingsPage 直接调用 projectApi.styles，本模块不再提供样式回调。设置页保存不直接修改保留工作区的文档或 revision。工作台显式保存发生明确冲突时，project-data/project-document-save 检查远端 cues 与已保存基准完全相同、source 不变、本地未修改定义且所有历史样式引用仍存在，才组合最新样式/脚本和本地 cues，以最新 revision 重试一次。成功返回实际保存的快照给 EditorWorkbench；失败不接纳版本，媒体/实例不替换。显式重载继续提供放弃草稿后完全接纳远端的路径。本地工作区保留样式管理，模板另存请求由 App 注入 JsonRequest / 当前组织 / 管理能力，不从编辑器读取账号内部状态。
 
 工作区编辑历史由 workspace-ui/use-edit-history 拥有，不进入本模块。save/split 返回的最新 revision 和保存基准不随撤销回退；撤销拆分只恢复本地快照，不调用本模块持久接口。隐藏保留同一挂载实例和历史；reload/clear/adoptCreated 或跨项目/组织/账号替换通过挂载 generation 建立新历史。回归新增 browser-tests/workspace-history.mjs。
 
 诊断：save/split 请求复用 project-data 的 HTTP 关联；显式 reload 报告阶段/revision。诊断无权更换本模块实例或保存基准；实际工作区状态由 EditorWorkbench 的只读接口提供。见 ../diagnostics/README.md。
+
+术语维护和关联由独立 glossary-data/UI 处理，不调用本模块 save/split/updateSummary，不接纳远端字幕 revision。保留/隐藏的实例仍遵循原生命周期；术语入口复用 visible、账号归属和可访问性，账号/项目切换不能将旧响应写入新上下文。见 docs/glossary.md 和 browser-tests/glossary.mjs。

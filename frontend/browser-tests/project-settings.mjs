@@ -39,6 +39,7 @@ await context.route('**/api/**', async route => {
   if (method === 'POST' && path === '/auth/login') { authenticated = true; return reply({ user }); }
   if (method === 'GET' && path === '/organizations') return reply({ organizations: [organization] });
   if (method === 'GET' && path === '/me/settings') return reply({ shortcut_overrides: {}, audio_display_mode: 'spectrum' });
+  if (method === 'GET' && path === `${listPath}/5/glossary`) return reply({ association_version: 1, table: null, uses_organization_default: true, archived: project.status === 'archived', entries: [], total: 0, page: 1, has_more: false, empty: true });
   if (method === 'GET' && path === listPath) return reply({ projects: url.searchParams.get('status') === project.status ? [project] : [], total: 1, page: 1, has_more: false });
   if (method === 'GET' && path === `${listPath}/5`) {
     return failLoad ? failure(404, 'not_found', '项目不存在。') : reply({ project });
@@ -111,6 +112,46 @@ try {
   await settings.getByText('项目设置已保存。', { exact: true }).waitFor();
   assert.equal(project.name, '冲突时保留名称');
   record('名称说明保存和刷新持久化，空名称禁止提交；版本冲突和网络失败保留输入，显式刷新后可重试保存');
+
+  await field(settings, '项目名称').fill('打开样式前的名称草稿');
+  project = { ...project, description: '服务器更新说明', revision: project.revision + 1 };
+  failLoad = true;
+  await button(settings, '管理项目样式').click();
+  await settings.getByRole('alert').filter({ hasText: '项目不存在。' }).waitFor();
+  assert.equal(await settings.getByRole('dialog').count(), 0);
+  assert.equal(await field(settings, '项目名称').inputValue(), '打开样式前的名称草稿');
+  failLoad = false;
+  await button(settings, '管理项目样式').click();
+  const refreshedManager = settings.getByRole('dialog', { name: '项目样式管理', exact: true });
+  await refreshedManager.waitFor();
+  assert.equal(await field(settings, '项目名称').inputValue(), '打开样式前的名称草稿');
+  assert.equal(await field(settings, '项目说明').inputValue(), '服务器更新说明');
+  await button(refreshedManager, '关闭').click();
+  const refreshedRevision = project.revision;
+  await button(settings, '保存修改').click();
+  await settings.getByText('项目设置已保存。', { exact: true }).waitFor();
+  assert.equal(writes.at(-1).revision, refreshedRevision);
+  assert.equal(project.name, '打开样式前的名称草稿');
+  assert.equal(project.description, '服务器更新说明');
+  record('打开样式前自动刷新，保留名称草稿并更新未改说明；加载失败不打开旧样式，恢复后可直接重试');
+
+  await field(settings, '项目名称').fill('本地竞争名称');
+  project = { ...project, name: '远端竞争名称', revision: project.revision + 1 };
+  await button(settings, '管理项目样式').click();
+  await refreshedManager.waitFor();
+  await button(refreshedManager, '关闭').click();
+  const writesBeforeMetadataConflict = writes.length;
+  await button(settings, '保存修改').click();
+  await settings.getByRole('alert').filter({ hasText: '项目名称或说明已被其他操作更新' }).waitFor();
+  assert.equal(writes.length, writesBeforeMetadataConflict);
+  assert.equal(project.name, '远端竞争名称');
+  assert.equal(await field(settings, '项目名称').inputValue(), '本地竞争名称');
+  await button(settings, '刷新项目版本').click();
+  await settings.getByText(/当前服务器版本：远端竞争名称/).waitFor();
+  await button(settings, '保存修改').click();
+  await settings.getByText('项目设置已保存。', { exact: true }).waitFor();
+  assert.equal(project.name, '本地竞争名称');
+  record('样式自动刷新不绕过名称草稿的真实冲突，显式核对版本后才能覆盖');
 
   for (const width of [1440, 390]) {
     await settings.setViewportSize({ width, height: 950 });

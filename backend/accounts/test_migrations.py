@@ -12,9 +12,10 @@ class UsernameOnlyMigrationTests(TransactionTestCase):
         self.latest = executor.loader.graph.leaf_nodes()
         self.before = [('accounts', '0002_loginattempt')]
         executor.migrate(self.before)
-        self.old_apps = executor.loader.project_state(self.before + [
-            ('organizations', '0001_initial'), ('projects', '0001_initial'),
-        ]).apps
+        # Other apps may have later schema migrations independent of accounts.
+        # Build models for the actual applied state, not a frozen project schema.
+        migrated = MigrationExecutor(connection)
+        self.old_apps = migrated.loader.project_state(list(migrated.loader.applied_migrations)).apps
 
     def tearDown(self):
         MigrationExecutor(connection).migrate(self.latest)

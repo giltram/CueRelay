@@ -35,3 +35,5 @@ toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字
 页面顶栏由 `page-ui/PageLayout` 统一，PersonalPanel 的保存/录制反馈、MembersPanel 页内错误等通过 HeaderNotice 显示在 44px 栏内，不增加表单高度。dialog 的校验仍留在弹窗。个人设置正文独有诊断导出按钮；ExportDiagnostics 通过 onError 把错误交给 SettingsPage，诊断模块不反向依赖页面布局。回归：`npm run test:compact-layout`、`npm run test:personal-settings-pending`。
 
 字幕行菜单动作也由 shared/timing-shortcuts.json 自动枚举，可录制、禁用和恢复默认，双端允许 Ctrl/Meta/Alt/Shift 组合。旧显式绑定压过新增默认，但两个显式绑定仍拒绝冲突。详见 [字幕行操作](../../../docs/subtitle-line-operations.md)。
+
+组织默认术语维护通过 SettingsPage.organizationGlossary 的 ReactNode 插槽组合（App 注入 glossary-ui/OrganizationGlossary）；account-ui 不导入术语私有实现。组织设置的成员可按既有维护权限查询、添加和编辑组织词条；项目默认只读，显式fork成为不再同步的项目副本。接口/版本边界见 docs/glossary.md。

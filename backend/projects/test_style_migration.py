@@ -99,6 +99,9 @@ class HistoricalMigrationExecutorTests(TransactionTestCase):
         self.latest = executor.loader.graph.leaf_nodes()
         # 0002 is irreversible and data-only. The test DB is empty here; only
         # unrecord its application, then insert v1 fixtures before real migrate.
+        # Reverse later schema changes normally before unrecording data-only 0002.
+        executor.migrate([('projects', '0002_document_styles_v2')])
+        executor = MigrationExecutor(connection)
         executor.migrate([('projects', '0001_initial')], fake=True)
         targets = [target for target in self.latest if target[0] != 'projects'] + [('projects', '0001_initial')]
         old_apps = MigrationExecutor(connection).loader.project_state(targets).apps
@@ -109,7 +112,7 @@ class HistoricalMigrationExecutorTests(TransactionTestCase):
     def tearDown(self):
         # Remove incompatible test fixtures so restoring the latest state cannot
         # fail and affect other tests. No development database is involved.
-        Project.objects.all().delete()
+        self.OldProject.objects.all().delete()
         MigrationExecutor(connection).migrate(self.latest)
         super().tearDown()
 
@@ -123,7 +126,7 @@ class HistoricalMigrationExecutorTests(TransactionTestCase):
         before = self.OldProject.objects.values().get(pk=project.pk)
         MigrationExecutor(connection).migrate(self.latest)
         after = Project.objects.values().get(pk=project.pk)
-        self.assertEqual({key: value for key, value in after.items() if key != 'document'},
+        self.assertEqual({key: after[key] for key in before if key != 'document'},
                          {key: value for key, value in before.items() if key != 'document'})
         self.assertEqual(after['document']['source'], before['document']['source'])
         self.assertEqual(after['document']['cues'][0]['id'], before['document']['cues'][0]['id'])

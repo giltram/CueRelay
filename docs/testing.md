@@ -50,16 +50,20 @@ cd ..
 .venv/bin/python backend/manage.py test browser_tests.regression --settings=application.test_settings --noinput -v 2
 ```
 
-可只运行一个场景，二者没有顺序依赖：
+可只运行一个场景，彼此没有顺序依赖：
 
 ```sh
 .venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_save_refresh_history --settings=application.test_settings --noinput -v 2
 .venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_conflict_preserves_local_edits --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_project_styles_refresh_and_retry --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_workspace_saves_after_style_changes --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_workspace_protects_deleted_history_styles --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_organization_glossary_fork_stays_isolated --settings=application.test_settings --noinput -v 2
 ```
 
 无需预先启动 Django/Vite，不要直接运行此目录的 Playwright 命令。Django LiveServerTestCase 管理随机端口后端，Playwright Test 自动启动 loopback `5199` 的 Vite，并代理到本次后端；端口已占用会失败，不接管现有服务。浏览器使用仓库 Playwright 版本对应的 Chromium，不依赖系统 Chrome。
 
-每次 Django 命令创建独有 `test_cuerelay_<pid>` 数据库并销毁；每个 E2E 场景清空数据库后重新创建固定 `regression-organizer` / `regression-member`、组织和项目。用户 ID/项目 ID 不写死。密码仅为测试夹具。两例分别启动全新的浏览器上下文；冲突例在同会话的两个独立页面工作区模拟旧版本。不要使用 `--keepdb` 保留测试业务数据；异常强制终止留下的测试库随 `docker compose down` 一并丢弃。
+每次 Django 命令创建独有 `test_cuerelay_<pid>` 数据库并销毁；每个 E2E 场景清空数据库后重新创建固定 `regression-organizer` / `regression-member`、组织和项目。用户 ID/项目 ID 不写死。密码仅为测试夹具。各场景分别启动全新的浏览器上下文；冲突例在同会话的两个独立页面工作区模拟旧版本。不要使用 `--keepdb` 保留测试业务数据；异常强制终止留下的测试库随 `docker compose down` 一并丢弃。
 
 8 秒黑色视频/440Hz 正弦音通过 FFmpeg 在系统临时目录生成，用真实 SHA-256/字节数作为项目基准；测试结束删除，没有实际片源。ASS 复用仓库自创 `basic.ass` 并在测试中限定为一个普通文本事件；语义与独立引擎回归继续使用已有兼容性语料及手写期望。测试不 Mock 认证、HTTP、项目写入、冲突或 ASS 逻辑，没有固定 sleep、自动重试或大规模快照。
 
@@ -80,12 +84,14 @@ docker compose -f compose.test.yml down
 
 | 风险 | 复用 / 新增测试 | 断言层次 |
 | --- | --- | --- |
+| 组织默认术语与项目fork | projects.test_glossary / test_glossary_migration、regression/workspace.spec.mjs 的 organization glossary fork stays isolated | 组织唯一默认、默认只读、完整快照/新ID、双向隔离、迁移保留、字幕revision不变 |
 | ASS 语义和保留字段 | `ass_format/test_compatibility.py`、`test_follow_up.py`、`http_api/test_ass_compatibility.py`、`projects/test_ass_compatibility.py`、`test:ass-compatibility` | 手写期望、HTTP/DB 往返、独立 libass 字形及模型样式身份 |
 | 字幕创建、拆分、撤销/重做 | 既有 `commit-timing.test.ts`、`edit-history.test.ts`、`line-edits.test.ts`、`ass_format/test_splitting.py`、`projects/test_splitting.py`；新增 `regression/workspace.spec.mjs` 第一例 | 纯转换和真实浏览器→HTTP→DB；原子步骤、选行、UUID、最新 revision |
 | 保存后刷新恢复 | 既有 `projects/test_ass_compatibility.py`；新增第一例 | 整文档持久化、刷新读取、刷新后无旧撤销历史；不承诺未保存稿件跨刷新恢复 |
 | revision 冲突/本地保护 | 既有 `projects/tests.py` 并发保存/归档；新增第二例 | 真实 409、服务器快照未被覆盖、正文/非法时间草稿保留、备份下载、取消/明确放弃、重载新基线 |
 | 项目与组织权限 | `projects/tests.py`、`projects/test_styles.py`、`http_api/test_identity.py`、`organizations/tests.py` | member/organizer/dev、跨组织、撤权、停用、CSRF、并发最后 organizer |
 | 项目样式/ASS 导出 | `ass_format/test_styles.py`、`projects/test_styles.py`、兼容性语料/独立引擎 | 样式 UUID/引用/颜色/字体/字号、模板独立快照、失败整批回滚、样式 revision |
+| 样式与字幕保存竞争 | `project-style-save.test.ts`、`project-document-save.test.ts`、`history-styles.test.ts`；regression/workspace.spec.mjs 的 project styles refresh and retry / workspace saves after style changes / workspace protects history styles deleted remotely | 设置页刷新/重试，工作台合并仅样式变化并保留字幕/新增行/原始草稿/视频/历史，撤销重做后继续保存、真实字幕竞争保护、删除历史所需样式时不重试 |
 
 较全面的旧浏览器脚本继续保留于 `frontend/browser-tests/`，入口与环境见该目录 README。它们没有全部接入本轮 CI；不要把 fixture 驱动的 HTTP 当成真实数据库 E2E，也不要把历史手动实验记录当成本次执行结果。
 
@@ -97,4 +103,10 @@ docker compose -f compose.test.yml down
 
 实现使用 Django 官方 [LiveServerTestCase](https://docs.djangoproject.com/en/5.2/topics/testing/tools/#liveservertestcase)、Playwright 的 [webServer](https://playwright.dev/docs/test-webserver) 与 GitHub 的 [PostgreSQL service](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers) 机制。产品依赖方向和公开接口没有改变。
 
-本轮不覆盖 Firefox/Safari、真实片源/多声道长媒体、浏览器撤权全链路、完整网络故障矩阵或未来实时协作。后续优先加入撤权后的备份、样式设置与旧工作区冲突、提交成功但响应丢失，再按风险整理旧浏览器脚本；不用扩大 E2E 数量替代轻量规则测试。
+本轮不覆盖 Firefox/Safari、真实片源/多声道长媒体、浏览器撤权全链路、完整网络故障矩阵或未来实时协作。后续优先加入撤权后的备份、提交成功但响应丢失，再按风险整理旧浏览器脚本；不用扩大 E2E 数量替代轻量规则测试。
+
+## 术语表
+
+`projects.test_glossary` / `projects.test_glossary_migration` 纳入上述 projects 全量测试；覆盖组织默认首次创建事务、并发fork/组织修改、默认共享/副本双向隔离、权限/归档/跨组织、独立 CAS、重复/长度/字面搜索及字幕 revision 不变、旧项目迁移后保存。前端 Vitest 包括 glossary-data/rules 与 workspace-ui/term-insertion。
+
+`cd frontend && npm run test:glossary`：需先在另一个终端 `npm run dev -- --port 5227 --strictPort`，GLOSSARY_URL 可改地址。真实 Chrome + FFmpeg 合成视频 + Python codec，HTTP 使用隔离 fixture，不写开发库；覆盖组织维护/默认只读/fork/双向隔离、表单失败/冲突/IME、归档、宽窄侧栏、光标/选区/撤销、无字幕保存/播放器重建，以及真实 App 项目/账号切换和撤权后旧响应隔离。新增真实数据库浏览器E2E见 `WorkspaceRegressionTests.test_organization_glossary_fork_stays_isolated`（组织设置创建、项目fork、编辑复制词条/新增词条、双向隔离、保存revision不变和刷新持久化）；`manage.py test browser_tests.regression` 一并运行。见 [最新术语验证](experiments/organization-glossary.md)。

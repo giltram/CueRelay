@@ -13,8 +13,16 @@ describe('subtitle QC', () => {
     expect(checkSubtitles(document())).toEqual([]);
     expect(checkSubtitles(document(cue(), cue({ id: 'new-two', start_ms: 3200, end_ms: 5200, text: '{\\i1}第二条{\\i0}\\NHello' })), { videoDurationMs: 6000 })).toEqual([]);
   });
-  it.each([[0, 0], [3000, 2000], [-10, 2000], [1001, 3000], [NaN, 3000], [0, Infinity], [0, 36_000_000]])('reports invalid interval %s–%s without meaningless duration or CPS', (start_ms, end_ms) => {
+  it.each([[3000, 2000], [-10, 2000], [1001, 3000], [NaN, 3000], [0, Infinity], [0, 36_000_000]])('reports invalid interval %s–%s without meaningless duration or CPS', (start_ms, end_ms) => {
     expect(types(document(cue({ start_ms, end_ms })))).toEqual(['invalid-time']);
+  });
+  it('warns about zero duration without invalid-time errors or non-finite CPS', () => {
+    for (const text of ['', '待调整']) {
+      const issues = checkSubtitles(document(cue({ end_ms: 1000, text })), { phase: 'export' });
+      expect(issues).toContainEqual(expect.objectContaining({ type: 'duration-short', severity: 'warning', measurements: { durationMs: 0 } }));
+      expect(issues.some(issue => issue.severity === 'error' || issue.type === 'high-cps')).toBe(false);
+      expect(issues.flatMap(issue => Object.values(issue.measurements)).every(Number.isFinite)).toBe(true);
+    }
   });
   it('reports short/long duration and precise CPS with measured values', () => {
     const issues = checkSubtitles(document(cue({ end_ms: 1100, text: '这句话太快了' })));

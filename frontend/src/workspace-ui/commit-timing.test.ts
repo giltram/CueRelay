@@ -59,7 +59,18 @@ describe('commit timing and advance', () => {
     expect(result.document.cues.map(row => row.id)).toEqual(['last', 'first', 'tied', 'shorter']);
   });
 
-  it.each([[2000, 2000], [3000, 2000], [-10, 2000], [1, 2000], [0, MAX_TIME_MS + 10]])(
+  it('can extend a zero-duration inserted cue or commit equal endpoints unchanged', () => {
+    const zero = { ...cue('inserted', 3000), end_ms: 3000 };
+    const next = cue('next', 3000);
+    const original = documentWith(zero, next);
+    expect(commitTiming(original, zero.id, 3000, 3000, ids()).document.cues[0]).toEqual(zero);
+    const result = commitTiming(original, zero.id, 3000, 5000, ids());
+    expect(result.document.cues[0]).toMatchObject({ start_ms: 3000, end_ms: 5000 });
+    expect(result.selected).toBe(next);
+    expect(original.cues[0]).toBe(zero);
+  });
+
+  it.each([[3000, 2000], [-10, 2000], [1, 2000], [0, MAX_TIME_MS + 10]])(
     'rejects invalid drafts (%s, %s) without editing the document or allocating IDs', (start, end) => {
       const original = documentWith(cue('first', 1000));
       const before = structuredClone(original);

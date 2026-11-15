@@ -139,4 +139,6 @@ npm run build
 
 工作区支持 **Cmd/Ctrl+Z 撤销、Cmd/Ctrl+Shift+Z 重做**（可在个人设置覆盖）。一次边界拖动/方向键长按、提交并下一条/自动新增、删除均按原子步骤恢复文档、选择和时间草稿，最多保留本实例内 100 步。文本/样式同样接入；输入框保留原生撤销，实际原生撤销/重做建立新的工作区历史基线。保存不清空历史，也不回退服务端 revision；拆分撤销只改变本地内容，下次手动保存才写服务器。导入成功、显式重载和替换实例清空；隐藏恢复保留。详情见 [工作区历史](frontend/src/workspace-ui/README.md)。验证：`cd frontend && npm run test:workspace-history`（Chrome、FFmpeg、Vite 默认 5189，HISTORY_URL 可覆盖；隔离 HTTP fixture + 真实 ASS 纯转换，不写开发数据库）。
 
-字幕行支持右键菜单与 Ctrl/Cmd 多选、Shift 连选，可插入、按视频帧插入/分割、重复、批量删除及剪切/复制/粘贴；粘贴覆盖可勾选入点、出点、样式、正文，快捷键在个人设置自定义。列表继续时间排序，文档/导出 ASS 保留插入顺序。插入默认 3 秒并按间隙缩短；零时长保护性拒绝。需同步更新前后端（新增无状态 `/api/ass/clipboard`，无需数据库迁移）。规则与验证见 [字幕行操作](docs/subtitle-line-operations.md)。
+字幕行支持右键菜单与 Ctrl/Cmd 多选、Shift 连选，可插入、按视频帧插入/分割、重复、批量删除及剪切/复制/粘贴；粘贴覆盖可勾选入点、出点、样式、正文，快捷键在个人设置自定义。列表继续时间排序，文档/导出 ASS 保留插入顺序。插入默认 3 秒并按间隙缩短；紧贴时允许插入零时长空行，供后续调整，可保存和 ASS 往返。需同步更新前后端（新增无状态 `/api/ass/clipboard`，无需数据库迁移）。规则与验证见 [字幕行操作](docs/subtitle-line-operations.md)。
+
+组织术语表：在「设置 → 组织设置 → 组织术语表」维护。项目默认只读组织当前词条；需要修改时点击「创建项目副本」，fork当前组织表后自由维护新旧词条，副本不再同步或回写。字幕区仍支持光标插入并与QC共用侧栏；术语/fork不保存字幕或改变字幕revision。更新需执行 `python backend/manage.py migrate`（新增 glossary.0002、projects.0004），既有项目表/词条保留。契约见 [术语表](docs/glossary.md)，执行结果见 [组织默认验证](docs/experiments/organization-glossary.md)。

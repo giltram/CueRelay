@@ -7,12 +7,12 @@
 - 点击任意行单元格选择；Ctrl（macOS 用 Cmd）切换单行，Shift 按可见时间顺序从锚点连选，Ctrl/Cmd+Shift 合并范围。active row 与整组选中 ID、连选锚点一起保存在既有编辑状态；纯选择不增加历史步骤，下一次编辑精确捕获它们。
 - 右键未选行切换为单选；右键已选行保留整组并将该行设为 active。右键不定位视频。同一 active row 保留未完成时间草稿。鼠标右键打开时聚焦菜单容器，不预先高亮任何操作；Shift+F10 / ContextMenu 打开时聚焦首个可用操作。方向键、Home/End 导航，Esc/Tab 关闭并返回工作区焦点；外部点击、滚动、窗口变化与失焦关闭。隐藏、忙碌或弹窗时不可打开。
 - 所有行操作使用已应用时间，不隐式提交时间草稿。一次插入 / 整批重复、帧分割、删除、剪切或粘贴覆盖为一条撤销步骤，恢复完整文档、选择和原始时间草稿。复制不增加步骤。项目操作仅修改内存，仍需手动保存；原有 split-playhead / split-text 的立即保存例外不变。
-- 插入为空正文、继承 active 样式，默认 3000ms；before 结束于 active 入点，after 开始于 active 出点。扫描全部字幕，收缩到可用的最近出点 / 入点。视频插入始于当前帧起点，固定 3000ms；前后只决定文档位置。
+- 插入为空正文、继承 active 样式，默认 3000ms；before 结束于 active 入点，after 开始于 active 出点。扫描全部字幕，收缩到可用的最近出点 / 入点。紧贴边界时仍插入起止相同的零时长行，零点前插入为 0–0；选中新行供后续调整，不自动拉长。视频插入始于当前帧起点，固定 3000ms；前后只决定文档位置。
 - 重复按文档中连续选中块在各块之后插入副本，保留正文、样式与原始 Layer/Name/Margins 锚点。帧前分割在当前帧起点，帧后分割在当前帧终点，保留两份正文并选中副本；当前帧不在原行内时，原行保留，副本仅覆盖本帧。
 - 视频帧由 `media/video-frame.ts` 按操作读取本地文件实际 presentation timestamp / duration，使用已有 Mediabunny metadataOnly packet API，支持可解析的 VFR / B-frame 文件，不依赖平均 FPS、不解码画面，finally 释放 input。不可读取或 10ms 精度不足时明确拒绝，无假定帧率回退。
-- 保持现有正时长、非负 10ms 网格、10 小时 / 5000 行 / ASS 子集限制；无间隙或分割出现零时长时整批拒绝，原稿和历史不变。原有 G/Enter 自动续行仍为 2000ms，与 Aegisub 菜单插入的 3000ms 分开。
+- 保持非负 10ms 网格、10 小时 / 5000 行 / ASS 子集限制；已应用字幕允许 start = end，但倒序仍拒绝。零时长行可编辑、重复、保存和 ASS 往返，QC 只警告时长过短，不计算 CPS；空选区试听不播放。分割产生零时长时仍整批拒绝，原稿和历史不变。原有 G/Enter 自动续行仍为 2000ms，与 Aegisub 菜单插入的 3000ms 分开。
 
-Aegisub 规则依据：[插入实现](https://github.com/TypesettingTools/Aegisub/blob/master/src/command/subtitle.cpp)、[重复/分割/剪贴板实现](https://github.com/TypesettingTools/Aegisub/blob/master/src/command/edit.cpp)、[默认时长](https://github.com/TypesettingTools/Aegisub/blob/master/src/libresrc/default_config.json)。本项目保护性拒绝零时长，并保持现有受限 ASS 支持范围。
+Aegisub 规则依据：[插入实现](https://github.com/TypesettingTools/Aegisub/blob/master/src/command/subtitle.cpp)、[重复/分割/剪贴板实现](https://github.com/TypesettingTools/Aegisub/blob/master/src/command/edit.cpp)、[默认时长](https://github.com/TypesettingTools/Aegisub/blob/master/src/libresrc/default_config.json)。2026-11-12 按用户确认支持紧贴插入零时长，见 [实施边界与验证](plans/zero-duration-insertion.md)；保持现有受限 ASS 支持范围。
 
 ## 剪贴板与格式
 

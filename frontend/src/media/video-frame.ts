@@ -16,6 +16,7 @@ export async function readVideoFrame(file: Blob, seconds: number): Promise<Video
     const start = snapTime(Math.max(0, packet.timestamp));
     const end = snapTime(packet.timestamp + packet.duration);
     validateInterval(start, end);
+    if (start === end) throw new Error('当前视频帧不足 10ms，无法读取有效帧区间');
     return { start, end };
   } finally { input.dispose(); }
 }
