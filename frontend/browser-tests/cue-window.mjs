@@ -13,7 +13,7 @@ documentFixture.cues = Array.from({ length: 2000 }, (_, index) => ({ id: `new-${
   text: index === 1999 ? '末尾长字幕\n'.repeat(20)
     : index === 0 ? '共同查询 软换行文本 '.repeat(25) : `共同查询 字幕 ${index + 1}` })).reverse();
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(10000);
 const errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));
@@ -107,7 +107,7 @@ try {
   assert.equal(await row(2000).evaluate(el => el.closest('tr').dataset.cueId), 'new-1999');
   await input.fill('共同查询'); await input.press('Enter'); await row(1).waitFor();
   const wideHeight = await row(1).evaluate(el => el.closest('tr').getBoundingClientRect().height);
-  const handle = page.getByRole('separator', { name: '调整style列宽度', exact: true });
+  const handle = page.getByRole('separator', { name: '调整样式列宽度', exact: true });
   await handle.focus(); await page.keyboard.press('End');
   await page.setViewportSize({ width: 390, height: 900 });
   await input.fill('共同查询'); await input.press('Enter');

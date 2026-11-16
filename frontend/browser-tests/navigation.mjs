@@ -18,7 +18,7 @@ const assFixture = fileURLToPath(new URL('../../backend/ass_format/fixtures/basi
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=30',
   '-f', 'lavfi', '-i', 'sine=frequency=1000:sample_rate=48000:duration=30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart', videoFile]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, acceptDownloads: true, viewport: { width: 1440, height: 1000 } });
 context.setDefaultTimeout(15000);
 const errors = [];
 const uploads = [];
@@ -184,14 +184,14 @@ try {
   record('项目链接支持中键/Cmd 或 Ctrl/普通点击；刷新保持指定 URL，新标签页独立选片校验');
 
   const detail = (await api(`${listPath}/${project.id}`)).project;
-  const setupDev = await browser.newContext({ baseURL });
+  const setupDev = await browser.newContext({ locale: 'zh-CN', baseURL });
   await api('/auth/login', 'POST', { username: 'project-dev', password }, setupDev);
   const otherProject = (await api(`/organizations/${otherOrg.id}/projects`, 'POST', {
     name: title + ' 另组织', description: '', media: detail.media, source: null,
   }, setupDev)).project;
   await setupDev.close();
   const otherPath = `/organizations/${otherOrg.id}/projects/${otherProject.id}/workspace`;
-  const fresh = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+  const fresh = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
   const direct = await fresh.newPage(); watch(direct);
   await direct.goto(otherPath); await login(direct);
   await workspace(direct).waitFor();
@@ -202,7 +202,7 @@ try {
   await fresh.close();
   record('未登录直达非默认组织项目，登录后继续原地址，刷新不退回默认组织');
 
-  const settingsContext = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+  const settingsContext = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
   const settingsPage = await settingsContext.newPage(); watch(settingsPage);
   const orgSettingsPath = `/organizations/${otherOrg.id}/settings/organization`;
   await settingsPage.goto(orgSettingsPath); await login(settingsPage);
@@ -303,7 +303,7 @@ try {
   await sameTab(page.getByRole('link', { name: second.name, exact: true }));
   await workspace(page).waitFor(); assert.equal(page.url(), protectedPath);
   // Isolate the native cancelled-navigation probe from history traversal tests.
-  const reloadContext = await browser.newContext({ baseURL, storageState: await context.storageState() });
+  const reloadContext = await browser.newContext({ locale: 'zh-CN', baseURL, storageState: await context.storageState() });
   const reloadPage = await reloadContext.newPage();
   reloadPage.on('pageerror', error => errors.push(String(error)));
   await reloadPage.goto(projectPath);
@@ -323,7 +323,7 @@ try {
   record('创建前可取消旧工作区替换；实际刷新触发 beforeunload，取消刷新保留当前页面');
 
   // Create archive/permission fixtures using the real server's authorization.
-  const dev = await browser.newContext({ baseURL });
+  const dev = await browser.newContext({ locale: 'zh-CN', baseURL });
   await api('/auth/login', 'POST', { username: 'project-dev', password }, dev);
   const allOrganizations = (await api('/organizations', 'GET', undefined, dev)).organizations;
   const privateOrg = allOrganizations.find(value => !organizations.some(org => org.id === value.id));
@@ -369,7 +369,7 @@ try {
   await errorsTab.close(); await dev.close();
   record('真实 403/404、归档只读、未知路径及 503 重试明确；延迟响应不能覆盖后续导航');
 
-  const localContext = await browser.newContext({ baseURL });
+  const localContext = await browser.newContext({ locale: 'zh-CN', baseURL });
   const local = await localContext.newPage(); watch(local);
   await local.goto('/workspace/local'); await login(local, 'project-empty');
   await local.locator('video').waitFor();

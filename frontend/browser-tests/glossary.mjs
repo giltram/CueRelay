@@ -24,7 +24,7 @@ let sessionUser = { id: 1, username: 'member', is_dev: false }, denyRead = false
 let manage = false, failWrite = '', failRead = false, heldRead = null, heldWrite = null, reads = 0;
 const requests = [], unexpected = [], errors = [], checks = [];
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
 context.on('page', page => {
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => { if (message.type() === 'error' && message.text().includes('Encountered two children with the same key')) errors.push(message.text()); });

@@ -1,3 +1,5 @@
+import { t } from "../../i18n";
+import { useLocale } from "../../i18n/react";
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { formatTime } from '../../media/playback';
 import { boundaryTime, timeAtX, xAtTime, type AudioViewport } from './viewport';
@@ -20,6 +22,7 @@ interface Props {
 
 /** Updates the existing editor draft; the workbench owns validation, commit and row navigation. */
 export function AudioBoundary({ point, value, duration, view, pointerTime, onChange, onGesture, historyEpoch }: Props) {
+  useLocale();
   const drag = useRef<{ pointerId: number; view: AudioViewport; grabOffset: number; gesture?: BoundaryGesture } | null>(null);
   const keys = useRef<{ code: string; gesture?: BoundaryGesture } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -38,7 +41,7 @@ export function AudioBoundary({ point, value, duration, view, pointerTime, onCha
   const [pointerFocused, setPointerFocused] = useState(false);
   const position = xAtTime(value / 1000, 100, view);
   if (!view.span || position < 0 || position > 100) return null;
-  const name = point === 'start' ? '入点' : '出点';
+  const name = point === 'start' ? t("workspaceUi.start") : t("workspaceUi.end");
 
   function endDrag(event: PointerEvent<HTMLButtonElement>) {
     if (drag.current?.pointerId !== event.pointerId) return;
@@ -48,8 +51,8 @@ export function AudioBoundary({ point, value, duration, view, pointerTime, onCha
 
   return <button ref={button} type="button" role="slider" className={`audio-boundary ${point}`} style={{ left: `${position}%` }}
     data-pointer-focus={pointerFocused || undefined} onBlur={() => { setPointerFocused(false); finish(); }}
-    disabled={!onChange} aria-label={`字幕${name} ${formatTime(value)}`} aria-valuemin={0} aria-valuemax={duration}
-    aria-valuenow={value} aria-valuetext={formatTime(value)} title={`拖动${name}；方向键微调 10ms，Shift 微调 100ms；G 应用`}
+    disabled={!onChange} aria-label={t("workspaceUi.subtitleValueValue", { v0: name, v1: formatTime(value) })} aria-valuemin={0} aria-valuemax={duration}
+    aria-valuenow={value} aria-valuetext={formatTime(value)} title={t("workspaceUi.dragValueArrowKeysAdjust10msShiftAdjusts", { v0: name })}
     onPointerDown={event => {
       // A left click on an end marker must reach the stage's start-time action.
       if (event.button !== (point === 'end' ? 2 : 0) || !onChange || drag.current) return;
@@ -83,5 +86,5 @@ export function AudioBoundary({ point, value, duration, view, pointerTime, onCha
         finish(); keys.current = { code: event.code, gesture: onGesture?.() };
       }
       (keys.current?.gesture?.change ?? onChange)(point, boundaryTime((value + (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 100 : 10)) / 1000, duration));
-    }}><BoundaryCaps /><span className="boundary-label">{point === 'start' ? '入' : '出'}</span></button>;
+    }}><BoundaryCaps /><span className="boundary-label">{point === 'start' ? t("workspaceUi.startDetail") : t("workspaceUi.endDetail")}</span></button>;
 }

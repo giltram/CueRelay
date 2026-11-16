@@ -9,3 +9,7 @@
 浏览器验证：`frontend/browser-tests/compact-layout.mjs`。
 
 `Modal.tsx` 拥有所有页面共用的原生 dialog 展示、焦点约束 / 恢复、Escape 与文件 input cancel 边界。2026-11-07 从 account-ui 原样下移，账号 / 项目 / 样式 / 工作区均显式依赖 page-ui；不读取业务状态，调用者通过 onClose / showCloseButton 控制可关闭性。此所有权避免新增粘贴覆盖弹窗使 workspace-ui 反向依赖 account-ui。
+
+## 中英文展示边界（2026-11-15）
+
+ExportDiagnostics 展示控件归本模块，向下调用 diagnostics/export；诊断数据层不依赖 i18n。Modal 标题/关闭按钮可翻译，但挂载与焦点恢复 effect 不依赖标题。共享布局允许表单按钮、标题和说明换行；紧凑工作区顶栏按既有所有权横向滚动。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

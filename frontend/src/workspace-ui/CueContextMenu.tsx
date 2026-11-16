@@ -1,3 +1,6 @@
+import { shortcutName } from '../i18n/shortcuts';
+import { t } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { effectiveBindings, shortcutDefaults, type ShortcutOverrides, type TimingShortcut } from './timing-shortcuts';
@@ -15,6 +18,7 @@ interface Props {
   onAction: (action: CueMenuAction) => void; onClose: () => void;
 }
 export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, onAction, onClose }: Props) {
+  const locale = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -33,17 +37,22 @@ export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, 
     target.focus({ preventScroll: true });
     const outside = (event: PointerEvent) => { if (!menu.contains(event.target as Node)) onClose(); };
     const dismiss = () => onClose();
+    const scrollOutside = (event: Event) => { if (!(event.target instanceof Node) || !menu.contains(event.target)) onClose(); };
     window.addEventListener('pointerdown', outside, true);
     window.addEventListener('resize', dismiss);
     window.addEventListener('blur', dismiss);
-    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('scroll', scrollOutside, true);
     return () => {
       window.removeEventListener('pointerdown', outside, true);
       window.removeEventListener('resize', dismiss); window.removeEventListener('blur', dismiss);
-      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('scroll', scrollOutside, true);
     };
   }, [x, y, keyboard]);
-  return createPortal(<div ref={ref} role="menu" tabIndex={-1} aria-label="字幕行操作" className="cue-context-menu" style={position}
+  useLayoutEffect(() => {
+    const rect = ref.current!.getBoundingClientRect();
+    setPosition({ left: Math.max(4, Math.min(x, window.innerWidth - rect.width - 4)), top: Math.max(4, Math.min(y, window.innerHeight - rect.height - 4)) });
+  }, [locale, x, y]);
+  return createPortal(<div ref={ref} role="menu" tabIndex={-1} aria-label={t("workspaceUi.subtitleLineCommands")} className="cue-context-menu" style={position}
     onContextMenu={event => event.preventDefault()} onKeyDown={event => {
       event.stopPropagation();
       if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); onClose(); return; }
@@ -59,7 +68,7 @@ export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, 
     {groups.map((group, index) => <div role="group" key={index}>
       {group.map(action => <button key={action} role="menuitem" disabled={(action !== 'copy-lines' && !editable) || (action !== 'delete-row' && needsVideoFrame(action) && !hasVideo)}
         onClick={() => { onClose(); onAction(action); }}>
-        <span>{shortcutDefaults[action].label}</span><kbd>{shortcutLabel(action)}</kbd>
+        <span>{shortcutName(action)}</span><kbd>{shortcutLabel(action)}</kbd>
       </button>)}
     </div>)}
   </div>, window.document.body);

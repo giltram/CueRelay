@@ -1,3 +1,4 @@
+import { describe } from "../contracts/messages";
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Cue } from '../contracts/subtitles';
 import { findCueMatches, navigateCueMatches, type SearchDirection } from './cue-search';
@@ -76,6 +77,6 @@ export function useCueSearch({ cues, selectedId, enabled, workspace, onSelect, o
       if (open) close(); else show();
     },
     changeQuery(value: string) { setQuery(value); setCursorId(null); },
-    status: !query ? '' : !matches.length ? '无匹配' : `${index + 1} / ${matches.length} 行`,
+    status: !query ? '' : !matches.length ? describe("workspaceUi.noMatches", "无匹配") : describe("workspaceUi.valueValueLines", "{{v0}} / {{v1}} 行", { v0: index + 1, v1: matches.length }),
   };
 }

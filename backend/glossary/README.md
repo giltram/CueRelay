@@ -9,3 +9,7 @@
 `shared/glossary-limits.json` 双端唯一限制：原词/译名各200 Unicode码点，备注2000，表名100，搜索200。trim后必填非空，拒绝NUL/非法Unicode。普通文本存储/展示，同表原词+译名完全相同唯一（编辑排除自身），同原词允许不同译名。查询三字段ORM icontains字面包含、忽略拉丁大小写，每页25。词条独立revision/CAS，不依赖字幕保存版本。
 
 完整权限、项目关联和HTTP见 [术语契约](../../docs/glossary.md)。测试：projects.test_glossary / test_glossary_migration（真实PostgreSQL、独立连接并发、失败回滚、旧数据保留）。
+
+## 中英文展示边界（2026-11-15）
+
+错误采用无语言状态的 message_contracts metadata，保留原异常/冲突 code 与中文 message。术语正文和表名不因界面翻译改写；组织默认标题只在前端按 uses_organization_default 作为固定界面标题显示。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。

@@ -47,3 +47,4 @@
 .audio-boundary.end .boundary-label { color: var(--audio-end-color); left: -14px; }
 .audio-stage:focus-visible { outline: 2px solid #619eff; outline-offset: -2px; }
 @media (max-width: 900px) { .audio-panel.audio-timeline { height: 180px; } }
+.audio-boundary.end .boundary-label { left: auto; right: 8px; white-space: nowrap; }

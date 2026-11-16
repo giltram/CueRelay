@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import { diagnostics, safeError } from '../diagnostics';
 import type { MediaManifest } from '../contracts/projects';
 
@@ -15,15 +16,15 @@ function videoDuration(file: File, signal: AbortSignal): Promise<number> {
       const duration = Math.round(video.duration * 1000);
       video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url);
       if (error) reject(error);
-      else if (!Number.isFinite(duration) || duration <= 0 || duration >= 36_000_000) reject(new Error('视频时长须在 0–10 小时之间。'));
+      else if (!Number.isFinite(duration) || duration <= 0 || duration >= 36_000_000) reject(new MessageError(describe("media.videoDurationMustBeBetween0And10", "视频时长须在 0–10 小时之间。")));
       else resolve(duration);
     };
-    const abort = () => finish(new DOMException('已取消', 'AbortError'));
-    const timeout = window.setTimeout(() => finish(new Error('视频加载超时，请检查格式并重试。')), 30000);
+    const abort = () => finish(Object.assign(new DOMException('Operation cancelled', 'AbortError'), { descriptor: describe("media.cancelled", "已取消") }));
+    const timeout = window.setTimeout(() => finish(new MessageError(describe("media.videoLoadingTimedOutCheckTheFormatAnd", "视频加载超时，请检查格式并重试。"))), 30000);
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) { abort(); return; }
     video.onloadeddata = () => finish();
-    video.onerror = () => finish(new Error('浏览器无法播放此视频，请检查容器和编码。'));
+    video.onerror = () => finish(new MessageError(describe("media.theBrowserCannotPlayThisVideoCheckIts", "浏览器无法播放此视频，请检查容器和编码。")));
     video.muted = true; video.preload = 'auto'; video.src = url; video.load();
   });
 }
@@ -38,22 +39,22 @@ export function hashFile(file: File, signal: AbortSignal, progress: (ratio: numb
       diagnostics.record('media', 'validation', error ? error.name === 'AbortError' ? 'cancelled' : 'error' : 'success', error ? { error: safeError(error) } : {}, scope, context);
       if (error) reject(error); else resolve(digest!);
     };
-    const abort = () => finish(new DOMException('已取消', 'AbortError'));
+    const abort = () => finish(Object.assign(new DOMException('Operation cancelled', 'AbortError'), { descriptor: describe("media.cancelled", "已取消") }));
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) { abort(); return; }
     worker.onmessage = event => {
-      if (event.data.error) finish(new Error(event.data.error));
+      if (event.data.error) finish(new MessageError(event.data.error));
       else if (event.data.digest) finish(undefined, event.data.digest);
       else progress(event.data.ratio);
     };
-    worker.onmessageerror = () => finish(new Error('校验 Worker 通信失败'));
-    worker.onerror = () => finish(new Error('视频校验无法启动，请重试。'));
+    worker.onmessageerror = () => finish(new MessageError(describe("media.verificationWorkerCommunicationFailed", "校验 Worker 通信失败")));
+    worker.onerror = () => finish(new MessageError(describe("media.couldNotStartVideoVerificationPleaseTryAgain", "视频校验无法启动，请重试。")));
     worker.postMessage(file);
   });
 }
 
 export async function createMediaManifest(file: File, signal: AbortSignal, progress: (ratio: number) => void): Promise<MediaManifest> {
-  if (!file.size || !Number.isSafeInteger(file.size)) throw new Error('视频文件大小无效。');
+  if (!file.size || !Number.isSafeInteger(file.size)) throw new MessageError(describe("media.invalidVideoFileSize", "视频文件大小无效。"));
   const duration_ms = await videoDuration(file, signal);
   signal.throwIfAborted();
   const sha256 = await hashFile(file, signal, progress);

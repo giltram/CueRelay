@@ -36,7 +36,7 @@ writeSync(fd, tail.subarray(moov), 0, tail.length - moov, moov + freeSize);
 closeSync(fd);
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage();
+const page = await browser.newPage({ locale: 'zh-CN' });
 const errors = [];
 const uploads = [];
 page.on('pageerror', error => errors.push(String(error)));

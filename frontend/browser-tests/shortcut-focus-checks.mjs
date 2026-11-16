@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 /** Real pointer/keyboard sequences, including native button and IME safeguards. */
 export async function checkShortcutFocus(browser, url, videoFile) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
   try {

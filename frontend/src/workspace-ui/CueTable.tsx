@@ -1,3 +1,5 @@
+import { formatMessage, t } from '../i18n';
+import { useLocale } from "../i18n/react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type RefObject, type ReactNode } from 'react';
 import type { Cue } from '../contracts/subtitles';
 import type { ProjectStyle } from '../contracts/styles';
@@ -32,6 +34,7 @@ interface Props {
 }
 
 export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, workspace, qc, glossary, revealCueId }: Props) {
+  useLocale();
   const [menu, setMenu] = useState<{ x: number; y: number; cueId: string; keyboard: boolean } | null>(null);
   useEffect(() => { if (!searchEnabled || (menu && !cues.some(cue => cue.id === menu.cueId))) setMenu(null); }, [searchEnabled, cues, menu]);
   const closeMenu = () => { setMenu(null); workspace.current?.focus({ preventScroll: true }); };
@@ -65,11 +68,11 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
       <colgroup><col style={{ width: cueRowNumberWidth }} />
         {cueColumns.map(column => <col key={column.id} style={{ width: widths[column.id] }} />)}<col />
       </colgroup>
-      <thead><tr><th scope="col">行</th>{cueColumns.map(column => <th key={column.id} scope="col"
-        className={column.id === 'cps' ? 'cps-cell' : undefined} aria-label={column.id === 'cps' ? 'CPS（每秒字符数）' : undefined}>
-        {column.label}<CueColumnResizeHandle column={column} width={widths[column.id]}
+      <thead><tr><th scope="col">{t("workspaceUi.line")}</th>{cueColumns.map(column => <th key={column.id} scope="col"
+        className={column.id === 'cps' ? 'cps-cell' : undefined} aria-label={column.id === 'cps' ? t("workspaceUi.cpsCharactersPerSecond") : undefined}>
+        {formatMessage(column.label)}<CueColumnResizeHandle column={column} width={widths[column.id]}
           onResize={width => setWidths(previous => ({ ...previous, [column.id]: clampCueColumnWidth(column, width) }))} />
-      </th>)}<th scope="col">字幕文本</th></tr></thead>
+      </th>)}<th scope="col">{t("workspaceUi.subtitleText")}</th></tr></thead>
       <tbody>{rowWindow.indices.map((index, position) => {
         const cue = rows[index];
         const previousEnd = position ? rowWindow.offsets[rowWindow.indices[position - 1] + 1] : 0;
@@ -87,16 +90,16 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
       </tbody>
     </table>;
   return <section className="cue-list" data-qc-open={qc?.open || glossary?.open || undefined}>
-    <div className="section-heading"><h2>字幕 <span className="count">{cues.length} 行</span></h2>
-      <div className="cue-list-actions"><span title="Ctrl/Cmd 单击多选，Shift 单击连选；右键打开操作">按时间排列</span><button data-cue-search aria-label="查找字幕" aria-expanded={search.open} aria-pressed={search.open}
-        disabled={!searchEnabled} onClick={search.toggle}>查找</button>
-        {qc && <button data-cue-qc aria-label="字幕质量检查" aria-expanded={qc.open} aria-pressed={qc.open}
+    <div className="section-heading"><h2><span>{t("workspaceUi.cueCount", { count: cues.length })}</span></h2>
+      <div className="cue-list-actions"><span title={t("workspaceUi.ctrlCmdClickToSelectMultipleLinesShift")}>{t("workspaceUi.sortedByTime")}</span><button data-cue-search aria-label={t("workspaceUi.findSubtitles")} aria-expanded={search.open} aria-pressed={search.open}
+        disabled={!searchEnabled} onClick={search.toggle}>{t("workspaceUi.find")}</button>
+        {qc && <button data-cue-qc aria-label={t("workspaceUi.subtitleQualityCheck")} aria-expanded={qc.open} aria-pressed={qc.open}
           disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}
-        {glossary && <button data-glossary aria-label="术语表" aria-expanded={glossary.open} aria-pressed={glossary.open}
-          disabled={!searchEnabled} onClick={glossary.onToggle}>术语表</button>}</div></div>
+        {glossary && <button data-glossary aria-label={t("workspaceUi.glossary")} aria-expanded={glossary.open} aria-pressed={glossary.open}
+          disabled={!searchEnabled} onClick={glossary.onToggle}>{t("workspaceUi.glossary")}</button>}</div></div>
     <div className="cue-list-body"><div className="cue-table-pane" ref={pane}>
     {search.open && <CueSearchBar search={search} enabled={searchEnabled} />}
-    <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">还没有字幕。选好入点和出点，按 G / Enter 提交并开始下一条。</p>}</div>
+    <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">{t("workspaceUi.noSubtitlesYetChooseStartAndEndTimes")}</p>}</div>
     </div>{qc?.open && qc.panel}{glossary?.open && glossary.panel}</div>
     {menu && searchEnabled && <CueContextMenu x={menu.x} y={menu.y} keyboard={menu.keyboard} editable={editable} hasVideo={hasVideo} overrides={shortcutOverrides}
       onClose={closeMenu} onAction={onAction} />}

@@ -8,7 +8,7 @@ const baseURL = process.env.HANDBOOK_URL || 'http://127.0.0.1:5198';
 const artifacts = process.env.HANDBOOK_ARTIFACTS || '/tmp/cuerelay-handbook';
 mkdirSync(artifacts, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
 context.setDefaultTimeout(10000);
 const errors = [], unexpected = [], markdownRequests = [];
 context.on('request', request => {
@@ -97,7 +97,7 @@ try {
     const id = (await anchor.getAttribute('href')).slice(1);
     assert.equal(await article.locator(`[id="${id}"]`).count(), 1);
   }
-  await handbook.getByRole('navigation', { name: '手册目录' }).getByRole('link', { name: 'Aegisub 用户速查' }).click();
+  await handbook.getByRole('navigation', { name: '手册目录' }).locator('a[href="#aegisub"]').click();
   await handbook.waitForFunction(() => document.querySelector('#aegisub').getBoundingClientRect().top < 200);
   await handbook.reload();
   await article.waitFor();

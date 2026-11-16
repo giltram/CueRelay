@@ -50,3 +50,7 @@ migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 P
 organizer/dev 可明确切回默认，旧副本保留、不合并/删除；不再有任意表选择/空白新建接口。归档上下文只读不可fork/切换。默认使用计数包括所有空FK项目及归档项目，旧显式共享引用仍保留。
 
 关联只save glossary/glossary_version两列，不touch字幕document/revision/media/updated_at/updated_by，不让维护操作接纳远端字幕保存基准。词条自身另有revision。新增 glossary.0002 标识组织唯一默认表，projects.0004 移除旧auto_created特例；旧FK/词条ID/保存边界不变，不合并已有表。测试 test_glossary.py / test_glossary_migration.py 覆盖真实数据库竞争、权限、双向隔离、失败回滚及迁移后继续保存。详见 [当前契约](../../docs/glossary.md)。
+
+## 中英文展示边界（2026-11-15）
+
+校验/冲突信息附带稳定 reason/params；HTTP 保留原 code/message/status 并把具体错误交给展示层。语言偏好不参与项目 revision、文档快照、保存重试、术语关联或媒体基准。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。

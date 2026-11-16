@@ -1,4 +1,5 @@
 """Protected project JSON adapters; never accept videos or organization overrides."""
+from message_contracts import localized
 from functools import wraps
 from django.core.exceptions import ValidationError
 from ass_format import AssError
@@ -20,7 +21,7 @@ def project_endpoint(methods):
             except AssError as failure:
                 return error('invalid_ass', failure.issue['message'], 422)
             except TemplateConflict as failure:
-                return error('template_conflict', str(failure), 409)
+                return error('template_conflict', failure.args[0], 409)
         return view
     return decorate
 
@@ -49,21 +50,21 @@ def project_list(request, organization_id):
     if request.method == 'POST':
         data = payload(request, ['name', 'description', 'media', 'source', 'style_imports', 'script'], partial=True)
         if not {'name', 'description', 'media', 'source'} <= set(data):
-            raise ValidationError('创建项目需要 name、description、media、source。')
+            raise ValidationError(localized('server.creatingAProjectRequiresNameDescriptionMediaAndSource', '创建项目需要 name、description、media、source。', {}))
         project = services.create_project(request.user, org.pk, **data)
         return {'project': project_data(project, True)}
     if set(request.GET) - {'status', 'search', 'page'}:
-        raise ValidationError('未知的列表参数。')
+        raise ValidationError(localized('server.unknownListParameter', '未知的列表参数。', {}))
     status = request.GET.get('status', 'active')
     if status not in Project.Status.values:
-        raise ValidationError('无效的项目状态。')
+        raise ValidationError(localized('server.invalidProjectStatus', '无效的项目状态。', {}))
     search = services.text(request.GET.get('search', ''), 100)
     try:
         page = int(request.GET.get('page', '1'))
         if not 1 <= page <= 1_000_000:
             raise ValueError
     except ValueError:
-        raise ValidationError('页码无效。')
+        raise ValidationError(localized('server.invalidPageNumber', '页码无效。', {}))
     query = Project.objects.filter(organization=org, status=status, name__icontains=search).select_related('updated_by', 'archived_by')
     order = '-archived_at' if status == Project.Status.ARCHIVED else '-updated_at'
     query = query.order_by(order, '-id')

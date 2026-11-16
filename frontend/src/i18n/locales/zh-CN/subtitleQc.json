@@ -1,0 +1,13 @@
+{
+  "invalidIntervalStartValueMsEndValueMs": "时间区间无效：入点 {{v0}}ms，出点 {{v1}}ms。入点不能晚于出点，时间须为非负整数、对齐 10ms，且不超过 9:59:59.99。",
+  "durationValueMsIsBelowValueMs": "持续 {{v0}}ms，短于 {{v1}}ms。",
+  "durationValueSecondsExceedsValueSeconds": "持续 {{v0}} 秒，长于 {{v1}} 秒。",
+  "readingSpeedValueCharactersSecondExceedsValueCharacters": "阅读速度 {{v0}} 字/秒，超过 {{v1}} 字/秒。",
+  "endTimeExceedsTheVideoDurationByValue": "出点超出视频时长 {{v0}} 秒。",
+  "subtitleTextIsEmptyCheckWhetherThisEmpty": "字幕正文为空，请确认是否仍需导出这条空轴。",
+  "thisTimedLineHasNoTextYetIt": "空轴尚未填写正文，可在翻译阶段补充。",
+  "textHasValueCountedCharactersExceedingValue": "正文共 {{v0}} 个计数字符，超过 {{v1}}。",
+  "theSubtitleReferencesAMissingStyleSelectAnother": "字幕引用了不存在的样式，请重新选择样式。",
+  "adjacentLinesWithTheSameStyleOverlapBy": "同样式相邻字幕重叠 {{v0}}ms，占较短行的 {{v1}}%；请人工确认是否需要叠字。",
+  "adjacentLinesHaveIdenticalTextWithAValue": "相邻字幕正文相同，间隔 {{v0}}ms；请确认是否为连续重复。"
+}

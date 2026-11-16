@@ -17,3 +17,5 @@
 @container (min-width: 1061px) {
   .glossary-panel { flex: 0 0 clamp(320px, 30cqw, 480px); max-width: calc(100cqw - 741px); border-left: 1px solid var(--border); }
 }
+
+.glossary-table-scroll th:last-child, .glossary-table-scroll td:last-child { width: auto; min-width: 112px; }

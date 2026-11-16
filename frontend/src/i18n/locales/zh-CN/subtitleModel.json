@@ -1,0 +1,4 @@
+{
+  "timesMustBeNonNegativeAndAlignedTo": "时间必须非负且对齐 10ms 网格",
+  "startTimeMustNotBeAfterEndTime": "入点不能晚于出点"
+}

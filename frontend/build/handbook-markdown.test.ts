@@ -69,3 +69,26 @@ describe('build-time handbook Markdown', () => {
     expect(() => compileHandbook(source)).toThrow(error);
   });
 });
+
+it('keeps every language handbook on the same stable chapters and physical shortcut bindings', async () => {
+  const languages = (await import('../../shared/languages.json')).default;
+  const base = compileHandbook(readFileSync(new URL('../src/handbook-ui/handbook.md', import.meta.url), 'utf8'));
+  for (const [id, language] of Object.entries(languages)) {
+    const source = readFileSync(new URL(`../src/handbook-ui/${language.handbook}`, import.meta.url), 'utf8');
+    const labels = JSON.parse(readFileSync(new URL(`../src/i18n/locales/${id}/handbookUi.json`, import.meta.url), 'utf8'));
+    const compiled = compileHandbook(source);
+    expect(compiled.chapters.map(chapter => chapter.id)).toEqual(base.chapters.map(chapter => chapter.id));
+    const shortcutChapter = source.split('{#shortcuts}')[1].split('\n## ')[0];
+    const table = new Marked({ gfm: true }).lexer(shortcutChapter).find((token): token is Tokens.Table => token.type === 'table')!;
+    expect(table.rows).toHaveLength(44);
+    for (const [action, config] of Object.entries(defaults)) {
+      const label = action;
+      const displays = config.bindings.map(binding => binding.replace(/Meta/g, 'Cmd').replace(/Key([A-Z])/g, '$1')
+        .replace(/Digit(\d)/g, '$1').replace(/NumpadEnter/g, labels.keyNumpadEnter).replace(/Space/g, labels.keySpace));
+      const rows = table.rows.filter(row => row[0].text.includes(`<!-- shortcut:${action} -->`));
+      expect(rows, `${id} ${action}`).toHaveLength(1);
+      for (const key of displays) expect(rows[0][1].text).toContain(`\`${key}\``);
+      if (!displays.length) expect(rows[0][1].text).toContain(labels.keyUnbound);
+    }
+  }
+});

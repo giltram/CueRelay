@@ -15,7 +15,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
   'color=c=black:s=160x90:r=10:d=8', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8',
   '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const documentFixture = uiDocument();
 documentFixture.cues = Array.from({ length: 32 }, (_, index) => ({
   id: `new-${index + 1}`, start_ms: (index + 1) * 100, end_ms: (index + 1) * 100 + 100,

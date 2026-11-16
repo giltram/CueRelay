@@ -1,3 +1,6 @@
+import { type MessageValue, describe, MessageError } from '../contracts/messages';
+import { formatMessage, msg, t } from '../i18n';
+import { useMessageState, useLocale } from '../i18n/react';
 import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { diagnosticId } from '../diagnostics/identifier';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
@@ -70,6 +73,7 @@ interface Props {
 }
 
 export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
+  useLocale();
   const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' }, diagnosticOwner);
   const { document, selectedId, startText, endText } = edits.state;
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -78,9 +82,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const [duration, setDuration] = useState(0);
   const audioAudition = useAudioAudition(mediaFile, video, visible);
   const cancelAudition = audioAudition.stop;
-  const [error, setErrorState] = useState('');
-  const setError = useCallback((message: string) => {
-    if (message) diagnostics.record('workspace', 'user_error', 'error', { error: safeError(new Error(message)) });
+  const [error, setErrorState] = useMessageState('');
+  const setError = useCallback((message: MessageValue) => {
+    if (message) diagnostics.record('workspace', 'user_error', 'error', { error: safeError(message instanceof Error ? message : new Error()) });
     setErrorState(message);
   }, []);
   const [busy, setBusy] = useState(false);
@@ -89,7 +93,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const [savedRevision, setSavedRevision] = useState(project?.revision ?? 0);
   const [savedDocument, setSavedDocument] = useState(project?.document);
   const [mediaVerified, setMediaVerified] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [saveMessage, setSaveMessage] = useMessageState('');
   useEffect(() => { setSaveMessage(''); }, [document]);
   const canEdit = !readOnly && (!project || mediaVerified);
   const onVerifiedChange = useCallback((value: boolean) => setMediaVerified(value), []);
@@ -120,11 +124,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const selectedIds = selectedLineIds(edits.state);
   const selected = document?.cues.find(cue => cue.id === selectedId);
   const selectedStyleId = document ? selectedLineStyle(document, selectedIds) : '';
-  const qcEnabled = visible && !shortcutsPaused && !pendingImport && !stylesOpen && !pasteOver;
+  // Inspection/export operates on the retained document, even after session expiry.
+  const qcEnabled = visible && !pendingImport && !stylesOpen && !pasteOver;
+  const glossaryEnabled = qcEnabled && !shortcutsPaused;
   const qc = useSubtitleQc(document, project?.media.duration_ms ?? (duration > 0 ? duration : null), qcEnabled);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const termInsertion = useTermInsertion({ cueId: selectedId, text: selected?.text ?? '', epoch: edits.epoch,
-    editor: textEditor, enabled: canEdit && qcEnabled && !busy && Boolean(selected), isComposing: () => composing.current,
+    editor: textEditor, enabled: canEdit && glossaryEnabled && !busy && Boolean(selected), isComposing: () => composing.current,
     onEdit: text => updateCue({ text }) });
   const [qcReveal, setQcReveal] = useState<{ id: string; request: number } | null>(null);
   const pendingTiming = Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms)));
@@ -165,7 +171,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       const initial = initializeDocument(value, () => `new-${crypto.randomUUID()}`);
       edits.baseline(withSelection({ ...edits.current(), document: initial }, initial.cues[0]));
     })
-      .catch(reason => { if (active) setError(reason.message?.includes('v2') ? reason.message : '无法连接 ASS 服务，请按 README 启动 Django，然后刷新页面'); });
+      .catch(reason => { if (active) setError(reason instanceof MessageError ? reason : msg("workspaceUi.cannotConnectToTheAssServiceStartDjango")); });
     return () => { active = false; };
   }, []);
 
@@ -182,7 +188,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   function run(action: () => void | Promise<void>) {
     setError('');
     const origin = captureDiagnosticOrigin(), operationId = diagnosticId();
-    const failed = (reason: unknown) => { reportFailure('workspace', action.name || 'action', reason, origin, operationId); setErrorState((reason as Error).message); };
+    const failed = (reason: unknown) => { reportFailure('workspace', action.name || 'action', reason, origin, operationId); setErrorState(reason as Error); };
     try { void Promise.resolve(action()).catch(failed); }
     catch (reason) { failed(reason); }
   }
@@ -198,7 +204,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function locate(cue: Cue) {
-    if (!video) throw new Error('请先选择视频');
+    if (!video) throw new MessageError(describe("workspaceUi.selectAVideoFirst", "请先选择视频"));
     selectCue(cue); video.pause(); seekVideo(video, cue.start_ms);
     setCurrentTime(video.currentTime * 1000);
   }
@@ -236,20 +242,20 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function updateCue(patch: Partial<Cue>, inputKey?: string, nativeHistory = false) {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!canEdit) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
     const state = edits.current();
     const cue = state.document?.cues.find(item => item.id === state.selectedId);
-    if (!state.document || !cue) throw new Error('请先选择一条字幕行');
+    if (!state.document || !cue) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
     if (Object.entries(patch).every(([key, value]) => cue[key as keyof Cue] === value)) return;
     edits.edit({ ...state, document: { ...state.document, cues: state.document.cues.map(item => item.id === cue.id ? { ...item, ...patch } : item) } }, inputKey, nativeHistory);
     setHasEdits(true);
   }
 
   function updateSelectedStyle(styleId: string) {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!canEdit) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
     const state = edits.current();
     const ids = selectedLineIds(state);
-    if (!state.document || !ids.length) throw new Error('请先选择一条字幕行');
+    if (!state.document || !ids.length) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
     const document = assignLineStyle(state.document, ids, styleId);
     if (document === state.document) return;
     edits.edit({ ...state, document });
@@ -257,8 +263,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function commitAndAdvance() {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
-    if (!document) throw new Error('ASS 服务尚未就绪');
+    if (!canEdit) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
+    if (!document) throw new MessageError(describe("workspaceUi.theAssServiceIsNotReady", "ASS 服务尚未就绪"));
     diagnostics.record('editor', 'commit_timing', 'start');
     const result = commitTiming(document, selectedId, parseTime(startText), parseTime(endText), () => `new-${crypto.randomUUID()}`);
     edits.edit(withSelection({ ...edits.current(), document: result.document }, result.selected));
@@ -267,8 +273,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function setPlayheadBoundary(point: 'start' | 'end') {
-    if (!selected) throw new Error('请先选择一条字幕行');
-    if (!video || !duration) throw new Error('请先加载可播放的视频');
+    if (!selected) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
+    if (!video || !duration) throw new MessageError(describe("workspaceUi.loadAPlayableVideoFirst", "请先加载可播放的视频"));
     const updated = playheadBoundary(selected, point, video.currentTime);
     if (selected.start_ms === updated.start_ms && selected.end_ms === updated.end_ms
       && (point === 'start' ? startText : endText) === formatTime(point === 'start' ? updated.start_ms : updated.end_ms)) return;
@@ -278,17 +284,17 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function splitSelectedCue(mode: 'playhead' | 'text') {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
-    if (!document || !selected) throw new Error('请先选择一条字幕行');
+    if (!canEdit) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
+    if (!document || !selected) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
     if (transforming.current) return;
     let position: number;
     if (mode === 'playhead') {
-      if (!video || !duration) throw new Error('请先加载可播放的视频');
+      if (!video || !duration) throw new MessageError(describe("workspaceUi.loadAPlayableVideoFirst", "请先加载可播放的视频"));
       position = snapTime(video.currentTime);
     } else {
       const editor = textEditor.current;
-      if (!editor || editor !== window.document.activeElement) throw new Error('请将光标放在字幕文本内部。');
-      if (editor.selectionStart !== editor.selectionEnd) throw new Error('请选择一个文本光标位置，不能拆分选中文字。');
+      if (!editor || editor !== window.document.activeElement) throw new MessageError(describe("workspaceUi.placeTheCursorInsideTheSubtitleText", "请将光标放在字幕文本内部。"));
+      if (editor.selectionStart !== editor.selectionEnd) throw new MessageError(describe("workspaceUi.placeATextCursorWithoutSelectingTextTo", "请选择一个文本光标位置，不能拆分选中文字。"));
       position = editor.selectionStart;
     }
     // Include the displayed timing draft in the frozen snapshot. Failure leaves
@@ -302,7 +308,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     try {
       let result: SplitResult;
       if (project) {
-        if (!onSplit) throw new Error('项目拆分保存尚未就绪。');
+        if (!onSplit) throw new MessageError(describe("workspaceUi.projectSplitAndSaveIsNotReady", "项目拆分保存尚未就绪。"));
         const persisted = await onSplit(request, savedRevision);
         result = persisted;
         setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
@@ -322,7 +328,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function deleteSelectedCue() {
-    if (!canEdit) throw new Error('项目只读或尚未验证本地片源。');
+    if (!canEdit) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
     const state = edits.current();
     if (!state.document || !selectedLineIds(state).length) return;
     applyLineEdit(state, deleteLines(state.document, selectedLineIds(state), orderCues(state.document.cues)));
@@ -338,7 +344,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function togglePlayback() {
-    if (!video || !duration) throw new Error('请先加载可播放的视频');
+    if (!video || !duration) throw new MessageError(describe("workspaceUi.loadAPlayableVideoFirst", "请先加载可播放的视频"));
     cancelAudition();
     if (video.paused) await video.play(); else video.pause();
   }
@@ -353,7 +359,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function playTiming(mode: AuditionMode) {
-    if (!video || !duration) throw new Error('请先加载可播放的视频');
+    if (!video || !duration) throw new MessageError(describe("workspaceUi.loadAPlayableVideoFirst", "请先加载可播放的视频"));
     const range = auditionRange(mode, parseTime(startText), parseTime(endText), duration);
     await audioAudition.start(range, mode === 'selection');
   }
@@ -428,7 +434,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       cancelAudition();
     } catch (reason) {
       reportFailure('editor', 'import', reason, origin);
-      setErrorState(`拒绝可编辑导入；当前字幕未被替换。${(reason as Error).message}`);
+      setErrorState(msg("workspaceUi.editableImportRejectedCurrentSubtitlesWereKeptValue", { v0: reason as Error }));
     }
     finally { setBusy(false); }
   }
@@ -443,13 +449,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       const saved = result.document === document ? document : edits.adoptStyles(result.document).document!;
       setSavedRevision(result.project.revision); setSavedDocument(saved);
       diagnostics.record('editor', 'save', 'success', { revision: result.project.revision });
-      setSaveMessage('项目已保存。尚未应用的时间输入不包含在本次保存中。');
+      setSaveMessage(msg("workspaceUi.projectSavedUnappliedTimeInputsAreNotIncluded"));
     } finally { setBusy(false); }
   }
 
   async function changeStyles(operation: StyleOperation): Promise<StyleResult> {
-    if (project || !document || !canEdit || busy) throw new Error('当前无法编辑本地样式。');
-    if (operation.type === 'import' || operation.type === 'import_many') throw new Error('组织模板请在项目设置中导入。');
+    if (project || !document || !canEdit || busy) throw new MessageError(describe("workspaceUi.localStylesCannotBeEditedRightNow", "当前无法编辑本地样式。"));
+    if (operation.type === 'import' || operation.type === 'import_many') throw new MessageError(describe("workspaceUi.importOrganizationTemplatesInProjectSettings", "组织模板请在项目设置中导入。"));
     setBusy(true);
     try {
       const result = await localStyleOperation(document, operation);
@@ -462,7 +468,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function exportDraft() {
-    if (!document) throw new Error('ASS 服务尚未就绪');
+    if (!document) throw new MessageError(describe("workspaceUi.theAssServiceIsNotReady", "ASS 服务尚未就绪"));
     const source = await exportAss(document);
     downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name));
   }
@@ -492,16 +498,15 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
         event.currentTarget.focus({ preventScroll: true });
       }
     }} actions={
-        <div className="file-actions" aria-label="字幕文件操作">
+        <div className="file-actions" aria-label={t("workspaceUi.subtitleFileActions")}>
           {project && <>
-            <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? ' · 已归档，只读' : ' · 暂不可编辑' : ''}</span>
-            <button onClick={onReload} disabled={busy}>重新加载项目</button>
-            {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>保存项目</button>}
+            <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? t("workspaceUi.archivedState") : t("workspaceUi.unavailableState") : ''}</span>
+            <button onClick={onReload} disabled={busy}>{t("workspaceUi.reloadProject")}</button>
+            {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>{t("workspaceUi.saveProject")}</button>}
           </>}
-          {!project && <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); cancelAudition(); setStylesOpen(true); }}>管理样式</button>}
+          {!project && <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); cancelAudition(); setStylesOpen(true); }}>{t("workspaceUi.manageStyles")}</button>}
           {!project && <label className="file-picker">
-            导入 ASS
-            <input aria-label="导入基础 ASS" type="file" accept=".ass" disabled={busy || !document} onChange={event => {
+            {t("workspaceUi.importAss")}<input aria-label={t("workspaceUi.importBasicAss")} title={t("workspaceUi.importBasicAss")} type="file" accept=".ass" disabled={busy || !document} onChange={event => {
               const file = event.target.files?.[0];
               if (file) {
                 if (document?.cues.length && (hasEdits || hasImportedDocument)) setPendingImport(file);
@@ -510,29 +515,29 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               event.target.value = '';
             }} />
           </label>}
-          <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(exportWithQc)}>导出 ASS</button>
+          <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(exportWithQc)}>{t("workspaceUi.exportAss")}</button>
         </div>
       }>
-      {busy && <HeaderNotice>正在转换…</HeaderNotice>}
+      {busy && <HeaderNotice>{t("workspaceUi.converting")}</HeaderNotice>}
       {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
-        ? project.status === 'archived' ? '已归档项目仅可查看和导出。' : '当前无法验证项目访问权限，仅可查看和导出。请重新登录或检查组织权限。'
-        : saveMessage || (document === savedDocument ? '字幕已保存。' : '存在尚未保存的字幕修改，请点击保存项目。')}</HeaderNotice>}
+        ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")
+        : saveMessage || (document === savedDocument ? t("workspaceUi.subtitlesSaved") : t("workspaceUi.thereAreUnsavedSubtitleChangesClickSaveProject"))}</HeaderNotice>}
       {saveMessage && (!project || !mediaVerified || readOnly) && <HeaderNotice>{saveMessage}</HeaderNotice>}
       {pendingImport && (
         <div role="alert" className="confirm">
-          <p>导入「{pendingImport.name}」将替换当前字幕，请先导出需要的修改。</p>
+          <p>{t("workspaceUi.replaceConfirmation", { name: pendingImport.name })}</p>
           <div className="controls">
-            <button onClick={() => void doImport(pendingImport)}>替换当前字幕</button>
-            <button onClick={() => setPendingImport(null)}>取消</button>
+            <button onClick={() => void doImport(pendingImport)}>{t("workspaceUi.replaceCurrentSubtitles")}</button>
+            <button onClick={() => setPendingImport(null)}>{t("workspaceUi.cancel")}</button>
           </div>
         </div>
       )}
       {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
-      {outsideDuration && <HeaderNotice className="header-warning">部分字幕超出视频时长，请核对片源。字幕时间保持原值。</HeaderNotice>}
+      {outsideDuration && <HeaderNotice className="header-warning">{t("workspaceUi.someSubtitlesExtendBeyondTheVideoCheckThe")}</HeaderNotice>}
 
       {subtitles.active && <HeaderNotice className="ass-preview-status" data-phase={subtitles.status.phase}>
-        {subtitles.status.phase === 'loading' ? '正在加载 ASS 字幕…' : subtitles.status.phase === 'error'
-          ? subtitles.status.message : preview.warning || '预览使用内置 Noto Sans SC；指定字体未提供时会替代，可能与最终效果有差异。'}
+        {subtitles.status.phase === 'loading' ? t("workspaceUi.loadingAssSubtitles") : subtitles.status.phase === 'error'
+          ? subtitles.status.message : formatMessage(preview.warning) || t("workspaceUi.previewUsesTheBundledNotoSansScWhen")}
       </HeaderNotice>}
       <ResizableWorkbench subtitles={
         <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
@@ -544,13 +549,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           glossary={project && styleRequest && mediaOwnerId !== undefined ? { open: glossaryOpen,
             onToggle: () => { qc.close(); setGlossaryOpen(value => !value); }, onClose: () => setGlossaryOpen(false),
             panel: <GlossaryPanel key={`${mediaOwnerId}:${project.organization_id}:${project.id}`} request={styleRequest}
-              organizationId={project.organization_id} projectId={project.id} enabled={qcEnabled && glossaryOpen}
-              editable={!readOnly} canInsert={canEdit && qcEnabled && !busy && Boolean(selected)} onInsert={termInsertion.insert} /> } : undefined}
+              organizationId={project.organization_id} projectId={project.id} enabled={glossaryEnabled && glossaryOpen}
+              editable={!readOnly} canInsert={canEdit && glossaryEnabled && !busy && Boolean(selected)} onInsert={termInsertion.insert} /> } : undefined}
           qc={{ open: qc.open, onToggle: () => { if (qc.open) closeQc(); else { setGlossaryOpen(false); qc.toggle(); } }, onClose: qc.close,
-            label: qc.checking ? 'QC · 检查中' : qc.stale ? 'QC · 待重查' : qc.report ? `QC · ${qc.report.issues.length}${qc.report.formatError ? ' · 未完成' : ''}` : 'QC',
+            label: qc.checking ? t("workspaceUi.qcChecking") : qc.stale ? t("workspaceUi.qcCheckAgain") : qc.report ? qc.report.formatError ? t('workspaceUi.qcIncomplete', { summary: t('workspaceUi.qcLabel', { count: qc.report.issues.length }) }) : t('workspaceUi.qcLabel', { count: qc.report.issues.length }) : 'QC',
             panel: <SubtitleQcPanel cues={document?.cues ?? []} issues={qc.report?.issues ?? []}
               phase={qc.report?.phase ?? 'editing'} hasResult={Boolean(qc.report)} checking={qc.checking} stale={qc.stale}
-              formatError={qc.report?.formatError ?? ''} pendingTiming={pendingTiming} disabled={!qcEnabled || busy}
+              formatError={formatMessage(qc.report?.formatError)} pendingTiming={pendingTiming} disabled={!qcEnabled || busy}
               onRun={() => { void qc.run(); }} onSelect={selectQcCue} onClose={closeQc}
               onExport={() => { if (qc.report && !qc.stale && qc.report.phase === 'export') run(downloadDraft); }} /> }}
           onSelect={selectCueFromTable} />
@@ -559,15 +564,15 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             enabled={visible && (!project || mediaOwnerId !== undefined)} expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
             controls={<>
-            <button className="playback-button" aria-label="播放 / 暂停"
+            <button className="playback-button" aria-label={t("workspaceUi.playPause")}
               disabled={!duration} onClick={() => run(togglePlayback)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path d="M2 3v14l8-7zM12 3h2v14h-2zM16 3h2v14h-2z" />
               </svg>
             </button>
             <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
-            <button type="button" aria-label="显示字幕" aria-pressed={subtitles.enabled}
-              onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? '隐藏字幕' : '显示字幕'}</button>
+            <button type="button" aria-label={t("workspaceUi.showSubtitles")} aria-pressed={subtitles.enabled}
+              onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? t("workspaceUi.hideSubtitles") : t("workspaceUi.showSubtitles")}</button>
           </>} />
       } editor={<>
           <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
@@ -584,30 +589,30 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               };
             } : undefined}
             onSeek={seekPlayback} />
-          <section className="cue-editor" aria-label="字幕编辑">
+          <section className="cue-editor" aria-label={t("workspaceUi.subtitleEditing")}>
             <fieldset disabled={busy || !document || !canEdit}>
-              <legend className="sr-only">字幕编辑</legend>
+              <legend className="sr-only">{t("workspaceUi.subtitleEditing")}</legend>
               <div className="cue-fields">
-                <TimePointControl key={`start:${edits.epoch}:${selectedId}`} label="入点" value={startText}
+                <TimePointControl key={`start:${edits.epoch}:${selectedId}`} label={t("workspaceUi.start")} value={startText}
                   onChange={(value, native) => changeTimeDraft('start', value, 'start', native)} />
-                <TimePointControl key={`end:${edits.epoch}:${selectedId}`} label="出点" value={endText}
+                <TimePointControl key={`end:${edits.epoch}:${selectedId}`} label={t("workspaceUi.end")} value={endText}
                   onChange={(value, native) => changeTimeDraft('end', value, 'end', native)} />
                 <div className="cue-style">
-                  <label htmlFor={styleSelectId}>样式</label>
-                  <select id={styleSelectId} aria-label="字幕样式" disabled={!selectedIds.length} value={selectedStyleId}
+                  <label htmlFor={styleSelectId}>{t("workspaceUi.style")}</label>
+                  <select id={styleSelectId} aria-label={t("workspaceUi.subtitleStyle")} disabled={!selectedIds.length} value={selectedStyleId}
                     onChange={event => run(() => updateSelectedStyle(event.target.value))}>
-                    {!selectedStyleId && <option value="" disabled>{selectedIds.length ? '多种样式' : '请选择字幕'}</option>}
+                    {!selectedStyleId && <option value="" disabled>{selectedIds.length ? t("workspaceUi.mixedStyles") : t("workspaceUi.selectSubtitles")}</option>}
                     {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
                   </select>
                 </div>
-                <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>定位选中行</button>
-                <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>删除选中行</button>
+                <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>{t("workspaceUi.jumpToSelectedLine")}</button>
+                <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>{t("workspaceUi.deleteSelectedLine")}</button>
               </div>
               <div className="subtitle-input">
-                <label htmlFor={textEditorId}>字幕文本</label>
-                <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label="字幕中文文本" title={`${textFocusBinding} 切换字幕输入与打轴焦点；Shift+Tab 按原顺序导航`} rows={2} disabled={!selected} value={selected?.text || ''}
+                <label htmlFor={textEditorId}>{t("workspaceUi.subtitleText")}</label>
+                <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label={t("workspaceUi.subtitleTextInput")} title={t("workspaceUi.valueSwitchesBetweenSubtitleInputAndTimingFocus", { v0: textFocusBinding })} rows={2} disabled={!selected} value={selected?.text || ''}
                   onSelect={termInsertion.remember} onBlur={termInsertion.remember}
-                  placeholder="先选好入点和出点并提交，或选择已有字幕" onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
+                  placeholder={t("workspaceUi.chooseStartAndEndTimesAndCommitOr")} onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
               </div>
             </fieldset>
           </section>

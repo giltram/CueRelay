@@ -11,7 +11,7 @@ import defaults from '../../shared/timing-shortcuts.json' with { type: 'json' };
 const baseURL = process.env.DELETE_SHORTCUT_URL || 'http://127.0.0.1:5173';
 const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-delete-shortcut-'));
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1360, height: 900 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1360, height: 900 } });
 const errors = [], unexpected = [];
 let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum', defaults };
 await context.route('**/api/**', async route => {

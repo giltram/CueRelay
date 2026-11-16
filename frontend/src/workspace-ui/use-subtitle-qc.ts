@@ -1,3 +1,4 @@
+import { type MessageValue, describe } from '../contracts/messages';
 import { useEffect, useRef, useState } from 'react';
 import type { AssDocument } from '../contracts/subtitles';
 import { inspectAss } from '../project-data/ass-api';
@@ -8,7 +9,7 @@ interface Report {
   videoDurationMs: number | null;
   phase: QcPhase;
   issues: QcIssue[];
-  formatError: string;
+  formatError: MessageValue;
 }
 
 /** Owns only an explicit inspection session; the edit history remains authoritative. */
@@ -33,12 +34,13 @@ export function useSubtitleQc(document: AssDocument | null, videoDurationMs: num
     const controller = new AbortController(); request.current = controller;
     setChecking(true);
     const options = { phase, videoDurationMs: snapshot.videoDurationMs };
-    let formatIssues: Awaited<ReturnType<typeof inspectAss>> = [], formatError = '';
+    let formatIssues: Awaited<ReturnType<typeof inspectAss>> = [];
+    let formatError: MessageValue = '';
     try {
       formatIssues = await inspectAss(snapshot.document, controller.signal);
     } catch (error) {
       if (controller.signal.aborted) return null;
-      formatError = `ASS 格式检查未完成：${(error as Error).message}。可重新检查；导出仍由原导出器校验。`;
+      formatError = describe("workspaceUi.assFormatCheckingDidNotFinishValueYou", "ASS 格式检查未完成：{{v0}}。可重新检查；导出仍由原导出器校验。", { v0: error as Error });
     }
     if (controller.signal.aborted || current.current.document !== snapshot.document
       || current.current.videoDurationMs !== snapshot.videoDurationMs || !current.current.enabled) return null;

@@ -1,3 +1,4 @@
+import { legacyMessage } from '../contracts/messages';
 import { describe, expect, it } from 'vitest';
 import { effectiveBindings, timingShortcut, validateOverrides } from './timing-shortcuts';
 
@@ -168,8 +169,8 @@ describe('history shortcuts and legacy overrides', () => {
     expect(effectiveBindings('undo', overrides)).toEqual(['Meta+KeyZ']);
     expect(effectiveBindings('redo', overrides)).toEqual(['Ctrl+Shift+KeyZ']);
     expect(timingShortcut({ ...base, code: 'KeyZ', ctrlKey: true }, false, overrides)).toBe('split-text');
-    expect(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ'] })).toMatch(/冲突/);
-    expect(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ', 'Meta+KeyZ'] })).toMatch(/冲突/);
+    expect(legacyMessage(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ'] }))).toMatch(/冲突/);
+    expect(legacyMessage(validateOverrides({ ...overrides, undo: ['Ctrl+KeyZ', 'Meta+KeyZ'] }))).toMatch(/冲突/);
     expect(timingShortcut({ ...base, code: 'KeyZ', ctrlKey: true }, false, { undo: [] })).toBeUndefined();
   });
 });
@@ -189,7 +190,7 @@ describe('line commands', () => {
     const legacy = { 'split-text': ['Ctrl+KeyD'] };
     expect(validateOverrides(legacy)).toBeUndefined();
     expect(effectiveBindings('split-frame-before', legacy)).toEqual(['Meta+KeyD']);
-    expect(validateOverrides({ ...legacy, 'split-frame-before': ['Ctrl+KeyD'] })).toMatch(/冲突/);
+    expect(legacyMessage(validateOverrides({ ...legacy, 'split-frame-before': ['Ctrl+KeyD'] }))).toMatch(/冲突/);
     expect(validateOverrides({ 'insert-before': ['Alt+KeyI'], 'paste-lines': [] })).toBeUndefined();
   });
 });

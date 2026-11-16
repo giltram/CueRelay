@@ -1,3 +1,4 @@
+import { legacyMessage } from '../../contracts/messages';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioAuditionController, scheduleAuditionChunks } from './audition-controller';
 import { auditionWindowSeconds, AUDITION_WINDOW_BYTES } from './audition-protocol';
@@ -200,7 +201,7 @@ describe('independent audition session', () => {
     expect(source.read).toHaveBeenCalledTimes(2);
     // Only the first four seconds were scheduled; a late tick cannot call the whole range finished.
     Object.assign(context, { currentTime: 30 }); vi.advanceTimersByTime(25);
-    expect(controller.state.phase).toBe('error'); expect(controller.state.message).toContain('预取');
+    expect(controller.state.phase).toBe('error'); expect(legacyMessage(controller.state.message)).toContain('预取');
     expect(source.dispose).toHaveBeenCalledOnce(); controller.dispose();
   });
   it('reports decode/open/no-audio failures without an alternate player', async () => {
@@ -208,7 +209,7 @@ describe('independent audition session', () => {
     vi.mocked(source.open).mockRejectedValue(Error('视频没有音轨'));
     const controller = new AudioAuditionController(() => source, vi.fn(), () => context);
     await controller.start({ start: 0, end: 500 });
-    expect(controller.state.phase).toBe('error'); expect(controller.state.message).toContain('没有音轨');
+    expect(controller.state.phase).toBe('error'); expect(legacyMessage(controller.state.message)).toContain('没有音轨');
     expect(source.dispose).toHaveBeenCalledOnce(); expect(nodes).toEqual([]); controller.dispose();
   });
   it('stops safely on prefetch underrun and ignores a stale rejected read', async () => {
@@ -222,6 +223,6 @@ describe('independent audition session', () => {
     vi.mocked(source.read).mockResolvedValue([]);
     Object.assign(context, { currentTime: 20 }); await controller.start({ start: 0, end: 20000 });
     Object.assign(context, { currentTime: 25 }); vi.advanceTimersByTime(25); await flush();
-    expect(controller.state.phase).toBe('error'); expect(controller.state.message).toContain('预取'); controller.dispose();
+    expect(controller.state.phase).toBe('error'); expect(legacyMessage(controller.state.message)).toContain('预取'); controller.dispose();
   });
 });

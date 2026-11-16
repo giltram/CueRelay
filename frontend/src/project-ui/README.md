@@ -33,3 +33,7 @@ App 在成功加载会话上下文（组织/个人设置）后递增 `contextVer
 本机片源恢复：ProjectForm 复用 media/VideoFilePicker，在支持的安全上下文中使用文件句柄选择器，其他环境/选择器失败时回退普通文件 input；取消保留原选择。SelectedVideo 只经创建回调与 app-workspace 显式传给播放器，不进入创建请求。句柄仅由媒体模块在播放器校验后持久化；完整职责和浏览器测试见 [media README](../media/README.md)。
 
 项目设置另组合公开 glossary-ui/GlossarySettings：项目默认只读组织当前表，活动项目成员可显式fork当前组织词条成为项目副本，再自由添加/编辑；organizer/dev可切回组织默认，副本不合并删除。表单/分页和工作区共用 glossary-data，不导入工作区内部。术语保存及关联使用独立 token，不读取/更新本页 ProjectDetail 的字幕 revision，不提交样式或其他工作区草稿；归档只读。详见 [术语模块](../glossary-ui/README.md) 与 `npm run test:glossary`。
+
+## 中英文展示边界（2026-11-15）
+
+日期展示使用当前界面 locale；项目名/说明保持用户原值。错误/成功反馈保存 MessageValue，切换语言时重新格式化，不重新保存或刷新项目。设置页与创建弹窗的 key 仍只反映账号/资源归属，未保存名称、说明和文件选择不因语言变化重建。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

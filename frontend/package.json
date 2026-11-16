@@ -37,7 +37,7 @@
     "test:subtitle-qc": "node browser-tests/subtitle-qc.mjs",
     "test:compact-layout": "node browser-tests/compact-layout.mjs",
     "test:workbench-resize": "node browser-tests/workbench-resize.mjs",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run i18n:check && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editing-operations": "node browser-tests/editing-operations.mjs",
     "test:workspace-history": "node browser-tests/workspace-history.mjs",
@@ -47,15 +47,22 @@
     "test:audio-reuse": "node browser-tests/audio-reuse.mjs",
     "test:browser-performance": "node browser-tests/browser-performance.mjs",
     "test:media-memory": "node browser-tests/media-memory.mjs",
-    "test:glossary": "node browser-tests/glossary.mjs"
+    "test:glossary": "node browser-tests/glossary.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:types": "node scripts/check-i18n.mjs --write-types",
+    "test:i18n": "node browser-tests/i18n.mjs",
+    "pretest": "npm run i18n:check",
+    "test:i18n-production": "node browser-tests/i18n-production.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",
     "fft.js": "4.0.4",
+    "i18next": "27.1.2",
     "jassub": "2.5.23",
     "mediabunny": "1.62.0",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "react-i18next": "18.0.1"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

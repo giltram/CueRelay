@@ -1,3 +1,6 @@
+import { useMessageState, useLocale } from '../i18n/react';
+import { describe, MessageError } from "../contracts/messages";
+import { msg, t } from "../i18n";
 import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -19,14 +22,15 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
   organization?: Organization; organizationId: number; projectId: number; request: JsonRequest;
   header: ReactNode; enabled: boolean; navigate: (route: Route) => void;
 }) {
+  useLocale();
   const api = useMemo(() => projectApi(request, organizationId), [request, organizationId]);
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [metadataNeedsReview, setMetadataNeedsReview] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [error, setError] = useMessageState('');
+  const [message, setMessage] = useMessageState('');
   const [stylesOpen, setStylesOpen] = useState(false);
   const [retry, setRetry] = useState(0);
   const cueRows = useMemo(() => orderCues(project?.document.cues ?? []), [project?.document.cues]);
@@ -36,7 +40,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     setError('');
     void api.get(projectId).then(value => {
       if (active) { setProject(value); setName(value.name); setDescription(value.description); }
-    }).catch(reason => { if (active) setError(reason.message); });
+    }).catch(reason => { if (active) setError(reason); });
     return () => { active = false; };
   }, [api, projectId, enabled, organization, project, retry]);
 
@@ -60,14 +64,14 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
       const latest = await api.get(project.id);
       adoptProject(latest);
       setStylesOpen(true);
-    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason as Error); }
     finally { setBusy(false); }
   }
 
   async function saveMetadata() {
     if (!project || !enabled || busy || !organization?.can_manage || project.status !== 'active') return;
     if (metadataNeedsReview) {
-      setError('项目名称或说明已被其他操作更新，请点击「刷新项目版本」核对后再保存；当前输入已保留。');
+      setError(msg("projectUi.theProjectNameOrDescriptionChangedElsewhereRefresh"));
       return;
     }
     const origin = captureDiagnosticOrigin();
@@ -76,8 +80,8 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
       const latest = await api.update(project, name, description);
       setProject(latest); setName(latest.name); setDescription(latest.description);
       setMetadataNeedsReview(false);
-      setMessage('项目设置已保存。');
-    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
+      setMessage(msg("projectUi.projectSettingsSaved"));
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason as Error); }
     finally { setBusy(false); }
   }
 
@@ -89,19 +93,19 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
       const latest = await api.get(project.id);
       setProject(latest);
       setMetadataNeedsReview(false);
-      setMessage(`当前服务器版本：${latest.name}；说明：${latest.description || '无'}。你的输入已保留，请核对后再保存。`);
-    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError((reason as Error).message); }
+      setMessage(msg("projectUi.currentServerNameValueDescriptionValueYourInputs", { v0: latest.name, v1: latest.description || msg('projectUi.none') }));
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason as Error); }
     finally { setBusy(false); }
   }
 
   async function changeStyles(operation: StyleOperation): Promise<StyleResult> {
-    if (!project || !enabled || busy || project.status !== 'active') throw new Error('当前项目不可修改样式。');
+    if (!project || !enabled || busy || project.status !== 'active') throw new MessageError(describe("projectUi.projectStylesCannotBeChangedRightNow", "当前项目不可修改样式。"));
     const origin = captureDiagnosticOrigin();
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await saveProjectStyles(api, project, operation);
       adoptProject(result.project);
-      setMessage('项目样式已保存。工作区下次保存时会尝试合并新样式。');
+      setMessage(msg("projectUi.projectStylesSavedTheWorkspaceWillTryTo"));
       return result;
     } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin);
       if ((reason as { code?: string }).code === 'project_archived') setProject({ ...project, status: 'archived' });
@@ -110,34 +114,34 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
   }
 
   return <PageLayout className="settings-page" title={<HomeLink navigate={navigate} />} navigation={header}>
-    <h2 className="settings-title">项目设置</h2>
-    <section className="settings-content project-settings-form" aria-label="项目设置">
-      {!organization ? <HeaderNotice role="alert">组织不存在或无权访问。</HeaderNotice>
+    <h2 className="settings-title">{t("projectUi.projectSettings")}</h2>
+    <section className="settings-content project-settings-form" aria-label={t("projectUi.projectSettings")}>
+      {!organization ? <HeaderNotice role="alert">{t("projectUi.organizationNotFoundOrAccessDenied")}</HeaderNotice>
         : project ? <>
           {organization.can_manage ? <form className="account-form" onSubmit={event => { event.preventDefault(); void saveMetadata(); }}>
-            <h2>项目信息</h2>
-            {project.status === 'archived' && <HeaderNotice>项目已归档，恢复后才能修改项目设置。</HeaderNotice>}
+            <h2>{t("projectUi.projectInformation")}</h2>
+            {project.status === 'archived' && <HeaderNotice>{t("projectUi.thisProjectIsArchivedRestoreItBeforeChanging")}</HeaderNotice>}
             <fieldset className="account-form" disabled={!enabled || busy || project.status !== 'active'}>
-              <label>项目名称<input value={name} maxLength={100} required onChange={event => { setName(event.target.value); setMessage(''); }} /></label>
-              <label>项目说明<textarea aria-label="项目说明" value={description} maxLength={2000} rows={5} onChange={event => { setDescription(event.target.value); setMessage(''); }} /></label>
-              <div className="controls"><button className="primary">{busy ? '处理中…' : '保存修改'}</button></div>
+              <label>{t("projectUi.projectName")}<input value={name} maxLength={100} required onChange={event => { setName(event.target.value); setMessage(''); }} /></label>
+              <label>{t("projectUi.projectDescription")}<textarea aria-label={t("projectUi.projectDescription")} value={description} maxLength={2000} rows={5} onChange={event => { setDescription(event.target.value); setMessage(''); }} /></label>
+              <div className="controls"><button className="primary">{busy ? t("projectUi.processing") : t("projectUi.saveChanges")}</button></div>
             </fieldset>
           </form> : <div className="account-form"><h2>{project.name}</h2>
-            <p>只有组织管理员可以修改项目名称和说明。</p></div>}
-          <section className="account-form" aria-label="项目样式">
-            <h2>项目样式</h2>
-            <p className="hint">共 {project.document.styles.length} 个样式。使用已保存的字幕快照；其他工作区未保存的字幕和时间输入不会被提交。工作区下次保存时会尝试合并新样式。</p>
-            {project.status === 'archived' && <p className="hint">项目已归档，样式仅可查看。</p>}
-            <div className="controls"><button disabled={!enabled || busy} onClick={() => void openStyles()}>管理项目样式</button></div>
+            <p>{t("projectUi.onlyOrganizationAdministratorsCanChangeTheProjectName")}</p></div>}
+          <section className="account-form" aria-label={t("projectUi.projectStyles")}>
+            <h2>{t("projectUi.projectStyles")}</h2>
+            <p className="hint">{t("projectUi.styleCount", { count: project.document.styles.length })}</p>
+            {project.status === 'archived' && <p className="hint">{t("projectUi.thisProjectIsArchivedStylesAreReadOnly")}</p>}
+            <div className="controls"><button disabled={!enabled || busy} onClick={() => void openStyles()}>{t("projectUi.manageProjectStyles")}</button></div>
           </section>
           <GlossarySettings request={request} organizationId={organizationId} projectId={projectId}
             enabled={enabled} archived={project.status === 'archived'} canManage={organization.can_manage} />
-          <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>刷新项目版本</button></div>
+          <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>{t("projectUi.refreshProjectVersion")}</button></div>
           {message && <HeaderNotice>{message}</HeaderNotice>}
           {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
         </> : error ? <div className="account-form"><HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>
-          <button disabled={!enabled} onClick={() => setRetry(value => value + 1)}>重试</button></div>
-        : <HeaderNotice>正在加载项目…</HeaderNotice>}
+          <button disabled={!enabled} onClick={() => setRetry(value => value + 1)}>{t("projectUi.retry")}</button></div>
+        : <HeaderNotice>{t("projectUi.loadingProject")}</HeaderNotice>}
     </section>
     {stylesOpen && project && <ProjectStyleManager document={project.document} cueRows={cueRows} selectedCueId={null}
       editable={enabled && project.status === 'active'} persisted request={request} organizationId={organizationId}

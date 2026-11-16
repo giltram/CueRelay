@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 export async function checkProjectSplits(browser, file, emptyDocument, splitOnBackend) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
   const bytes = readFileSync(file);
   let project = {
     id: 1, organization_id: 1, name: '拆分快照夹具', description: '', status: 'active', revision: 1,

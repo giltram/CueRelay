@@ -3,6 +3,17 @@ from ass_format import empty_document
 
 
 class ClipboardContractTests(SimpleTestCase):
+    def test_invalid_unicode_returns_422_without_database_access(self):
+        for text in ['\ud800', '\udfff', 'before\ud800after']:
+            with self.subTest(text=repr(text)):
+                response = Client().post('/api/ass/clipboard', {
+                    'document': empty_document(), 'text': text, 'active_id': None, 'ids': [], 'fields': None,
+                }, content_type='application/json')
+                self.assertEqual(response.status_code, 422)
+                issue, = response.json()['issues']
+                self.assertEqual(issue['code'], 'unsupported_or_invalid_ass')
+                self.assertEqual(issue['reason'], 'server.assContainsInvalidUnicode')
+
     def test_stateless_roundtrip_and_invalid_contract(self):
         client = Client(enforce_csrf_checks=True)
         document = empty_document()

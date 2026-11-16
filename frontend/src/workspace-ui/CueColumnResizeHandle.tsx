@@ -1,3 +1,5 @@
+import { formatMessage, t } from '../i18n';
+import { useLocale } from "../i18n/react";
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { CueColumn } from './cue-column-widths';
 
@@ -5,6 +7,7 @@ import type { CueColumn } from './cue-column-widths';
 export function CueColumnResizeHandle({ column, width, onResize }: {
   column: CueColumn; width: number; onResize: (width: number) => void;
 }) {
+  useLocale();
   const drag = useRef<{ pointerId: number; x: number; width: number } | null>(null);
   const [resizing, setResizing] = useState(false);
 
@@ -43,9 +46,9 @@ export function CueColumnResizeHandle({ column, width, onResize }: {
   }
 
   return <div className="cue-column-resize" role="separator" tabIndex={0}
-    aria-label={`调整${column.label}列宽度`} aria-orientation="vertical"
+    aria-label={t("workspaceUi.resizeValueColumn", { v0: formatMessage(column.label) })} aria-orientation="vertical"
     aria-valuemin={column.minimum} aria-valuemax={column.maximum} aria-valuenow={Math.round(width)}
-    aria-valuetext={`${Math.round(width)} 像素`} data-resizing={resizing || undefined}
+    aria-valuetext={t("workspaceUi.valuePixels", { v0: Math.round(width) })} data-resizing={resizing || undefined}
     onPointerDown={start} onPointerMove={move} onPointerUp={end}
     onPointerCancel={end} onLostPointerCapture={end} onKeyDown={adjust}
     onDoubleClick={() => onResize(column.defaultWidth)} />;

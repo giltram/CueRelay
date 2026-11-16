@@ -11,7 +11,7 @@ const project = { id: 7, organization_id: 1, name: 'fixture', description: '', s
 
 try {
   for (const change of ['organization', 'account']) {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ locale: 'zh-CN' });
     context.setDefaultTimeout(10000);
     const page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(String(error)));

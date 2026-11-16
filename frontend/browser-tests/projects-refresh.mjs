@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext();
+const context = await browser.newContext({ locale: 'zh-CN' });
 await context.addInitScript(() => {
   Object.defineProperty(document, 'visibilityState', { get: () => 'visible' });
   const original = window.setInterval;

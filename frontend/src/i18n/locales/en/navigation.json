@@ -1,0 +1,12 @@
+{
+  "loadingProject": "Loading project…",
+  "pageNotFound": "Page not found.",
+  "accessToThisOrganizationOrProjectIsDenied": "Access to this organization or project is denied.",
+  "theOrganizationOrProjectDoesNotExistOr": "The organization or project does not exist, or the project belongs to another organization.",
+  "signInToOpenThisProject": "Sign in to open this project.",
+  "couldNotLoadTheProjectPleaseTryAgain": "Could not load the project. Please try again.",
+  "retryLoading": "Retry loading",
+  "backToProjects": "Back to projects",
+  "chooseAnAccessibleOrganization": "Choose an accessible organization",
+  "exportAssFromRetainedWorkspace": "Export ASS from retained workspace"
+}

@@ -1,0 +1,18 @@
+{
+  "zh-CN": {
+    "label": "简体中文",
+    "browserLanguages": [
+      "zh"
+    ],
+    "handbook": "handbook.md",
+    "fallback": true
+  },
+  "en": {
+    "label": "English",
+    "browserLanguages": [
+      "en"
+    ],
+    "handbook": "handbook.en.md",
+    "fallback": false
+  }
+}

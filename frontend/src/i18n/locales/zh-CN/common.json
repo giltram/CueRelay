@@ -1,0 +1,16 @@
+{
+  "pageTitle": "CueRelay — 字幕编辑器",
+  "language": "界面语言",
+  "system": "System",
+  "messageList": "{{messages}}",
+  "sourceLine": "第 {{line}} 行：{{reason}}",
+  "languagePending": "正在保存语言偏好…",
+  "languageFailure": "语言已切换，但未能保存偏好：{{reason}}。请重试。",
+  "retry": "重试",
+  "accountRole": "{{organization}} · {{role}}。组织上下文不保存或转移本地字幕。",
+  "roles": {
+    "organizer": "管理员",
+    "member": "成员",
+    "dev": "dev"
+  }
+}

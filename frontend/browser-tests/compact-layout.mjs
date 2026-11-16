@@ -22,7 +22,7 @@ let project = { id: 7, organization_id: 1, name: '布局验证项目', descripti
   media: { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), duration_ms: 8000 }, document: documentFixture };
 let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true }, rejectSave = true;
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 const errors = [], unexpected = [], checks = [];
 context.on('page', page => page.on('pageerror', error => errors.push(String(error))));
 await context.route('**/api/**', async route => {
@@ -124,7 +124,7 @@ try {
     await view.locator('.app-header').waitFor(); assert.equal((await view.locator('.app-header').boundingBox()).height, 44);
     assert.equal(await view.getByRole('button', { name: '导出诊断信息', exact: true }).count(), 0); await view.close();
   }
-  const anonymous = await browser.newContext();
+  const anonymous = await browser.newContext({ locale: 'zh-CN' });
   let sessionFailed = true;
   await anonymous.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;

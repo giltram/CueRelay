@@ -1,3 +1,6 @@
+import { useLocale } from '../../i18n/react';
+import { formatMessage } from '../../i18n';
+import { describe, MessageError } from "../../contracts/messages";
 import { diagnostics, safeError } from '../../diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlaybackRange } from '../playback';
@@ -8,6 +11,7 @@ const idle: AuditionState = { phase: 'idle', position: null, message: '' };
 
 /** Connect the independent audio session to media/navigation lifecycle, never to analysis requests. */
 export function useAudioAudition(file: File | null, video: HTMLVideoElement | null, visible: boolean) {
+  useLocale();
   const controller = useRef<AudioAuditionController | null>(null);
   const pendingSeek = useRef<number | null>(null);
   const [state, setState] = useState<AuditionState>(idle);
@@ -64,10 +68,10 @@ export function useAudioAudition(file: File | null, video: HTMLVideoElement | nu
   const getPosition = useCallback(() => controller.current?.getPosition() ?? null, []);
   const updateEnd = useCallback((end: number) => controller.current?.updateEnd(end) ?? false, []);
   const start = useCallback(async (range: PlaybackRange | null, followEnd = false) => {
-    if (!video || !controller.current) throw Error('请先加载可播放的本地视频');
+    if (!video || !controller.current) throw new MessageError(describe("media.loadAPlayableLocalVideoFirst", "请先加载可播放的本地视频"));
     pendingSeek.current = video.seeking ? video.currentTime : null;
     video.pause();
     if (range) { diagnostics.record('audio-audition', 'start', 'start'); await controller.current.start(range, followEnd); } else controller.current.stop();
   }, [video]);
-  return { state, start, stop, getPosition, updateEnd };
+  return { state: { ...state, message: formatMessage(state.message) }, start, stop, getPosition, updateEnd };
 }

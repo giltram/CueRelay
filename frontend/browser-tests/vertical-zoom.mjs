@@ -20,7 +20,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi
   '-c:v', 'libx264', '-preset', 'ultrafast', '-af', "volume='if(lt(mod(t,4),2),1,0)':eval=frame",
   '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const errors = [], unexpected = [];
 let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum' };
 await context.route('**/api/**', async route => {

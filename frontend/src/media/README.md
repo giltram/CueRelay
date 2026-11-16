@@ -27,3 +27,7 @@ App 将当前已登录且仍有项目访问权的账号 ID 传入工作区；工
 - `npm test -- --run` / `npm run typecheck` / `npm run build`。
 - `npm run test:video-restore`：Chrome、FFmpeg、Vite 默认 5204（`VIDEO_RESTORE_URL` 可覆盖），隔离 HTTP 夹具，不写开发数据库。使用真实 IndexedDB 和可序列化 OPFS 句柄；系统选片/权限决定用夹具模拟，覆盖跨刷新、重新授权、完整摘要、取消/迟到结果、账号/组织/项目/基准隔离、创建交接、选择器/存储失败及本地工作区行为。
 - `npm run test:video-progress`：普通视频选片/播放/进度和布局回归。真实操作系统选片及浏览器持久授权 UI 仍需人工验收。
+
+## 中英文展示边界（2026-11-15）
+
+onError 与资源钩子的 notice 使用 contracts/messages.MessageValue；LocalVideoPlayer 在展示时解析。纯校验/解码/哈希不读取语言，Worker 通过 errorMessage 传递可结构化克隆的 descriptor。语言订阅不进入 File、句柄、Object URL 或 Worker 的生命周期依赖；验证数值与媒体基准不变。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

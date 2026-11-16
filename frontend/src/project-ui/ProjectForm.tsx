@@ -1,3 +1,5 @@
+import { useMessageState, useLocale } from '../i18n/react';
+import { t, msg } from "../i18n";
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useEffect, useRef, useState } from 'react';
 import type { Organization } from '../account-ui/api';
@@ -17,6 +19,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   organization: Organization; api: ReturnType<typeof projectApi>; request: JsonRequest;
   onClose: () => void; onSaved: (project: ProjectDetail, video?: SelectedVideo) => void;
 }) {
+  useLocale();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [media, setMedia] = useState<MediaManifest | null>(null);
@@ -27,7 +30,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   const [mode, setMode] = useState<'empty' | 'import'>('empty');
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [script, setScript] = useState<ScriptSettings | null>(null);
   const [styleImports, setStyleImports] = useState<ImportStyle[]>([]);
   const [initialStyles, setInitialStyles] = useState<{ name: string }[]>([]);
@@ -36,7 +39,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
     let active = true;
     const version = initialDocumentVersion.current;
     void loadEmptyDocument().then(document => { if (active && version === initialDocumentVersion.current) { setScript(document.script); setInitialStyles(document.styles); } })
-      .catch(reason => { if (active) setError(reason.message); });
+      .catch(reason => { if (active) setError(reason); });
     return () => { active = false; };
   }, []);
   const controller = useRef<AbortController | null>(null);
@@ -51,49 +54,49 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
     try {
       const value = await createMediaManifest(file, task.signal, setProgress);
       if (!task.signal.aborted) setMedia(value);
-    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); if (!task.signal.aborted) setError((reason as Error).message); }
+    } catch (reason) { reportFailure('project-ui', 'handled_error', reason, origin); if (!task.signal.aborted) setError(reason as Error); }
     finally { if (controller.current === task) setBusy(false); }
   }
-  return <Modal title="新建项目" onClose={busy ? undefined : onClose}>
+  return <Modal title={t("projectUi.newProject")} onClose={busy ? undefined : onClose}>
     <form className="account-form" onSubmit={event => {
       const origin = captureDiagnosticOrigin();
       event.preventDefault(); setError('');
-      if (!media || (mode === 'import' && source === null)) { setError('请完成视频校验并选择初始字幕。'); return; }
+      if (!media || (mode === 'import' && source === null)) { setError(msg("projectUi.finishVideoVerificationAndSelectTheInitialSubtitles")); return; }
       setBusy(true);
       void api.create({ name, description, media, source: mode === 'empty' ? null : source, style_imports: styleImports, ...(script ? { script } : {}) })
-        .then(value => onSaved(value, selectedFile.current)).catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason.message); }).finally(() => setBusy(false));
+        .then(value => onSaved(value, selectedFile.current)).catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason); }).finally(() => setBusy(false));
     }}>
-      <p>所属组织：{organization.name}</p>
-      <label>项目名称<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
-      <label>项目说明<textarea aria-label="项目说明" disabled={busy} value={description} maxLength={2000} rows={3} onChange={event => setDescription(event.target.value)} /></label>
-      <p>每个项目绑定一个固定视频和一份 ASS。只发送摘要和字幕，视频保留在本机。</p>
-      <div>基准视频 <VideoFilePicker label="基准视频" disabled={busy} onSelect={value => void inspect(value)} onError={setError}>选择基准视频</VideoFilePicker></div>
-      {fileName && <p>{fileName} · {media ? '完整校验通过' : `校验进度 ${Math.round(progress * 100)}%`}</p>}
-      {busy && controller.current && !media && <button type="button" onClick={() => { controller.current?.abort(); setBusy(false); setFileName(''); }}>取消校验</button>}
-      <label>初始字幕<select aria-label="初始字幕" disabled={busy} value={mode} onChange={event => setMode(event.target.value as 'empty' | 'import')}>
-        <option value="empty">空字幕</option><option value="import">导入 ASS</option>
+      <p>{t("projectUi.organizationLabel", { name: organization.name })}</p>
+      <label>{t("projectUi.projectName")}<input disabled={busy} value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
+      <label>{t("projectUi.projectDescription")}<textarea aria-label={t("projectUi.projectDescription")} disabled={busy} value={description} maxLength={2000} rows={3} onChange={event => setDescription(event.target.value)} /></label>
+      <p>{t("projectUi.eachProjectUsesOneFixedVideoAndOne")}</p>
+      <div>{t("projectUi.referenceVideo")}<VideoFilePicker label={t("projectUi.referenceVideo")} disabled={busy} onSelect={value => void inspect(value)} onError={setError}>{t("projectUi.chooseReferenceVideo")}</VideoFilePicker></div>
+      {fileName && <p>{fileName} · {media ? t("projectUi.fullVerificationPassed") : t("projectUi.verificationProgressValue", { v0: Math.round(progress * 100) })}</p>}
+      {busy && controller.current && !media && <button type="button" onClick={() => { controller.current?.abort(); setBusy(false); setFileName(''); }}>{t("projectUi.cancelVerification")}</button>}
+      <label>{t("projectUi.initialSubtitles")}<select aria-label={t("projectUi.initialSubtitles")} disabled={busy} value={mode} onChange={event => setMode(event.target.value as 'empty' | 'import')}>
+        <option value="empty">{t("projectUi.emptySubtitles")}</option><option value="import">{t("projectUi.importAss")}</option>
       </select></label>
-      {mode === 'import' && <label>ASS 文件<input type="file" accept=".ass" disabled={busy} onChange={event => {
+      {mode === 'import' && <label className="file-picker">{t("projectUi.assFile")}<input aria-label={t("projectUi.assFile")} title={t("projectUi.assFile")} type="file" accept=".ass" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]; if (!file) return;
         initialDocumentVersion.current++;
         const origin = captureDiagnosticOrigin();
         setBusy(true); setError(''); setSource(null); setAssName('');
         void importAss(file).then(document => { setSource(document.source); setAssName(file.name); setScript(document.script); setInitialStyles(document.styles); })
-          .catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason.message); }).finally(() => setBusy(false));
+          .catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason); }).finally(() => setBusy(false));
         event.target.value = '';
       }} /></label>}
-      {mode === 'import' && assName && <p>{assName} · 字幕预检通过</p>}
+      {mode === 'import' && assName && <p>{t("projectUi.subtitleValidated", { name: assName })}</p>}
       <fieldset disabled={busy}>
-        <details><summary>样式模板与脚本设置（可选）</summary>
+        <details><summary>{t("projectUi.styleTemplatesAndScriptSettingsOptional")}</summary>
           {script && <ScriptSettingsEditor value={script} onChange={value => { initialDocumentVersion.current++; setScript(value); }} />}
           <TemplateImportSelection request={request} organizationId={organization.id} value={styleImports} onChange={setStyleImports} existing={initialStyles} />
         </details>
       </fieldset>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="controls">
-        <button type="button" disabled={busy} onClick={onClose}>取消</button>
+        <button type="button" disabled={busy} onClick={onClose}>{t("projectUi.cancel")}</button>
         <button className="primary" disabled={busy || !media || (mode === 'import' && source === null)}>
-          {busy ? '处理中…' : '创建并打开'}
+          {busy ? t("projectUi.processing") : t("projectUi.createAndOpen")}
         </button>
       </div>
     </form>

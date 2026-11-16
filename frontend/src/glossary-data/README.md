@@ -9,3 +9,7 @@
 公开消费：glossary-ui。测试：rules.test.ts、browser-tests/glossary.mjs（含真实 App 项目/账号切换及撤权迟到响应）。
 
 项目关联仅有 fork / use_organization_default 两个命令；不提供任意表选择或隐式组织回写。服务端返回明确 uses_organization_default，UI据此只允许项目副本编辑。组织表在组织API维护，词条ID和revision校验与项目表共用。
+
+## 中英文展示边界（2026-11-15）
+
+validateEntry 返回 MessageValue（成功为空字符串），含字段 label descriptor 和具体限制参数；useGlossary 保留原始 Error/descriptor，不依赖 i18n。由 glossary-ui 在当前语言渲染，避免把旧语言错误字符串存入数据状态。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

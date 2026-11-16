@@ -37,3 +37,7 @@ routeOrganization 统一识别项目、设置和本地工作区的显式组织�
 「新建项目」是当前列表页的操作按钮，不是页面导航；经 App 的旧工作区保护后打开 ProjectsPanel / ProjectForm 弹窗，不改 URL、不新增 tab。名称、说明、视频和字幕在同一表单填写；成功后同一文档 adoptCreated 并 push 项目工作区，保证回退回原列表。取消创建只关闭弹窗。旧 `/organizations/:organizationId/projects/new` 地址规范到组织列表，不再拥有创建路由或独立页面。无需 window.open、跨窗口传 File、Storage 或同步机制。默认行为回归在 tab-navigation.mjs；历史/旧稿保护回归使用 link-navigation.sameTab 显式覆盖 target，与默认新标签页测试分开。
 
 项目列表的「项目设置」遵循 RouteLink 默认新标签页；设置页仅保留页头 CueRelay 首页链接，不提供「返回项目列表」。project-settings 只由 project-ui 加载元数据，不进入 app-workspace 的工作区加载分支；同组织同页历史仍保留隐藏工作区，跨组织导航沿用 App 保护。
+
+## 中英文展示边界（2026-11-15）
+
+RouteStatus 使用 i18n 显示稳定 code 的页面状态，并格式化保留的结构化 Error。语言不改变地址、History API、保护流程或 RouteLink 行为，没有 locale 路由。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

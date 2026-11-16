@@ -1,0 +1,4 @@
+{
+  "timesMustBeNonNegativeAndAlignedTo": "Times must be non-negative and aligned to the 10ms grid",
+  "startTimeMustNotBeAfterEndTime": "Start time must not be after end time"
+}

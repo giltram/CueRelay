@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { MAX_TIME_MS, validateInterval } from '../media/playback';
 import type { VideoFrameInterval } from '../media/video-frame';
@@ -9,7 +10,7 @@ export interface LineEditResult { document: AssDocument; selected: Cue[] }
  * records so no-op overwrites preserve history and the saved-document baseline. */
 export function shareLineReferences(before: AssDocument, received: AssDocument): AssDocument {
   if (before.source !== received.source || JSON.stringify(before.styles) !== JSON.stringify(received.styles)
-    || JSON.stringify(before.script) !== JSON.stringify(received.script)) throw new Error('粘贴不能替换 ASS 模板或样式定义');
+    || JSON.stringify(before.script) !== JSON.stringify(received.script)) throw new MessageError(describe("workspaceUi.pastingCannotReplaceTheAssTemplateOrStyle", "粘贴不能替换 ASS 模板或样式定义"));
   const previous = new Map(before.cues.map(cue => [cue.id, cue]));
   const cues = received.cues.map(cue => {
     const old = previous.get(cue.id);
@@ -23,7 +24,7 @@ export function shareLineReferences(before: AssDocument, received: AssDocument):
 }
 
 function checked(document: AssDocument, cues: Cue[], selected: Cue[]): LineEditResult {
-  if (cues.length > 5000) throw new Error('字幕不能超过 5000 行');
+  if (cues.length > 5000) throw new MessageError(describe("workspaceUi.subtitlesMustNotExceed5000Lines", "字幕不能超过 5000 行"));
   for (const cue of cues) validateInterval(cue.start_ms, cue.end_ms);
   return { document: { ...document, cues }, selected };
 }
@@ -37,7 +38,7 @@ function cloneCue(cue: Cue, createId: () => string): Cue {
 /** Insertion order and time calculation are independent of the table's display order. */
 export function insertLine(document: AssDocument, activeId: string, after: boolean, createId: () => string, frame?: VideoFrameInterval): LineEditResult {
   const index = document.cues.findIndex(cue => cue.id === activeId), active = document.cues[index];
-  if (!active) throw new Error('请先选择一条字幕行');
+  if (!active) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
   let start: number, end: number;
   if (frame) { start = frame.start; end = start + INSERT_DURATION_MS; }
   else if (after) {
@@ -47,7 +48,7 @@ export function insertLine(document: AssDocument, activeId: string, after: boole
     end = active.start_ms; start = Math.max(0, end - INSERT_DURATION_MS);
     for (const cue of document.cues) if (cue.end_ms <= end) start = Math.max(start, cue.end_ms);
   }
-  if (end > MAX_TIME_MS) throw new Error('插入字幕超出支持的时间范围');
+  if (end > MAX_TIME_MS) throw new MessageError(describe("workspaceUi.theInsertedLineExceedsTheSupportedTimeRange", "插入字幕超出支持的时间范围"));
   const cue: Cue = { id: createId(), start_ms: start, end_ms: end, text: '', style_id: active.style_id };
   const cues = [...document.cues]; cues.splice(index + Number(after), 0, cue);
   return checked(document, cues, [cue]);
@@ -73,20 +74,20 @@ export function duplicateLines(document: AssDocument, ids: readonly string[], cr
           copy = { ...copy, start_ms: boundary };
         }
         if (original.start_ms === original.end_ms || copy.start_ms === copy.end_ms) {
-          throw new Error('分割后不能产生零长度字幕');
+          throw new MessageError(describe("workspaceUi.splittingMustNotCreateAZeroDurationLine", "分割后不能产生零长度字幕"));
         }
       }
       cues.push(original); block.push(copy); copies.push(copy);
     }
     cues.push(...block);
   }
-  if (!copies.length) throw new Error('请先选择一条字幕行');
+  if (!copies.length) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
   return checked(document, cues, copies);
 }
 
 export function deleteLines(document: AssDocument, ids: readonly string[], ordered: readonly Cue[]): LineEditResult {
   const removed = new Set(ids), first = ordered.findIndex(cue => removed.has(cue.id));
-  if (first < 0) throw new Error('请先选择一条字幕行');
+  if (first < 0) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
   const next = ordered.slice(first).find(cue => !removed.has(cue.id))
     ?? ordered.slice(0, first).reverse().find(cue => !removed.has(cue.id));
   return checked(document, document.cues.filter(cue => !removed.has(cue.id)), next ? [next] : []);

@@ -1,6 +1,9 @@
+import { t } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { useEffect, useRef, type ReactNode } from 'react';
 
 export function Modal({ title, children, onClose, showCloseButton = true }: { title: string; children: ReactNode; onClose?: () => void; showCloseButton?: boolean }) {
+  useLocale();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current!;
@@ -13,7 +16,7 @@ export function Modal({ title, children, onClose, showCloseButton = true }: { ti
     if (event.target !== event.currentTarget) return;
     event.preventDefault(); onClose?.();
   }}>
-    <div className="dialog-heading"><h2>{title}</h2>{onClose && showCloseButton && <button onClick={onClose}>关闭</button>}</div>
+    <div className="dialog-heading"><h2>{title}</h2>{onClose && showCloseButton && <button onClick={onClose}>{t("pageUi.close")}</button>}</div>
     {children}
   </dialog>;
 }

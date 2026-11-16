@@ -50,7 +50,7 @@ class RequestDiagnosticsMiddleware:
         response = self.get_response(request)
         if response.status_code >= 500:
             from django.http import JsonResponse
-            response = JsonResponse({'error': {'code': 'server_error', 'message': '服务暂时不可用，请导出诊断信息并重试。'}}, status=500)
+            response = JsonResponse({'error': {'code': 'server_error', 'message': '服务暂时不可用，请导出诊断信息并重试。', 'reason': 'server.serviceUnavailable', 'params': {}}}, status=500)
         response['X-Request-ID'] = request.diagnostic_request_id
         response['X-CueRelay-Build'] = settings.CUERELAY_BUILD
         match = getattr(request, 'resolver_match', None)
@@ -76,4 +76,4 @@ class RequestDiagnosticsMiddleware:
               'exception': exception_fields(exception)})
         # Explicit generic 500 even under DEBUG: clients never receive configuration or stack traces.
         from django.http import JsonResponse
-        return JsonResponse({'error': {'code': 'server_error', 'message': '服务暂时不可用，请导出诊断信息并重试。'}}, status=500)
+        return JsonResponse({'error': {'code': 'server_error', 'message': '服务暂时不可用，请导出诊断信息并重试。', 'reason': 'server.serviceUnavailable', 'params': {}}}, status=500)

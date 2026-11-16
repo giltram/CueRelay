@@ -12,3 +12,7 @@
 .paste-fields { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
 .paste-fields label { display: flex; flex-direction: row; align-items: center; gap: 6px; }
 .paste-fields input[type="checkbox"] { width: auto; }
+.cue-context-menu { width: max-content; min-width: min(280px, calc(100vw - 8px)); }
+.cue-context-menu button { white-space: normal; text-align: left; }
+.cue-context-menu button > span { min-width: 0; overflow-wrap: anywhere; }
+.cue-context-menu kbd { flex: 0 0 auto; }

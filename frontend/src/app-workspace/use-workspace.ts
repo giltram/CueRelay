@@ -1,3 +1,4 @@
+import { type MessageValue, describe, MessageError } from '../contracts/messages';
 import { diagnostics } from '../diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
@@ -15,7 +16,7 @@ const matches = (workspace: Workspace | null, organizationId: number, projectId:
   workspace?.project?.organization_id === organizationId && workspace.project.id === projectId;
 
 /** Owns a single mounted workspace, never the editor's document or timing draft. */
-export function useWorkspace(route: Route, request: JsonRequest, enabled: boolean, actorId: number | undefined, onIssue: (message: string) => void) {
+export function useWorkspace(route: Route, request: JsonRequest, enabled: boolean, actorId: number | undefined, onIssue: (message: MessageValue) => void) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [load, setLoad] = useState<LoadState | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -66,7 +67,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
   }, []);
   const save = useCallback(async (input: ProjectSaveRequest) => {
     const project = workspace?.project;
-    if (!project) throw new Error('尚未打开项目。');
+    if (!project) throw new MessageError(describe("appWorkspace.noProjectIsOpen", "尚未打开项目。"));
     try {
       const result = await saveProjectDocument(projectApi(request, project.organization_id), project, input);
       updateSummary(result.project); return result;
@@ -81,7 +82,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
 
   const split = useCallback(async (splitRequest: SplitRequest, revision: number) => {
     const project = workspace?.project;
-    if (!project) throw new Error('尚未打开项目。');
+    if (!project) throw new MessageError(describe("appWorkspace.noProjectIsOpen", "尚未打开项目。"));
     try {
       const result = await projectApi(request, project.organization_id).split({ ...project, revision }, splitRequest);
       updateSummary(result.project);
@@ -121,7 +122,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       }).catch(reason => {
         if (!active) return;
         if (['permission_denied', 'not_found'].includes(reason.code)) setAccessDenied(true);
-        issue.current(reason.message);
+        issue.current(reason);
       });
     };
     const timer = window.setInterval(check, 30000);

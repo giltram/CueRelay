@@ -55,3 +55,15 @@ MEDIA_FILE='/absolute/path/video.mp4' MEDIA_ASS='/absolute/path/subtitles.ass' \
 `npm run test:glossary` 使用 GLOSSARY_URL（默认 `http://127.0.0.1:5227`），先启动相应 Vite；真实 Chrome、合成视频和纯 ASS codec，术语 HTTP 是有版本冲突/迟到响应的内存 fixture。覆盖组织设置维护/默认只读/项目fork快照/双向隔离/搜索/失败保留/冲突重载、管理员切回默认/归档、同侧栏断点、光标插入/选区/切行/历史、IME/快捷键及无字幕保存、播放器不重建、真实 App 项目/账号替换和撤权隔离。截图和结果写新临时目录。真实 PostgreSQL 并发/权限/迁移另由 projects.test_glossary / test_glossary_migration 验证。
 
 真实组织维护→项目fork→修改旧词条/新增词条双向隔离→刷新持久化另有 regression/workspace.spec.mjs 的 organization glossary fork stays isolated；由 Django browser_tests.regression 自动播种隔离库和启动后端/Vite，不使用HTTP fixture。
+
+## 中英文 / 伪本地化
+
+`npm run dev -- --port 5240 --strictPort` 后运行 `node browser-tests/workspace-review-regressions.mjs`（可用 `WORKSPACE_REVIEW_URL` 指向其他 dev/production preview）。使用 Chromium、真实 Python ASS codec 和隔离 HTTP fixture，覆盖会话失效后普通下载包含未保存字幕、QC 警告继续/格式错误阻止，以及旧设置 GET 在语言 PATCH 成功前/后返回、GET 在写入期间启动和后续远端刷新。可传 `F1` / `F2` 单独运行；不需要数据库或真实媒体。
+
+同服务运行 `node browser-tests/settings-response-races.mjs`（`SETTINGS_RACES_URL` 可覆盖）。七个场景覆盖登录后首次 GET 与语言保存交错、迟到音频/快捷键 PATCH 不覆盖新语言、迟到语言 PATCH 不覆盖新音频，以及成功语言选择与首次/远端 GET 的两种返回顺序、pending/failed 选择在加载完成后保留与成功重试后正常远端刷新。断言首次 ready、未修改的服务端字段、表单重挂载后的 App 设置和成功选择在两次后续刷新中不遮蔽服务器值；可传 `initial` / `personal` / `language` / `remote` / `lifecycle` 分组运行。HTTP 为可控提交后延迟响应的完整快照，不需要数据库；支持生产 preview。
+
+`npm run dev -- --port 5238 --strictPort` 后运行 `I18N_URL=http://127.0.0.1:5238 npm run test:i18n`。复用 Chromium、真实 codec/JASSUB/音频 Worker 与隔离 HTTP fixture，语言矩阵从 shared/languages.json 派生。覆盖主要设置/项目/手册/编辑页面及弹窗、受限 QC 面板、行菜单、粘贴覆盖和草稿/选择/历史/本机句柄/媒体保留；OS picker 权限与剪贴板正文是本次 fixture 的受控输入。
+
+layout-checks.mjs 只检查页面边界、指定 surface 和关键按钮的裁剪/实际命中可达性；允许表格/列表/顶栏拥有的内部滚动，不做所有 DOM 的全局溢出判死。截图固定字体、时间戳、动画和合成片源，输出临时 PNG/results.json；第一次输出不自动成为批准基线，人工只需检查新增/改动区域。既有脚本均明确 zh-CN，真实后端回归另有英文场景。命令及新增语言验收见 [国际化维护](../../docs/internationalization.md)。
+
+构建并启动 5239 端口的生产预览后，运行 `I18N_PRODUCTION_URL=http://127.0.0.1:5239 npm run test:i18n-production` 和 `HANDBOOK_URL=http://127.0.0.1:5239 HANDBOOK_PRODUCTION=1 npm run test:handbook`，分别检查英文预编译手册/双语许可页和既有中文手册交互。

@@ -1,4 +1,5 @@
 """Session JSON boundary. Django CSRF middleware protects anonymous writes too."""
+from message_contracts import localized, wire_messages, Message
 import json
 from functools import wraps
 from django.conf import settings
@@ -13,15 +14,25 @@ from organizations import services as organizations
 from organizations.models import Organization, OrganizationMembership as Membership
 
 
-def error(code, message, status):
-    response = JsonResponse({'error': {'code': code, 'message': message}}, status=status)
+def error(code, message, status, details=None):
+    value = {'code': code, 'message': message}
+    if details is not None:
+        value['details'] = details
+    response = JsonResponse(wire_messages({'error': value}), status=status)
     response.diagnostic_code = code
     return response
 
 
+def validation_detail(item):
+    value = wire_messages({'message': item.message, 'params': item.params or {}})
+    if 'reason' not in value and str(item.code).startswith('password_'):
+        value['reason'] = 'password.' + item.code
+    return value
+
+
 @never_cache
 def csrf_failure(request, reason=''):
-    return error('csrf_failed', '安全校验失败，请重试前刷新会话信息。', 403)
+    return error('csrf_failed', localized('server.securityCheckFailedRefreshSessionInformationBeforeRetrying', '安全校验失败，请重试前刷新会话信息。', {}), 403)
 
 
 def endpoint(methods, anonymous=False):
@@ -30,49 +41,51 @@ def endpoint(methods, anonymous=False):
         @wraps(function)
         def view(request, *args, **kwargs):
             if request.method not in methods:
-                return error('method_not_allowed', '不支持的请求方法。', 405)
+                return error('method_not_allowed', localized('server.unsupportedRequestMethod', '不支持的请求方法。', {}), 405)
             if not anonymous and (not request.user.is_authenticated or not request.user.is_active):
-                return error('authentication_required', '请重新登录，当前编辑内容已保留。', 401)
+                return error('authentication_required', localized('server.signInAgainYourCurrentEditsHaveBeenKept', '请重新登录，当前编辑内容已保留。', {}), 401)
             expected_user = request.headers.get('X-CueRelay-User')
             if not anonymous and expected_user and expected_user != str(request.user.pk):
-                return error('account_changed', '其他标签页已切换账号，请处理本地稿件后重新登录。', 409)
+                return error('account_changed', localized('server.anotherTabChangedAccountsHandleYourLocalDraftBefore', '其他标签页已切换账号，请处理本地稿件后重新登录。', {}), 409)
             try:
                 result = function(request, *args, **kwargs)
                 return result if isinstance(result, HttpResponse) else JsonResponse(result)
-            except PermissionDenied:
-                return error('permission_denied', '没有此组织的操作权限。', 403)
+            except PermissionDenied as exception:
+                return error('permission_denied', exception.args[0] if exception.args and isinstance(exception.args[0], Message) else localized('server.youDoNotHavePermissionForThisOrganizationOperation', '没有此组织的操作权限。', {}), 403)
             except ObjectDoesNotExist:
-                return error('not_found', '记录不存在。', 404)
+                return error('not_found', localized('server.recordNotFound', '记录不存在。', {}), 404)
             except ValidationError as exception:
-                return error('invalid_request', '；'.join(exception.messages), 400)
+                groups = exception.error_dict.values() if hasattr(exception, 'error_dict') else [exception.error_list]
+                details = [validation_detail(item) for group in groups for item in group]
+                return error('invalid_request', '；'.join(exception.messages), 400, details=details)
             except RequestDataTooBig:
-                return error('too_large', '请求体过大。', 413)
+                return error('too_large', localized('server.requestBodyIsTooLargeDetail', '请求体过大。', {}), 413)
         return view
     return decorate
 
 
 def payload(request, fields, partial=False):
     if request.content_type != 'application/json':
-        raise ValidationError('请使用 JSON 请求。')
+        raise ValidationError(localized('server.useAJsonRequest', '请使用 JSON 请求。', {}))
     try:
         value = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
-        raise ValidationError('无效的 JSON。')
+        raise ValidationError(localized('server.invalidJson', '无效的 JSON。', {}))
     if not isinstance(value, dict):
-        raise ValidationError('请提交 JSON 对象。')
+        raise ValidationError(localized('server.submitAJsonObject', '请提交 JSON 对象。', {}))
     actual, allowed = set(value), set(fields)
     if (partial and (not actual or not actual <= allowed)) or (not partial and actual != allowed):
-        raise ValidationError('仅接受字段：' + ', '.join(fields))
+        raise ValidationError(localized('server.onlyTheseFieldsAreAcceptedValue', '仅接受字段：{{v0}}', {'v0': ', '.join(fields)}))
     return value
 
 
 def string(value, max_length=150):
     if not isinstance(value, str) or len(value) > max_length:
-        raise ValidationError('字段类型或长度无效。')
+        raise ValidationError(localized('server.invalidFieldTypeOrLength', '字段类型或长度无效。', {}))
     try:
         value.encode()
     except UnicodeError:
-        raise ValidationError('字段编码无效。')
+        raise ValidationError(localized('server.invalidFieldEncoding', '字段编码无效。', {}))
     return value
 
 
@@ -90,7 +103,7 @@ def sign_in(request):
     password = string(data['password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
     user = authenticate(request, username=username, password=password)
     if user is None:
-        return error('invalid_credentials', '用户名或密码不正确。', 401)
+        return error('invalid_credentials', localized('server.incorrectUsernameOrPassword', '用户名或密码不正确。', {}), 401)
     login(request, user)
     return {'user': accounts.safe_user(user), 'csrf_token': get_token(request)}
 
@@ -115,7 +128,7 @@ def password(request):
     new_password = string(data['new_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
     confirmation = string(data['new_password_confirmation'], settings.ACCOUNT_PASSWORD_MAX_LENGTH)
     if new_password != confirmation:
-        raise ValidationError('两次输入的新密码不一致。')
+        raise ValidationError(localized('server.theNewPasswordsDoNotMatch', '两次输入的新密码不一致。', {}))
     accounts.change_password(request, string(data['old_password'], settings.ACCOUNT_PASSWORD_MAX_LENGTH),
                              new_password)
     return {'csrf_token': get_token(request)}
@@ -124,7 +137,7 @@ def password(request):
 @endpoint(['GET', 'PATCH'])
 def personal_settings(request):
     if request.method == 'PATCH':
-        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides', 'audio_display_mode', 'mouse_sets_cue_boundary'], partial=True))
+        return accounts.save_settings(request.user, payload(request, ['shortcut_overrides', 'audio_display_mode', 'mouse_sets_cue_boundary', 'language_preference'], partial=True))
     return accounts.settings_for(request.user)
 
 
@@ -179,7 +192,7 @@ def member(request, organization_id, membership_id):
     if request.method == 'PATCH':
         role = payload(request, ['role'])['role']
         if role not in ['organizer', 'member']:
-            raise ValidationError('无效的组织角色。')
+            raise ValidationError(localized('server.invalidOrganizationRole', '无效的组织角色。', {}))
         organizations.change_member(request.user, organization_id, membership_id, role=role)
     else:
         payload(request, [])

@@ -25,6 +25,10 @@ The source releases for React/ReactDOM 19.3.1 and Scheduler 0.28.0 are also
 provided at their npm release gitHead commits, including original sources and
 build scripts. FreeType's recursive `subprojects/dlg` dependency is included.
 
+Internationalization uses i18next 27.1.2 and react-i18next 18.0.1 (MIT), with
+html-parse-stringify 4.0.1 (MIT). Their complete notices and installed-package
+source snapshots are listed in the same manifest and shipped with the release.
+
 ## Aegisub references
 
 The timeline ruler and contextual spectrum palettes reference Aegisub 3.2.2
@@ -33,6 +37,10 @@ and Niels Martin Hansen's BSD terms, are reproduced in
 [licenses/texts/aegisub.txt](licenses/texts/aegisub.txt).
 Timing shortcuts, snapping, marker shapes and subtitle-line operations also
 reference Aegisub behavior; these references do not imply affiliation or endorsement.
+Short English functional labels also reference versioned Aegisub 3.0/3.2
+manuals, documented in [the terminology table](docs/i18n-terminology.md). This
+internationalization task did not copy upstream catalogs, help chapters, icons
+or code.
 Further sources and the distinction between behavior and code references are in
 [licenses/README.md](licenses/README.md).
 

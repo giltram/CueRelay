@@ -50,3 +50,7 @@ IndexedDB 单一 control 行包含当前 owner/epoch；账号切换或退出在�
 纯测试：`npm test -- --run`，含本目录 boundaries.test.ts 的模块循环/叶子依赖检查，关注本目录、`workspace-ui/edit-diagnostics.test.ts` 和既有历史测试。`npm run test:compact-layout` 验证个人设置入口、说明文案、顶栏错误和失败重试；diagnostics.mjs 直接调用下载接口验证工作区/离线/初始会话的底层导出契约，不代表这些页面有 UI 入口。重建 recorder 验证持久化时必须设置相同组织上下文，避免组织过滤隐藏目标记录。真实 Chrome：代码修改完成后启动干净进程 `npm run dev -- --port 5194`（测试期间不热更新源码），再 `npm run test:diagnostics`（包含 `diagnostics-errors.mjs`：真实项目设置页延迟保存失败前切组织/切账号）；可通过 DIAGNOSTICS_URL 指定服务。现有历史回归：`HISTORY_URL=http://127.0.0.1:5194/workspace/local npm run test:workspace-history`。
 
 没有会话回放、自动修复/上传、恢复业务数据、日志搜索页、服务端日志下载或开发者控制台。只观测已接入模块和近期窗口；摘要不推断根因。Safari/Firefox、真实磁盘耗尽及崩溃最后一批丢失尚需实机验收。故障注入和实际执行结果见 [验证记录](../../../docs/experiments/diagnostics-v1.md)。
+
+## 中英文展示边界（2026-11-15）
+
+诊断导出按钮现由 page-ui/ExportDiagnostics 组合本模块公开 export 接口并翻译反馈；核心 diagnostics 只新增向下依赖 contracts/messages 的结构化 ResponseUnknownError，不依赖 i18n。已有 JSON 字段/固定诊断说明保持原语义与语言，不跟随界面改写。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

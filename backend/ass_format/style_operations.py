@@ -1,4 +1,5 @@
 """Atomic immutable document operations. Persistent callers own authorization/CAS."""
+from message_contracts import localized
 from copy import deepcopy
 from uuid import uuid4
 from .codec import serialize_ass, _inspect
@@ -8,19 +9,19 @@ from .styles import ATTRIBUTE_FIELDS, adapt_fields, validate_fields, validate_na
 
 def _keys(value, expected):
     if not isinstance(value, dict) or set(value) != set(expected):
-        fail("样式操作包含缺失或未知字段")
+        fail(localized('server.styleOperationHasMissingOrUnknownFields', '样式操作包含缺失或未知字段', {}))
 
 
 def _ids(values, available):
     if (not isinstance(values, list) or not values or any(not isinstance(v, str) for v in values)
             or len(values) != len(set(values)) or not set(values) <= set(available)):
-        fail("请选择唯一且属于当前文档的有效 ID；整批操作未执行")
+        fail(localized('server.selectUniqueValidIdsInTheCurrentDocumentThe', '请选择唯一且属于当前文档的有效 ID；整批操作未执行', {}))
     return set(values)
 
 
 def _patch(fields):
     if not isinstance(fields, dict) or not fields or not set(fields) <= set(ATTRIBUTE_FIELDS):
-        fail("请选择至少一个标准样式属性；批量编辑不接受名称或身份字段")
+        fail(localized('server.chooseAtLeastOneStandardStylePropertyBatchEditing', '请选择至少一个标准样式属性；批量编辑不接受名称或身份字段', {}))
 
 
 def style_usage(document):
@@ -39,7 +40,7 @@ def apply_style_operation(document, operation):
     """Create/copy IDs here, never trust client identities or provenance for additions."""
     serialize_ass(document)
     if not isinstance(operation, dict) or not isinstance(operation.get('type'), str):
-        fail("需要具名样式操作")
+        fail(localized('server.aNamedStyleOperationIsRequired', '需要具名样式操作', {}))
     result = deepcopy(document)
     by_id = {style['id']: style for style in result['styles']}
     kind = operation['type']
@@ -52,7 +53,7 @@ def apply_style_operation(document, operation):
         _ids([operation['id']], by_id)
         validate_name(operation['name'])
         if not isinstance(operation['fields'], dict) or not set(operation['fields']) <= set(ATTRIBUTE_FIELDS):
-            fail("样式更新只能指定标准属性")
+            fail(localized('server.styleUpdatesCanOnlySpecifyStandardProperties', '样式更新只能指定标准属性', {}))
         style = by_id[operation['id']]
         if kind == 'copy':
             style = {**deepcopy(style), 'id': str(uuid4()), 'source_name': None}
@@ -70,7 +71,7 @@ def apply_style_operation(document, operation):
         ids = _ids(operation['ids'], by_id)
         usage = style_usage(document)
         if any(usage[key]['cues'] or usage[key]['comments'] for key in ids):
-            fail("样式仍被字幕或 ASS Comment 引用，不能删除；请先重新分配字幕")
+            fail(localized('server.theStyleIsStillReferencedBySubtitlesOrAss', '样式仍被字幕或 ASS Comment 引用，不能删除；请先重新分配字幕', {}))
         result['styles'] = [style for style in result['styles'] if style['id'] not in ids]
     elif kind == 'assign':
         _keys(operation, ['type', 'cue_ids', 'style_id'])
@@ -84,7 +85,7 @@ def apply_style_operation(document, operation):
         validate_script(operation['script'])
         result['script'] = deepcopy(operation['script'])
     else:
-        fail("未知样式操作")
+        fail(localized('server.unknownStyleOperation', '未知样式操作', {}))
     serialize_ass(result)
     return result
 

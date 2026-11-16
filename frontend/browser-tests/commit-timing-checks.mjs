@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 
 /** Isolated editor page: exercise real Spectrum clicks and the complete commit/advance flow. */
 export async function checkCommitTiming(browser, url, videoFile) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
   const errors = [];
   const dialogs = [];
   page.on('pageerror', error => errors.push(String(error)));

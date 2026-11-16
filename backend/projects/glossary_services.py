@@ -3,6 +3,7 @@
 Lock order User -> Organization -> Project -> Glossary -> Entry. Only the project
 module owns associations/reference counts; glossary owns copying and entry data.
 """
+from message_contracts import localized
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -20,7 +21,7 @@ def context_project(actor, organization_id, project_id, *, write=False, manage=F
 
 
 def association_conflict():
-    return glossary.GlossaryConflict('项目术语表关联已变化，当前输入已保留。请刷新术语表后重试。', 'glossary_association_conflict')
+    return glossary.GlossaryConflict(localized('server.theProjectGlossaryLinkChangedYourInputsHaveBeen', '项目术语表关联已变化，当前输入已保留。请刷新术语表后重试。', {}), 'glossary_association_conflict')
 
 
 def effective_table(actor, project):
@@ -31,9 +32,9 @@ def effective_table(actor, project):
 
 def check_association(project, version, table_id, table):
     if type(version) is not int or version < 1:
-        raise ValidationError('association_version 必须是正整数。')
+        raise ValidationError(localized('server.associationVersionMustBeAPositiveInteger', 'association_version 必须是正整数。', {}))
     if table_id is not None and not isinstance(table_id, str):
-        raise ValidationError('glossary_id 必须为 UUID 或 null。')
+        raise ValidationError(localized('server.glossaryIdMustBeAUuidOrNull', 'glossary_id 必须为 UUID 或 null。', {}))
     matches = table_id == (table['id'] if table else None)
     # The implicit organization default has one immutable identity. A virtual
     # empty table token may safely survive its first successful creation.
@@ -84,7 +85,7 @@ def read_entry(actor, organization_id, project_id, table_id, entry_id):
 @transaction.atomic
 def change_association(actor, organization_id, project_id, *, association_version, glossary_id, fork=False, use_organization_default=False):
     if type(fork) is not bool or type(use_organization_default) is not bool or fork == use_organization_default:
-        raise ValidationError('请选择创建项目副本或使用组织术语表。')
+        raise ValidationError(localized('server.chooseCreateProjectCopyOrUseOrganizationGlossary', '请选择创建项目副本或使用组织术语表。', {}))
     # Creating a private copy is an entry-maintenance action, available to members.
     # Switching an existing project's association back retains management permissions.
     project = context_project(actor, organization_id, project_id, write=True, manage=use_organization_default)
@@ -109,7 +110,7 @@ def save_entry(actor, organization_id, project_id, *, association_version, gloss
     table = effective_table(actor, project)
     check_association(project, association_version, glossary_id, table)
     if project.glossary_id is None or table['is_organization_default']:
-        raise glossary.GlossaryConflict('组织术语表只在组织设置中维护。请先创建项目副本，再修改项目词条。', 'organization_glossary_read_only')
+        raise glossary.GlossaryConflict(localized('server.editTheOrganizationGlossaryInOrganizationSettingsCreateA', '组织术语表只在组织设置中维护。请先创建项目副本，再修改项目词条。', {}), 'organization_glossary_read_only')
     entry = glossary.save_entry(actor, organization_id, project.glossary_id, original=original, translation=translation,
                                 note=note, entry_id=entry_id, revision=revision)
     return {**context_data(actor, project), 'entry': entry}

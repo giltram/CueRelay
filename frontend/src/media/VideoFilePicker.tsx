@@ -1,11 +1,15 @@
+import type { MessageValue } from '../contracts/messages';
+import { msg } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { pickVideoFile, supportsVideoFileHandles, type SelectedVideo } from './video-file-access';
 
 /** Native file input remains the fallback, including unsupported browsers. */
 export function VideoFilePicker({ label, children, disabled, remember = true, title, onSelect, onError }: {
   label: string; children: ReactNode; disabled: boolean; remember?: boolean; title?: string;
-  onSelect: (video: SelectedVideo) => void; onError: (message: string) => void;
+  onSelect: (video: SelectedVideo) => void; onError: (message: MessageValue) => void;
 }) {
+  useLocale();
   const input = useRef<HTMLInputElement>(null);
   const [nativeFallback, setNativeFallback] = useState(false);
   const sequence = useRef(0);
@@ -20,7 +24,7 @@ export function VideoFilePicker({ label, children, disabled, remember = true, ti
       }).catch(reason => {
         if (version === sequence.current && reason?.name !== 'AbortError') {
           setNativeFallback(true);
-          onError('无法记住视频文件，请再次点击并使用普通文件选择。');
+          onError(msg("media.couldNotRememberThisVideoClickAgainTo"));
         }
       });
     }}>{children}</button>

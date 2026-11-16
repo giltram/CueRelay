@@ -1,3 +1,9 @@
+import { roleName } from './i18n/shortcuts';
+import type { MessageValue } from './contracts/messages';
+import { formatMessage, t, msg } from './i18n';
+import { LanguageSelector } from './i18n/LanguageSelector';
+import { useLanguagePreference } from './i18n/use-language-preference';
+import { useMessageState, useLocale } from './i18n/react';
 import { PageLayout, HeaderNotice } from './page-ui/PageLayout';
 import { diagnostics, provideAccountStatus } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,9 +26,10 @@ import './style-ui/style-management.css';
 import { OrganizationGlossary } from './glossary-ui/OrganizationGlossary';
 import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
 
-interface Transition { label: string; action: () => Promise<void> }
+interface Transition { label: MessageValue; action: () => Promise<void> }
 
 export default function App() {
+  useLocale();
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   // Ownership outlives session validity. Never use authentication as the editor key.
@@ -32,12 +39,19 @@ export default function App() {
   const [contextVersion, setContextVersion] = useState(0);
   const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings>(createDefaultSettings);
+  const settingsVersions = useRef<Partial<Record<keyof Settings, number>>>({});
+  const acceptSavedSettings = useCallback((changes: Partial<Settings>) => {
+    for (const field of Object.keys(changes) as (keyof Settings)[]) {
+      settingsVersions.current[field] = (settingsVersions.current[field] ?? 0) + 1;
+    }
+    setSettings(previous => ({ ...previous, ...changes }));
+  }, []);
   const [settingsReady, setSettingsReady] = useState(false);
   const [handbookDismissedFor, setHandbookDismissedFor] = useState<number | null>(null);
   const [panel, setPanel] = useState<'login' | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useMessageState('');
   const [busy, setBusy] = useState(false);
   const workbench = useRef<WorkbenchHandle>(null);
   const epoch = useRef(0);
@@ -48,6 +62,8 @@ export default function App() {
     epoch.current++; setUser(null); setPanel('login');
   }));
   const { request: api, session, expectUser } = accountApi;
+  const language = useLanguagePreference(user?.id ?? null, settingsReady, settings.language_preference, api,
+    preference => acceptSavedSettings({ language_preference: preference }));
   const workspaceState = useWorkspace(route, api, Boolean(user && settingsReady), owner?.id, setMessage);
   const { workspace, visible } = workspaceState;
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
@@ -73,11 +89,19 @@ export default function App() {
 
   const loadContext = useCallback(async (selectInitial = false) => {
     const version = epoch.current;
+    const settingsReadVersions = { ...settingsVersions.current };
     const [orgs, preferences] = await Promise.all([
       api<{ organizations: Organization[] }>('/organizations'), api<Settings>('/me/settings'),
     ]);
     if (epoch.current !== version) return;
-    setOrganizations(orgs.organizations); setSettings(preferences); setSettingsReady(true);
+    setOrganizations(orgs.organizations);
+    // Hydrate every untouched field, including on the first load. A local write
+    // only supersedes that field in reads already in flight; later reads refresh it.
+    const changes = Object.fromEntries(Object.entries(preferences).filter(([key]) => {
+      const field = key as keyof Settings;
+      return settingsVersions.current[field] === settingsReadVersions[field];
+    }));
+    setSettings(previous => ({ ...previous, ...changes })); setSettingsReady(true);
     setContextVersion(value => value + 1);
     if (selectInitial) setOrganizationId(routeOrganization(routeRef.current) ?? orgs.organizations[0]?.id ?? null);
   }, [api]);
@@ -92,7 +116,7 @@ export default function App() {
       navigateApproved({ kind: 'entry' }, true);
     }
     try { await loadContext(!previous || previous.id !== next.id); }
-    catch (reason) { setMessage((reason as Error).message); }
+    catch (reason) { setMessage(reason as Error); }
   }, [loadContext, expectUser, workspaceState.clear, navigateApproved]);
 
   const observe = useCallback(async () => {
@@ -106,7 +130,7 @@ export default function App() {
       } else if (ownerRef.current && ownerRef.current.id !== result.user.id) {
         setUser(null); setPanel(null);
         const next = result.user;
-        setTransition({ label: `切换到账号 ${next.username}`, action: () => accept(next) });
+        setTransition({ label: msg("app.switchToAccountValue", { v0: next.username }), action: () => accept(next) });
       } else if (ownerRef.current) {
         setUser(result.user); setOwner(result.user);
         await loadContext();
@@ -116,7 +140,7 @@ export default function App() {
     } catch (reason) {
       // Focus and visibility events can overlap. A newer observation owns the result.
       if (version === epoch.current && !(reason instanceof ApiError && reason.code === 'request_superseded')) {
-        setMessage((reason as Error).message);
+        setMessage(reason as Error);
       }
     }
     finally { setInitializing(false); }
@@ -149,7 +173,7 @@ export default function App() {
     }
   }, [route, user, settingsReady, organizations, selectedOrganizationId, navigateApproved]);
 
-  function requestTransition(label: string, action: () => Promise<void>, always = false) {
+  function requestTransition(label: MessageValue, action: () => Promise<void>, always = false) {
     if (transitionRef.current) return;
     setPanel(null); setMessage('');
     if (always || workbench.current?.hasContent()) {
@@ -170,26 +194,26 @@ export default function App() {
       if (nextOrganization !== undefined) setOrganizationId(nextOrganization);
       commit();
     };
-    if (replaceWorkspace) requestTransition(changesOrganization ? '切换组织' : next.kind === 'local' ? '进入本地工作区' : '打开其他项目', action);
+    if (replaceWorkspace) requestTransition(changesOrganization ? msg("app.switchOrganization") : next.kind === 'local' ? msg("app.openLocalWorkspace") : msg("app.openAnotherProject"), action);
     else void action();
   }
   async function execute(action: () => Promise<void>) {
     setBusy(true); setMessage('');
     try { await action(); transitionRef.current = null; setTransition(null); }
-    catch (reason) { setMessage((reason as Error).message); }
+    catch (reason) { setMessage(reason as Error); }
     finally { setBusy(false); }
   }
   async function exportDraft() {
     setBusy(true); setMessage('');
-    try { await workbench.current?.exportDraft(); setMessage('已请求下载，请确认文件后再选择放弃或取消。'); }
-    catch (reason) { setMessage((reason as Error).message); }
+    try { await workbench.current?.exportDraft(); setMessage(msg("app.downloadRequestedCheckTheFileBeforeDiscardingOr")); }
+    catch (reason) { setMessage(reason as Error); }
     finally { setBusy(false); }
   }
   function onLogin(next: User) {
     epoch.current++;
     if (owner && owner.id !== next.id) {
       setUser(null); setPanel(null);
-      requestTransition(`切换到账号 ${next.username}`, () => accept(next), true);
+      requestTransition(msg("app.switchToAccountValue", { v0: next.username }), () => accept(next), true);
     } else void accept(next);
   }
   async function exit() {
@@ -205,39 +229,40 @@ export default function App() {
     setHandbookDismissedFor(id);
     // Dismissing a welcome prompt must not depend on server availability.
     void api('/me/handbook', 'POST', {}).then(() => {
-      if (epoch.current === version && ownerRef.current?.id === id) setSettings(previous => ({ ...previous, handbook_seen: true }));
+      if (epoch.current === version && ownerRef.current?.id === id) acceptSavedSettings({ handbook_seen: true });
     }).catch(() => {
-      if (epoch.current === version && ownerRef.current?.id === id) setMessage('未能记住手册提示，下次登录可能再次出现。您仍可继续使用，手册也可从个人设置打开。');
+      if (epoch.current === version && ownerRef.current?.id === id) setMessage(msg("app.couldNotRememberTheHandbookPromptItMay"));
     });
   }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
-  const feedback = message && !transition && <HeaderNotice role="alert">{message}<button onClick={() => void observe()}>刷新会话与设置</button></HeaderNotice>;
+  const feedback = message && !transition && <HeaderNotice role="alert">{message}<button onClick={() => void observe()}>{t("app.refreshSessionAndSettings")}</button></HeaderNotice>;
   const header = <div className="account-toolbar">
-    {owner && !user && <HeaderNotice>会话已失效或账号已变更。字幕、时间输入和视频保留在本页，请重新登录。</HeaderNotice>}
-    {owner && user && organizations.length === 0 && <HeaderNotice>暂无组织。请联系 dev 或 organizer 添加成员；仍可使用本地工作区。</HeaderNotice>}
+    <LanguageSelector control={language} />
+    {owner && !user && <HeaderNotice>{t("app.yourSessionExpiredOrTheAccountChangedSubtitles")}</HeaderNotice>}
+    {owner && user && organizations.length === 0 && <HeaderNotice>{t("app.noOrganizationsAskADevOrOrganizerTo")}</HeaderNotice>}
     {feedback}
-    {isList && <><label className="sr-only" htmlFor="organization">当前组织</label>
+    {isList && <><label className="sr-only" htmlFor="organization">{t("app.currentOrganization")}</label>
     <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
       navigate({ kind: 'projects', organizationId: Number(event.target.value) });
     }}>
-      {!organization && <option value={organizationId ?? ''}>{organizationId ? '原组织已不可访问' : '暂无组织'}</option>}
-      {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {org.role || 'dev'}</option>)}
+      {!organization && <option value={organizationId ?? ''}>{organizationId ? t("app.previousOrganizationIsNoLongerAccessible") : t("app.noOrganizations")}</option>}
+      {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {roleName(org.role)}</option>)}
     </select></>}
     <RouteLink className="button-link" route={listRoute} navigate={navigate}
-      aria-current={isList ? 'page' : undefined}>项目列表</RouteLink>
+      aria-current={isList ? 'page' : undefined}>{t("app.projects")}</RouteLink>
     {user ? <RouteLink className="button-link" route={{ kind: 'settings', organizationId: organizationId ?? undefined }} navigate={navigate}
-      aria-current={isSettings ? 'page' : undefined}>设置</RouteLink>
-      : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason.message)); }}>重新登录</button>}
+      aria-current={isSettings ? 'page' : undefined}>{t("app.settings")}</RouteLink>
+      : <button onClick={() => { void session().then(() => setPanel('login')).catch(reason => setMessage(reason)); }}>{t("app.signInAgain")}</button>}
   </div>;
   const projectLoad = workspaceState.projectLoad;
 
-  if (initializing) return <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}><HeaderNotice>正在检查会话…</HeaderNotice></PageLayout>;
+  if (initializing) return <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}><HeaderNotice>{t("app.checkingSession")}</HeaderNotice></PageLayout>;
   return <>
     {owner ? <>
       {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
         header={header} enabled={Boolean(user && settingsReady && !busy)} refreshVersion={contextVersion} navigate={navigate}
         unavailableOrganization={organizationId !== null && !organization}
-        onCreate={open => requestTransition('新建项目', async () => { workspaceState.clear(); open(); })}
+        onCreate={open => requestTransition(msg("app.newProject"), async () => { workspaceState.clear(); open(); })}
         onCreated={(project, video) => {
           workspaceState.adoptCreated(project, video);
           navigateApproved({ kind: 'project', organizationId: project.organization_id, projectId: project.id });
@@ -253,13 +278,13 @@ export default function App() {
           canManage={organization.can_manage} enabled={Boolean(user && settingsReady && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
         enabled={Boolean(user && settingsReady && !busy && !transition)} ready={settingsReady}
-        request={api} settings={settings} navigate={navigate} onSettings={setSettings}
-        onExit={() => requestTransition('退出账号', exit)}
-        onRetry={() => void loadContext().catch(reason => setMessage(reason.message))}
-        onChanged={() => void loadContext().catch(reason => setMessage(reason.message))}
+        request={api} settings={settings} navigate={navigate} onSettings={acceptSavedSettings}
+        onExit={() => requestTransition(msg("app.signOut"), exit)}
+        onRetry={() => void loadContext().catch(reason => setMessage(reason))}
+        onChanged={() => void loadContext().catch(reason => setMessage(reason))}
         onLeave={() => {
           if (!organization) return;
-          requestTransition('退出此组织', async () => {
+          requestTransition(msg("app.leaveThisOrganization"), async () => {
             await api(`/organizations/${organization.id}/leave`, 'POST', {});
             setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true); await loadContext(true);
           }, true);
@@ -274,23 +299,23 @@ export default function App() {
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}
         styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
-        onReload={workspace.project ? () => requestTransition('重新加载项目', workspaceState.reload) : undefined}
+        onReload={workspace.project ? () => requestTransition(msg("app.reloadProject"), workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user || !settingsReady)} /></div>}
     </> : <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}>
-      {feedback}<div className="login-page"><p>内部账号由站点管理员创建。</p>
+      {feedback}<div className="login-page"><LanguageSelector control={language} /><p>{t("app.internalAccountsAreCreatedByTheSiteAdministrator")}</p>
         <LoginForm api={accountApi} onLogin={onLogin} feedbackInHeader /></div>
     </PageLayout>}
     {handbookPromptOpen && user && <HandbookPrompt key={user.id} organizationId={organizationId ?? undefined} navigate={navigate} onDismiss={dismissHandbook} />}
-    {owner && panel === 'login' && <Modal title="重新登录" onClose={() => setPanel(null)}>
+    {owner && panel === 'login' && <Modal title={t("app.signInAgain")} onClose={() => setPanel(null)}>
       <LoginForm api={accountApi} onLogin={onLogin} expectedUsername={owner.username} />
     </Modal>}
-    {transition && <Modal title={transition.label}>
-      <p>继续将放弃当前本地字幕、尚未应用的时间输入和视频。导出包含已应用的字幕；请取消后应用需要保留的时间输入，再导出。</p>
-      <p>导出后仍会停留在此处，确认下载后再明确放弃。</p>
+    {transition && <Modal title={formatMessage(transition.label)}>
+      <p>{t("app.continuingDiscardsLocalSubtitlesUnappliedTimeInputsAnd")}</p>
+      <p>{t("app.exportingKeepsThisDialogOpenCheckTheDownload")}</p>
       <div className="controls">
-        <button disabled={busy} onClick={() => void exportDraft()}>导出 ASS</button>
-        <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>取消</button>
-        <button disabled={busy} onClick={() => void execute(transition.action)}>明确放弃并继续</button>
+        <button disabled={busy} onClick={() => void exportDraft()}>{t("app.exportAss")}</button>
+        <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>{t("app.cancel")}</button>
+        <button disabled={busy} onClick={() => void execute(transition.action)}>{t("app.discardAndContinue")}</button>
       </div>
       {message && <p role="status">{message}</p>}
     </Modal>}

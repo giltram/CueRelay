@@ -28,7 +28,7 @@ const project = { id: 7, organization_id: 1, name: 'QC project', description: ''
   media: { size: mediaBytes.length, sha256: createHash('sha256').update(mediaBytes).digest('hex'), duration_ms: 20000 }, document: projectDocument };
 const requests = [], errors = [], unexpected = [], checks = [];
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 context.on('page', page => page.on('pageerror', error => errors.push(String(error))));
 await context.route('**/api/**', async route => {
   const request = route.request(), path = new URL(request.url()).pathname;

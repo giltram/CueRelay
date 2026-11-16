@@ -7,7 +7,7 @@ export async function checkCueWindowThreshold(browser, origin) {
   fixture.cues = Array.from({ length: 201 }, (_, index) => ({ id: `new-${index}`, start_ms: index * 3000,
     end_ms: index * 3000 + 2400, style_id: fixture.styles[0].id,
     text: `target${index + 1}end ` + '多行文本与换行测试\n'.repeat(4) }));
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
   page.setDefaultTimeout(10000);
   const errors = [], unexpected = [], snapshots = [];
   page.on('pageerror', error => errors.push(String(error)));

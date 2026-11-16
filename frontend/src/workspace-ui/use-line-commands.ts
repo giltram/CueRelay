@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { EditState } from './edit-history';
 import { selectedLineIds } from './line-selection';
@@ -30,19 +31,19 @@ export function useLineCommands({ current, apply, overwrite, active, editable, p
   useEffect(() => { if (!active || !editable) setOver(null); }, [active, editable]);
   async function lineCommand(action: LineAction) {
     if (pending.current || !availability.current.active || over) return;
-    if (action !== 'copy-lines' && !availability.current.editable) throw new Error('项目只读或尚未验证本地片源。');
+    if (action !== 'copy-lines' && !availability.current.editable) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
     const before = current(), document = before.document, ids = selectedLineIds(before);
-    if (!document || (!ids.length && action !== 'paste-lines')) throw new Error('请先选择字幕行');
+    if (!document || (!ids.length && action !== 'paste-lines')) throw new MessageError(describe("workspaceUi.selectSubtitleLinesFirst", "请先选择字幕行"));
     const active = before.selectedId;
     const frameCommand = needsVideoFrame(action);
-    if (frameCommand && (!file || !video || !duration)) throw new Error('请先加载可播放的视频');
+    if (frameCommand && (!file || !video || !duration)) throw new MessageError(describe("workspaceUi.loadAPlayableVideoFirst", "请先加载可播放的视频"));
     const seconds = video?.currentTime ?? 0;
     const stillCurrent = () => current() === before && availability.current.active
       && (action === 'copy-lines' || availability.current.editable);
     pending.current = true; onBusy(true);
     try {
       if (action === 'copy-lines' || action === 'cut-lines') {
-        if (!navigator.clipboard) throw new Error('浏览器无法访问剪贴板，请使用 HTTPS 或 localhost');
+        if (!navigator.clipboard) throw new MessageError(describe("workspaceUi.theBrowserCannotAccessTheClipboardUseHttps", "浏览器无法访问剪贴板，请使用 HTTPS 或 localhost"));
         const text = copyAssLines(document, ids);
         // A rejected browser permission must not leave the conversion promise
         // unobserved if the browser declines to consume the ClipboardItem.
@@ -57,9 +58,9 @@ export function useLineCommands({ current, apply, overwrite, active, editable, p
         return;
       }
       if (action === 'paste-lines' || action === 'paste-lines-over') {
-        if (!navigator.clipboard) throw new Error('浏览器无法访问剪贴板，请使用 HTTPS 或 localhost');
+        if (!navigator.clipboard) throw new MessageError(describe("workspaceUi.theBrowserCannotAccessTheClipboardUseHttps", "浏览器无法访问剪贴板，请使用 HTTPS 或 localhost"));
         const text = await navigator.clipboard.readText();
-        if (!text.trim()) throw new Error('剪贴板没有字幕文本');
+        if (!text.trim()) throw new MessageError(describe("workspaceUi.theClipboardHasNoSubtitleText", "剪贴板没有字幕文本"));
         if (!stillCurrent()) return;
         if (action === 'paste-lines-over') { setOver({ state: before, text }); return; }
         const result = await pasteAssLines(document, text, active!, ids, null);
@@ -80,7 +81,7 @@ export function useLineCommands({ current, apply, overwrite, active, editable, p
   async function applyPasteOver(fields: PasteField[]) {
     if (!over || pending.current || !availability.current.editable) return;
     const { state, text } = over;
-    if (current() !== state || !state.document) throw new Error('字幕已变化，请重新打开粘贴覆盖');
+    if (current() !== state || !state.document) throw new MessageError(describe("workspaceUi.subtitlesChangedReopenPasteLinesOver", "字幕已变化，请重新打开粘贴覆盖"));
     pending.current = true; onBusy(true);
     try {
       const result = await pasteAssLines(state.document, text, state.selectedId!, selectedLineIds(state), fields);

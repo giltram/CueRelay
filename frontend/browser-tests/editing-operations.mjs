@@ -13,7 +13,7 @@ const file = join(dir, 'tone.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=20',
   '-f', 'lavfi', '-i', 'sine=frequency=1000:sample_rate=48000:duration=20', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 let settings = { audio_display_mode: 'spectrum', shortcut_overrides: {}, mouse_sets_cue_boundary: true };
 const errors = [], unexpected = [];
 const splitRequests = [];

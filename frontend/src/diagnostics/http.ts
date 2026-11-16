@@ -1,11 +1,12 @@
+import { describe, MessageError } from "../contracts/messages";
 import { diagnosticId } from './identifier';
 import { diagnostics, safeError } from './index';
 export let backendBuild = 'unknown';
 const traces = new WeakMap<Response, string>();
 export const responseRequestId = (response: Response) => traces.get(response);
-export class ResponseUnknownError extends Error {
+export class ResponseUnknownError extends MessageError {
   readonly code = 'response_unknown';
-  constructor(public requestId: string) { super('未收到服务器响应，操作结果未知；请重载确认后再重试。'); }
+  constructor(public requestId: string) { super(describe("diagnostics.noServerResponseReceivedTheOutcomeIsUnknown", "未收到服务器响应，操作结果未知；请重载确认后再重试。")); }
 }
 /** Deliberately never observes request/response bodies or authentication headers. */
 export async function diagnosticFetch(path: string, init: RequestInit = {}): Promise<Response> {

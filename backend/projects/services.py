@@ -3,6 +3,7 @@
 All writes reauthorize under the organization lock, serializing membership removal
 with project changes. Media and the original ASS template cannot be replaced.
 """
+from message_contracts import localized
 import re
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -17,46 +18,46 @@ from ass_format import validate_script
 
 
 class ProjectConflict(Exception):
-    def __init__(self, code='project_conflict', message='项目已被其他操作更新，请刷新后重试；当前输入已保留。'):
+    def __init__(self, code='project_conflict', message=localized('server.theProjectChangedElsewhereRefreshAndTryAgainYour', '项目已被其他操作更新，请刷新后重试；当前输入已保留。', {})):
         self.code = code
         self.message = message
 
 
 def text(value, length, required=False):
     if not isinstance(value, str) or len(value) > length or '\0' in value:
-        raise ValidationError(f'文字须在 {length} 字符以内。')
+        raise ValidationError(localized('server.textMustNotExceedValueCharacters', '文字须在 {{v0}} 字符以内。', {'v0': length}))
     try:
         value.encode('utf-8')
     except UnicodeError:
-        raise ValidationError('文字编码无效。')
+        raise ValidationError(localized('server.invalidTextEncoding', '文字编码无效。', {}))
     value = value.strip()
     if required and not value:
-        raise ValidationError('项目名称不能为空。')
+        raise ValidationError(localized('server.projectNameIsRequired', '项目名称不能为空。', {}))
     return value
 
 
 def validate_media(media):
     if not isinstance(media, dict) or set(media) != {'sha256', 'size', 'duration_ms'}:
-        raise ValidationError('媒体只接受 sha256、size、duration_ms，不接受路径或媒体字节。')
+        raise ValidationError(localized('server.mediaAcceptsOnlySha256SizeAndDurationMsNot', '媒体只接受 sha256、size、duration_ms，不接受路径或媒体字节。', {}))
     if not isinstance(media['sha256'], str) or not re.fullmatch('[0-9a-f]{64}', media['sha256']):
-        raise ValidationError('视频 SHA-256 无效。')
+        raise ValidationError(localized('server.invalidVideoSha256', '视频 SHA-256 无效。', {}))
     if type(media['size']) is not int or not 0 < media['size'] <= 9_007_199_254_740_991:
-        raise ValidationError('视频大小无效。')
+        raise ValidationError(localized('server.invalidVideoSize', '视频大小无效。', {}))
     if type(media['duration_ms']) is not int or not 0 < media['duration_ms'] < 36_000_000:
-        raise ValidationError('视频时长须在 0–10 小时之间。')
+        raise ValidationError(localized('server.videoDurationMustBeBetween0And10Hours', '视频时长须在 0–10 小时之间。', {}))
     return media
 
 
 def check_revision(project, revision):
     if type(revision) is not int or revision < 1:
-        raise ValidationError('revision 必须是正整数。')
+        raise ValidationError(localized('server.revisionMustBeAPositiveInteger', 'revision 必须是正整数。', {}))
     if project.revision != revision:
         raise ProjectConflict()
 
 
 def require_active(project):
     if project.status != Project.Status.ACTIVE:
-        raise ProjectConflict('project_archived', '项目已归档，仅可查看和导出。请由管理员恢复后再修改；本地稿件已保留。')
+        raise ProjectConflict('project_archived', localized('server.theProjectIsArchivedAndCanOnlyBeViewed', '项目已归档，仅可查看和导出。请由管理员恢复后再修改；本地稿件已保留。', {}))
 
 
 def touch(project, actor):
@@ -146,7 +147,7 @@ def validate_document_base(project, document):
     """Cue edits cannot smuggle changes to style IDs, source anchors or provenance."""
     serialize_ass(document)
     if any(document[key] != project.document[key] for key in ('source', 'styles', 'script')):
-        raise ValidationError('不能替换项目 ASS 模板或样式定义；请使用样式管理操作。')
+        raise ValidationError(localized('server.theProjectAssTemplateOrStyleDefinitionsCannotBe', '不能替换项目 ASS 模板或样式定义；请使用样式管理操作。', {}))
 
 
 def split_cue(actor, organization_id, project_id, revision, document, cue_id, mode, position):

@@ -16,7 +16,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
 writeFileSync(join(artifacts, 'invalid.ass'), 'not an ass');
 const fixture = resolve('backend/ass_format/fixtures/basic.ass');
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, acceptDownloads: true, viewport: { width: 1440, height: 950 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, acceptDownloads: true, viewport: { width: 1440, height: 950 } });
 context.setDefaultTimeout(15000);
 const page = await context.newPage();
 const errors = [];
@@ -156,7 +156,7 @@ try {
   await page.getByRole('tab', { name: '进行中', exact: true }).click(); await shown(row(renamed));
   check('进行中/过去项目、归档只读和恢复');
 
-  const memberContext = await browser.newContext({ baseURL });
+  const memberContext = await browser.newContext({ locale: 'zh-CN', baseURL });
   const memberPage = await memberContext.newPage();
   await login(memberPage, 'project-member');
   const orgOptions = await memberPage.locator('#organization option').allTextContents();

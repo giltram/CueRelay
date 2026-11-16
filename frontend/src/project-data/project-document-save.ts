@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import type { ProjectSaveRequest, ProjectSaveResult, ProjectSummary } from '../contracts/projects';
 import { withStyleSnapshot } from '../subtitle-model/style-snapshot';
 import { sameSnapshotValue } from '../subtitle-model/snapshot-equality';
@@ -20,7 +21,7 @@ export async function saveProjectDocument(api: DocumentApi, project: ProjectSumm
       || (['source', 'styles', 'script'] as const).some(key => !sameSnapshotValue(document[key], baseDocument[key]))) throw reason;
     const available = new Set(latest.document.styles.map(style => style.id));
     if ([...input.requiredStyleIds, ...document.cues.map(cue => cue.style_id)].some(id => !available.has(id))) {
-      throw Object.assign(new Error('项目中有本地编辑或撤销历史使用的样式已被删除，无法自动合并；当前输入已保留。请先导出备份并核对项目样式。'), { code: 'project_conflict' });
+      throw Object.assign(new MessageError(describe("projectData.aStyleNeededByLocalEditsOrUndo", "项目中有本地编辑或撤销历史使用的样式已被删除，无法自动合并；当前输入已保留。请先导出备份并核对项目样式。")), { code: 'project_conflict' });
     }
     const merged = withStyleSnapshot(document, latest.document);
     // One retry only. A second race or lost response leaves the editor untouched.

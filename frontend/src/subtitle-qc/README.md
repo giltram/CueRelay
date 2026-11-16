@@ -6,7 +6,7 @@
 checkSubtitles(document, { phase: 'editing' | 'export', videoDurationMs, thresholds, formatIssues })
 ```
 
-仅依赖 `contracts` 与 `subtitle-model`，不依赖工作区或媒体。输入为当前已应用的不可变内存文档；输出为 `{id, type, cueIds, severity, message, measurements}` 数组。问题 ID 由规则类型和字幕 ID 生成，不含易变化的行号或测量值；文档级格式问题允许 cueIds 为空。无内容修改、自动修复、保存或后台计算。
+仅依赖 `contracts` 与 `subtitle-model`，不依赖工作区或媒体。输入为当前已应用的不可变内存文档；输出为 `{id, type, cueIds, severity, message, measurements}` 数组。`message` 为 contracts/messages 的语言无关 descriptor（兼容无 metadata 的旧服务器字符串），包含稳定 key/params；当前语言只由 SubtitleQcPanel 在渲染时解析。问题 ID 由规则类型和字幕 ID 生成，不含易变化的行号或测量值；文档级格式问题允许 cueIds 为空。无内容修改、自动修复、保存或后台计算。
 
 ## 规则和默认值
 

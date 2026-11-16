@@ -1,0 +1,16 @@
+{
+  "pageTitle": "CueRelay — Subtitle editor",
+  "language": "Language",
+  "system": "System",
+  "messageList": "{{messages}}",
+  "sourceLine": "Line {{line}}: {{reason}}",
+  "languagePending": "Saving language preference…",
+  "languageFailure": "Language changed, but the preference could not be saved: {{reason}}. Please retry.",
+  "retry": "Retry",
+  "accountRole": "{{organization}} · {{role}}. Organization changes do not save or transfer local subtitles.",
+  "roles": {
+    "organizer": "Organizer",
+    "member": "Member",
+    "dev": "dev"
+  }
+}

@@ -80,7 +80,7 @@ function sameReading(before, after) {
 console.log(`results: ${output}`);
 try {
   for (const rate of rates) for (const count of counts) {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
     try {
       await installPerformanceFixtures(context, performanceDocument(count), report.errors);
       await context.addInitScript(observe);

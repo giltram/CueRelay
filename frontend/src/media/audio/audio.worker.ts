@@ -1,3 +1,4 @@
+import { describe, MessageError, errorMessage } from "../../contracts/messages";
 import { safeError } from '../../diagnostics/safety';
 import { LocalAudioSource } from './local-audio';
 import { AUDIO_SEGMENT_SECONDS, type AudioWorkerRequest, type AudioWorkerResponse } from './analysis-types';
@@ -22,7 +23,7 @@ async function drain() {
       const controller = active = new AbortController();
       try {
         if (!Number.isFinite(request.start) || !Number.isFinite(request.end) || request.start < 0 ||
-            request.end <= request.start || request.end - request.start > 60.001) throw Error('音频视窗须在 0–60 秒范围内');
+            request.end <= request.start || request.end - request.start > 60.001) throw new MessageError(describe("media.theAudioViewportMustBeWithin060", "音频视窗须在 0–60 秒范围内"));
         const first = Math.floor(request.start / AUDIO_SEGMENT_SECONDS);
         const last = Math.ceil(request.end / AUDIO_SEGMENT_SECONDS);
         for (let index = first; index < last; index++) {
@@ -37,7 +38,7 @@ async function drain() {
         controller.signal.throwIfAborted();
         scope.postMessage({ type: 'complete', id: request.id, cacheBytes: store.cacheBytes, decodedSegments: store.decodedSegments });
       } catch (error) {
-        if (!controller.signal.aborted) scope.postMessage({ type: 'error', diagnostic: safeError(error), id: request.id, message: (error as Error).message });
+        if (!controller.signal.aborted) scope.postMessage({ type: 'error', diagnostic: safeError(error), id: request.id, message: errorMessage(error) });
       }
     }
   } finally { running = false; }
@@ -50,7 +51,7 @@ scope.onmessage = event => {
       store = new AudioSegmentStore(source);
       scope.postMessage({ type: 'ready', metadata: source.metadata });
       void drain();
-    }).catch(error => scope.postMessage({ type: 'error', diagnostic: safeError(error), message: (error as Error).message }));
+    }).catch(error => scope.postMessage({ type: 'error', diagnostic: safeError(error), message: errorMessage(error) }));
   } else {
     active?.abort(); pending = message;
     void drain();

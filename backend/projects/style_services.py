@@ -1,4 +1,5 @@
 """Style commands share project snapshot validation, lock order, CAS and touch."""
+from message_contracts import localized
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from ass_format import apply_style_operation
@@ -17,7 +18,7 @@ def change_styles(actor, organization_id, project_id, revision, document, operat
         updated = import_templates(actor, org.pk, document, [operation])
     elif isinstance(operation, dict) and operation.get('type') == 'import_many':
         if set(operation) != {'type', 'imports'} or not operation['imports']:
-            raise ValidationError('批量导入须提供非空模板列表。')
+            raise ValidationError(localized('server.batchImportRequiresANonEmptyTemplateList', '批量导入须提供非空模板列表。', {}))
         updated = import_templates(actor, org.pk, document, operation['imports'])
     else:
         updated = apply_style_operation(document, operation)

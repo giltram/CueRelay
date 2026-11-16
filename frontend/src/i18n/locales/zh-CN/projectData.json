@@ -1,0 +1,8 @@
+{
+  "assConversionFailedHttpValue": "ASS 转换失败（HTTP {{v0}}）",
+  "assFilesMustNotExceed1mibTheOriginal": "ASS 文件不能超过 1MiB，原件仍保留在本地",
+  "onlyUtf8AssWithOrWithoutBom": "仅支持 UTF-8 ASS（可含 BOM），请保留原件并另存编码后重试",
+  "thisSubtitleDocumentRequiresTheV2StyleContract": "字幕文档需要 v2 样式契约；请同步升级前后端并完成数据库迁移。当前稿件已保留。",
+  "aStyleNeededByLocalEditsOrUndo": "项目中有本地编辑或撤销历史使用的样式已被删除，无法自动合并；当前输入已保留。请先导出备份并核对项目样式。",
+  "styleOperationFailed": "样式操作失败"
+}

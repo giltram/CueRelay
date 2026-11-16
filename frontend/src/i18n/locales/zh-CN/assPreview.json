@@ -1,0 +1,13 @@
+{
+  "thisBrowserDoesNotSupportTheStylePreview": "当前浏览器不支持样式画布预览",
+  "couldNotStartThePreviewValue": "预览画面无法启动：{{v0}}",
+  "subtitleStylePreview": "字幕样式效果预览",
+  "assPreviewMissingFontsUseTheBundledNoto": "ASS 效果预览 · 未提供的字体使用内置 Noto Sans SC，可能与最终成片不同。",
+  "loadingAssStylePreview": "正在加载 ASS 样式预览…",
+  "workerWasmCouldNotRunCheckBrowserCompatibility": "Worker / WASM 无法运行，请检查浏览器兼容性和本地资源",
+  "theBrowserDoesNotSupportWorkerWebassemblyOr": "浏览器缺少 Worker、WebAssembly 或 OffscreenCanvas 支持",
+  "couldNotLoadTheBundledChineseFont": "内置中文字体加载失败",
+  "renderingResourcesTimedOut": "渲染资源加载超时",
+  "subtitlePreviewIsTemporarilyUnavailableValue": "字幕预览暂不可用：{{v0}}",
+  "assRenderingFailedValueTurnSubtitlePreviewOff": "ASS 渲染失败：{{v0}}。可关闭后重新开启字幕预览。"
+}

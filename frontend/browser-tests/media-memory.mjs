@@ -59,7 +59,7 @@ function observeLifecycle() {
 const timer = setInterval(() => { void sample().catch(error => report.errors.push(String(error))); }, 1000);
 console.log(`results: ${output}`);
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
   await installPerformanceFixtures(context, document, report.errors);
   await context.addInitScript(observeLifecycle);
   const page = await context.newPage(); page.setDefaultTimeout(30000);

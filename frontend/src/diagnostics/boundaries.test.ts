@@ -20,7 +20,7 @@ it('keeps diagnostics a leaf and frontend relative source dependencies acyclic',
       if (target) edges.push(target);
     }
     graph.set(file, edges);
-    if (file.startsWith(resolve(root, 'diagnostics') + '/')) expect(edges.every(edge => edge.startsWith(resolve(root, 'diagnostics') + '/')), file).toBe(true);
+    if (file.startsWith(resolve(root, 'diagnostics') + '/')) expect(edges.every(edge => ['diagnostics', 'contracts'].some(module => edge.startsWith(resolve(root, module) + '/'))), file).toBe(true);
   }
   const visited = new Set<string>(), active = new Set<string>();
   function visit(file: string) {

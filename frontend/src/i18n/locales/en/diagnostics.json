@@ -1,0 +1,7 @@
+{
+  "couldNotExportDiagnosticsPleaseTryAgain": "Could not export diagnostics. Please try again.",
+  "exporting": "Exporting…",
+  "exportDiagnostics": "Export diagnostics",
+  "includesUsernameUserIdPermissionsRecentActionsAnd": "Includes username, user ID, permissions, recent actions and environment information.",
+  "noServerResponseReceivedTheOutcomeIsUnknown": "No server response received. The outcome is unknown; reload to check before retrying."
+}

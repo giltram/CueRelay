@@ -1,7 +1,8 @@
+import { type MessageValue, describe } from '../contracts/messages';
 import { diagnostics, safeError } from '../diagnostics';
 import type { AssDocument } from '../contracts/subtitles';
 
-export type PreviewStatus = { phase: 'loading' | 'ready' | 'error'; message?: string };
+export type PreviewStatus = { phase: 'loading' | 'ready' | 'error'; message?: MessageValue };
 export interface PreviewRenderer {
   ready: Promise<void>;
   setTrack: (content: string) => Promise<void>;
@@ -65,7 +66,7 @@ export class PreviewSession {
       // track, but keep the renderer alive so the next valid edit recovers.
       this.content = undefined;
       this.renderer?.setVisible(false);
-      this.status({ phase: 'error', message: `字幕预览暂不可用：${(reason as Error).message}` });
+      this.status({ phase: 'error', message: describe("assPreview.subtitlePreviewIsTemporarilyUnavailableValue", "字幕预览暂不可用：{{v0}}", { v0: reason as Error }) });
     }
   }
 
@@ -101,7 +102,7 @@ export class PreviewSession {
     this.conversion?.abort();
     this.pending = undefined;
     this.renderer?.destroy();
-    this.status({ phase: 'error', message: `ASS 渲染失败：${error.message}。可关闭后重新开启字幕预览。` });
+    this.status({ phase: 'error', message: describe("assPreview.assRenderingFailedValueTurnSubtitlePreviewOff", "ASS 渲染失败：{{v0}}。可关闭后重新开启字幕预览。", { v0: error }) });
   }
 
   dispose() {

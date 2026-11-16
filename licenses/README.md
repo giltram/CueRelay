@@ -53,3 +53,7 @@ Noto 字体未修改，来源见 `frontend/src/ass-preview/fonts/README.md`。�
 运行 `python3 -m unittest discover -s scripts -p 'test_*.py'` 和 `cd frontend && npm run build`。后者包含 TypeScript 检查、材料校验和 Vite 构建。确认 `/open-source/`、LICENSE、完整第三方声明、应用与依赖源码、WASM 子模块归档及 release.json 实际可下载；缺失应返回 404，不能回退成 SPA HTML。
 
 本任务只准备本地发布结果。向 GitHub 推送、更改仓库可见性和线上部署须沿既有发布流程执行；不得把未完成的线上动作记录为已完成。
+
+## 国际化依赖和术语（2026-11-15）
+
+i18next 27.1.2、react-i18next 18.0.1、html-parse-stringify 4.0.1 的 MIT 原声明归档于 texts/，npm.json 登记版本/许可/对应安装包源码。TypeScript 与类型包仍为构建依赖，不能因可选类型 peer 误登记为浏览器运行时代码。新增术语仅参考版本化文档的短功能名；来源和行为差异见 docs/i18n-terminology.md，没有引入上游长帮助/翻译目录/图标/代码。prepare_open_source.py 从 openSource 翻译资源构建各语言静态导航页；许可全文、源码、release.json 的协议标识不翻译。应用源码包包含新的 frontend/scripts 资源校验入口。

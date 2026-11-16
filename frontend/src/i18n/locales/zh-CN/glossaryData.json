@@ -1,0 +1,10 @@
+{
+  "originalTerm": "原词",
+  "preferredTranslation": "统一译名",
+  "note": "备注",
+  "valueIsRequired": "{{v0}}不能为空。",
+  "valueMustBeAtMostValueCharacters": "{{v0}}最多 {{v1}} 个字符。",
+  "valueContainsInvalidCharacters": "{{v0}}包含无效字符。",
+  "pleaseWaitForTheCurrentOperationToFinish": "请等待当前操作完成。",
+  "theGlossaryContextChangedPleaseReopenIt": "术语表上下文已变化，请重新打开。"
+}

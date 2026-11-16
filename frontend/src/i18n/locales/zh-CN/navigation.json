@@ -1,0 +1,12 @@
+{
+  "loadingProject": "正在加载项目…",
+  "pageNotFound": "页面不存在。",
+  "accessToThisOrganizationOrProjectIsDenied": "无权访问此组织或项目。",
+  "theOrganizationOrProjectDoesNotExistOr": "组织或项目不存在，或项目不属于指定组织。",
+  "signInToOpenThisProject": "请登录后继续打开此项目。",
+  "couldNotLoadTheProjectPleaseTryAgain": "项目加载失败，请重试。",
+  "retryLoading": "重试加载",
+  "backToProjects": "返回项目列表",
+  "chooseAnAccessibleOrganization": "选择可访问的组织",
+  "exportAssFromRetainedWorkspace": "导出保留的工作区 ASS"
+}

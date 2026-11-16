@@ -1,13 +1,13 @@
 # 使用手册
 
-`handbook.md` 是手册正文的唯一来源，直接编辑 Markdown 即可。`HandbookPage.tsx` 只负责页面壳、目录跳转和展示预编译内容，不存正文或另一份目录。
+`handbook.md` 与 `handbook.en.md` 分别是中文/英文正文的唯一来源，直接编辑 Markdown 即可。`HandbookPage.tsx` 只负责页面壳、目录跳转和展示预编译内容，不存正文或另一份目录。
 
 ## 内容维护与构建
 
 - 普通段落、列表、粗体、行内代码、引用和 Markdown 表格均可直接使用。二级标题写为 `## 标题 {#stable-id}`，标题自动进入目录；保留现有稳定锚点，新增章节使用不重复的小写英文/数字/连字符 ID。
-- 快捷键表格直接使用标准 Markdown，包含表头、分隔行及完整键位，在 MarkText 等编辑器和网站中均可阅读，不使用构建占位符。`build/handbook-markdown.test.ts` 核对表中所有可配置动作与根 `shared/timing-shortcuts.json` 的默认键位；修改默认键位时同步更新正文，个人覆盖仍以个人设置为准。
+- 快捷键表格直接使用标准 Markdown，包含表头、分隔行及完整键位，在 MarkText 等编辑器和网站中均可阅读，不使用构建占位符。`build/handbook-markdown.test.ts` 按各行的 `<!-- shortcut:action-id -->` 稳定标记及资源中的键位显示名，核对每种语言中所有可配置动作与根 `shared/timing-shortcuts.json` 的默认键位；修改默认键位时同步更新双语正文，个人覆盖仍以个人设置为准。
 - `frontend/build/handbook-plugin.ts` 在 Vite 开发转换和生产构建阶段调用 `handbook-markdown.ts`，用构建依赖 Marked 生成介绍和章节的 HTML 字符串，导出普通 JS 模块。生产包不包含 Markdown 解析器，不单独请求 `.md`，不增加后端接口。
-- 页面只展示仓库构建生成的可信 HTML，不接受用户/网络提供的 Markdown。编译器拒绝原始 HTML，允许普通注释；缺少/重复锚点会使构建失败。`content.ts` 是唯一编译输出契约，`markdown.d.ts` 提供导入类型。
+- 页面只展示仓库构建生成的可信 HTML，不接受用户/网络提供的 Markdown。编译器拒绝原始 HTML，允许快捷键标记等普通注释；缺少/重复锚点会使构建失败。`content.ts` 是唯一编译输出契约，`markdown.d.ts` 提供导入类型。
 - 修改手册后重新构建、部署前端即可生效；开发服务器会更新 Markdown 模块。无需迁移数据库，不重置账号首次提示状态。Marked 的 [编译 API](https://marked.js.org/using_pro) 仅在构建阶段使用。
 
 目录普通点击只滚动正文，不新增路由/fragment 历史条目，避免干扰 HistoryNavigation 的页面前进/回退；锚点 href 保留复制和原生新标签页能力。
@@ -19,3 +19,5 @@
 致谢章节的普通链接 `/open-source/` 指向构建拥有的静态许可和源码下载目录，材料由根 `licenses/` 及 `scripts/prepare_open_source.py` 维护；手册不复制许可全文、不生成源码或导入打包工具。
 
 回归：build/handbook-markdown.test.ts 覆盖正文/标准 Markdown 表格编译、快捷键完整性与共享默认一致性和编译失败约束；navigation/routes.test.ts；browser-tests/handbook.mjs（Chrome，隔离 HTTP fixture，不写开发数据库）。用生产预览服务运行 `HANDBOOK_PRODUCTION=1 npm run test:handbook`，额外检查没有 `.md` 网络请求。
+
+语言入口和手册文件名由 shared/languages.json 持有，页面按 registry 选择预编译内容；章节 ID 在各语言间一致，语言不作为 React key。新增语言与布局/快捷键验收见 [国际化文档](../../../docs/internationalization.md)。

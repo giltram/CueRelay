@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import type { AssDocument, Cue } from '../contracts/subtitles';
 import { MAX_TIME_MS, validateInterval } from '../media/playback';
 import { orderCues } from '../subtitle-model/cue-order';
@@ -10,12 +11,12 @@ export function commitTiming(
   validateInterval(start, end);
   const ordered = orderCues(document.cues);
   const index = ordered.findIndex(cue => cue.id === selectedId);
-  if (ordered.length && index < 0) throw new Error('请先选择一条字幕行');
+  if (ordered.length && index < 0) throw new MessageError(describe("workspaceUi.selectASubtitleLineFirst", "请先选择一条字幕行"));
 
   // Choose the successor before editing: changing timing may reorder the table.
   const next = ordered[index + 1];
   if (!next && end + DEFAULT_CUE_DURATION_MS > MAX_TIME_MS) {
-    throw new Error('下一条字幕的默认 2 秒时长超出支持的时间范围，请调整出点');
+    throw new MessageError(describe("workspaceUi.theDefault2SecondNextLineExceedsThe", "下一条字幕的默认 2 秒时长超出支持的时间范围，请调整出点"));
   }
   const current: Cue = index < 0
     ? { id: createId(), start_ms: start, end_ms: end, text: '', style_id: document.styles[0].id }

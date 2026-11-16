@@ -7,7 +7,7 @@ export function handbookMarkdown(): Plugin {
     name: 'handbook-markdown',
     enforce: 'pre',
     transform(source, id) {
-      if (!id.replaceAll('\\', '/').endsWith('/src/handbook-ui/handbook.md')) return;
+      if (!/\/src\/handbook-ui\/handbook(?:\.[\w-]+)?\.md$/.test(id.replaceAll('\\', '/'))) return;
       return { code: `export default ${JSON.stringify(compileHandbook(source))};`, map: null };
     },
   };

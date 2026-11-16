@@ -1,3 +1,5 @@
+import { t } from "../../i18n";
+import { useLocale } from "../../i18n/react";
 import { useRef, type PointerEvent } from 'react';
 import { formatTime } from '../../media/playback';
 import type { AudioViewport } from './viewport';
@@ -11,6 +13,7 @@ interface Props {
 
 /** A controlled scrollbar: AudioTimeline remains the only viewport owner. */
 export function AudioScrollbar({ view, duration, controls, onScroll }: Props) {
+  useLocale();
   const thumb = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
   const maximum = Math.max(0, duration - view.span);
@@ -28,7 +31,7 @@ export function AudioScrollbar({ view, duration, controls, onScroll }: Props) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
-  return <div className="audio-scrollbar" role="scrollbar" aria-label="音频横向滚动"
+  return <div className="audio-scrollbar" role="scrollbar" aria-label={t("workspaceUi.horizontalAudioScroll")}
     aria-orientation="horizontal" aria-controls={controls} aria-valuemin={0} aria-valuemax={maximum}
     aria-valuenow={view.start} aria-valuetext={`${formatTime(view.start * 1000)} – ${formatTime((view.start + view.span) * 1000)}`}
     aria-disabled={!maximum} tabIndex={maximum ? 0 : -1}

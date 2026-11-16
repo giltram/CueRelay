@@ -1,10 +1,11 @@
+import { describe, MessageError } from "../contracts/messages";
 import { MAX_TIME_MS, validateInterval } from '../subtitle-model/timing';
 export { MAX_TIME_MS, validateInterval } from '../subtitle-model/timing';
 
 export function snapTime(seconds: number): number {
-  if (!Number.isFinite(seconds) || seconds < 0) throw new Error('播放器时间无效');
+  if (!Number.isFinite(seconds) || seconds < 0) throw new MessageError(describe("media.invalidPlayerTime", "播放器时间无效"));
   const milliseconds = Math.round(seconds * 100) * 10;
-  if (milliseconds > MAX_TIME_MS) throw new Error('验证台仅支持 10 小时以内的时间');
+  if (milliseconds > MAX_TIME_MS) throw new MessageError(describe("media.onlyTimesBelow10HoursAreSupported", "验证台仅支持 10 小时以内的时间"));
   return milliseconds;
 }
 
@@ -18,16 +19,16 @@ export function formatTime(milliseconds: number): string {
 
 export function parseTime(text: string): number {
   const match = /^([0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{2})$/.exec(text.trim());
-  if (!match) throw new Error('时间格式须为 h:mm:ss.cc，例如 0:01:23.45');
+  if (!match) throw new MessageError(describe("media.useHMmSsCcForExample0", "时间格式须为 h:mm:ss.cc，例如 0:01:23.45"));
   return ((Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 100 + Number(match[4])) * 10;
 }
 
 
 export function seekVideo(video: HTMLVideoElement, milliseconds: number): void {
   if (!Number.isFinite(milliseconds) || milliseconds < 0 || !Number.isFinite(video.duration) || video.readyState < 1) {
-    throw new Error('请先加载可播放的视频，并输入有效时间');
+    throw new MessageError(describe("media.loadAPlayableVideoAndEnterAValid", "请先加载可播放的视频，并输入有效时间"));
   }
-  if (milliseconds > video.duration * 1000) throw new Error('定位点超过视频时长，字幕时间未被截断');
+  if (milliseconds > video.duration * 1000) throw new MessageError(describe("media.theSeekPositionExceedsTheVideoDurationSubtitle", "定位点超过视频时长，字幕时间未被截断"));
   video.currentTime = milliseconds / 1000;
 }
 
@@ -37,7 +38,7 @@ export interface PlaybackRange { start: number; end: number }
 /** Clip playback only; never change the subtitle's timing values. */
 export function auditionRange(mode: AuditionMode, start: number, end: number, duration: number): PlaybackRange | null {
   validateInterval(start, end);
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error('请先加载可播放的视频');
+  if (!Number.isFinite(duration) || duration <= 0) throw new MessageError(describe("media.loadAPlayableVideoFirst", "请先加载可播放的视频"));
   const ranges: Record<AuditionMode, PlaybackRange> = {
     selection: { start, end },
     'before-start': { start: start - 500, end: start },

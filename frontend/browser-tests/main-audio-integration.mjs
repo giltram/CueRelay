@@ -21,7 +21,7 @@ const bytes = readFileSync(videoFile);
 const wrong = Buffer.from(bytes); wrong[wrong.length - 1] ^= 1;
 writeFileSync(join(directory, 'wrong.mp4'), wrong);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
 const page = await context.newPage();
 context.setDefaultTimeout(15000);
 const errors = [];

@@ -50,3 +50,7 @@ Vite 使用安装包的实际路径 `dist/worker/worker.js?worker&url`、`dist/w
 普通工作区选区试听现为独立 Web Audio 音频，ASS 仍只跟随 video.currentTime / 视频帧；试听保持 video 静止，不把音频播放头传给 JASSUB。暂停 / seeking 的 currentTime 适配继续保留。`browser-tests/ass-preview.mjs` 分别检查试听时画面不变，以及手动定位到非帧对齐出点后旧回调不能恢复字幕。
 
 诊断：PreviewSession 报告预览阶段、转换与 renderer/Worker 失败；过期/已销毁结果不作为故障。仅传安全错误类型/源码位置，不传 ASS source、帧、字体或媒体内容。状态由工作区显式只读导出；见 ../diagnostics/README.md。
+
+## 中英文展示边界（2026-11-15）
+
+PreviewStatus.message 在纯 PreviewSession 中保留 MessageValue；useAssPreview 只在返回展示值时解析，不将语言或翻译函数加入 renderer/serialize effects。样式/媒体预览保持原实例与 Track；CSS/文案切换不改字幕快照。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

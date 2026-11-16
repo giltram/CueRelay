@@ -3,6 +3,7 @@
 Writes lock User -> Organization -> Glossary -> Entry. Project orchestration may
 already hold the first two locks and its Project lock. No lower service locks projects.
 """
+from message_contracts import localized
 import json
 from pathlib import Path
 from django.core.exceptions import ValidationError
@@ -17,20 +18,20 @@ LIMITS = json.loads((Path(__file__).resolve().parents[2] / 'shared/glossary-limi
 
 
 class GlossaryConflict(Exception):
-    def __init__(self, message='词条已被其他人修改，当前输入已保留。请重新加载服务器词条后再编辑。', code='glossary_conflict'):
+    def __init__(self, message=localized('server.thisEntryChangedElsewhereYourInputsHaveBeenKept', '词条已被其他人修改，当前输入已保留。请重新加载服务器词条后再编辑。', {}), code='glossary_conflict'):
         self.message, self.code = message, code
 
 
 def text(value, field, required=True):
     if not isinstance(value, str):
-        raise ValidationError('请填写普通文本。')
+        raise ValidationError(localized('server.enterPlainText', '请填写普通文本。', {}))
     value = value.strip()
     if len(value) > LIMITS[field] or (required and not value) or '\0' in value:
-        raise ValidationError(f'{field} 须为 {1 if required else 0}–{LIMITS[field]} 个字符。')
+        raise ValidationError(localized('server.valueMustBeValueValueCharacters', '{{v0}} 须为 {{v1}}–{{v2}} 个字符。', {'v0': field, 'v1': 1 if required else 0, 'v2': LIMITS[field]}))
     try:
         value.encode('utf-8')
     except UnicodeError:
-        raise ValidationError('文字编码无效。')
+        raise ValidationError(localized('server.invalidTextEncoding', '文字编码无效。', {}))
     return value
 
 
@@ -63,7 +64,7 @@ def table_summary(actor, organization_id, table_id):
 
 def page_number(value):
     if type(value) is not int or not 1 <= value <= 1_000_000:
-        raise ValidationError('页码无效。')
+        raise ValidationError(localized('server.invalidPageNumber', '页码无效。', {}))
     return value
 
 
@@ -96,7 +97,7 @@ def save_entry(actor, organization_id, table_id, *, original, translation, note,
     if entry is not None:
         duplicate = duplicate.exclude(pk=entry.pk)
     if duplicate.exists():
-        raise ValidationError('此原词和统一译名已存在。')
+        raise ValidationError(localized('server.thisOriginalTermAndPreferredTranslationAlreadyExist', '此原词和统一译名已存在。', {}))
     if entry is None:
         entry = Entry.objects.create(glossary=table, updated_by=actor, **values)
     elif any(getattr(entry, key) != value for key, value in values.items()):
@@ -120,11 +121,11 @@ def organization_table(actor, organization_id, *, create=False):
 
 def check_organization_token(table, association_version, glossary_id):
     if type(association_version) is not int or association_version != 1:
-        raise ValidationError('组织默认表版本无效。')
+        raise ValidationError(localized('server.invalidOrganizationDefaultGlossaryVersion', '组织默认表版本无效。', {}))
     # A virtual empty default can become concrete while another form is open.
     # Its identity cannot be replaced, so the original null token remains safe.
     if glossary_id is not None and glossary_id != (table['id'] if table else None):
-        raise GlossaryConflict('组织术语表已变化，请刷新后重试。', 'glossary_association_conflict')
+        raise GlossaryConflict(localized('server.theOrganizationGlossaryChangedRefreshAndTryAgain', '组织术语表已变化，请刷新后重试。', {}), 'glossary_association_conflict')
 
 
 @transaction.atomic

@@ -17,7 +17,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-c:v', 'copy', '-an', silent]);
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-c:v', 'copy', '-c:a', 'alac', unsupported]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage(), errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));
 let overrides = {};

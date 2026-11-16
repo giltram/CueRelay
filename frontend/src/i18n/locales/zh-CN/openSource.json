@@ -1,0 +1,15 @@
+{
+  "title": "CueRelay 开源许可与源码",
+  "description": "CueRelay 自有代码采用 GPL-3.0-only。第三方代码与字体保留各自许可。软件不提供担保；允许按许可证使用、修改和再分发，包括商业使用。",
+  "license": "GPL 许可全文",
+  "notices": "完整第三方声明",
+  "applicationSource": "本次构建的应用源码",
+  "manifest": "版本及 SHA-256 清单",
+  "sourceDescription": "应用源码包包含构建说明和锁文件；下列 npm 源码包是构建所用安装包的快照。WASM 源码按固定提交提供，子模块及构建说明见源码中的 licenses/README.md。字体和已有 Aegisub 来源的声明包含在完整第三方声明中。",
+  "browserDependencies": "浏览器依赖",
+  "upstreamSources": "上游原始源码、构建脚本与 WASM 子模块",
+  "noticeLink": "许可与声明",
+  "sourceLink": "对应源码",
+  "fullSourceLink": "完整源码",
+  "language": "语言"
+}

@@ -5,7 +5,7 @@ import defaults from '../../shared/timing-shortcuts.json' with { type: 'json' };
 
 const baseURL = process.env.PERSONAL_SETTINGS_URL || 'http://127.0.0.1:5173';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL });
 context.setDefaultTimeout(10000);
 const errors = [], unexpected = [];
 let settings = { shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true, defaults };

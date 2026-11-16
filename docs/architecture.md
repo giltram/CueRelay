@@ -12,6 +12,14 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-10-30 工作区内存撤销 / 重做：`workspace-ui/use-edit-history.ts` 唯一拥有 document、选择和原始时间草稿，`edit-history.ts` 提供独立不可变转换，最多 100 步，共享文档引用。AudioTimeline / AudioBoundary 只通过显式手势句柄报告操作；一次拖动/连续方向键为一步，G/Enter 的提交、选下一行与新增行原子恢复并复用 UUID。文本、行样式、本地样式、裁剪、删除、拆分统一接入；真实原生 historyUndo/historyRedo 输入建立安全新基线，避免两套重做栈重复重放。保存和拆分成功后的 revision/保存基准独立于编辑历史，Z 不发送反向保存请求；成功导入清空历史，失败保留；隐藏恢复保留，重载或替换实例清空。共享 JSON 声明 Cmd/Ctrl+Z、Cmd/Ctrl+Shift+Z，旧个人显式绑定优先于新增默认别名，双端校验显式冲突。详细粒度、输入边界、保存语义和回归入口见 [工作区模块](../frontend/src/workspace-ui/README.md)，实际执行结果与限制见 [历史验证记录](experiments/workspace-history.md)。
 
+## 中英文展示边界（2026-11-15）
+
+2026-11-16 review F1–F3 复核修复及反馈补修：工作区纯 QC/导出与会话/编辑快捷键暂停解耦，术语操作保留账号门禁；App 按字段接纳成功 PATCH，并以各字段的内存版本合并 GET，保护已写入字段、补齐其余设置并完成首次 ready。语言 hook 以单份 choice 明确区分 pending/saved/failed/transient；成功选择仅在尚未 ready 时临时展示，ready 后立即采用 App.saved 并清理，不要求与本地值相等，后续远端更新可正常展示。待保存、失败重试与临时伪语言继续保留用户选择。ass_format/clipboard 将严格 UTF-8 编码失败转换为既有 AssError/422。无新增模块依赖、HTTP API 或持久字段；PersonalPanel/SettingsPage 的 onSettings 只回传本次保存字段。失败复现、定向回归与执行结果见 [修复记录](plans/workspace-review-fixes-2026-11-16.md)。
+
+已接入 i18next / react-i18next，产品语言、浏览器匹配与中文回退统一于 `shared/languages.json`；账号偏好使用 PersonalSettings.language_preference / accounts.0007，匿名选择独立存储，账号与请求代次隔离。普通语言变化只订阅展示，不改变工作区 key、编辑历史、File/句柄、媒体 Worker 或 ASS 渲染器生命周期。资源按现有模块分文件，类型由资源生成；纯规则/QC/媒体控制器只依赖 contracts/messages，后端通过标准库叶子 message_contracts 提供 reason/params，并保留既有错误 code/message。展示层重译已有问题、通知和错误，不重新执行业务操作。
+
+依赖为 `{App, UI presentation} → i18n → {contracts, shared registry, external runtime}`、`{backend business, HTTP} → message_contracts → stdlib`。诊断导出控件移入 page-ui，诊断数据格式继续稳定。双语手册仍由既有 Markdown 构建插件预编译，章节/快捷键 ID 稳定；共享布局及 Playwright 语言矩阵检查长文案、可达性、草稿/选择/历史/媒体保留，首次截图不自动批准。公开契约、新功能/新语言流程与本地命令见 [国际化](internationalization.md)、[术语对照](i18n-terminology.md)；实际结果见 [执行记录](plans/internationalization.md)。
+
 ## 当前可运行入口
 
 2026-11-15 工作区批量行样式：EditorWorkbench 的样式下拉框消费完整多选 ID，沿用 Cmd/Ctrl/Shift 选取规则；line-styles.ts 仅依赖 contracts，提供共同样式投影（混合为空）及不可变批量分配。一次历史编辑保留选择、活动行、锚点和原始时间草稿，无变化不增加历史步骤；仍显式保存项目。契约与测试见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕行样式)。

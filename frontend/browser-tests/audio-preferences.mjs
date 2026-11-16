@@ -15,7 +15,7 @@ const file = join(artifacts, 'audio.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=20',
   '-f', 'lavfi', '-i', 'sine=frequency=1000:sample_rate=48000:duration=20', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
 context.setDefaultTimeout(15000);
 const errors = [], checks = [];
 context.on('page', page => {
@@ -97,7 +97,7 @@ try {
   await refreshed.close();
   record('偏好刷新后保留；失败不应用且保留选择；保存快捷键不覆盖显示模式，窄屏设置无横向溢出');
 
-  const isolated = await browser.newContext({ baseURL });
+  const isolated = await browser.newContext({ locale: 'zh-CN', baseURL });
   const other = await isolated.newPage();
   await other.goto('/settings'); await login(other, 'project-member');
   await other.getByLabel('音频显示模式', { exact: true }).waitFor();

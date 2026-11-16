@@ -19,3 +19,7 @@ PersonalSettings.audio_display_mode 是账号级显示偏好，默认 spectrum�
 undo/redo 默认与标签均由 shared/timing-shortcuts.json 声明，允许既有编辑动作的修饰组合格式。effective_bindings 在未显式覆盖 undo/redo 时过滤已被个人显式覆盖占用的新增默认键；保留旧配置，不自动改写已存覆盖。显式冲突继续拒绝，前端使用同样规则；无模型/迁移变更。测试：accounts.test_shortcuts。
 
 toggle-text-focus 默认 Tab；shared JSON 的 allowed_bindings 限定为 Tab / Ctrl+Space，覆盖必须恰含一个选项，不接受禁用、多别名、裸字符或其他组合。沿用 shortcut_overrides 存储、默认覆盖归一化和跨动作有效绑定冲突检查；旧账号无覆盖继续 Tab，音频等部分更新保留选择。无模型或迁移变更。accounts.test_shortcuts 验证双端规则，http_api.test_identity 验证 API 持久化、失败原子性、账号隔离及恢复默认。
+
+## 中英文展示边界（2026-11-15）
+
+PersonalSettings.language_preference 由迁移 0007 添加，默认 system；语言清单从 shared/languages.json 派生，不复制到业务分支。GET 保持无行不创建，PATCH 验证整份变更后仅更新提交字段，拒绝不支持值和 en-XA。账号一致性/CSRF/部分更新保持原边界。回归：test_language.py、http_api/test_i18n.py。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。

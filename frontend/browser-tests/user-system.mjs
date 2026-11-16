@@ -13,7 +13,7 @@ if (!password) throw new Error('BROWSER_TEST_PASSWORD is required');
 const dir = mkdtempSync(join(tmpdir(), 'cuerelay-users-browser-'));
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=4', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', join(dir, 'local.mp4')]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1360, height: 900 }, acceptDownloads: true });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1360, height: 900 }, acceptDownloads: true });
 context.setDefaultTimeout(15000);
 context.setDefaultNavigationTimeout(20000);
 const page = await context.newPage();
@@ -106,7 +106,7 @@ try {
   assert.equal(await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'browser-empty', exact: true }) }).getByRole('button', { name: '移除' }).count(), 0);
   const organizationId = new URL(page.url()).pathname.split('/')[2];
   const peer = (await request(`/organizations/${organizationId}/members`)).members.find(member => member.username === 'browser-empty');
-  const devContext = await browser.newContext({ baseURL });
+  const devContext = await browser.newContext({ locale: 'zh-CN', baseURL });
   try {
     await request('/auth/login', 'POST', { username: 'browser-dev', password }, devContext);
     await request(`/organizations/${organizationId}/members/${peer.id}`, 'PATCH', { role: 'member' }, devContext);

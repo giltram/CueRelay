@@ -14,7 +14,7 @@ const videoFile = join(artifacts, 'tabs.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=20',
   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', videoFile]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
 context.setDefaultTimeout(15000);
 const errors = [], checks = [];
 context.on('page', page => {

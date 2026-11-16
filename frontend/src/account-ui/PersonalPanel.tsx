@@ -1,3 +1,7 @@
+import { shortcutName } from '../i18n/shortcuts';
+import { useMessageState, useLocale } from '../i18n/react';
+import { describe, MessageError } from "../contracts/messages";
+import { msg, t } from "../i18n";
 import { HeaderNotice } from '../page-ui/PageLayout';
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
 import { useState } from 'react';
@@ -16,8 +20,9 @@ function parseShortcutDrafts(drafts: ShortcutDrafts): ShortcutOverrides {
 
 export function PersonalPanel({ request: api, settings, onSettings }: {
   request: AccountRequest;
-  settings: Settings; onSettings: (settings: Settings) => void;
+  settings: Settings; onSettings: (changes: Partial<Settings>) => void;
 }) {
+  useLocale();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -25,53 +30,53 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
   const [audioMode, setAudioMode] = useState(settings.audio_display_mode);
   const [mouseBoundary, setMouseBoundary] = useState(settings.mouse_sets_cue_boundary);
   const [recording, setRecording] = useState<TimingShortcut | null>(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useMessageState('');
   const [busy, setBusy] = useState(false);
   async function run(action: () => Promise<void>) {
     const origin = captureDiagnosticOrigin();
     setMessage(''); setBusy(true);
-    try { await action(); setMessage('已保存'); } catch (reason) { reportFailure('account-ui', 'handled_error', reason, origin); setMessage((reason as Error).message); }
+    try { await action(); setMessage(msg("accountUi.saved")); } catch (reason) { reportFailure('account-ui', 'handled_error', reason, origin); setMessage(reason as Error); }
     finally { setBusy(false); }
   }
   return <div className="account-form">
     <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
-      if (newPassword !== confirmation) throw new Error('两次输入的新密码不一致。');
+      if (newPassword !== confirmation) throw new MessageError(describe("accountUi.theNewPasswordsDoNotMatch", "两次输入的新密码不一致。"));
       await api('/auth/password', 'POST', { old_password: oldPassword, new_password: newPassword, new_password_confirmation: confirmation });
       setOldPassword(''); setNewPassword(''); setConfirmation('');
     }); }}>
-      <label>旧密码<input type="password" autoComplete="current-password" maxLength={1024} value={oldPassword} required onChange={event => setOldPassword(event.target.value)} /></label>
-      <label>新密码<input type="password" autoComplete="new-password" placeholder="至少 15 个字符" minLength={15} maxLength={1024} value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
-      <label>确认新密码<input type="password" autoComplete="new-password" placeholder="再次输入新密码" minLength={15} maxLength={1024} value={confirmation} required onChange={event => setConfirmation(event.target.value)} /></label>
-      <button disabled={busy}>修改密码</button>
+      <label>{t("accountUi.currentPassword")}<input type="password" autoComplete="current-password" maxLength={1024} value={oldPassword} required onChange={event => setOldPassword(event.target.value)} /></label>
+      <label>{t("accountUi.newPassword")}<input type="password" autoComplete="new-password" placeholder={t("accountUi.atLeast15Characters")} minLength={15} maxLength={1024} value={newPassword} required onChange={event => setNewPassword(event.target.value)} /></label>
+      <label>{t("accountUi.confirmNewPassword")}<input type="password" autoComplete="new-password" placeholder={t("accountUi.enterTheNewPasswordAgain")} minLength={15} maxLength={1024} value={confirmation} required onChange={event => setConfirmation(event.target.value)} /></label>
+      <button disabled={busy}>{t("accountUi.changePassword")}</button>
     </form>
-    <h2>音频显示</h2>
+    <h2>{t("accountUi.audioDisplay")}</h2>
     <form className="account-form" onSubmit={event => { event.preventDefault(); void run(async () => {
       const result = await api<Settings>('/me/settings', 'PATCH', { audio_display_mode: audioMode });
-      setAudioMode(result.audio_display_mode); onSettings(result);
+      setAudioMode(result.audio_display_mode); onSettings({ audio_display_mode: result.audio_display_mode });
     }); }}>
-      <label>音频显示模式<select aria-label="音频显示模式" value={audioMode} disabled={busy} onChange={event => setAudioMode(event.target.value as Settings['audio_display_mode'])}>
-        <option value="spectrum">Spectrum（频谱）</option><option value="waveform">Waveform（波形）</option>
+      <label>{t("accountUi.audioDisplayMode")}<select aria-label={t("accountUi.audioDisplayMode")} value={audioMode} disabled={busy} onChange={event => setAudioMode(event.target.value as Settings['audio_display_mode'])}>
+        <option value="spectrum">{t("accountUi.spectrum")}</option><option value="waveform">{t("accountUi.waveform")}</option>
       </select></label>
-      <p>保存后切回工作区即可生效。</p>
-      <button disabled={busy}>保存显示设置</button>
+      <p>{t("accountUi.afterSavingReturnToTheWorkspaceToApply")}</p>
+      <button disabled={busy}>{t("accountUi.saveDisplaySettings")}</button>
     </form>
-    <h2>快捷键</h2>
-    <label className="personal-checkbox"><input type="checkbox" checked={mouseBoundary} disabled={busy} onChange={event => setMouseBoundary(event.target.checked)} />鼠标点击设置字幕边界</label>
-    <label>{shortcutDefaults['toggle-text-focus'].label}
-      <select aria-label="字幕输入焦点切换" disabled={busy}
+    <h2>{t("accountUi.shortcuts")}</h2>
+    <label className="personal-checkbox"><input type="checkbox" checked={mouseBoundary} disabled={busy} onChange={event => setMouseBoundary(event.target.checked)} />{t("accountUi.setSubtitleBoundariesWithMouseClicks")}</label>
+    <label>{shortcutName('toggle-text-focus')}
+      <select aria-label={t("accountUi.toggleSubtitleInputFocus")} disabled={busy}
         value={shortcutDrafts['toggle-text-focus'] ?? shortcutDefaults['toggle-text-focus'].bindings[0]}
         onChange={event => setShortcutDrafts({ ...shortcutDrafts, 'toggle-text-focus': event.target.value })}>
         {shortcutDefaults['toggle-text-focus'].allowed_bindings.map(binding => <option key={binding} value={binding}>{binding}</option>)}
       </select>
     </label>
-    <p>覆盖会替换该动作的全部绑定。录制一个键位，或用逗号填写多个物理键码；留空表示禁用。支持字母、数字、Enter、Space 和 Shift+字母/数字。删除行还支持 Ctrl/Meta+Delete/Backspace（Meta 为 Cmd）；字幕行菜单、撤销 / 重做、播放头及拆分动作还支持 Ctrl/Meta/Alt/Shift 组合。</p>
+    <p>{t("accountUi.anOverrideReplacesAllBindingsForTheAction")}</p>
     {timingActions.filter(action => action !== 'toggle-text-focus').map(action => <div className="shortcut-row" key={action}>
-      <label>{shortcutDefaults[action].label}<input disabled={busy} aria-label={`${shortcutDefaults[action].label}绑定`} value={shortcutDrafts[action] ?? effectiveBindings(action, parseShortcutDrafts(shortcutDrafts)).join(', ')}
+      <label>{shortcutName(action)}<input disabled={busy} aria-label={t("accountUi.valueBinding", { v0: shortcutName(action) })} value={shortcutDrafts[action] ?? effectiveBindings(action, parseShortcutDrafts(shortcutDrafts)).join(', ')}
         onChange={event => setShortcutDrafts({ ...shortcutDrafts, [action]: event.target.value })} /></label>
-      <button disabled={busy} onClick={() => setRecording(action)}>{recording === action ? '请按键…' : '录制'}</button>
-      <button disabled={busy} onClick={() => { const next = { ...shortcutDrafts }; delete next[action]; setShortcutDrafts(next); }}>恢复默认</button>
+      <button disabled={busy} onClick={() => setRecording(action)}>{recording === action ? t("accountUi.pressAKey") : t("accountUi.record")}</button>
+      <button disabled={busy} onClick={() => { const next = { ...shortcutDrafts }; delete next[action]; setShortcutDrafts(next); }}>{t("accountUi.restoreDefault")}</button>
     </div>)}
-    {recording && <input disabled={busy} aria-label="录制快捷键" autoFocus readOnly value="按下组合键（Esc 取消）" onKeyDown={event => {
+    {recording && <input disabled={busy} aria-label={t("accountUi.recordShortcut")} autoFocus readOnly value={t("accountUi.pressAKeyCombinationEscToCancel")} onKeyDown={event => {
       event.preventDefault(); event.stopPropagation();
       if (busy) return;
       if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat) return;
@@ -80,15 +85,16 @@ export function PersonalPanel({ request: api, settings, onSettings }: {
       const next = { ...shortcutDrafts, [recording]: bindingFor(event) };
       const problem = validateOverrides(parseShortcutDrafts(next));
       if (problem) { setMessage(problem); return; }
-      setShortcutDrafts(next); setRecording(null); setMessage('待保存');
+      setShortcutDrafts(next); setRecording(null); setMessage(msg("accountUi.unsaved"));
     }} />}
-    <div className="controls"><button disabled={busy} onClick={() => { setShortcutDrafts({}); setRecording(null); }}>全部恢复默认</button>
+    <div className="controls"><button disabled={busy} onClick={() => { setShortcutDrafts({}); setRecording(null); }}>{t("accountUi.restoreAllDefaults")}</button>
       <button disabled={busy} onClick={() => void run(async () => {
         const overrides = parseShortcutDrafts(shortcutDrafts);
-        const problem = validateOverrides(overrides); if (problem) throw new Error(problem);
+        const problem = validateOverrides(overrides); if (problem) throw new MessageError(problem);
         const result = await api<Settings>('/me/settings', 'PATCH', { shortcut_overrides: overrides, mouse_sets_cue_boundary: mouseBoundary });
-        setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); setMouseBoundary(result.mouse_sets_cue_boundary); onSettings(result);
-      })}>保存快捷键</button></div>
-    {message && <HeaderNotice aria-label="个人设置反馈">{message}</HeaderNotice>}
+        setShortcutDrafts(formatShortcutDrafts(result.shortcut_overrides)); setMouseBoundary(result.mouse_sets_cue_boundary);
+        onSettings({ shortcut_overrides: result.shortcut_overrides, mouse_sets_cue_boundary: result.mouse_sets_cue_boundary });
+      })}>{t("accountUi.saveShortcuts")}</button></div>
+    {message && <HeaderNotice aria-label={t("accountUi.personalSettingsFeedback")}>{message}</HeaderNotice>}
   </div>;
 }

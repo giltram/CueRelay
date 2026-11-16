@@ -51,3 +51,7 @@
   .style-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .style-library-toolbar > label { width: 100%; }
 }
+.style-list-row > button { white-space: normal; }
+.style-library-toolbar input[type="search"] { height: 38px; }
+.style-library-toolbar > button { height: auto; min-height: 38px; }
+.style-template-option .style-field-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }

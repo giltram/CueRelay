@@ -7,7 +7,7 @@ export type AuditionRequest = { type: 'open'; file: File } | { type: 'read'; sta
 export type AuditionResponse =
   | { type: 'ready'; metadata: AudioMetadata }
   | { type: 'pcm'; chunks: PcmChunk[] }
-  | { type: 'error'; diagnostic?: import('../../diagnostics/schema').SafeError; message: string };
+  | { type: 'error'; diagnostic?: import('../../diagnostics/schema').SafeError; message: import('../../contracts/messages').MessageValue };
 
 export function auditionWindowSeconds(metadata: AudioMetadata): number {
   return Math.min(AUDITION_WINDOW_SECONDS,

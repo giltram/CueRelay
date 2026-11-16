@@ -12,7 +12,7 @@ export async function checkHistoryProjects(browser, file, { createHash, readFile
   let actor = { id: 1, username: 'history', is_dev: false };
   const localDocument = { ...document, cues: [] };
   const writes = [], errors = [], unexpected = [];
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
   await context.route('**/api/**', async route => {
     if (await unavailableAssPreview(route)) return;
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();

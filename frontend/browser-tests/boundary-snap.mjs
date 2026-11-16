@@ -17,7 +17,7 @@ const empty = uiDocument(); empty.cues = [];
 const document = { ...empty, cues: [[1000, 2000], [3000, 5000], [6000, 7000]].map(([start_ms, end_ms]) =>
   ({ id: randomUUID(), start_ms, end_ms, style_id: empty.styles[0].id, text: '' })) };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 const errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));

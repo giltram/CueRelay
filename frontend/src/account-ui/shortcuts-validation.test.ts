@@ -1,3 +1,4 @@
+import { legacyMessage } from '../contracts/messages';
 import { describe, expect, it } from 'vitest';
 import { shortcutDefaults, validateOverrides, type ShortcutOverrides } from '../workspace-ui/timing-shortcuts';
 
@@ -25,11 +26,11 @@ describe('shortcut validation', () => {
 });
 
 it('detects editing command conflicts against all defaults and overrides', () => {
-  expect(validateOverrides({ 'set-start-playhead': ['KeyQ'] })).toContain('冲突');
+  expect(legacyMessage(validateOverrides({ 'set-start-playhead': ['KeyQ'] }))).toContain('冲突');
   expect(validateOverrides({ 'before-start': [], 'set-start-playhead': ['KeyQ'] })).toBeUndefined();
-  expect(validateOverrides({ 'split-text': ['Enter'] })).toContain('冲突');
+  expect(legacyMessage(validateOverrides({ 'split-text': ['Enter'] }))).toContain('冲突');
   expect(validateOverrides({ commit: ['KeyG'], 'split-text': ['Enter'] })).toBeUndefined();
-  expect(validateOverrides({ 'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB'] })).toContain('冲突');
+  expect(legacyMessage(validateOverrides({ 'split-text': ['Ctrl+KeyB'], 'split-playhead': ['Ctrl+KeyB'] }))).toContain('冲突');
 });
 
 describe('subtitle focus choices', () => {
@@ -37,7 +38,7 @@ describe('subtitle focus choices', () => {
     for (const binding of ['Tab', 'Ctrl+Space']) {
       expect(validateOverrides({ 'toggle-text-focus': [binding] })).toBeUndefined();
     }
-    expect(validateOverrides({ 'toggle-text-focus': ['Ctrl+Space'], 'split-text': ['Ctrl+Space'] })).toContain('冲突');
+    expect(legacyMessage(validateOverrides({ 'toggle-text-focus': ['Ctrl+Space'], 'split-text': ['Ctrl+Space'] }))).toContain('冲突');
     // Existing Ctrl+Space commands remain valid when focus uses its default Tab.
     expect(validateOverrides({ 'split-text': ['Ctrl+Space'] })).toBeUndefined();
   });

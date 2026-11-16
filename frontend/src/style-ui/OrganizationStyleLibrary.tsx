@@ -1,3 +1,5 @@
+import { useMessageState, useLocale } from '../i18n/react';
+import { t } from "../i18n";
 import { HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useMemo, useState } from 'react';
 import type { AssDocument } from '../contracts/subtitles';
@@ -13,6 +15,7 @@ import { sampleStyleDocument } from './style-fields';
 export function OrganizationStyleLibrary({ request, organizationId, canManage, enabled }: {
   request: JsonRequest; organizationId: number; canManage: boolean; enabled: boolean;
 }) {
+  useLocale();
   const api = useMemo(() => templateApi(request, organizationId), [request, organizationId]);
   const [templates, setTemplates] = useState<StyleTemplate[]>([]);
   const [base, setBase] = useState<AssDocument | null>(null);
@@ -22,7 +25,7 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [editor, setEditor] = useState<{ template?: StyleTemplate; input: TemplateInput } | null>(null);
   const [deleting, setDeleting] = useState<StyleTemplate | null>(null);
   useEffect(() => {
@@ -30,69 +33,69 @@ export function OrganizationStyleLibrary({ request, organizationId, canManage, e
     let active = true;
     setLoading(true); setError('');
     void Promise.all([api.list(), loadEmptyDocument()]).then(([items, document]) => { if (active) { setTemplates(items); setBase(document); } })
-      .catch(reason => { if (active) setError(reason.message); }).finally(() => { if (active) setLoading(false); });
+      .catch(reason => { if (active) setError(reason); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [api, refresh, enabled]);
   const patch = (value: Partial<TemplateInput>) => setEditor(current => current ? { ...current, input: { ...current.input, ...value } } : current);
-  return <section className="organization-style-library" aria-label="组织样式库">
-    <h2>组织样式库</h2>
-    <p className="hint">模板供项目复制使用；编辑或删除模板不会修改已有项目。{!canManage && ' 模板由 organizer / dev 管理。'}</p>
-    <div className="controls style-library-toolbar"><label>搜索组织样式<input type="search" disabled={!enabled} value={search} onChange={event => setSearch(event.target.value)} /></label>
-      <button disabled={!enabled || busy || loading} title="获取其他成员或标签页更新的模板" onClick={() => setRefresh(v => v + 1)}>刷新</button>
+  return <section className="organization-style-library" aria-label={t("styleUi.organizationStyleLibrary")}>
+    <h2>{t("styleUi.organizationStyleLibrary")}</h2>
+    <p className="hint">{t("styleUi.projectsCopyTemplatesEditingOrDeletingATemplate")}{!canManage && t("styleUi.managedBy")}</p>
+    <div className="controls style-library-toolbar"><label>{t("styleUi.searchOrganizationStyles")}<input type="search" disabled={!enabled} value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <button disabled={!enabled || busy || loading} title={t("styleUi.getTemplatesUpdatedByOtherMembersOrTabs")} onClick={() => setRefresh(v => v + 1)}>{t("styleUi.refresh")}</button>
       {canManage && <button disabled={!enabled || busy || !base} onClick={() => {
         setError(''); setEditor({ input: { name: '', fields: base!.styles[0].fields, reference: base!.script, source_label: '' } });
-      }}>新建模板</button>}
+      }}>{t("styleUi.newTemplate")}</button>}
     </div>
-    {canManage && <label className="style-file-import">从 ASS 提取样式模板<input aria-label="从 ASS 提取样式模板" type="file" accept=".ass" disabled={!enabled || busy} onChange={event => {
+    {canManage && <label className="style-file-import file-picker">{t("styleUi.extractStyleTemplateFromAss")}<input aria-label={t("styleUi.extractStyleTemplateFromAss")} title={t("styleUi.extractStyleTemplateFromAss")} type="file" accept=".ass" disabled={!enabled || busy} onChange={event => {
       const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
       setBusy(true); setError('');
       void importAss(file).then(document => { setImported(document); setSourceLabel(file.name.slice(0, 500)); })
-        .catch(reason => setError(reason.message)).finally(() => setBusy(false));
+        .catch(reason => setError(reason)).finally(() => setBusy(false));
     }} /></label>}
-    {loading && <HeaderNotice>正在加载样式库…</HeaderNotice>}
+    {loading && <HeaderNotice>{t("styleUi.loadingStyleLibrary")}</HeaderNotice>}
     {error && !editor && !deleting && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
-    {imported && <div className="style-import-candidates"><p>来源：{sourceLabel} · 选择一个样式创建模板；引用原件不会自动更新模板。</p>
+    {imported && <div className="style-import-candidates"><p>{t("styleUi.importSourceDescription", { name: sourceLabel })}</p>
       <div className="controls">{imported.styles.map(style => <button key={style.id} disabled={busy || !enabled} onClick={() => {
         setEditor({ input: { name: style.name, fields: style.fields, reference: imported.script, source_label: sourceLabel } }); setError('');
-      }}>导入「{style.name}」样式</button>)}<button onClick={() => setImported(null)}>结束提取</button></div>
+      }}>{t("styleUi.importStyle", { name: style.name })}</button>)}<button onClick={() => setImported(null)}>{t("styleUi.finishExtraction")}</button></div>
     </div>}
-    <div className="style-library-table"><table><thead><tr><th>模板</th><th>参考分辨率</th><th>来源 / 更新</th><th>操作</th></tr></thead>
+    <div className="style-library-table"><table><thead><tr><th>{t("styleUi.template")}</th><th>{t("styleUi.referenceResolution")}</th><th>{t("styleUi.sourceUpdated")}</th><th>{t("styleUi.action")}</th></tr></thead>
       <tbody>{templates.filter(t => t.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map(template => <tr key={template.id}>
         <td>{template.name}
           <p className="hint">{template.fields.Fontname} · {template.fields.Fontsize}</p></td>
         <td>{template.reference.play_res_x}×{template.reference.play_res_y}</td>
-        <td>{template.source_label || '手动创建'}<p className="hint">{template.updated_by.username} · v{template.revision}</p></td>
-        <td><div className="controls"><button disabled={busy || !enabled} onClick={() => { setError(''); setEditor({ template, input: { name: template.name, fields: template.fields, reference: template.reference, source_label: template.source_label } }); }}>{canManage ? '编辑' : '查看'}</button>
-          {canManage && <button disabled={busy || !enabled} onClick={() => { setDeleting(template); setError(''); }}>删除</button>}</div></td>
+        <td>{template.source_label || t("styleUi.createdManually")}<p className="hint">{template.updated_by.username} · v{template.revision}</p></td>
+        <td><div className="controls"><button disabled={busy || !enabled} onClick={() => { setError(''); setEditor({ template, input: { name: template.name, fields: template.fields, reference: template.reference, source_label: template.source_label } }); }}>{canManage ? t("styleUi.edit") : t("styleUi.view")}</button>
+          {canManage && <button disabled={busy || !enabled} onClick={() => { setDeleting(template); setError(''); }}>{t("styleUi.delete")}</button>}</div></td>
       </tr>)}</tbody></table></div>
-    {!loading && !templates.length && <p className="hint">暂无模板。</p>}
-    {editor && base && <Modal title={editor.template ? `${canManage ? '编辑' : '查看'}组织模板` : '新建组织模板'} showCloseButton={false} onClose={busy ? undefined : () => setEditor(null)}>
+    {!loading && !templates.length && <p className="hint">{t("styleUi.noTemplatesYet")}</p>}
+    {editor && base && <Modal title={editor.template ? t(canManage ? "styleUi.editTemplate" : "styleUi.viewTemplate") : t("styleUi.newOrganizationTemplate")} showCloseButton={false} onClose={busy ? undefined : () => setEditor(null)}>
       <form className="account-form" onSubmit={event => {
         event.preventDefault(); if (!canManage || !enabled) return;
         setBusy(true); setError('');
         void (editor.template ? api.update(editor.template, editor.input) : api.create(editor.input))
-          .then(() => { setEditor(null); setRefresh(v => v + 1); }).catch(reason => setError(reason.message)).finally(() => setBusy(false));
+          .then(() => { setEditor(null); setRefresh(v => v + 1); }).catch(reason => setError(reason)).finally(() => setBusy(false));
       }}>
         <StyleSamplePreview document={sampleStyleDocument(base, base.styles[0], editor.input.fields, editor.input.reference)} />
         <fieldset disabled={busy || !canManage || !enabled} className="account-form">
-          <label>模板名称<input aria-label="模板名称" required maxLength={100} value={editor.input.name} onChange={event => patch({ name: event.target.value })} /></label>
-          <label>来源说明<input aria-label="模板来源说明" maxLength={500} value={editor.input.source_label} onChange={event => patch({ source_label: event.target.value })} /></label>
-          <ScriptSettingsEditor value={editor.input.reference} label="模板参考脚本分辨率" onChange={reference => patch({ reference })} />
+          <label>{t("styleUi.templateName")}<input aria-label={t("styleUi.templateName")} required maxLength={100} value={editor.input.name} onChange={event => patch({ name: event.target.value })} /></label>
+          <label>{t("styleUi.sourceDescription")}<input aria-label={t("styleUi.templateSourceDescription")} maxLength={500} value={editor.input.source_label} onChange={event => patch({ source_label: event.target.value })} /></label>
+          <ScriptSettingsEditor value={editor.input.reference} label={t("styleUi.templateReferenceScriptResolution")} onChange={reference => patch({ reference })} />
           <StyleFieldsEditor value={editor.input.fields} onChange={fields => patch({ fields })} />
         </fieldset>
         {error && <p className="error" role="alert">{error}</p>}
-        <div className="controls"><button type="button" disabled={busy} onClick={() => setEditor(null)}>{canManage ? '取消' : '关闭'}</button>
-          {canManage && <button className="primary" disabled={busy || !enabled}>保存模板</button>}</div>
+        <div className="controls"><button type="button" disabled={busy} onClick={() => setEditor(null)}>{canManage ? t("styleUi.cancel") : t("styleUi.close")}</button>
+          {canManage && <button className="primary" disabled={busy || !enabled}>{t("styleUi.saveTemplate")}</button>}</div>
       </form>
     </Modal>}
-    {deleting && <Modal title="删除组织模板" onClose={busy ? undefined : () => setDeleting(null)}>
-      <p>删除「{deleting.name}」？已有项目中的样式副本不受影响。</p>
+    {deleting && <Modal title={t("styleUi.deleteOrganizationTemplate")} onClose={busy ? undefined : () => setDeleting(null)}>
+      <p>{t("styleUi.deleteTemplateConfirmation", { name: deleting.name })}</p>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="controls"><button disabled={busy} onClick={() => setDeleting(null)}>取消</button>
+      <div className="controls"><button disabled={busy} onClick={() => setDeleting(null)}>{t("styleUi.cancel")}</button>
         <button disabled={busy || !enabled || !canManage} onClick={() => {
           setBusy(true); setError('');
-          void api.delete(deleting).then(() => { setDeleting(null); setRefresh(v => v + 1); }).catch(reason => setError(reason.message)).finally(() => setBusy(false));
-        }}>确认删除模板</button></div>
+          void api.delete(deleting).then(() => { setDeleting(null); setRefresh(v => v + 1); }).catch(reason => setError(reason)).finally(() => setBusy(false));
+        }}>{t("styleUi.confirmTemplateDeletion")}</button></div>
     </Modal>}
   </section>;
 }

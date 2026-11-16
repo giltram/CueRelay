@@ -420,3 +420,32 @@ test('organization glossary fork stays isolated', async ({ page, context }) => {
   await expect(panel.getByText('项目译名', { exact: true })).toBeVisible();
   await expect(panel.getByText('组织新增', { exact: true })).toHaveCount(0);
 });
+
+test('english language preserves editor state', async ({ page }) => {
+  await openWorkspace(page);
+  const video = page.locator('.video-stage video');
+  await page.evaluate(() => { window.__languageVideo = document.querySelector('.video-stage video'); window.__languageSrc = window.__languageVideo.src; });
+  await text(page).fill('Unsubmitted English draft 用户内容');
+  await start(page).fill('0:unfinished');
+  const change = page.waitForResponse(response => response.url().endsWith('/api/me/settings') && response.request().method() === 'PATCH');
+  await page.locator('.language-control select').selectOption('en');
+  expect((await change).status()).toBe(200);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page).toHaveTitle('CueRelay — Subtitle editor');
+  await expect(page.getByRole('textbox', { name: 'Subtitle text input', exact: true })).toHaveValue('Unsubmitted English draft 用户内容');
+  await expect(page.getByRole('textbox', { name: 'Start', exact: true })).toHaveValue('0:unfinished');
+  expect(await page.evaluate(() => window.__languageVideo === document.querySelector('.video-stage video') && window.__languageSrc === window.__languageVideo.src)).toBe(true);
+  // Save applied subtitles through real Session/CSRF/CAS. The raw time draft remains on the page.
+  await button(page, 'Save project').click();
+  await expect(button(page, 'Save project')).toBeDisabled();
+  expect((await savedProject(page)).document.cues[0].text).toBe('Unsubmitted English draft 用户内容');
+  await expect(page.getByRole('textbox', { name: 'Start', exact: true })).toHaveValue('0:unfinished');
+  const settings = await page.request.get('/api/me/settings');
+  expect((await settings.json()).language_preference).toBe('en');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: 'Save project', exact: true })).toBeDisabled();
+  await page.getByLabel('Import local video', { exact: true }).setInputFiles(fixtures.video);
+  await page.getByRole('button', { name: 'Select line 1', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Subtitle text input', exact: true })).toHaveValue('Unsubmitted English draft 用户内容');
+});

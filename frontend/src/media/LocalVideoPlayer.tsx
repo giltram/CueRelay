@@ -1,3 +1,6 @@
+import type { MessageValue } from '../contracts/messages';
+import { t, msg, formatMessage } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { diagnostics } from '../diagnostics';
 import { HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -11,7 +14,7 @@ interface Props {
   onVideo: (video: HTMLVideoElement | null) => void;
   onTime: (milliseconds: number) => void;
   onDuration: (milliseconds: number) => void;
-  onError: (message: string) => void;
+  onError: (message: MessageValue) => void;
   onFile: (file: File | null) => void;
   currentTime: number;
   duration: number;
@@ -25,6 +28,7 @@ interface Props {
 }
 
 export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
+  useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const source = useVideoSource({ expectedMedia, initialMedia, persistenceKey, enabled, onError, onVerifiedChange, onDuration });
@@ -67,31 +71,31 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
           if (!file) return;
           diagnostics.record('media', 'video_error', 'error', { status: ref.current?.error?.code });
           source.failed(locked
-            ? '已固定的片源播放中断，可能存在解码或文件读取问题。请先导出字幕，再刷新页面检查；本次会话不能改换片源。'
-            : '浏览器无法播放这个文件（容器或编码不受支持、文件损坏等）。请保留原件；失败选片可重新选择。');
+            ? t("media.playbackOfTheFixedSourceStoppedPossiblyDue")
+            : t("media.theBrowserCannotPlayThisFileUnsupportedContainer"));
         }} />
-      {!file && <div className="video-placeholder">导入本地视频<span>视频不会上传</span></div>}
-      {file && <button type="button" className="video-fullscreen" aria-label="切换视频全屏" aria-pressed={fullscreen}
-        title={fullscreen ? '退出全屏' : '进入全屏'} onClick={() => {
-        if (!stage.current?.requestFullscreen) { onError('当前浏览器无法进入全屏。'); return; }
+      {!file && <div className="video-placeholder">{t("media.importLocalVideo")}<span>{t("media.videoStaysOnYourDevice")}</span></div>}
+      {file && <button type="button" className="video-fullscreen" aria-label={t("media.toggleVideoFullscreen")} aria-pressed={fullscreen}
+        title={fullscreen ? t("media.exitFullscreen") : t("media.enterFullscreen")} onClick={() => {
+        if (!stage.current?.requestFullscreen) { onError(msg("media.thisBrowserCannotEnterFullscreen")); return; }
         const action = document.fullscreenElement ? document.exitFullscreen() : stage.current?.requestFullscreen();
-        void action?.catch(() => onError('当前浏览器无法进入全屏。'));
+        void action?.catch(() => onError(msg("media.thisBrowserCannotEnterFullscreen")));
       }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d={fullscreen ? 'M2 6h4V2m4 0v4h4M6 14v-4H2m12 0h-4v4' : 'M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4'} />
       </svg></button>}
     </div>
-    <input className="video-progress" type="range" aria-label="视频进度"
+    <input className="video-progress" type="range" aria-label={t("media.videoPosition")}
       min={0} max={duration || 1} step="any" value={Math.min(currentTime, duration)}
       aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
       disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
-    <div className="transport" role="group" aria-label="视频导入与播放控制">
+    <div className="transport" role="group" aria-label={t("media.videoImportAndPlaybackControls")}>
       {controls}
-      {checking && <HeaderNotice>校验 {Math.round(progress * 100)}%<button onClick={source.cancel}>取消校验</button></HeaderNotice>}
-      {source.notice && <HeaderNotice>{source.notice}{source.needsAuthorization &&
-        <button disabled={checking || !enabled} onClick={source.authorize}>重新授权视频</button>}</HeaderNotice>}
-      <VideoFilePicker label="导入本地视频" disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
+      {checking && <HeaderNotice>{t("media.verificationProgress", { percent: Math.round(progress * 100) })}<button onClick={source.cancel}>{t("media.cancelVerification")}</button></HeaderNotice>}
+      {source.notice && <HeaderNotice>{formatMessage(source.notice)}{source.needsAuthorization &&
+        <button disabled={checking || !enabled} onClick={source.authorize}>{t("media.authorizeVideoAgain")}</button>}</HeaderNotice>}
+      <VideoFilePicker label={t("media.importLocalVideo")} disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
         onSelect={value => void source.choose(value)} onError={onError} title={locked
-          ? `片源已固定：${file?.name}。更换前请先导出字幕并刷新页面。` : undefined}>导入视频</VideoFilePicker>
+          ? t("media.sourceFixedValueExportSubtitlesAndRefreshBefore", { v0: file?.name }) : undefined}>{t("media.importVideo")}</VideoFilePicker>
     </div>
   </section>;
 }

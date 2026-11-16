@@ -91,3 +91,35 @@ class HandbookMigrationTests(TransactionTestCase):
         self.assertEqual(settings.shortcut_overrides, {'commit': ['Shift+KeyT']})
         self.assertEqual(settings.audio_display_mode, 'waveform')
         self.assertFalse(settings.mouse_sets_cue_boundary)
+
+
+class LanguagePreferenceMigrationTests(TransactionTestCase):
+    def setUp(self):
+        executor = MigrationExecutor(connection)
+        self.latest = executor.loader.graph.leaf_nodes()
+        self.before = [('accounts', '0006_user_handbook_seen')]
+        executor.migrate(self.before)
+        self.old_apps = executor.loader.project_state(self.before).apps
+
+    def tearDown(self):
+        MigrationExecutor(connection).migrate(self.latest)
+        super().tearDown()
+
+    def test_add_language_preserves_existing_settings_and_does_not_create_missing_rows(self):
+        OldUser = self.old_apps.get_model('accounts', 'User')
+        OldSettings = self.old_apps.get_model('accounts', 'PersonalSettings')
+        existing = OldUser.objects.create(username='language-upgrade', password='retained-hash', handbook_seen=True)
+        missing = OldUser.objects.create(username='language-no-settings', password='another-retained-hash')
+        before = OldSettings.objects.create(user_id=existing.pk, audio_display_mode='waveform', mouse_sets_cue_boundary=False,
+                                            shortcut_overrides={'commit': ['Shift+KeyT']})
+        updated_at = before.updated_at
+        MigrationExecutor(connection).migrate(self.latest)
+        from accounts.models import PersonalSettings
+        after = PersonalSettings.objects.get(user_id=existing.pk)
+        self.assertEqual(after.language_preference, 'system')
+        self.assertEqual(after.shortcut_overrides, before.shortcut_overrides)
+        self.assertEqual(after.audio_display_mode, 'waveform')
+        self.assertFalse(after.mouse_sets_cue_boundary)
+        self.assertEqual(after.updated_at, updated_at)
+        self.assertFalse(PersonalSettings.objects.filter(user_id=missing.pk).exists())
+        self.assertEqual(User.objects.get(pk=existing.pk).password, 'retained-hash')

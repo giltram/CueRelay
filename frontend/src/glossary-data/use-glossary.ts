@@ -1,3 +1,4 @@
+import { type MessageValue, describe, MessageError } from '../contracts/messages';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { JsonRequest } from '../contracts/http';
 import type { GlossaryAssociation, GlossaryEntry, GlossaryPage } from '../contracts/glossary';
@@ -8,7 +9,7 @@ export function useGlossary(request: JsonRequest, organizationId: number, projec
   const [data, setData] = useState<GlossaryPage | null>(null);
   const [search, setSearchValue] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<MessageValue>('');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const sequence = useRef(0);
@@ -28,7 +29,7 @@ export function useGlossary(request: JsonRequest, organizationId: number, projec
       setData(value); return value;
     } catch (reason) {
       if (mounted.current && serial === sequence.current && context.current.enabled && context.current.api === api) {
-        setError((reason as Error).message);
+        setError(reason as Error);
         if (['permission_denied', 'not_found', 'authentication_required', 'account_changed', 'request_superseded'].includes((reason as { code?: string }).code ?? '')) setData(null);
       }
       return null;
@@ -44,12 +45,12 @@ export function useGlossary(request: JsonRequest, organizationId: number, projec
   useEffect(() => { setData(null); setSearchValue(''); setPage(1); setError(''); }, [api]);
 
   async function write<T extends GlossaryAssociation & { entry?: GlossaryEntry }>(operation: () => Promise<T>): Promise<T> {
-    if (!enabled || writing.current) throw new Error('请等待当前操作完成。');
+    if (!enabled || writing.current) throw new MessageError(describe("glossaryData.pleaseWaitForTheCurrentOperationToFinish", "请等待当前操作完成。"));
     const generation = context.current.generation;
     writing.current = true; sequence.current++; setBusy(true); setLoading(false);
     try {
       const value = await operation();
-      if (!mounted.current || generation !== context.current.generation || !context.current.enabled || context.current.api !== api) throw new Error('术语表上下文已变化，请重新打开。');
+      if (!mounted.current || generation !== context.current.generation || !context.current.enabled || context.current.api !== api) throw new MessageError(describe("glossaryData.theGlossaryContextChangedPleaseReopenIt", "术语表上下文已变化，请重新打开。"));
       // Only resource state is accepted; there is no subtitle revision/document here.
       if (data?.table?.id !== value.table?.id) setPage(1);
       setData(previous => {

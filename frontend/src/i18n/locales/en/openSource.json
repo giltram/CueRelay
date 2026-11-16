@@ -1,0 +1,15 @@
+{
+  "title": "CueRelay open-source licenses and source",
+  "description": "CueRelay original code is licensed under GPL-3.0-only. Third-party code and fonts retain their own licenses. The software has no warranty. Use, modification and redistribution, including commercial use, are permitted under the applicable licenses.",
+  "license": "Full GPL license",
+  "notices": "Complete third-party notices",
+  "applicationSource": "Application source for this build",
+  "manifest": "Versions and SHA-256 manifest",
+  "sourceDescription": "The application source includes build instructions and lockfiles. The npm archives below contain snapshots of the installed build packages. WASM sources use fixed commits; submodules and build instructions are described in licenses/README.md. Font and existing Aegisub notices are included in the complete third-party notices.",
+  "browserDependencies": "Browser dependencies",
+  "upstreamSources": "Upstream source, build scripts and WASM submodules",
+  "noticeLink": "License and notices",
+  "sourceLink": "Corresponding source",
+  "fullSourceLink": "Full source",
+  "language": "Language"
+}

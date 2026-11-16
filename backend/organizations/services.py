@@ -3,6 +3,7 @@
 The organization row serializes membership changes and account deactivation checks.
 No signals, global roles, or cross-organization authority inherited from staff.
 """
+from message_contracts import localized
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from accounts.models import User
@@ -22,12 +23,12 @@ def require_access(actor, organization, manage=False):
 
 def ensure_organizer(organization):
     if not Membership.objects.filter(organization=organization, role='organizer', user__is_active=True).exists():
-        raise ValidationError('组织必须至少保留一名活动 organizer。')
+        raise ValidationError(localized('server.anOrganizationMustRetainAtLeastOneActiveOrganizer', '组织必须至少保留一名活动 organizer。', {}))
 
 
 def validate_name(name):
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 100:
-        raise ValidationError('组织名须为 1–100 个字符。')
+        raise ValidationError(localized('server.organizationNamesMustBe1100Characters', '组织名须为 1–100 个字符。', {}))
     return name.strip()
 
 
@@ -35,7 +36,7 @@ def validate_name(name):
 def create_organization(name, initial_user_id):
     user = User.objects.select_for_update().get(pk=initial_user_id)
     if not user.is_active:
-        raise ValidationError('初始 organizer 必须是活动账号。')
+        raise ValidationError(localized('server.theInitialOrganizerMustBeAnActiveAccount', '初始 organizer 必须是活动账号。', {}))
     organization = Organization.objects.create(name=validate_name(name))
     Membership.objects.create(organization=organization, user=user, role='organizer')
     return organization
@@ -55,11 +56,11 @@ def add_member(actor, organization_id, username):
     try:
         user = User.objects.select_for_update().get(username=username, is_active=True)
     except User.DoesNotExist:
-        raise ValidationError('未找到可添加的活动账号。')
+        raise ValidationError(localized('server.noActiveAccountAvailableToAddWasFound', '未找到可添加的活动账号。', {}))
     org = Organization.objects.select_for_update().get(pk=organization_id)
     require_access(actor, org, manage=True)
     if Membership.objects.filter(organization=org, user=user).exists():
-        raise ValidationError('该账号已在组织中。')
+        raise ValidationError(localized('server.thisAccountIsAlreadyInTheOrganization', '该账号已在组织中。', {}))
     return Membership.objects.create(organization=org, user=user, role='member')
 
 
@@ -74,12 +75,12 @@ def change_member(actor, organization_id, membership_id=None, *, role=None, leav
     target = Membership.objects.get(pk=target.pk, organization=org)
     # Protect peers, including against demote-then-remove. Recheck under the org lock.
     if not actor.is_superuser and target.role == 'organizer' and target.user_id != actor.pk:
-        raise PermissionDenied('organizer 不能移除或降级其他 organizer。')
+        raise PermissionDenied(localized('server.anOrganizerCannotRemoveOrDemoteAnotherOrganizer', 'organizer 不能移除或降级其他 organizer。', {}))
     if role is None:
         target.delete()
     else:
         if role not in Membership.Role.values:
-            raise ValidationError('无效的组织角色。')
+            raise ValidationError(localized('server.invalidOrganizationRole', '无效的组织角色。', {}))
         target.role = role
         target.save(update_fields=['role'])
     ensure_organizer(org)

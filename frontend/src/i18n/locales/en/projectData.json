@@ -1,0 +1,8 @@
+{
+  "assConversionFailedHttpValue": "ASS conversion failed (HTTP {{v0}})",
+  "assFilesMustNotExceed1mibTheOriginal": "ASS files must not exceed 1MiB. The original remains on your device.",
+  "onlyUtf8AssWithOrWithoutBom": "Only UTF-8 ASS (with or without BOM) is supported. Keep the original and save a copy with UTF-8 encoding before retrying.",
+  "thisSubtitleDocumentRequiresTheV2StyleContract": "This subtitle document requires the v2 style contract. Upgrade both frontend and backend and run database migrations. Your draft has been kept.",
+  "aStyleNeededByLocalEditsOrUndo": "A style needed by local edits or undo history was deleted. Automatic merging is unavailable; your inputs have been kept. Export a backup and check project styles.",
+  "styleOperationFailed": "Style operation failed"
+}

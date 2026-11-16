@@ -10,7 +10,7 @@ import { chromium } from 'playwright';
 const baseURL = process.env.PROJECT_SETTINGS_URL || 'http://127.0.0.1:5173';
 const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-project-settings-'));
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 950 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 950 } });
 context.setDefaultTimeout(10000);
 const errors = [], unexpected = [], writes = [], checks = [];
 const user = { id: 1, username: 'settings-fixture', is_dev: false };

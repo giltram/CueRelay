@@ -4,7 +4,7 @@ import { uiDocument } from './ass-codec.mjs';
 /** DOM regressions beyond the 201→200 threshold cases. */
 export async function checkCueWindowDeletion(browser, origin) {
   const fixture = uiDocument();
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
   const errors = [], unexpected = [], snapshots = [];
   page.on('pageerror', error => errors.push(String(error)));
   page.on('dialog', dialog => dialog.accept());

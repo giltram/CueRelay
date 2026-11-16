@@ -15,7 +15,7 @@ ffmpeg('-f', 'lavfi', '-i', 'testsrc2=size=160x90:rate=10:duration=40', '-f', 'l
 ffmpeg('-i', path('valid.mp4'), '-an', '-c:v', 'copy', path('no-audio.mp4'));
 ffmpeg('-i', path('valid.mp4'), '-c:v', 'copy', '-c:a', 'alac', '-t', '4', path('unsupported.mp4'));
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage();
+const page = await browser.newPage({ locale: 'zh-CN' });
 page.setDefaultTimeout(15000);
 const errors = []; page.on('pageerror', error => errors.push(String(error)));
 await page.addInitScript(() => {

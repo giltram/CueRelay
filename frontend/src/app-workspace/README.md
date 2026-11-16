@@ -19,3 +19,7 @@
 诊断：save/split 请求复用 project-data 的 HTTP 关联；显式 reload 报告阶段/revision。诊断无权更换本模块实例或保存基准；实际工作区状态由 EditorWorkbench 的只读接口提供。见 ../diagnostics/README.md。
 
 术语维护和关联由独立 glossary-data/UI 处理，不调用本模块 save/split/updateSummary，不接纳远端字幕 revision。保留/隐藏的实例仍遵循原生命周期；术语入口复用 visible、账号归属和可访问性，账号/项目切换不能将旧响应写入新上下文。见 docs/glossary.md 和 browser-tests/glossary.mjs。
+
+## 中英文展示边界（2026-11-15）
+
+onIssue 接收 contracts/messages.MessageValue，保留错误实例供展示层随语言更新。语言不参与保留实例、generation、路由加载、save/split 或权限观察的依赖；不因文案重新请求/重建工作区。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

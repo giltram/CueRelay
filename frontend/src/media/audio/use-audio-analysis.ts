@@ -1,3 +1,6 @@
+import { useLocale } from '../../i18n/react';
+import { formatMessage } from '../../i18n';
+import { type MessageValue, describe } from '../../contracts/messages';
 import { diagnostics, safeError, reportAudio } from '../../diagnostics';
 import { useEffect, useRef, useState } from 'react';
 import type { AudioDisplayMode, AudioTile, AudioWorkerRequest, AudioWorkerResponse } from './analysis-types';
@@ -6,13 +9,14 @@ interface AnalysisState {
   file: File | null;
   status: 'empty' | 'opening' | 'loading' | 'ready' | 'error';
   tiles: AudioTile[];
-  message: string;
+  message: MessageValue;
   cacheBytes: number;
   decodedSegments: number;
   viewKey: string;
 }
 
 export function useAudioAnalysis(file: File | null, start: number, end: number, mode: AudioDisplayMode) {
+  useLocale();
   const worker = useRef<Worker | null>(null);
   const requestId = useRef(0);
   const [readyFile, setReadyFile] = useState<File | null>(null);
@@ -27,7 +31,7 @@ export function useAudioAnalysis(file: File | null, start: number, end: number, 
     if (!file) return;
     let instance: Worker;
     try { instance = new Worker(new URL('./audio.worker.ts', import.meta.url), { type: 'module' }); }
-    catch (reason) { diagnostics.record('audio-analysis', 'worker_start', 'error', { error: safeError(reason) }, scope, context); setState(s => ({ ...s, status: 'error', message: '浏览器无法启动本地音频分析 Worker' })); return; }
+    catch (reason) { diagnostics.record('audio-analysis', 'worker_start', 'error', { error: safeError(reason) }, scope, context); setState(s => ({ ...s, status: 'error', message: describe("media.theBrowserCouldNotStartTheLocalAudio", "浏览器无法启动本地音频分析 Worker") })); return; }
     worker.current = instance;
     instance.onmessage = (event: MessageEvent<AudioWorkerResponse>) => {
       const message = event.data;
@@ -37,7 +41,7 @@ export function useAudioAnalysis(file: File | null, start: number, end: number, 
       if (message.type === 'complete') setState(s => ({ ...s, status: 'ready', cacheBytes: message.cacheBytes, decodedSegments: message.decodedSegments }));
       if (message.type === 'error') { diagnostics.record('audio-analysis', 'worker_result', 'error', { error: message.diagnostic ?? safeError(new Error()) }, scope, context); setState(s => ({ ...s, status: 'error', message: message.message })); }
     };
-    const failed = () => { diagnostics.record('audio-analysis', 'worker_communication', 'error', { error: safeError(new Error()) }, scope, context); setState(s => ({ ...s, status: 'error', message: '本地音频分析中断，可继续播放和编辑字幕' })); };
+    const failed = () => { diagnostics.record('audio-analysis', 'worker_communication', 'error', { error: safeError(new Error()) }, scope, context); setState(s => ({ ...s, status: 'error', message: describe("media.localAudioAnalysisStoppedVideoPlaybackAndSubtitle", "本地音频分析中断，可继续播放和编辑字幕") })); };
     instance.onerror = failed; instance.onmessageerror = failed;
     instance.postMessage({ type: 'open', file } satisfies AudioWorkerRequest);
     return () => {
@@ -59,6 +63,6 @@ export function useAudioAnalysis(file: File | null, start: number, end: number, 
   useEffect(() => reportAudio('analysis', state.status), [state.status]);
   // Never show a previous file's analysis during the render before effect cleanup.
   if (state.file !== file) return { ...state, status: 'opening' as const, tiles: [], message: '' };
-  if (readyFile === file && file && end > start && state.viewKey !== viewKey) return { ...state, status: 'loading' as const };
-  return state;
+  if (readyFile === file && file && end > start && state.viewKey !== viewKey) return { ...state, status: 'loading' as const, message: formatMessage(state.message) };
+  return { ...state, message: formatMessage(state.message) };
 }

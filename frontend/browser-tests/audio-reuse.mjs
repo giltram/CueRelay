@@ -15,7 +15,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
   '-c:a', 'aac', '-movflags', '+faststart', file]);
 const documentFixture = uiDocument();
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(10000);
 const errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));

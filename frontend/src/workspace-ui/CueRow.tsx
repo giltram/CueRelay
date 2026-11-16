@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { memo, useMemo, useCallback, type MouseEvent } from 'react';
 import type { Cue } from '../contracts/subtitles';
 import { formatTime } from '../media/playback';
@@ -24,6 +26,7 @@ interface Props {
 /** Immutable cue references and per-row flags keep unrelated edits/playback cheap. */
 export const CueRow = memo(function CueRow({ cue, number, selected, primary, playing, searchCurrent, styleName,
   ranges, menuEnabled, registerRow, onSelect, onMenu }: Props) {
+  useLocale();
   const cps = useMemo(() => cueCps(cue), [cue.text, cue.start_ms, cue.end_ms]);
   const ref = useCallback((element: HTMLTableRowElement | null) => registerRow(cue.id, element), [cue.id, registerRow]);
   function select(event: MouseEvent) {
@@ -41,11 +44,11 @@ export const CueRow = memo(function CueRow({ cue, number, selected, primary, pla
       onMenu(cue, rect.left + 32, rect.bottom, true);
     }}
     className={`${selected ? 'selected' : ''} ${playing ? 'playing' : ''} ${searchCurrent ? 'search-current' : ''}`}>
-    <td><button className="row-number" aria-label={`选择第 ${number} 行`} aria-pressed={primary}>{number}</button></td>
+    <td><button className="row-number" aria-label={t("workspaceUi.selectLineValue", { v0: number })} aria-pressed={primary}>{number}</button></td>
     <td className="time-cell">{formatTime(cue.start_ms)}</td>
     <td className="time-cell">{formatTime(cue.end_ms)}</td>
     <td className="cps-cell">{cps ?? '—'}</td>
-    <td className="style-cell" title={styleName}>{styleName ?? '未知样式'}</td>
+    <td className="style-cell" title={styleName}>{styleName ?? t("workspaceUi.unknownStyle")}</td>
     <td><button className="cue-text"><CueSearchText text={cue.text} ranges={ranges} /></button></td>
   </tr>;
 });

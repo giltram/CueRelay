@@ -1,0 +1,7 @@
+{
+  "couldNotExportDiagnosticsPleaseTryAgain": "诊断信息导出失败，请重试。",
+  "exporting": "正在导出…",
+  "exportDiagnostics": "导出诊断信息",
+  "includesUsernameUserIdPermissionsRecentActionsAnd": "包含用户名、用户 ID、权限、近期操作和环境信息。",
+  "noServerResponseReceivedTheOutcomeIsUnknown": "未收到服务器响应，操作结果未知；请重载确认后再重试。"
+}

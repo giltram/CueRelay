@@ -86,5 +86,29 @@
     "notice": "texts/throughput.txt",
     "source": "sources/throughput-1.0.2.tar.gz",
     "upstream": "https://github.com/ThaUnknown/throughput#readme"
+  },
+  {
+    "name": "html-parse-stringify",
+    "version": "4.0.1",
+    "license": "MIT",
+    "notice": "texts/html-parse-stringify.txt",
+    "source": "sources/html-parse-stringify-4.0.1.tar.gz",
+    "upstream": "https://github.com/i18next/html-parse-stringify"
+  },
+  {
+    "name": "i18next",
+    "version": "27.1.2",
+    "license": "MIT",
+    "notice": "texts/i18next.txt",
+    "source": "sources/i18next-27.1.2.tar.gz",
+    "upstream": "https://www.i18next.com"
+  },
+  {
+    "name": "react-i18next",
+    "version": "18.0.1",
+    "license": "MIT",
+    "notice": "texts/react-i18next.txt",
+    "source": "sources/react-i18next-18.0.1.tar.gz",
+    "upstream": "https://github.com/i18next/react-i18next"
   }
 ]

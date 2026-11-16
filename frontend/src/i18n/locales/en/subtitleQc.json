@@ -1,0 +1,13 @@
+{
+  "invalidIntervalStartValueMsEndValueMs": "Invalid interval: start {{v0}}ms, end {{v1}}ms. Start must not be after end; times must be non-negative integers aligned to 10ms and at most 9:59:59.99.",
+  "durationValueMsIsBelowValueMs": "Duration {{v0}}ms is below {{v1}}ms.",
+  "durationValueSecondsExceedsValueSeconds": "Duration {{v0}} seconds exceeds {{v1}} seconds.",
+  "readingSpeedValueCharactersSecondExceedsValueCharacters": "Reading speed {{v0}} characters/second exceeds {{v1}} characters/second.",
+  "endTimeExceedsTheVideoDurationByValue": "End time exceeds the video duration by {{v0}} seconds.",
+  "subtitleTextIsEmptyCheckWhetherThisEmpty": "Subtitle text is empty. Check whether this empty timed line should be exported.",
+  "thisTimedLineHasNoTextYetIt": "This timed line has no text yet. It can be added during translation.",
+  "textHasValueCountedCharactersExceedingValue": "Text has {{v0}} counted characters, exceeding {{v1}}.",
+  "theSubtitleReferencesAMissingStyleSelectAnother": "The subtitle references a missing style. Select another style.",
+  "adjacentLinesWithTheSameStyleOverlapBy": "Adjacent lines with the same style overlap by {{v0}}ms ({{v1}}% of the shorter line). Check whether simultaneous text is intended.",
+  "adjacentLinesHaveIdenticalTextWithAValue": "Adjacent lines have identical text with a {{v0}}ms gap. Check whether repetition is intended."
+}

@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import JASSUB from 'jassub';
 import workerUrl from 'jassub/dist/worker/worker.js?worker&url';
 import wasmUrl from 'jassub/dist/wasm/jassub-worker.wasm?url';
@@ -37,7 +38,7 @@ export function createJassubRenderer(video: HTMLVideoElement, content: string, o
   const workerFailure = new Promise<never>((_resolve, reject) => { rejectWorker = reject; });
   const workerError = (event: Event) => {
     event.preventDefault();
-    const error = new Error('Worker / WASM 无法运行，请检查浏览器兼容性和本地资源');
+    const error = new MessageError(describe("assPreview.workerWasmCouldNotRunCheckBrowserCompatibility", "Worker / WASM 无法运行，请检查浏览器兼容性和本地资源"));
     rejectWorker(error); onFailure(error);
   };
   const repaint = async () => {
@@ -49,12 +50,12 @@ export function createJassubRenderer(video: HTMLVideoElement, content: string, o
   const onResize = () => { if (instance && !destroyed) void instance.resize(true).then(repaint).catch(onFailure); };
   const ready = Promise.race([workerFailure, (async () => {
     if (!globalThis.Worker || !globalThis.OffscreenCanvas || !globalThis.WebAssembly || !canvas.transferControlToOffscreen) {
-      throw new Error('浏览器缺少 Worker、WebAssembly 或 OffscreenCanvas 支持');
+      throw new MessageError(describe("assPreview.theBrowserDoesNotSupportWorkerWebassemblyOr", "浏览器缺少 Worker、WebAssembly 或 OffscreenCanvas 支持"));
     }
     // Fetch explicitly: JASSUB's URL font loader uses allSettled and may silently
     // continue without a font. A failed bundled font must be a visible failure.
     const response = await fetch(fontUrl, { signal: controller.signal });
-    if (!response.ok) throw new Error('内置中文字体加载失败');
+    if (!response.ok) throw new MessageError(describe("assPreview.couldNotLoadTheBundledChineseFont", "内置中文字体加载失败"));
     const font = new Uint8Array(await response.arrayBuffer());
     if (destroyed) return;
     // Canvas-only initialization avoids JASSUB starting uncaught async video
@@ -73,7 +74,7 @@ export function createJassubRenderer(video: HTMLVideoElement, content: string, o
     await repaint();
   })()]).finally(() => clearTimeout(timeout));
   timeout = setTimeout(() => {
-    const error = new Error('渲染资源加载超时');
+    const error = new MessageError(describe("assPreview.renderingResourcesTimedOut", "渲染资源加载超时"));
     rejectWorker(error); onFailure(error);
   }, 20000);
 

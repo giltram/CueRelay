@@ -13,7 +13,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIRECTORIES = (
-    "backend", "frontend/src", "frontend/build", "frontend/browser-tests",
+    "backend", "frontend/src", "frontend/scripts", "frontend/build", "frontend/browser-tests",
     "frontend/experiments", "shared", "scripts", "licenses", "docs", "deploy",
 )
 SOURCE_FILES = (
@@ -132,20 +132,35 @@ def prepare(root, output, cache):
     release = {"license": "GPL-3.0-only", "source": "sources/cuerelay-source.tar.gz",
                "npm": packages, "upstream_sources": upstream, "sha256": files}
     write("release.json", (json.dumps(release, ensure_ascii=False, indent=2) + "\n").encode())
-    links = []
-    for item in packages:
-        links.append(f'<li>{html.escape(item["name"])} {html.escape(item["version"])} — '
-                     f'{html.escape(item["license"])} · <a href="{item["notice"]}">许可</a> · '
-                     f'<a href="{item["source"]}">对应源码</a></li>')
-    wasm_links = [f'<li>{html.escape(item["name"])} <code>{item["revision"]}</code> · '
-                  f'<a href="{item["notice"]}">声明</a> · <a href="{item["file"]}">完整源码</a></li>' for item in upstream]
-    page = '''<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CueRelay 开源许可与源码</title><style>body{max-width:900px;margin:32px auto;padding:0 20px;font:16px/1.7 system-ui;color:#222}a{color:#1758a0}li{margin:10px 0;overflow-wrap:anywhere}code{font-size:12px}h1{font-size:24px}h2{font-size:19px}</style>
-<h1>CueRelay 开源许可与源码</h1><p>CueRelay 自有代码采用 GPL-3.0-only。第三方代码与字体保留各自许可。软件不提供担保；允许按许可证使用、修改和再分发，包括商业使用。</p>
-<p><a href="LICENSE.txt">GPL 许可全文</a> · <a href="THIRD_PARTY_NOTICES.txt">完整第三方声明</a> · <a href="sources/cuerelay-source.tar.gz">本次构建的应用源码</a> · <a href="release.json">版本及 SHA-256 清单</a></p>
-<p>应用源码包包含构建说明和锁文件；下列 npm 源码包是构建所用安装包的快照。WASM 源码归档按固定提交提供，子模块及构建说明见应用源码中的 licenses/README.md。字体和 Aegisub 来源的声明包含在完整第三方声明中。</p>
-<h2>浏览器依赖</h2><ul>''' + "".join(links) + '</ul><h2>上游原始源码、构建脚本与 WASM 子模块</h2><ul>' + "".join(wasm_links) + '</ul></html>'
-    write("index.html", page.encode())
+    languages = json.loads((root / "shared/languages.json").read_text())
+    for language, config in languages.items():
+        labels = json.loads((root / f"frontend/src/i18n/locales/{language}/openSource.json").read_text())
+        page = render_license_page(language, labels, packages, upstream, languages)
+        write(f"index.{language}.html", page.encode())
+        if config["fallback"]:
+            write("index.html", page.encode())
+
+
+def render_license_page(language, labels, packages, upstream, languages):
+    """Static translated navigation; license/source bytes and manifest identifiers stay exact."""
+    text = lambda key: html.escape(labels[key])
+    links = ''.join(f'<li>{html.escape(item["name"])} {html.escape(item["version"])} — '
+                    f'{html.escape(item["license"])} · <a href="{item["notice"]}">{text("noticeLink")}</a> · '
+                    f'<a href="{item["source"]}">{text("sourceLink")}</a></li>' for item in packages)
+    wasm_links = ''.join(f'<li>{html.escape(item["name"])} <code>{item["revision"]}</code> · '
+                         f'<a href="{item["notice"]}">{text("noticeLink")}</a> · '
+                         f'<a href="{item["file"]}">{text("fullSourceLink")}</a></li>' for item in upstream)
+    menu = ' · '.join(f'<a href="index.{code}.html" lang="{code}">{html.escape(config["label"])}</a>'
+                      for code, config in languages.items())
+    return (f'<!doctype html><html lang="{language}"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>{text("title")}</title><style>body{{max-width:900px;margin:32px auto;padding:0 20px;font:16px/1.7 system-ui;color:#222}}'
+            'a{color:#1758a0}li{margin:10px 0;overflow-wrap:anywhere}code{font-size:12px}h1{font-size:24px}h2{font-size:19px}</style>'
+            f'<nav aria-label="{text("language")}">{menu}</nav><h1>{text("title")}</h1><p>{text("description")}</p>'
+            f'<p><a href="LICENSE.txt">{text("license")}</a> · <a href="THIRD_PARTY_NOTICES.txt">{text("notices")}</a> · '
+            f'<a href="sources/cuerelay-source.tar.gz">{text("applicationSource")}</a> · <a href="release.json">{text("manifest")}</a></p>'
+            f'<p>{text("sourceDescription")}</p><h2>{text("browserDependencies")}</h2><ul>{links}</ul>'
+            f'<h2>{text("upstreamSources")}</h2><ul>{wasm_links}</ul></html>')
+
 
 
 if __name__ == "__main__":

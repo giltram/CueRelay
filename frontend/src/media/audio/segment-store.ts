@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../../contracts/messages";
 import type { AudioMetadata, PcmChunk } from './local-audio';
 import { AUDIO_CACHE_BYTES, AUDIO_SEGMENT_SECONDS, type AudioTile, type PcmSegment } from './analysis-types';
 import { ByteCache } from './byte-cache';
@@ -39,12 +40,12 @@ export class AudioSegmentStore {
     const end = start + AUDIO_SEGMENT_SECONDS;
     const { sampleRate, channels: channelCount } = this.reader.metadata;
     const frames = Math.ceil((end - start) * sampleRate);
-    if (frames * channelCount * 4 > 16 * 1024 * 1024) throw Error('音轨采样率或声道数过大，无法在安全内存预算内分析');
+    if (frames * channelCount * 4 > 16 * 1024 * 1024) throw new MessageError(describe("media.theSampleRateOrChannelCountExceedsThe", "音轨采样率或声道数过大，无法在安全内存预算内分析"));
     const pcm: PcmSegment = { start, end, sampleRate,
       channels: Array.from({ length: channelCount }, () => new Float32Array(frames)) };
     await this.reader.readRange(start, end, chunk => {
       signal.throwIfAborted();
-      if (chunk.sampleRate !== sampleRate || chunk.channels.length !== channelCount) throw Error('音轨中途改变采样格式，暂无法分析');
+      if (chunk.sampleRate !== sampleRate || chunk.channels.length !== channelCount) throw new MessageError(describe("media.theAudioSampleFormatChangedMidTrackAnalysis", "音轨中途改变采样格式，暂无法分析"));
       const offset = Math.round((chunk.timestamp - start) * sampleRate);
       for (let channel = 0; channel < channelCount; channel++) {
         const from = Math.max(0, -offset);

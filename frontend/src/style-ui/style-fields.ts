@@ -1,16 +1,17 @@
+import { type MessageValue, describe } from '../contracts/messages';
 import type { AssDocument } from '../contracts/subtitles';
 import type { ProjectStyle, ScriptSettings, StyleField, StyleFields } from '../contracts/styles';
 
-export const fieldLabels: Record<StyleField, string> = {
-  Fontname: '字体名称', Fontsize: '字号', PrimaryColour: '主颜色', SecondaryColour: '次颜色', OutlineColour: '描边颜色', BackColour: '阴影颜色',
-  Bold: '粗体', Italic: '斜体', Underline: '下划线', StrikeOut: '删除线', ScaleX: '水平缩放 (%)', ScaleY: '垂直缩放 (%)',
-  Spacing: '字距', Angle: '角度', BorderStyle: '边框类型', Outline: '描边', Shadow: '阴影', Alignment: '对齐方式',
-  MarginL: '左边距', MarginR: '右边距', MarginV: '垂直边距', Encoding: 'Encoding',
+export const fieldLabels: Record<StyleField, MessageValue> = {
+  Fontname: describe("styleUi.fontName", "字体名称"), Fontsize: describe("styleUi.fontSize", "字号"), PrimaryColour: describe("styleUi.primaryColor", "主颜色"), SecondaryColour: describe("styleUi.secondaryColor", "次颜色"), OutlineColour: describe("styleUi.outlineColor", "描边颜色"), BackColour: describe("styleUi.shadowColor", "阴影颜色"),
+  Bold: describe("styleUi.bold", "粗体"), Italic: describe("styleUi.italic", "斜体"), Underline: describe("styleUi.underline", "下划线"), StrikeOut: describe("styleUi.strikeout", "删除线"), ScaleX: describe("styleUi.horizontalScale", "水平缩放 (%)"), ScaleY: describe("styleUi.verticalScale", "垂直缩放 (%)"),
+  Spacing: describe("styleUi.spacing", "字距"), Angle: describe("styleUi.rotation", "角度"), BorderStyle: describe("styleUi.borderStyle", "边框类型"), Outline: describe("styleUi.outline", "描边"), Shadow: describe("styleUi.shadow", "阴影"), Alignment: describe("styleUi.alignment", "对齐方式"),
+  MarginL: describe("styleUi.leftMargin", "左边距"), MarginR: describe("styleUi.rightMargin", "右边距"), MarginV: describe("styleUi.verticalMargin", "垂直边距"), Encoding: describe('styleUi.encoding', 'Encoding'),
 };
-export const fieldGroups: { label: string; fields: StyleField[] }[] = [
-  { label: '字体', fields: ['Fontname', 'Fontsize', 'Bold', 'Italic', 'Underline', 'StrikeOut'] },
-  { label: '颜色与边框', fields: ['PrimaryColour', 'SecondaryColour', 'OutlineColour', 'BackColour', 'BorderStyle', 'Outline', 'Shadow'] },
-  { label: '位置与其他属性', fields: ['Alignment', 'MarginL', 'MarginR', 'MarginV', 'ScaleX', 'ScaleY', 'Spacing', 'Angle', 'Encoding'] },
+export const fieldGroups: { label: MessageValue; fields: StyleField[] }[] = [
+  { label: describe("styleUi.font", "字体"), fields: ['Fontname', 'Fontsize', 'Bold', 'Italic', 'Underline', 'StrikeOut'] },
+  { label: describe("styleUi.colorsAndBorders", "颜色与边框"), fields: ['PrimaryColour', 'SecondaryColour', 'OutlineColour', 'BackColour', 'BorderStyle', 'Outline', 'Shadow'] },
+  { label: describe("styleUi.positionAndOtherProperties", "位置与其他属性"), fields: ['Alignment', 'MarginL', 'MarginR', 'MarginV', 'ScaleX', 'ScaleY', 'Spacing', 'Angle', 'Encoding'] },
 ];
 export const flags: StyleField[] = ['Bold', 'Italic', 'Underline', 'StrikeOut'];
 export const colors: StyleField[] = ['PrimaryColour', 'SecondaryColour', 'OutlineColour', 'BackColour'];

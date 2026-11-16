@@ -1,0 +1,10 @@
+{
+  "originalTerm": "Original term",
+  "preferredTranslation": "Preferred translation",
+  "note": "Note",
+  "valueIsRequired": "{{v0}} is required.",
+  "valueMustBeAtMostValueCharacters": "{{v0}} must be at most {{v1}} characters.",
+  "valueContainsInvalidCharacters": "{{v0}} contains invalid characters.",
+  "pleaseWaitForTheCurrentOperationToFinish": "Please wait for the current operation to finish.",
+  "theGlossaryContextChangedPleaseReopenIt": "The glossary context changed. Please reopen it."
+}

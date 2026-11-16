@@ -1,13 +1,14 @@
+import { type MessageValue, describe, MessageError, messageFromWire } from '../contracts/messages';
 import { diagnostics } from '../diagnostics';
 import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 export interface User { id: number; username: string; is_dev: boolean }
 export interface Organization { id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean }
 export interface Member { id: number; user_id: number; username: string; role: 'organizer' | 'member'; is_active: boolean }
 export type Overrides = Partial<Record<import('../workspace-ui/timing-shortcuts').TimingShortcut, string[]>>;
-export interface Settings { handbook_seen: boolean; mouse_sets_cue_boundary: boolean; shortcut_overrides: Overrides; audio_display_mode: import('../media/audio/analysis-types').AudioDisplayMode }
-export const createDefaultSettings = (): Settings => ({ handbook_seen: true, shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true });
-export class ApiError extends Error {
-  constructor(public code: string, message: string, public requestId?: string) { super(message); }
+export interface Settings { language_preference?: import('../i18n/registry').LanguagePreference; handbook_seen: boolean; mouse_sets_cue_boundary: boolean; shortcut_overrides: Overrides; audio_display_mode: import('../media/audio/analysis-types').AudioDisplayMode }
+export const createDefaultSettings = (): Settings => ({ language_preference: 'system', handbook_seen: true, shortcut_overrides: {}, audio_display_mode: 'spectrum', mouse_sets_cue_boundary: true });
+export class ApiError extends MessageError {
+  constructor(public code: string, message: MessageValue, public requestId?: string) { super(message); }
 }
 export type AccountRequest = import('../contracts/http').JsonRequest;
 export type AccountApi = ReturnType<typeof createAccountApi>;
@@ -20,7 +21,7 @@ export function createAccountApi(onExpired: () => void) {
   const request: AccountRequest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     // Passive observations must not invalidate an explicit login or logout.
     if (path === '/auth/session' && pendingIdentityChanges > 0) {
-      throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+      throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
     }
     // Only the CSRF cookie is readable. Session ID remains HttpOnly.
     const token = document.cookie.split('; ').find(value => value.startsWith('csrftoken='))?.slice(10) || '';
@@ -40,13 +41,13 @@ export function createAccountApi(onExpired: () => void) {
       });
       const value = await response.json();
       if (response.ok && identityRequest) {
-        if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+        if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
         void diagnostics.identify(value.user?.id ?? null);
         diagnostics.record('account', path === '/auth/login' ? 'login' : path === '/auth/logout' ? 'logout' : 'session_observed', 'success');
       }
-      if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', '账号上下文已变更，请重试。');
+      if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
       if (!response.ok) {
-        const error = new ApiError(value.error?.code || 'request_failed', value.error?.message || '请求失败', responseRequestId(response));
+        const error = new ApiError(value.error?.code || 'request_failed', value.error ? messageFromWire(value.error) : describe("accountUi.requestFailed", "请求失败"), responseRequestId(response));
         if (['authentication_required', 'account_changed'].includes(error.code)) onExpired();
         throw error;
       }

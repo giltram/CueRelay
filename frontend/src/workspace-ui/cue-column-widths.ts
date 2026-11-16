@@ -1,8 +1,9 @@
+import { describe } from "../contracts/messages";
 export const cueColumns = [
-  { id: 'start', label: '入', defaultWidth: 100, minimum: 96, maximum: 280 },
-  { id: 'end', label: '出', defaultWidth: 100, minimum: 96, maximum: 280 },
+  { id: 'start', label: describe("workspaceUi.startDetail", "入"), defaultWidth: 100, minimum: 96, maximum: 280 },
+  { id: 'end', label: describe("workspaceUi.endDetail", "出"), defaultWidth: 100, minimum: 96, maximum: 280 },
   { id: 'cps', label: 'CPS', defaultWidth: 44, minimum: 40, maximum: 120 },
-  { id: 'style', label: 'style', defaultWidth: 88, minimum: 64, maximum: 320 },
+  { id: 'style', label: describe('workspaceUi.columnStyle', 'style'), defaultWidth: 88, minimum: 64, maximum: 320 },
 ] as const;
 
 export type CueColumn = typeof cueColumns[number];

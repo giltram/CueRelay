@@ -101,3 +101,24 @@ class ClipboardTests(unittest.TestCase):
         self.assertEqual((inserted['start_ms'], inserted['end_ms'], inserted['text']), (3000, 3000, ''))
         inserted['end_ms'] = 5000
         serialize_ass(result['document'])
+
+    def test_invalid_unicode_is_a_format_error_and_leaves_document_untouched(self):
+        original = deepcopy(self.document)
+        for text in ['\ud800', '\udfff', 'before\ud800after']:
+            with self.subTest(text=repr(text)):
+                with self.assertRaises(AssError) as caught:
+                    paste_lines(self.document, text, self.ids[0], [self.ids[0]])
+                self.assertEqual(caught.exception.issue['reason'], 'server.assContainsInvalidUnicode')
+                self.assertEqual(self.document, original)
+
+    def test_unicode_text_roundtrips_and_byte_limit_counts_utf8(self):
+        from .codec import MAX_BYTES
+        document = empty_document()
+        text = '正常中文 😀𠮷'
+        result = paste_lines(document, text, None, [])
+        self.assertEqual(parse_ass(serialize_ass(result['document']))['cues'][0]['text'], text)
+        for text in ['a' * (MAX_BYTES + 1), '中' * (MAX_BYTES // 3 + 1), '😀' * (MAX_BYTES // 4 + 1)]:
+            with self.subTest(character=text[0]):
+                with self.assertRaises(AssError) as caught:
+                    paste_lines(document, text, None, [])
+                self.assertEqual(caught.exception.issue['reason'], 'server.clipboardContentMustBeTextOfAtMost1Mib')

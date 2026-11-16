@@ -1,3 +1,4 @@
+import { describe, MessageError, messagesFromWire } from "../contracts/messages";
 import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 import type { AssDocument, SplitRequest, SplitResult } from '../contracts/subtitles';
 import { documentV2 } from './document-version';
@@ -13,9 +14,9 @@ export async function inspectAss(document: AssDocument, signal?: AbortSignal): P
 async function checked(response: Response): Promise<Response> {
   if (response.ok) return response;
   const body = await response.json().catch(() => null);
-  const message = body?.issues?.map((issue: { line?: number; message: string }) =>
-    `${issue.line ? `第 ${issue.line} 行：` : ''}${issue.message}`).join('\n');
-  throw Object.assign(new Error(message || body?.detail || `ASS 转换失败（HTTP ${response.status}）`), { requestId: responseRequestId(response) });
+  const message = body?.issues?.length ? messagesFromWire(body.issues) : body?.detail
+    || describe("projectData.assConversionFailedHttpValue", "ASS 转换失败（HTTP {{v0}}）", { v0: response.status });
+  throw Object.assign(new MessageError(message), { requestId: responseRequestId(response) });
 }
 
 export async function loadEmptyDocument(): Promise<AssDocument> {
@@ -24,12 +25,12 @@ export async function loadEmptyDocument(): Promise<AssDocument> {
 }
 
 export async function importAss(file: File): Promise<AssDocument> {
-  if (file.size > 1024 * 1024) throw new Error('ASS 文件不能超过 1MiB，原件仍保留在本地');
+  if (file.size > 1024 * 1024) throw new MessageError(describe("projectData.assFilesMustNotExceed1mibTheOriginal", "ASS 文件不能超过 1MiB，原件仍保留在本地"));
   let source: string;
   try {
     source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer());
   } catch {
-    throw new Error('仅支持 UTF-8 ASS（可含 BOM），请保留原件并另存编码后重试');
+    throw new MessageError(describe("projectData.onlyUtf8AssWithOrWithoutBom", "仅支持 UTF-8 ASS（可含 BOM），请保留原件并另存编码后重试"));
   }
   const response = await checked(await diagnosticFetch('/api/ass/import', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source }),

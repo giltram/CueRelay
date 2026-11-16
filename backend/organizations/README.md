@@ -21,3 +21,7 @@ PostgreSQL 竞争测试：tests.py（多线程独立连接，同时降级/移除
 ## 组织默认术语表
 
 默认术语表身份和词条由独立 glossary 模块拥有，organizations 不反向导入 glossary/projects，也不在 Organization 上增加反向外键。组织设置通过 App 的独立资源插槽展示维护界面；项目空FK解析组织默认，成员显式fork后得到不再同步的项目副本。组织行锁串行化术语写入/fork和成员撤权；权限/迁移见 [术语契约](../../docs/glossary.md)。
+
+## 中英文展示边界（2026-11-15）
+
+校验失败通过 message_contracts.localized 附带具体 reason/params，原中文字符串/异常类型/权限与事务边界继续兼容。HTTP 展示语言不进入组织或样式模板服务。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。

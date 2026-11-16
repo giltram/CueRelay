@@ -110,3 +110,7 @@ docker compose -f compose.test.yml down
 `projects.test_glossary` / `projects.test_glossary_migration` 纳入上述 projects 全量测试；覆盖组织默认首次创建事务、并发fork/组织修改、默认共享/副本双向隔离、权限/归档/跨组织、独立 CAS、重复/长度/字面搜索及字幕 revision 不变、旧项目迁移后保存。前端 Vitest 包括 glossary-data/rules 与 workspace-ui/term-insertion。
 
 `cd frontend && npm run test:glossary`：需先在另一个终端 `npm run dev -- --port 5227 --strictPort`，GLOSSARY_URL 可改地址。真实 Chrome + FFmpeg 合成视频 + Python codec，HTTP 使用隔离 fixture，不写开发库；覆盖组织维护/默认只读/fork/双向隔离、表单失败/冲突/IME、归档、宽窄侧栏、光标/选区/撤销、无字幕保存/播放器重建，以及真实 App 项目/账号切换和撤权后旧响应隔离。新增真实数据库浏览器E2E见 `WorkspaceRegressionTests.test_organization_glossary_fork_stays_isolated`（组织设置创建、项目fork、编辑复制词条/新增词条、双向隔离、保存revision不变和刷新持久化）；`manage.py test browser_tests.regression` 一并运行。见 [最新术语验证](experiments/organization-glossary.md)。
+
+## 中英文与布局
+
+国际化资源检查、语义复数、占位符、类型生成、三语言 Playwright 布局/截图及工作区状态保护的命令与验收边界见 [国际化维护手册](internationalization.md#local-commands)。既有独立浏览器脚本和真实 E2E 明确使用 zh-CN；`WorkspaceRegressionTests.test_english_language_preserves_editor_state` 覆盖英文切换、真实设置持久化及保存/刷新。首次截图仅作待审证据，不自动成为正确基线。CI 决策不变。

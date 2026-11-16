@@ -26,7 +26,7 @@ let templates = [{ id: randomUUID(), name: 'Actor', fields: { ...document.styles
 const writes = [], errors = [], external = [], unexpected = [];
 let failNext = false;
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 context.setDefaultTimeout(15000);
 context.on('page', page => {
   page.on('pageerror', error => errors.push(String(error)));

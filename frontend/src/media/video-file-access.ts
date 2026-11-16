@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../contracts/messages";
 import type { MediaManifest } from '../contracts/projects';
 
 /** External file handles need read permission; never request write access. */
@@ -33,7 +34,7 @@ async function withVideoStore<T>(mode: IDBTransactionMode, action: (store: IDBOb
     request.onupgradeneeded = () => request.result.createObjectStore('handles');
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('本机视频记录暂不可用。'));
+    request.onblocked = () => reject(new MessageError(describe("media.localVideoRecordsAreTemporarilyUnavailable", "本机视频记录暂不可用。")));
   });
   database.onversionchange = () => database.close();
   try {
@@ -42,7 +43,7 @@ async function withVideoStore<T>(mode: IDBTransactionMode, action: (store: IDBOb
       const request = action(transaction.objectStore('handles'));
       transaction.oncomplete = () => resolve(request.result);
       transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error ?? new Error('本机视频记录未保存。'));
+      transaction.onabort = () => reject(transaction.error ?? new MessageError(describe("media.theLocalVideoRecordWasNotSaved", "本机视频记录未保存。")));
     });
   } finally { database.close(); }
 }

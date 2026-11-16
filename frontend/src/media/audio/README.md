@@ -62,3 +62,7 @@ AudioDisplayMode 仅是分析请求/输出的类型契约；个人偏好的保�
 验证：`audition-controller.test.ts`、`audition-reader.test.ts`、原 `local-audio.test.ts` 和 `range-playback.test.ts`；`npm run test:audio-audition` 使用真实 Chrome / FFmpeg、OfflineAudioContext 与 AudioWorklet 捕获实际渲染 PCM。开发专用 `experiments/audio-audition.html` 验证同一 hook 的换片 / 隐藏 / 卸载，不属于生产入口。结果、命令与限制见 [试听验证记录](../../../../docs/experiments/audio-audition.md)。
 
 诊断：分析、独立试听及 Worker 通信边界向 diagnostics 叶子报告有限阶段/安全错误，不采集 PCM、File、文件名或摘要。Worker 通过纯 safety 函数传回安全类型和源码位置；主线程覆盖 error/messageerror，过期结果/正常取消继续隔离。分析状态只读提供，不能通过诊断恢复媒体。见 ../../diagnostics/README.md。
+
+## 中英文展示边界（2026-11-15）
+
+AudioExtractionError 兼容 Error 并保留 descriptor；控制器状态和 Worker error 消息携带 MessageValue，协议 type/数值字段不变。React 展示钩子格式化消息；纯解码/试听调度不依赖 i18next 或语言状态。普通翻译变化不会新建分析/试听 Worker。完整维护/语言验收流程见 [国际化文档](../../../../docs/internationalization.md)。

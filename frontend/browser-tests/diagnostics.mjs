@@ -10,7 +10,7 @@ const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-diagnostics-'));
 const file = join(artifacts, 'private-media-name.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=4', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
 // Exercise the authoritative IndexedDB fence without the optional notification channel.
 await context.addInitScript(() => { Object.defineProperty(window, 'BroadcastChannel', { value: undefined }); });
 let user = { id: 1, username: 'diagnostic', is_dev: false, password: 'private-user-password', token: 'private-user-token' }, conflict = false, disconnected = false;
@@ -160,7 +160,7 @@ try {
   assert.ok(persistedBudget.events.some(event => event.module === 'test' && event.data.count === 1799));
 
   // IndexedDB denied: actual editor still works and offline JSON download still succeeds.
-  const fallback = await browser.newContext({ acceptDownloads: true });
+  const fallback = await browser.newContext({ locale: 'zh-CN', acceptDownloads: true });
   await fallback.addInitScript(() => { Object.defineProperty(window, 'indexedDB', { get() { throw new Error('denied'); } }); });
   await fallback.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;

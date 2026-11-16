@@ -1,9 +1,10 @@
 """Stateless JSON conversion endpoints. Only subtitle text enters this boundary."""
+from message_contracts import localized
 from django.http import HttpResponse
 from django.core.exceptions import RequestDataTooBig
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
+from .message_response import MessageResponse as Response
 from ass_format import AssError, empty_document as make_empty, parse_ass, serialize_ass, split_document, apply_style_operation, style_usage
 from ass_format import copy_lines, paste_lines
 from ass_format import inspect_document
@@ -17,10 +18,10 @@ def inspect_ass(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict) or set(data) != {"document"}:
-            return Response({"issues": [{"code": "invalid_request", "message": "仅接受 document 字段"}]}, status=400)
+            return Response({"issues": [{"code": "invalid_request", "message": localized('server.onlyTheDocumentFieldIsAccepted', '仅接受 document 字段', {})}]}, status=400)
         return Response({"issues": inspect_document(data['document'])})
     except RequestDataTooBig:
-        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+        return Response({"issues": [{"code": "too_large", "message": localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)
 
 
 def _payload(request):
@@ -44,12 +45,12 @@ def import_ass(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict) or set(data) != {"source"}:
-            return Response({"issues": [{"code": "invalid_request", "message": "仅接受 source 字段"}]}, status=400)
+            return Response({"issues": [{"code": "invalid_request", "message": localized('server.onlyTheSourceFieldIsAccepted', '仅接受 source 字段', {})}]}, status=400)
         return Response({"document": parse_ass(data["source"])})
     except AssError as error:
         return Response({"issues": [error.issue]}, status=422)
     except RequestDataTooBig:
-        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+        return Response({"issues": [{"code": "too_large", "message": localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)
 
 
 @api_view(["POST"])
@@ -59,7 +60,7 @@ def export_ass(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict) or set(data) != {"document"}:
-            return Response({"issues": [{"code": "invalid_request", "message": "仅接受 document 字段"}]}, status=400)
+            return Response({"issues": [{"code": "invalid_request", "message": localized('server.onlyTheDocumentFieldIsAccepted', '仅接受 document 字段', {})}]}, status=400)
         result = serialize_ass(data["document"])
         response = HttpResponse(result, content_type="text/plain; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="cuerelay.ass"'
@@ -67,7 +68,7 @@ def export_ass(request):
     except AssError as error:
         return Response({"issues": [error.issue]}, status=422)
     except RequestDataTooBig:
-        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+        return Response({"issues": [{"code": "too_large", "message": localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)
 
 
 @api_view(["POST"])
@@ -78,12 +79,12 @@ def split_ass(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict) or set(data) != {"document", "cue_id", "mode", "position"}:
-            return Response({"issues": [{"code": "invalid_request", "message": "拆分请求字段不符合契约"}]}, status=400)
+            return Response({"issues": [{"code": "invalid_request", "message": localized('server.splitRequestFieldsDoNotMatchTheContract', '拆分请求字段不符合契约', {})}]}, status=400)
         return Response(split_document(**data))
     except AssError as error:
         return Response({"issues": [error.issue]}, status=422)
     except RequestDataTooBig:
-        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+        return Response({"issues": [{"code": "too_large", "message": localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)
 
 
 @api_view(["POST"])
@@ -94,13 +95,13 @@ def local_styles(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict) or set(data) != {"document", "operation"}:
-            return Response({"issues": [{"code": "invalid_request", "message": "样式请求字段不符合契约"}]}, status=400)
+            return Response({"issues": [{"code": "invalid_request", "message": localized('server.styleRequestFieldsDoNotMatchTheContract', '样式请求字段不符合契约', {})}]}, status=400)
         document = data['document'] if data['operation'] == {'type': 'inspect'} else apply_style_operation(**data)
         return Response({'document': document, 'usage': style_usage(document)})
     except AssError as error:
         return Response({"issues": [error.issue]}, status=422)
     except RequestDataTooBig:
-        return Response({"issues": [{"code": "too_large", "message": "请求体过大"}]}, status=413)
+        return Response({"issues": [{"code": "too_large", "message": localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)
 
 
 @api_view(["POST"])
@@ -111,13 +112,13 @@ def clipboard(request):
     try:
         data = _payload(request)
         if not isinstance(data, dict):
-            return Response({'issues': [{'code': 'invalid_request', 'message': '剪贴板请求字段不符合契约'}]}, status=400)
+            return Response({'issues': [{'code': 'invalid_request', 'message': localized('server.clipboardRequestFieldsDoNotMatchTheContract', '剪贴板请求字段不符合契约', {})}]}, status=400)
         if set(data) == {'document', 'ids'}:
             return Response({'text': copy_lines(**data)})
         if set(data) == {'document', 'text', 'active_id', 'ids', 'fields'}:
             return Response(paste_lines(**data))
-        return Response({'issues': [{'code': 'invalid_request', 'message': '剪贴板请求字段不符合契约'}]}, status=400)
+        return Response({'issues': [{'code': 'invalid_request', 'message': localized('server.clipboardRequestFieldsDoNotMatchTheContract', '剪贴板请求字段不符合契约', {})}]}, status=400)
     except AssError as error:
         return Response({'issues': [error.issue]}, status=422)
     except RequestDataTooBig:
-        return Response({'issues': [{'code': 'too_large', 'message': '请求体过大'}]}, status=413)
+        return Response({'issues': [{'code': 'too_large', 'message': localized('server.requestBodyIsTooLarge', '请求体过大', {})}]}, status=413)

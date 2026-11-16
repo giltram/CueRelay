@@ -1,4 +1,5 @@
 """Style adapters. All identity, CSRF, object scope and version checks stay server-side."""
+from message_contracts import localized
 from functools import wraps
 from django.core.exceptions import ValidationError
 from ass_format import AssError, style_usage
@@ -16,7 +17,7 @@ def template_endpoint(methods):
             try:
                 return function(*args, **kwargs)
             except style_templates.TemplateConflict as failure:
-                return error('template_conflict', str(failure), 409)
+                return error('template_conflict', failure.args[0], 409)
             except AssError as failure:
                 return error('invalid_style', failure.issue['message'], 422)
         return view
@@ -27,7 +28,7 @@ def template_endpoint(methods):
 def templates(request, organization_id):
     if request.method == 'GET':
         if request.GET:
-            raise ValidationError('模板列表不接受查询参数。')
+            raise ValidationError(localized('server.theTemplateListDoesNotAcceptQueryParameters', '模板列表不接受查询参数。', {}))
         return {'templates': style_templates.list_templates(request.user, organization_id)}
     data = payload(request, ['name', 'fields', 'reference', 'source_label'])
     return {'template': style_templates.create_template(request.user, organization_id, **data)}
@@ -49,6 +50,6 @@ def project_styles(request, organization_id, project_id):
     try:
         project = change_styles(request.user, organization_id, project_id, **data)
     except style_templates.TemplateConflict as failure:
-        return error('template_conflict', str(failure), 409)
+        return error('template_conflict', failure.args[0], 409)
     return {'document': project.document, 'project': project_data(project), 'usage': style_usage(project.document)}
 

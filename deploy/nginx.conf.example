@@ -23,7 +23,7 @@ server {
     }
     location @api_body_too_large {
         default_type application/json;
-        return 413 '{"issues":[{"code":"too_large","message":"请求体不能超过 3MiB"}],"error":{"code":"too_large","message":"请求体不能超过 3MiB"}}';
+        return 413 '{"issues":[{"code":"too_large","message":"请求体不能超过 3MiB","reason":"server.proxyBodyTooLarge","params":{}}],"error":{"code":"too_large","message":"请求体不能超过 3MiB","reason":"server.proxyBodyTooLarge","params":{}}}';
     }
     location = /admin { proxy_pass http://127.0.0.1:8000; }
     location ^~ /admin/ { proxy_pass http://127.0.0.1:8000; }

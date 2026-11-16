@@ -34,7 +34,7 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 问题点击复用 selectCueFromTable：选中现有 ID、取消试听、暂停视频并定位已应用入点，同时只滚动字幕表自身。无视频也可选行，超片长继续沿用原定位错误；同一行重选保留时间草稿，换行沿用原草稿处理。QC 不另建字幕编辑器、播放器或历史状态。面板按钮保留原生键盘行为并隔离打轴按键；面板内 Esc 或再次点击 QC 关闭。Ctrl/Cmd+F 在窄屏先显示原表格，再在渲染后聚焦原查找框；列宽、查找、选择及表格实例均保留。
 
-普通「导出 ASS」先执行 export 阶段检查，无问题直接下载，有问题在同一 QC 面板查看并继续导出。仅 error 禁用继续按钮，均对应原格式无效条件；warning/info 可继续。检查服务失败显示未完成，仍允许原导出器作最终校验。`WorkbenchHandle.exportDraft` 保持直接备份下载，离开/重载保护弹窗不被二次 QC 流程劫持。所有下载仍复用唯一序列化器与文件名规则。
+普通「导出 ASS」先执行 export 阶段检查，无问题直接下载，有问题在同一 QC 面板查看并继续导出。仅 error 禁用继续按钮，均对应原格式无效条件；warning/info 可继续。检查服务失败显示未完成，仍允许原导出器作最终校验。QC/导出只依赖保留文档及工作区可见性、导入/样式/粘贴面板状态，不受账号会话或编辑快捷键暂停限制；术语查询/插入仍保持原账号门禁。`WorkbenchHandle.exportDraft` 保持直接备份下载，离开/重载保护弹窗不被二次 QC 流程劫持。所有下载仍复用唯一序列化器与文件名规则。会话失效后的普通导出/警告继续/格式错误阻止见 `browser-tests/workspace-review-regressions.mjs`。
 
 依赖：`EditorWorkbench → {use-subtitle-qc, SubtitleQcPanel, CueTable}`，`use-subtitle-qc → {subtitle-qc, project-data/ass-api}`，`subtitle-qc → {contracts, subtitle-model}`。纯规则和阈值见 [subtitle-qc](../subtitle-qc/README.md)；没有新保存模型、偏好、实时协作或运行时依赖。
 
@@ -141,3 +141,7 @@ CueContextMenu 鼠标打开时聚焦容器、不预选操作，键盘打开时�
 `use-term-insertion.ts → term-insertion.ts` 拥有字幕输入当前行的 UTF-16 光标/选区：onSelect/onBlur 记录，切行立即清除，没有当前选区追加末尾。同步插入检查既有 canEdit、忙碌/可见性与 composition，调用 updateCue 的单次历史编辑并在布局提交后恢复焦点/光标；不提交时间、不保存。无行/未验证片源/归档时只禁插入，仍可查询。data-glossary 控件隔离工作区快捷键，use-cue-search 的捕获监听也跳过此区域。词条输入使用普通原生输入行为，不调用字幕撤销。
 
 术语数据刷新/草稿/冲突由 glossary-data / glossary-ui 拥有。关闭面板结束未保存词条表单；隐藏保留实例时暂停请求，重新可见时重取，迟到响应隔离；不影响字幕草稿。测试：term-insertion.test.ts、`npm run test:glossary`，契约见 [术语表](../../../docs/glossary.md)。
+
+## 中英文展示边界（2026-11-15）
+
+国际化展示订阅 i18n，时间/编辑状态和 use-edit-history 不读取语言。QC 问题的 message 为稳定 descriptor/params，SubtitleQcPanel 在渲染时解析；已有报告和通知随语言更新，不重新检查或保存。CueTable 保留用户内容行高缓存，现有 DOM/ResizeObserver 锚点处理表头尺寸变化，不按语言清空测量。行菜单可自适应长文字，内部滚动保持打开；只在菜单外滚动时关闭。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

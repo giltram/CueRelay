@@ -24,7 +24,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
   'color=c=0x101010:s=640x480:r=25:d=12', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12',
   '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 const errors = [], expectedWorkerFailures = [], outside = [], exports = [], workers = new Set();
 page.on('pageerror', error => (blocked ? expectedWorkerFailures : errors).push(String(error)));

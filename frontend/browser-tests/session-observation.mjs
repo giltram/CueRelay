@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 
 const origin = process.env.SESSION_URL || 'http://127.0.0.1:5173';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext();
+const context = await browser.newContext({ locale: 'zh-CN' });
 await context.addInitScript(() => Object.defineProperty(document, 'visibilityState', { get: () => 'visible' }));
 const page = await context.newPage();
 const errors = [];

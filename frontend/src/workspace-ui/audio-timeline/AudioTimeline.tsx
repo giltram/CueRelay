@@ -1,3 +1,5 @@
+import { formatMessage, t } from '../../i18n';
+import { useLocale } from "../../i18n/react";
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { AuditionState } from '../../media/audio/audition-controller';
 import { useAudioAnalysis } from '../../media/audio/use-audio-analysis';
@@ -39,6 +41,7 @@ type TimelineDrag = { pointerId: number; view: AudioViewport } & (
 );
 
 export function AudioTimeline({ visible = true, file, video, duration, currentTime, audition, getAuditionPosition, mode, mouseSetsCueBoundary = true, selectionId, selection, cues, onSeek, onBoundaryChange, onBoundaryGesture, historyEpoch }: Props) {
+  useLocale();
   const auditionTime = audition?.position ?? null;
   const seconds = duration / 1000;
   const stageId = useId();
@@ -172,10 +175,10 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
-  return <section ref={panel} className="audio-panel audio-timeline" aria-label="音频时间轴" data-state={analysis.status}
+  return <section ref={panel} className="audio-panel audio-timeline" aria-label={t("workspaceUi.audioTimeline")} data-state={analysis.status}
     data-audition-phase={audition?.phase ?? 'idle'} data-audition-time={auditionTime ?? undefined} data-start={view.start} data-end={view.start + view.span} data-mode={mode} data-cache-bytes={analysis.cacheBytes} data-decoded-segments={analysis.decodedSegments}>
     <div className="audio-visualization">
-    <div className="audio-stage" id={stageId} ref={stage} role="group" aria-label="音频可视范围" tabIndex={seconds ? 0 : -1}
+    <div className="audio-stage" id={stageId} ref={stage} role="group" aria-label={t("workspaceUi.visibleAudioRange")} tabIndex={seconds ? 0 : -1}
       onKeyDown={event => {
         if (drag.current?.kind === 'seek') return;
         if (!seconds || event.altKey || event.ctrlKey || event.metaKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -242,20 +245,20 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
         if (mode !== 'spectrum' || event.clientY < rect.top + AUDIO_RULER_HEIGHT) return;
         event.preventDefault();
       }}>
-      <canvas ref={canvas} aria-label={mode === 'waveform' ? '音频波形' : '音频频谱：纵轴频率，颜色越亮能量越强'} />
+      <canvas ref={canvas} aria-label={mode === 'waveform' ? t("workspaceUi.audioWaveform") : t("workspaceUi.audioSpectrumFrequencyOnTheVerticalAxisBrighter")} />
       <AudioCueIntervals cues={cues} selectedId={selectionId} view={view} />
       {selection && <>
         <AudioBoundary point="start" value={selection.start} duration={duration} view={view} pointerTime={pointerBoundaryTime} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
         <AudioBoundary point="end" value={selection.end} duration={duration} view={view} pointerTime={pointerBoundaryTime} onChange={onBoundaryChange} onGesture={onBoundaryGesture} historyEpoch={historyEpoch} />
       </>}
-      <div className="audio-playhead" ref={playhead} aria-label="音频播放头" hidden />
-      {analysis.status === 'empty' && <p className="audio-message">导入本地视频后显示音频</p>}
-      {analysis.status === 'opening' && <p className="audio-message" role="status">正在读取本地音轨…</p>}
-      {analysis.status === 'error' && <p className="audio-message audio-error" role="status">{analysis.message}</p>}
+      <div className="audio-playhead" ref={playhead} aria-label={t("workspaceUi.audioPlayhead")} hidden />
+      {analysis.status === 'empty' && <p className="audio-message">{t("workspaceUi.importALocalVideoToDisplayAudio")}</p>}
+      {analysis.status === 'opening' && <p className="audio-message" role="status">{t("workspaceUi.readingLocalAudioTrack")}</p>}
+      {analysis.status === 'error' && <p className="audio-message audio-error" role="status">{formatMessage(analysis.message)}</p>}
     </div>
-    <label className="audio-vertical-zoom" title={`垂直缩放 ${verticalZoom.toFixed(2)}× · 向上增强，双击恢复 1.00×`}>
-      <input type="range" aria-label="垂直缩放" aria-orientation="vertical" min="0.5" max="4" step="0.01"
-        value={verticalZoom} aria-valuetext={`${verticalZoom.toFixed(2)} 倍，${mode === 'spectrum' ? '频谱强度' : '波形高度'}`}
+    <label className="audio-vertical-zoom" title={t("workspaceUi.verticalZoomValueMoveUpToAmplifyDouble", { v0: verticalZoom.toFixed(2) })}>
+      <input type="range" aria-label={t("workspaceUi.verticalZoom")} aria-orientation="vertical" min="0.5" max="4" step="0.01"
+        value={verticalZoom} aria-valuetext={t("workspaceUi.valueTimesValue", { v0: verticalZoom.toFixed(2), v1: mode === 'spectrum' ? t('workspaceUi.spectrumIntensity') : t('workspaceUi.waveformHeight') })}
         onChange={event => setVerticalZoom(Number(event.currentTarget.value))}
         onDoubleClick={() => setVerticalZoom(1)} />
     </label>
@@ -266,8 +269,8 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
       setViewport(clampViewport({ ...view, start }, seconds));
     }} />
     <div className="audio-footer">
-      <span><span ref={timeDisplay}>{formatTime(auditionTime ?? currentTime)}</span>{selection && ` · 入 ${formatTime(selection.start)} / 出 ${formatTime(selection.end)}`}</span>
-      <span aria-live="polite">{audition?.message || (analysis.status === 'loading' ? '分析中…' : '滚轮平移 · Shift+滚轮缩放')}</span>
+      <span><span ref={timeDisplay}>{formatTime(auditionTime ?? currentTime)}</span>{selection && t("workspaceUi.startValueEndValue", { v0: formatTime(selection.start), v1: formatTime(selection.end) })}</span>
+      <span aria-live="polite">{formatMessage(audition?.message) || (analysis.status === 'loading' ? t("workspaceUi.analyzing") : t("workspaceUi.scrollToPanShiftScrollToZoom"))}</span>
     </div>
   </section>;
 }

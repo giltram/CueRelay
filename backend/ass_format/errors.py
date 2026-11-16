@@ -5,6 +5,8 @@ class AssError(ValueError):
     def __init__(self, message, line=None, *, category='unsupported-ass'):
         self.category = category
         self.issue = {"code": "unsupported_or_invalid_ass", "message": message}
+        if hasattr(message, 'reason'):
+            self.issue.update(reason=message.reason, params=message.params)
         if line is not None:
             self.issue["line"] = line
         super().__init__(message)

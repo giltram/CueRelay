@@ -1,3 +1,5 @@
+import { useMessageState, useLocale } from '../i18n/react';
+import { t, i18n } from "../i18n";
 import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Organization } from '../account-ui/api';
@@ -18,13 +20,14 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
   onCreated: (project: ProjectDetail, video?: SelectedVideo) => void; onLifecycle: (project: ProjectSummary) => void;
   unavailableOrganization?: boolean;
 }) {
+  useLocale();
   const [status, setStatus] = useState<'active' | 'archived'>('active');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [loaded, setLoaded] = useState<(ProjectPage & { context: string }) | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useMessageState('');
   const [refresh, setRefresh] = useState(0);
   const [creating, setCreating] = useState(false);
   const [confirm, setConfirm] = useState<ProjectSummary | null>(null);
@@ -50,7 +53,7 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
     })
       .catch(reason => {
         if (sequence.current !== version) return;
-        setError(reason.message);
+        setError(reason);
         if (['permission_denied', 'not_found', 'authentication_required', 'account_changed'].includes(reason.code)) setLoaded(null);
       })
       .finally(() => { if (sequence.current === version) setLoading(false); });
@@ -61,61 +64,61 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
     onCreated(project, video);
   }
   const person = (user: { username: string } | null) => user?.username || '—';
-  const date = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
+  const date = (value: string | null) => value ? new Date(value).toLocaleString(i18n.language, { hour12: false }) : '—';
   return <PageLayout className="projects-page" title={<HomeLink navigate={navigate} />} navigation={header}>
-    <div className="project-heading"><h2>项目</h2><div className="controls">
-      <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>本地工作区</RouteLink>
-      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>新建项目</button>}
+    <div className="project-heading"><h2>{t("projectUi.projects")}</h2><div className="controls">
+      <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>{t("projectUi.localWorkspace")}</RouteLink>
+      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>{t("projectUi.newProject")}</button>}
     </div></div>
     {organization ? <>
       <div className="project-filters">
-        <div className="project-tabs" role="tablist" aria-label="项目状态">
-          <button role="tab" aria-selected={status === 'active'} onClick={() => { setStatus('active'); setPage(1); }}>进行中</button>
-          <button role="tab" aria-selected={status === 'archived'} onClick={() => { setStatus('archived'); setPage(1); }}>过去项目</button>
+        <div className="project-tabs" role="tablist" aria-label={t("projectUi.projectStatus")}>
+          <button role="tab" aria-selected={status === 'active'} onClick={() => { setStatus('active'); setPage(1); }}>{t("projectUi.active")}</button>
+          <button role="tab" aria-selected={status === 'archived'} onClick={() => { setStatus('archived'); setPage(1); }}>{t("projectUi.archived")}</button>
         </div>
-        <label>搜索项目<input type="search" value={search} maxLength={100} onChange={event => setSearch(event.target.value)} placeholder="按项目名称搜索" /></label>
+        <label>{t("projectUi.searchProjects")}<input type="search" value={search} maxLength={100} onChange={event => setSearch(event.target.value)} placeholder={t("projectUi.searchByProjectName")} /></label>
       </div>
-      {loading && !data && <HeaderNotice>正在加载项目…</HeaderNotice>}
-      {error && !confirm && <HeaderNotice className="header-error" role="alert">{error}<button onClick={() => setRefresh(value => value + 1)}>重试</button></HeaderNotice>}
+      {loading && !data && <HeaderNotice>{t("projectUi.loadingProject")}</HeaderNotice>}
+      {error && !confirm && <HeaderNotice className="header-error" role="alert">{error}<button onClick={() => setRefresh(value => value + 1)}>{t("projectUi.retry")}</button></HeaderNotice>}
       {data && <div className="project-table-scroll"><table className="project-table"><thead><tr>
-        <th>项目</th><th>{status === 'active' ? '最近更新' : '归档时间'}</th><th>{status === 'active' ? '更新者' : '归档人'}</th><th>操作</th>
+        <th>{t("projectUi.projects")}</th><th>{status === 'active' ? t("projectUi.lastUpdated") : t("projectUi.archivedAt")}</th><th>{status === 'active' ? t("projectUi.updatedBy") : t("projectUi.archivedBy")}</th><th>{t("projectUi.action")}</th>
       </tr></thead><tbody>{data.projects.map(project => <tr key={project.id}>
         <td><RouteLink className="project-name" route={{ kind: 'project', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{project.name}</RouteLink>
           {project.description && <p className="project-description">{project.description}</p>}</td>
         <td>{date(status === 'active' ? project.updated_at : project.archived_at)}</td>
         <td>{person(status === 'active' ? project.updated_by : project.archived_by)}</td>
         <td><div className="controls">
-          <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>项目设置</RouteLink>
+          <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{t("projectUi.projectSettings")}</RouteLink>
           {organization.can_manage && <>
-            <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? '归档项目' : '恢复项目'}</button>
+            <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? t("projectUi.archiveProject") : t("projectUi.restoreProject")}</button>
           </>}
         </div></td>
       </tr>)}</tbody></table>
         {data.projects.length === 0 && <div className="empty">
-          {query ? <><p>没有找到匹配的项目。</p><button onClick={() => setSearch('')}>清除搜索</button></> :
-            <p>{status === 'archived' ? '暂无已归档项目。' : organization.can_manage ? '暂无进行中的项目，可以新建项目。' : '当前组织暂无进行中的项目。'}</p>}
+          {query ? <><p>{t("projectUi.noMatchingProjects")}</p><button onClick={() => setSearch('')}>{t("projectUi.clearSearch")}</button></> :
+            <p>{status === 'archived' ? t("projectUi.noArchivedProjects") : organization.can_manage ? t("projectUi.noActiveProjectsYouCanCreateOne") : t("projectUi.thisOrganizationHasNoActiveProjects")}</p>}
         </div>}
       </div>}
-      {data && <div className="project-pagination"><span>共 {data.total} 个项目 · 第 {data.page} 页</span><div className="controls">
-        <button disabled={page === 1} onClick={() => setPage(value => value - 1)}>上一页</button>
-        <button disabled={!data.has_more} onClick={() => setPage(value => value + 1)}>下一页</button>
+      {data && <div className="project-pagination"><span>{t("projectUi.pagination", { count: data.total, page: data.page })}</span><div className="controls">
+        <button disabled={page === 1} onClick={() => setPage(value => value - 1)}>{t("projectUi.previousPage")}</button>
+        <button disabled={!data.has_more} onClick={() => setPage(value => value + 1)}>{t("projectUi.nextPage")}</button>
       </div></div>}
     </> : <div className="empty"><p role={unavailableOrganization ? 'alert' : undefined}>{unavailableOrganization
-      ? '指定组织不存在或无权访问，请选择可访问的组织。'
-      : '暂无组织。请联系 dev 或 organizer 添加成员；仍可进入本地工作区处理字幕。'}</p>
-      {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>选择可访问的组织</RouteLink>}
+      ? t("projectUi.theRequestedOrganizationDoesNotExistOrIs")
+      : t("projectUi.noOrganizationsAskADevOrOrganizerTo")}</p>
+      {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>{t("projectUi.chooseAnAccessibleOrganization")}</RouteLink>}
     </div>}
     {organization && creating && <ProjectForm api={api} organization={organization} request={request}
       onClose={() => setCreating(false)} onSaved={saved} />}
-    {confirm && <Modal title={confirm.status === 'active' ? '归档项目' : '恢复项目'} showCloseButton={confirm.status !== 'active'} onClose={busy ? undefined : () => setConfirm(null)}>
-      <p>{confirm.status === 'active' ? `归档「${confirm.name}」后所有成员只能查看和导出，尚未保存的稿件不会自动提交。` : `恢复「${confirm.name}」后，组织成员可以继续工作。`}</p>
+    {confirm && <Modal title={confirm.status === 'active' ? t("projectUi.archiveProject") : t("projectUi.restoreProject")} showCloseButton={confirm.status !== 'active'} onClose={busy ? undefined : () => setConfirm(null)}>
+      <p>{confirm.status === 'active' ? t("projectUi.afterArchivingValueMembersCanOnlyViewAnd", { v0: confirm.name }) : t("projectUi.afterRestoringValueOrganizationMembersCanContinueWorking", { v0: confirm.name })}</p>
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="controls"><button disabled={busy} onClick={() => setConfirm(null)}>取消</button>
+      <div className="controls"><button disabled={busy} onClick={() => setConfirm(null)}>{t("projectUi.cancel")}</button>
         <button className="primary" disabled={busy} onClick={() => {
           setBusy(true); setError('');
           void api.archive(confirm, confirm.status === 'active').then(project => { onLifecycle(project); setConfirm(null); setRefresh(value => value + 1); })
-            .catch(reason => setError(reason.message)).finally(() => setBusy(false));
-        }}>{confirm.status === 'active' ? '确认归档' : '确认恢复'}</button>
+            .catch(reason => setError(reason)).finally(() => setBusy(false));
+        }}>{confirm.status === 'active' ? t("projectUi.confirmArchive") : t("projectUi.confirmRestore")}</button>
       </div>
     </Modal>}
   </PageLayout>;

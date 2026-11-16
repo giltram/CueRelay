@@ -1,0 +1,13 @@
+{
+  "thisBrowserDoesNotSupportTheStylePreview": "This browser does not support the style preview canvas",
+  "couldNotStartThePreviewValue": "Could not start the preview: {{v0}}",
+  "subtitleStylePreview": "Subtitle style preview",
+  "assPreviewMissingFontsUseTheBundledNoto": "ASS preview · Missing fonts use the bundled Noto Sans SC and may differ from the final video.",
+  "loadingAssStylePreview": "Loading ASS style preview…",
+  "workerWasmCouldNotRunCheckBrowserCompatibility": "Worker / WASM could not run. Check browser compatibility and local resources.",
+  "theBrowserDoesNotSupportWorkerWebassemblyOr": "The browser does not support Worker, WebAssembly or OffscreenCanvas",
+  "couldNotLoadTheBundledChineseFont": "Could not load the bundled Chinese font",
+  "renderingResourcesTimedOut": "Rendering resources timed out",
+  "subtitlePreviewIsTemporarilyUnavailableValue": "Subtitle preview is temporarily unavailable: {{v0}}",
+  "assRenderingFailedValueTurnSubtitlePreviewOff": "ASS rendering failed: {{v0}}. Turn subtitle preview off and on to retry."
+}

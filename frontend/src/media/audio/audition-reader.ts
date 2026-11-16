@@ -1,3 +1,4 @@
+import { describe, MessageError } from "../../contracts/messages";
 import { diagnostics, safeError } from '../../diagnostics';
 import type { AudioMetadata, PcmChunk } from './local-audio';
 import type { AuditionRequest, AuditionResponse } from './audition-protocol';
@@ -21,12 +22,12 @@ export class WorkerAuditionReader implements AuditionReader {
       const pending = this.pending; this.pending = null;
       if (event.data.type === 'error') {
         diagnostics.record('audio-audition', 'worker_result', 'error', { error: event.data.diagnostic ?? safeError(Error()) }, this.scope, this.diagnosticContext);
-        pending?.reject(Error(event.data.message));
+        pending?.reject(new MessageError(event.data.message));
       }
       else pending?.resolve(event.data);
     };
     const failed = () => {
-      this.failure = Error('本地音频试听 Worker 中断，请重新试听');
+      this.failure = new MessageError(describe("media.theLocalAudioPlaybackWorkerStoppedTryPlayback", "本地音频试听 Worker 中断，请重新试听"));
       diagnostics.record('audio-audition', 'worker_communication', 'error', { error: safeError(this.failure) }, this.scope, this.diagnosticContext);
       this.pending?.reject(this.failure); this.pending = null;
     };
@@ -41,17 +42,17 @@ export class WorkerAuditionReader implements AuditionReader {
   }
   async open() {
     const response = await this.request({ type: 'open', file: this.file });
-    if (response.type !== 'ready') throw Error('试听音轨初始化失败');
+    if (response.type !== 'ready') throw new MessageError(describe("media.couldNotInitializeThePlaybackAudioTrack", "试听音轨初始化失败"));
     return response.metadata;
   }
   async read(start: number, end: number) {
     const response = await this.request({ type: 'read', start, end });
-    if (response.type !== 'pcm') throw Error('试听音频读取失败');
+    if (response.type !== 'pcm') throw new MessageError(describe("media.couldNotReadPlaybackAudio", "试听音频读取失败"));
     return response.chunks;
   }
   dispose() {
     this.worker.onmessage = null; this.worker.onerror = null; this.worker.onmessageerror = null;
-    this.failure = new DOMException('试听已取消', 'AbortError');
+    this.failure = Object.assign(new DOMException('Operation cancelled', 'AbortError'), { descriptor: describe("media.audioPlaybackCancelled", "试听已取消") });
     this.worker.terminate();
     this.pending?.reject(this.failure);
     this.pending = null;

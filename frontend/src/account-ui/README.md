@@ -22,7 +22,7 @@ PersonalPanel 的快捷键输入保留原始字符串草稿（含末尾逗号、
 
 设置入口默认新开标签页，来源工作区不隐藏、不主动暂停；设置页内个人/组织分类显式使用 target="_self"，在当前标签页切换并保留组织 URL 上下文。组织切换器只在项目列表；新页面通过显式组织 URL 延续列表/项目上下文。仅同文档历史浏览设置时隐藏工作区、暂停播放/快捷键，回退恢复内存；个人/组织设置不再用 Modal，成员移除二次确认与登录/保护继续用 Modal。未保存设置输入仍只属于面板，导航离开不自动保存。浏览器回归见 user-system.mjs（密码/快捷键/权限/保护）和 navigation.mjs（深链接/刷新/新标签页/布局/保留实例）。
 
-音频显示偏好：Settings 增加 audio_display_mode，createDefaultSettings 为账号切换提供默认 Spectrum 和空快捷键覆盖。PersonalPanel 的「音频显示」单独显式保存该字段，快捷键保存提交 shortcut_overrides 和鼠标边界偏好；响应包含完整设置供 App 更新，面板内尚未保存的另一类输入不被覆盖。错误保留选择。App 沿用 focus/visibilitychange/30 秒检查将服务端偏好传给工作区，没有新增 Storage 或标签页通信。类型仅向下引用 media/audio 的 AudioDisplayMode；不会从编辑器内部读取模式。
+音频显示偏好：Settings 增加 audio_display_mode，createDefaultSettings 为账号切换提供默认 Spectrum 和空快捷键覆盖。PersonalPanel 的「音频显示」单独显式保存该字段，快捷键保存提交 shortcut_overrides 和鼠标边界偏好；后端响应仍包含完整设置，但 onSettings(changes: Partial<Settings>) 仅回传本次写入字段的服务端值，App 合并而不替换快照，避免迟到响应覆盖并发语言写入。面板内尚未保存的另一类输入不被覆盖，错误保留选择。App 沿用 focus/visibilitychange/30 秒检查将服务端偏好传给工作区；设置 GET 按字段版本保护后发成功写入，同时补齐其余字段并完成首次 ready，没有新增 Storage 或标签页通信。类型仅向下引用 media/audio 的 AudioDisplayMode；不会从编辑器内部读取模式。首次加载与交错 PATCH 回归见 `browser-tests/settings-response-races.mjs`。
 
 鼠标边界点击偏好 mouse_sets_cue_boundary 默认为 true，位于「快捷键」标题下，随原「保存快捷键」按钮提交。勾选框用局部 personal-checkbox 横向布局与文字左对齐，16px 原生控件不继承普通文本框的全宽显示；不修改其他表单的默认布局。后端仅接受 boolean、按账号隔离；音频显示 PATCH 不提交此字段，也不重置未保存勾选。新增四个播放头/拆分动作均默认空绑定，仍用 shared 唯一动作表与有效绑定冲突检测；只有这四个动作扩展 Ctrl/Meta/Alt/Shift + 原基础键范围，已有动作可绑定范围与默认不变。文本拆分仅允许已配置绑定在具体字幕 textarea 聚焦时执行。详见 docs/editing-operations.md 与 editing-operations 浏览器回归。
 
@@ -37,3 +37,7 @@ toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字
 字幕行菜单动作也由 shared/timing-shortcuts.json 自动枚举，可录制、禁用和恢复默认，双端允许 Ctrl/Meta/Alt/Shift 组合。旧显式绑定压过新增默认，但两个显式绑定仍拒绝冲突。详见 [字幕行操作](../../../docs/subtitle-line-operations.md)。
 
 组织默认术语维护通过 SettingsPage.organizationGlossary 的 ReactNode 插槽组合（App 注入 glossary-ui/OrganizationGlossary）；account-ui 不导入术语私有实现。组织设置的成员可按既有维护权限查询、添加和编辑组织词条；项目默认只读，显式fork成为不再同步的项目副本。接口/版本边界见 docs/glossary.md。
+
+## 中英文展示边界（2026-11-15）
+
+语言控件由 App 组合并归 i18n/use-language-preference 所有；PersonalPanel 不以语言为 key，不因翻译重建密码/快捷键草稿。账号设置扩展 language_preference，PATCH 只提交本次字段；反馈保留 Error/descriptor，由展示时解析。快捷键名称由 i18n/shortcuts 读取翻译资源，动作 ID/默认绑定仍归 shared JSON。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

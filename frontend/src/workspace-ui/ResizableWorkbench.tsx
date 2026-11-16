@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+import { useLocale } from "../i18n/react";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { clampMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbenchHeight } from './workbench-sizing';
 
@@ -20,6 +22,7 @@ interface Geometry {
 
 /** Layout state stays here; resizing never changes media or subtitle state. */
 export function ResizableWorkbench({ media, editor, subtitles }: Props) {
+  useLocale();
   const container = useRef<HTMLDivElement>(null);
   const subtitlePane = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -121,9 +124,9 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
     <div ref={root} className="workbench" style={style} data-resizing={resizing || undefined}>
       <div className="media-panel" id={mediaId}>{media}</div>
       <div ref={divider} className="workbench-divider" role="separator" tabIndex={0}
-        aria-label="调整视频区域大小" aria-orientation="vertical" aria-controls={`${mediaId} ${editorId} ${subtitleId}`}
+        aria-label={t("workspaceUi.resizeVideoArea")} aria-orientation="vertical" aria-controls={`${mediaId} ${editorId} ${subtitleId}`}
         aria-valuemin={bounds ? percent(bounds.minimum) : 0} aria-valuemax={bounds ? percent(bounds.maximum) : 100}
-        aria-valuenow={percent(mediaWidth)} aria-valuetext={`视频区域宽度 ${Math.round(mediaWidth)} 像素，上方区域高度 ${Math.round(geometry?.height ?? 0)} 像素`}
+        aria-valuenow={percent(mediaWidth)} aria-valuetext={t("workspaceUi.videoAreaWidthValuePixelsUpperAreaHeight", { v0: Math.round(mediaWidth), v1: Math.round(geometry?.height ?? 0) })}
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}
         onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={adjustWithKeyboard}
         onDoubleClick={() => setRequestedShare(null)} />

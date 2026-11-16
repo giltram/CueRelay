@@ -5,6 +5,7 @@ not a storage key. Every conversion re-preflights it. Original Dialogue IDs
 identify metadata anchors; cues define Dialogue order without reordering comments.
 pysubs2 parses canonical mapped records; it never serializes the source file.
 """
+from message_contracts import localized
 
 import re
 import warnings
@@ -27,22 +28,22 @@ ASCII_WHITESPACE = " \t"  # ASS syntax must not inherit Python's Unicode whitesp
 
 def _text(value, line=None):
     if not isinstance(value, str) or len(value) > 16_384:
-        _fail("字幕文本须为不超过 16384 字符的字符串", line)
+        _fail(localized('server.subtitleTextMustBeAStringOfAtMost', '字幕文本须为不超过 16384 字符的字符串', {}), line)
     cursor = 0
     while cursor < len(value):
         char = value[cursor]
         if ord(char) < 32 or char in "\u0085\u2028\u2029":
-            _fail(r"字幕不能包含控制字符；换行请使用 \N", line)
+            _fail(localized('server.subtitleTextMustNotContainControlCharactersUseN', '字幕不能包含控制字符；换行请使用 \\N', {}), line)
         if char == "{":
             end = value.find("}", cursor)
             if end < 0 or not TAG_BLOCK.fullmatch(value[cursor + 1:end]):
-                _fail(r"仅支持 \b0/1、\i0/1、\u0/1、\s0/1 标签；其他标签或花括号须保护性拒绝", line)
+                _fail(localized('server.onlyB01I01U01AndS0', '仅支持 \\b0/1、\\i0/1、\\u0/1、\\s0/1 标签；其他标签或花括号须保护性拒绝', {}), line)
             cursor = end + 1
         elif char == "}":
-            _fail("ASS 花括号未配对", line)
+            _fail(localized('server.unmatchedAssBraces', 'ASS 花括号未配对', {}), line)
         elif char == "\\":
             if cursor + 1 >= len(value) or value[cursor + 1] not in "Nnh":
-                _fail(r"文本仅支持 \N、\n、\h 转义", line)
+                _fail(localized('server.textOnlySupportsNNAndHEscapes', '文本仅支持 \\N、\\n、\\h 转义', {}), line)
             cursor += 2
         else:
             cursor += 1
@@ -51,16 +52,16 @@ def _text(value, line=None):
 def _time(value, line):
     match = TIME.fullmatch(value.strip(ASCII_WHITESPACE))
     if not match:
-        _fail("时间须使用 h:mm:ss.cc（0–9 小时）", line)
+        _fail(localized('server.useHMmSsCc09Hours', '时间须使用 h:mm:ss.cc（0–9 小时）', {}), line)
     # Delegate conversion only after rejecting the library's permissive syntax.
     return pysubs2.time.timestamp_to_ms(match.groups())
 
 
 def _interval(start, end, line=None):
     if any(type(t) is not int or t < 0 or t > MAX_TIME or t % 10 for t in (start, end)):
-        _fail("时间须为 0–35999990 的整数毫秒，并对齐 10ms", line, category='invalid-time')
+        _fail(localized('server.timesMustBeIntegerMillisecondsFrom0To35999990', '时间须为 0–35999990 的整数毫秒，并对齐 10ms', {}), line, category='invalid-time')
     if start > end:
-        _fail("入点不能晚于出点", line, category='invalid-time')
+        _fail(localized('server.startTimeMustNotBeAfterEndTime', '入点不能晚于出点', {}), line, category='invalid-time')
 
 
 def _format_time(ms):
@@ -73,9 +74,9 @@ def _format_time(ms):
 def _fields(value, expected, line):
     fields = [part.strip(ASCII_WHITESPACE) for part in value.split(",")]
     if len(fields) != len(expected) or set(fields) != set(expected):
-        _fail("Format 包含缺失、重复或不支持的字段", line)
+        _fail(localized('server.formatHasMissingDuplicateOrUnsupportedFields', 'Format 包含缺失、重复或不支持的字段', {}), line)
     if "Text" in expected and fields[-1] != "Text":
-        _fail("当前要求 Text 是 Events 的最后一个字段", line)
+        _fail(localized('server.textMustBeTheLastEventsField', '当前要求 Text 是 Events 的最后一个字段', {}), line)
     return fields
 
 
@@ -96,14 +97,14 @@ class _Layout:
 
 def _inspect(source):
     if not isinstance(source, str):
-        _fail("source 须为 UTF-8 ASS 文本")
+        _fail(localized('server.sourceMustBeUtf8AssText', 'source 须为 UTF-8 ASS 文本', {}))
     try:
         if len(source.encode("utf-8")) > MAX_BYTES:
-            _fail("ASS 文本不能超过 1MiB")
+            _fail(localized('server.assTextMustNotExceed1Mib', 'ASS 文本不能超过 1MiB', {}))
     except UnicodeError:
-        _fail("ASS 包含非法 Unicode")
+        _fail(localized('server.assContainsInvalidUnicode', 'ASS 包含非法 Unicode', {}))
     if any((ord(char) < 32 and char not in "\t\r\n") or char in "\u0085\u2028\u2029" for char in source):
-        _fail("ASS 包含不支持的控制字符或非标准换行")
+        _fail(localized('server.assContainsUnsupportedControlCharactersOrNonStandardLine', 'ASS 包含不支持的控制字符或非标准换行', {}))
     lines = source.removeprefix("\ufeff").splitlines()
     section = None
     seen = set()
@@ -128,18 +129,18 @@ def _inspect(source):
             if section == "[Events]":
                 insertion = index
             if stripped not in {"[Script Info]", "[V4+ Styles]", "[Events]", "[Aegisub Project Garbage]"} or stripped in seen:
-                _fail("不支持或重复的 section；附件、SSA 和未知 section 不可编辑导入", line)
+                _fail(localized('server.unsupportedOrDuplicateSectionAttachmentsSsaAndUnknownSections', '不支持或重复的 section；附件、SSA 和未知 section 不可编辑导入', {}), line)
             seen.add(stripped)
             section = stripped
             continue
         if ":" not in raw:
-            _fail("无法识别的 ASS 记录", line)
+            _fail(localized('server.unrecognizedAssRecord', '无法识别的 ASS 记录', {}), line)
         key, value = raw.lstrip(ASCII_WHITESPACE).split(":", 1)
         value = value.removeprefix(" ")
         if section in {"[Script Info]", "[Aegisub Project Garbage]"}:
             if section == "[Script Info]" and key == "ScriptType":
                 if script_type is not None:
-                    _fail("ScriptType 重复", line)
+                    _fail(localized('server.duplicateScripttype', 'ScriptType 重复', {}), line)
                 script_type = value.strip(ASCII_WHITESPACE)
             script_keys = {"PlayResX": "play_res_x", "PlayResY": "play_res_y", "ScaledBorderAndShadow": "scaled_border_and_shadow"}
             # Broad matching detects malformed spellings for rejection; it must
@@ -147,18 +148,18 @@ def _inspect(source):
             script_key = next((known for known in script_keys if known.casefold() == key.strip().casefold()), None)
             if section == "[Script Info]" and script_key:
                 if script_key in script_records:
-                    _fail(f"{script_key} 重复，不能安全编辑脚本设置", line)
+                    _fail(localized('server.duplicateValueScriptPropertiesCannotBeEditedSafely', '{{v0}} 重复，不能安全编辑脚本设置', {'v0': script_key}), line)
                 if key != script_key:
-                    _fail(f"脚本设置键须为 {script_key}，非规范大小写或空白可能改变渲染含义", line)
+                    _fail(localized('server.theScriptPropertyKeyMustBeValueNonCanonical', '脚本设置键须为 {{v0}}，非规范大小写或空白可能改变渲染含义', {'v0': script_key}), line)
                 script_records[script_key] = index
                 raw = value.strip(ASCII_WHITESPACE)
                 if script_key == "ScaledBorderAndShadow":
                     if raw.lower() not in ("yes", "no"):
-                        _fail("ScaledBorderAndShadow 须为 yes/no", line)
+                        _fail(localized('server.scaledborderandshadowMustBeYesNo', 'ScaledBorderAndShadow 须为 yes/no', {}), line)
                     script[script_keys[script_key]] = raw.lower() == "yes"
                 else:
                     if not re.fullmatch(r"[1-9][0-9]{0,4}", raw) or int(raw) > 32768:
-                        _fail("PlayRes 须为 1–32768 的整数", line)
+                        _fail(localized('server.playresMustBeAnIntegerFrom1To32768', 'PlayRes 须为 1–32768 的整数', {}), line)
                     script[script_keys[script_key]] = int(raw)
             continue  # Other metadata is preserved verbatim and never dereferenced.
         if section == "[V4+ Styles]":
@@ -167,7 +168,7 @@ def _inspect(source):
             elif key == "Style" and style_format:
                 parts = value.split(",")
                 if len(parts) != len(STYLE_FIELDS):
-                    _fail("Style 字段数错误", line)
+                    _fail(localized('server.incorrectNumberOfStyleFields', 'Style 字段数错误', {}), line)
                 # libass skips leading ASCII whitespace in names but preserves
                 # their tails. Numeric fields allow ASCII padding on both ends.
                 # Keep all other boundary characters for the shared validator;
@@ -176,24 +177,24 @@ def _inspect(source):
                           else part.strip(ASCII_WHITESPACE) for field, part in zip(style_format, parts)}
                 _style(values, line)
                 if values["Name"] in styles:
-                    _fail("样式名重复", line)
+                    _fail(localized('server.duplicateStyleName', '样式名重复', {}), line)
                 styles.append(values["Name"])
                 style_records[values["Name"]] = (index, style_format, values)
                 canonical_styles.append("Style: " + ",".join(values[f] for f in STYLE_FIELDS))
             else:
-                _fail("无法识别的样式记录或重复 Format", line)
+                _fail(localized('server.unrecognizedStyleRecordOrDuplicateFormat', '无法识别的样式记录或重复 Format', {}), line)
         elif section == "[Events]":
             if key == "Format" and event_format is None:
                 event_format = _fields(value, EVENT_FIELDS, line)
             elif key in {"Dialogue", "Comment"} and event_format:
                 parts = value.split(",", len(event_format) - 1)
                 if len(parts) != len(EVENT_FIELDS):
-                    _fail("事件字段数错误", line)
+                    _fail(localized('server.incorrectNumberOfEventFields', '事件字段数错误', {}), line)
                 values = dict(zip(event_format, parts))
                 if any(not re.fullmatch(r"[0-9]{1,5}", values[f].strip(ASCII_WHITESPACE)) for f in ("Layer", "MarginL", "MarginR", "MarginV")):
-                    _fail("事件 Layer/Margin 须为非负整数", line)
+                    _fail(localized('server.eventLayerMarginMustBeNonNegativeIntegers', '事件 Layer/Margin 须为非负整数', {}), line)
                 if values["Effect"].strip(ASCII_WHITESPACE):
-                    _fail("非空 Effect 不支持可编辑导入", line)
+                    _fail(localized('server.nonEmptyEffectCannotBeImportedForEditing', '非空 Effect 不支持可编辑导入', {}), line)
                 start, end = _time(values["Start"], line), _time(values["End"], line)
                 _interval(start, end, line)
                 _text(values["Text"], line)
@@ -203,7 +204,7 @@ def _inspect(source):
                 # using only Default appeared to work).
                 style = values["Style"].lstrip(ASCII_WHITESPACE)
                 if style != style.strip():
-                    _fail("样式引用不能含尾部空白或非 ASCII 前导空白；渲染器可能回退到 Default", line)
+                    _fail(localized('server.styleReferencesMustNotHaveTrailingWhitespaceOrNon', '样式引用不能含尾部空白或非 ASCII 前导空白；渲染器可能回退到 Default', {}), line)
                 values["Style"] = style
                 style_references.append((style, line))
                 canonical_events.append(key + ": " + ",".join(values[f] for f in EVENT_FIELDS))
@@ -215,18 +216,18 @@ def _inspect(source):
                     records[cue_id] = (index, event_format, parts)
                     cues.append({"id": cue_id, "start_ms": start, "end_ms": end, "text": values["Text"], "style": style})
             else:
-                _fail("无法识别的事件记录或重复 Format", line)
+                _fail(localized('server.unrecognizedEventRecordOrDuplicateFormat', '无法识别的事件记录或重复 Format', {}), line)
         else:
-            _fail("记录不属于受支持的 section", line)
+            _fail(localized('server.theRecordIsNotInASupportedSection', '记录不属于受支持的 section', {}), line)
     if script_type != "v4.00+" or not styles or event_format is None:
-        _fail("需要 ASS v4.00+、至少一个样式及 Events Format")
+        _fail(localized('server.assV400AtLeastOneStyleAndAn', '需要 ASS v4.00+、至少一个样式及 Events Format', {}))
     if len(canonical_events) > MAX_CUES:
-        _fail("验证台最多接受 5000 个事件")
+        _fail(localized('server.atMost5000EventsAreSupported', '验证台最多接受 5000 个事件', {}))
     if len(styles) > MAX_STYLES:
-        _fail(f"文档最多接受 {MAX_STYLES} 个样式")
+        _fail(localized('server.aDocumentCanHaveAtMostValueStyles', '文档最多接受 {{v0}} 个样式', {'v0': MAX_STYLES}))
     for name, line in style_references:
         if name not in style_records:
-            _fail(f"事件引用了不存在的样式：{name}", line, category='missing-style')
+            _fail(localized('server.anEventReferencesAMissingStyleValue', '事件引用了不存在的样式：{{v0}}', {'v0': name}), line, category='missing-style')
     # pysubs2 ignores Format lines, so feed it records already mapped by Format.
     canonical = "[Script Info]\nScriptType: v4.00+\n[V4+ Styles]\n" + "\n".join(canonical_styles) + "\n[Events]\n" + "\n".join(canonical_events)
     try:
@@ -234,7 +235,7 @@ def _inspect(source):
             warnings.simplefilter("error")
             pysubs2.SSAFile.from_string(canonical, format_="ass")
     except (ValueError, TypeError, RuntimeWarning) as error:
-        raise AssError("ASS 字段无法安全解析") from error
+        raise AssError(localized('server.assFieldsCannotBeParsedSafely', 'ASS 字段无法安全解析', {})) from error
     validate_script(script, allow_partial=True)
     return {"source": source, "styles": styles, "cues": cues}, _Layout(
         lines, records, event_format, insertion, style_format, style_records,
@@ -259,7 +260,7 @@ def _document_layout(document):
     """Shared preflight for serialization and read-only inspection."""
     if (not isinstance(document, dict) or set(document) != {"schema_version", "source", "script", "styles", "cues"}
             or type(document.get("schema_version")) is not int or document["schema_version"] != 2):
-        _fail("文档契约已升级为 v2；请先导出旧页面稿件，再刷新客户端")
+        _fail(localized('server.theDocumentContractIsNowV2ExportYourDraft', '文档契约已升级为 v2；请先导出旧页面稿件，再刷新客户端', {}))
     original, layout = _inspect(document["source"])
     validate_script(document["script"], allow_partial=True)
     validate_styles(document["styles"], set(original["styles"]))
@@ -267,7 +268,7 @@ def _document_layout(document):
     by_source = {style["source_name"]: style for style in document["styles"] if style["source_name"] is not None}
     cues = document["cues"]
     if not isinstance(cues, list) or len(cues) > MAX_CUES:
-        _fail("cues 须为不超过 5000 行的数组")
+        _fail(localized('server.cuesMustBeAnArrayOfAtMost5000', 'cues 须为不超过 5000 行的数组', {}))
     return layout, by_id, by_source, cues
 
 
@@ -275,18 +276,18 @@ def _cue_record(cue, layout, by_id, seen):
     """One validated Dialogue record; used by export and inspection."""
     required = {"id", "start_ms", "end_ms", "text", "style_id"}
     if not isinstance(cue, dict) or not required <= set(cue) or set(cue) - required - {"source_id", "ass_fields"}:
-        _fail("字幕行字段不符合契约")
+        _fail(localized('server.subtitleLineFieldsDoNotMatchTheContract', '字幕行字段不符合契约', {}))
     cue_id = cue["id"]
     if not isinstance(cue_id, str) or not cue_id or len(cue_id) > 100 or cue_id in seen:
-        _fail("字幕 ID 须唯一且不超过 100 字符")
+        _fail(localized('server.subtitleIdsMustBeUniqueAndAtMost100', '字幕 ID 须唯一且不超过 100 字符', {}))
     seen.add(cue_id)
     _interval(cue["start_ms"], cue["end_ms"])
     _text(cue["text"])
     if not isinstance(cue["style_id"], str) or cue["style_id"] not in by_id:
-        _fail("字幕引用了不存在的样式", category='missing-style')
+        _fail(localized('server.theSubtitleReferencesAMissingStyle', '字幕引用了不存在的样式', {}), category='missing-style')
     source_id = cue.get("source_id", cue_id)
     if "source_id" in cue and (not cue_id.startswith("new-") or not isinstance(source_id, str) or source_id not in layout.records):
-        _fail("拆分字幕的 source_id 必须引用模板中的原始字幕")
+        _fail(localized('server.aSplitSubtitleSourceIdMustReferenceAnOriginal', '拆分字幕的 source_id 必须引用模板中的原始字幕', {}))
     if cue_id in layout.records:
         index, fields, raw_parts = layout.records[cue_id]
         values = dict(zip(fields, raw_parts))
@@ -298,13 +299,13 @@ def _cue_record(cue, layout, by_id, seen):
         else:
             values = dict(zip(EVENT_FIELDS, ["0", "", "", "", "", "0000", "0000", "0000", "", ""]))
     else:
-        _fail("原始字幕 ID 无效；新行 ID 必须以 new- 开头")
+        _fail(localized('server.invalidOriginalSubtitleIdNewLineIdsMustStart', '原始字幕 ID 无效；新行 ID 必须以 new- 开头', {}))
     if 'ass_fields' in cue:
         metadata = cue['ass_fields']
         if (not cue_id.startswith('new-') or not isinstance(metadata, dict) or set(metadata) != CUE_FIELDS
                 or any(not isinstance(value, str) or len(value) > 16384
                        or ',' in value or any(ord(char) < 32 for char in value) for value in metadata.values())):
-            _fail('新行 ASS 保留字段须完整包含 Layer/Name/MarginL/MarginR/MarginV 字符串')
+            _fail(localized('server.newLineAssPreservedFieldsMustContainAllLayer', '新行 ASS 保留字段须完整包含 Layer/Name/MarginL/MarginR/MarginV 字符串', {}))
         values.update(metadata)
     values.update(Start=_format_time(cue["start_ms"]), End=_format_time(cue["end_ms"]), Text=cue["text"], Style=by_id[cue["style_id"]]["name"])
     return "Dialogue: " + ",".join(values[f] for f in fields)
@@ -331,7 +332,7 @@ def serialize_ass(document):
     for index, (fields, values) in layout.comments.items():
         style = by_source.get(values["Style"].strip())
         if style is None:
-            _fail("样式仍被 ASS Comment 引用，不能删除")
+            _fail(localized('server.theStyleIsStillReferencedByAssCommentAnd', '样式仍被 ASS Comment 引用，不能删除', {}))
         replacements[index] = "Comment: " + ",".join(style["name"] if f == "Style" else values[f] for f in fields)
     script_values = {"PlayResX": document["script"]["play_res_x"], "PlayResY": document["script"]["play_res_y"],
                      "ScaledBorderAndShadow": document["script"]["scaled_border_and_shadow"]}

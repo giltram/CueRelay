@@ -1,3 +1,4 @@
+import { type MessageValue, describe } from '../contracts/messages';
 import defaults from '../../../shared/timing-shortcuts.json';
 import { isLineAction } from './line-actions';
 import { allowsShortcutFocus, isShortcutSuppressed, type ShortcutEvent } from '../media/playback';
@@ -27,22 +28,22 @@ export function effectiveBindings(action: TimingShortcut, overrides: ShortcutOve
   return bindings;
 }
 
-export function validateOverrides(overrides: ShortcutOverrides): string | undefined {
-  if (Object.keys(overrides).some(action => !timingActions.includes(action as TimingShortcut))) return '未知快捷键动作';
+export function validateOverrides(overrides: ShortcutOverrides): MessageValue | undefined {
+  if (Object.keys(overrides).some(action => !timingActions.includes(action as TimingShortcut))) return describe("workspaceUi.unknownShortcutAction", "未知快捷键动作");
   const used = new Set<string>();
   for (const action of timingActions) {
     const bindings = effectiveBindings(action, overrides);
-    if (!Array.isArray(bindings) || bindings.length > 4) return '每个动作接受 0–4 个绑定';
+    if (!Array.isArray(bindings) || bindings.length > 4) return describe("workspaceUi.eachActionAccepts04Bindings", "每个动作接受 0–4 个绑定");
     if (action === 'toggle-text-focus' && (bindings.length !== 1
-      || !defaults[action].allowed_bindings.includes(bindings[0]))) return '字幕输入焦点切换只能选择 Tab 或 Ctrl+Space';
+      || !defaults[action].allowed_bindings.includes(bindings[0]))) return describe("workspaceUi.subtitleInputFocusCanOnlyUseTabOr", "字幕输入焦点切换只能选择 Tab 或 Ctrl+Space");
     for (const binding of bindings) {
       const standard = /^(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space|Shift\+(Key[A-Z]|Digit[0-9]))$/.test(binding);
       const deletion = action === 'delete-row' && /^(Ctrl|Meta)\+(Delete|Backspace)$/.test(binding);
       const editing = (isEditingShortcut(action) || isLineAction(action) || action === 'undo' || action === 'redo') && /^(Ctrl\+)?(Meta\+)?(Alt\+)?(Shift\+)?(Key[A-Z]|Digit[0-9]|Enter|NumpadEnter|Space)$/.test(binding);
       if (action !== 'toggle-text-focus' && !standard && !deletion && !editing) {
-        return '快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。';
+        return describe("workspaceUi.invalidShortcutFormatSeparateBindingsWithEnglishCommas", "快捷键格式不正确。请使用英文逗号（,）分隔多个绑定，不能使用中文逗号（，）；检查键码（key）及大小写，例如 KeyG、Digit1、Shift+KeyT。也可使用“录制”按钮；仍无法录入请联系 dev。");
       }
-      if (used.has(binding)) return `快捷键冲突：${binding}`;
+      if (used.has(binding)) return describe("workspaceUi.shortcutConflictValue", "快捷键冲突：{{v0}}", { v0: binding });
       used.add(binding);
     }
   }

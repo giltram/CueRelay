@@ -1,3 +1,4 @@
+import { describe } from "../contracts/messages";
 import type { AssDocument } from '../contracts/subtitles';
 import { parseTime, validateInterval } from '../media/playback';
 
@@ -11,6 +12,6 @@ export function previewDocument(document: AssDocument | null, selectedId: string
     if (cue.start_ms === start_ms && cue.end_ms === end_ms) return { document };
     return { document: { ...document, cues: document.cues.map(cue => cue.id === selectedId ? { ...cue, start_ms, end_ms } : cue) } };
   } catch {
-    return { document, warning: '时间草稿无效，预览使用字幕行原有时间。' };
+    return { document, warning: describe("workspaceUi.invalidTimeDraftPreviewUsesTheOriginalLine", "时间草稿无效，预览使用字幕行原有时间。") };
   }
 }

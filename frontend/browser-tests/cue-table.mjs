@@ -13,7 +13,7 @@ const artifacts = mkdtempSync(join(tmpdir(), 'cuerelay-cue-table-'));
 const video = join(artifacts, 'video.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=5', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', video]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));
 try {
@@ -105,7 +105,7 @@ try {
     await handle.dblclick();
     almost(await widthOf(index + 1), defaults[index]);
   }
-  const resizeStyle = page.getByRole('separator', { name: '调整style列宽度', exact: true });
+  const resizeStyle = page.getByRole('separator', { name: '调整样式列宽度', exact: true });
   await resizeStyle.focus();
   await page.keyboard.press('ArrowRight'); almost(await widthOf(4), 96);
   await page.keyboard.press('Shift+ArrowRight'); almost(await widthOf(4), 120);

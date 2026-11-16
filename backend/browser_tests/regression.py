@@ -83,3 +83,6 @@ class WorkspaceRegressionTests(LiveServerTestCase):
 
     def test_organization_glossary_fork_stays_isolated(self):
         self.run_browser('organization glossary fork stays isolated')
+
+    def test_english_language_preserves_editor_state(self):
+        self.run_browser('english language preserves editor state')

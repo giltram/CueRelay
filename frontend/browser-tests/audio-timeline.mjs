@@ -20,7 +20,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi
   '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '35', '-pix_fmt', 'yuv420p',
   '-af', "volume='if(lt(mod(t,4),2),1,0)':eval=frame,pan=stereo|c0=c0|c1=-1*c0", '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 const errors = [];
 const mediaUploads = [];
@@ -235,7 +235,7 @@ try {
   assert(mobile.width > 100 && mobile.height >= 64);
   report.narrow = { width: mobile.width, height: mobile.height };
   if (process.env.AUDIO_LARGE_FIXTURE) {
-    const largePage = await browser.newPage();
+    const largePage = await browser.newPage({ locale: 'zh-CN' });
     await openLocalWorkspace(largePage, process.env.AUDIO_TIMELINE_URL || 'http://127.0.0.1:5176/');
     await largePage.getByLabel('导入本地视频').setInputFiles(process.env.AUDIO_LARGE_FIXTURE);
     await largePage.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');

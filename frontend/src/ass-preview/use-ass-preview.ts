@@ -1,3 +1,5 @@
+import { useLocale } from '../i18n/react';
+import { formatMessage } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import type { AssDocument } from '../contracts/subtitles';
 import { createJassubRenderer } from './jassub-renderer';
@@ -8,6 +10,7 @@ type Serialize = (document: AssDocument, signal: AbortSignal) => Promise<string>
 /** Media identity controls lifetime; document identity only updates the track. */
 export function useAssPreview(video: HTMLVideoElement | null, media: File | MediaStream | null,
   document: AssDocument | null, serialize: Serialize, visible: boolean) {
+  useLocale();
   const [enabled, setEnabled] = useState(true);
   const [status, setStatus] = useState<PreviewStatus>({ phase: 'loading' });
   const session = useRef<PreviewSession | null>(null);
@@ -24,5 +27,5 @@ export function useAssPreview(video: HTMLVideoElement | null, media: File | Medi
   }, [video, media, serialize, enabled]);
   useEffect(() => { if (document) session.current?.update(document); }, [document, video, media, enabled]);
   useEffect(() => { session.current?.setVisible(visible); }, [visible, video, media, enabled]);
-  return { enabled, setEnabled, status, active: Boolean(video && media && enabled) };
+  return { enabled, setEnabled, status: { ...status, message: formatMessage(status.message) }, active: Boolean(video && media && enabled) };
 }

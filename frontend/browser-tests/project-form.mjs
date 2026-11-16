@@ -15,7 +15,7 @@ const ass = fileURLToPath(new URL('../../backend/ass_format/fixtures/basic.ass',
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', video]);
 writeFileSync(join(artifacts, 'invalid.ass'), 'invalid subtitle');
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ locale: 'zh-CN', baseURL, viewport: { width: 1440, height: 1000 } });
 // This existing suite covers the native fallback; video-restore.mjs covers remembered handles.
 await context.addInitScript(() => { window.showOpenFilePicker = undefined; });
 context.setDefaultTimeout(15000);
@@ -48,7 +48,10 @@ try {
   const listURL = page.url(); const tabs = context.pages().length;
   await open();
   assert.equal(page.url(), listURL); assert.equal(context.pages().length, tabs);
-  for (const name of ['项目名称', '项目说明', '基准视频', '初始字幕']) await page.getByLabel(name, { exact: true }).waitFor();
+  for (const name of ['项目名称', '项目说明', '初始字幕']) await page.getByLabel(name, { exact: true }).waitFor();
+  // The native video input is deliberately hidden behind the shared picker button.
+  await page.getByLabel('基准视频', { exact: true }).waitFor({ state: 'attached' });
+  await modal.getByRole('button', { name: '选择基准视频', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: /^(下一步|上一步)$/ }).count(), 0);
   assert(await modal.getByRole('button', { name: '创建并打开', exact: true }).isDisabled());
   await page.getByLabel('项目名称', { exact: true }).fill('取消选片保留名称');

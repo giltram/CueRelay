@@ -13,3 +13,7 @@
 验证：style-fields.test.ts、browser-tests/style-management.mjs；服务端矩阵及完整限制见 [样式契约](../../../docs/style-management.md)。
 
 本地工作区 onApply 成功由 workspace-ui 记录一条完整文档历史（样式定义、脚本和字幕引用同时恢复）；无变化或失败不产生步骤。管理器表单自身不持有字幕历史，弹窗期间暂停工作区撤销，关闭后可按应用顺序撤销。独立项目设置仍修改服务器快照，保留工作区在显式保存安全合并成功后接纳新样式基准，或通过显式重载替换全部文档。
+
+## 中英文展示边界（2026-11-15）
+
+字段/分组标签由 style-fields 输出 MessageValue，展示时解析；分组 React key 使用稳定字段 ID，不能用翻译文字作 key。用户创建/导入的样式名、未保存名称和字段数值保持原值。样本快照不依赖语言，固定双语样本文字用于字体预览；翻译不重建 JASSUB。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

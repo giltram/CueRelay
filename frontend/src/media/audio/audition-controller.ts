@@ -1,3 +1,4 @@
+import { type MessageValue, describe, MessageError } from '../../contracts/messages';
 import type { PlaybackRange } from '../playback';
 import type { PcmChunk } from './local-audio';
 import { auditionWindowSeconds } from './audition-protocol';
@@ -7,7 +8,7 @@ export interface AuditionState {
   phase: 'idle' | 'preparing' | 'playing' | 'finished' | 'error';
   /** Milliseconds on the container presentation timeline; null delegates to video. */
   position: number | null;
-  message: string;
+  message: MessageValue;
 }
 interface ScheduledWindow { end: number; nodes: Set<AudioBufferSourceNode> }
 interface Session {
@@ -91,7 +92,7 @@ export class AudioAuditionController {
   private fail(session: Session | null, error: unknown) {
     if (this.session !== session || this.disposed) return;
     this.release();
-    this.publish({ phase: 'error', position: null, message: `音频试听失败：${(error as Error).message}` });
+    this.publish({ phase: 'error', position: null, message: describe("media.audioPlaybackFailedValue", "音频试听失败：{{v0}}", { v0: error as Error }) });
   }
 
   async start(range: PlaybackRange, followEnd = false) {
@@ -100,7 +101,7 @@ export class AudioAuditionController {
     let session: Session | null = null;
     try {
       if (!Number.isFinite(range.start) || !Number.isFinite(range.end) || range.start < 0 || range.end <= range.start) {
-        throw Error('试听区间无效');
+        throw new MessageError(describe("media.invalidAudioPlaybackInterval", "试听区间无效"));
       }
       // Called synchronously from the user gesture, before waiting for decode/Worker startup.
       const context = this.context ??= this.createContext();
@@ -112,11 +113,11 @@ export class AudioAuditionController {
       session = { reader: this.createReader(), range: { ...range }, origin: 0, next: range.start / 1000,
         span: 0, windows: [], loading: false, followEnd, output };
       this.session = session;
-      this.publish({ phase: 'preparing', position: range.start, message: '正在准备音频试听…' });
+      this.publish({ phase: 'preparing', position: range.start, message: describe("media.preparingAudioPlayback", "正在准备音频试听…") });
       const metadata = await session.reader.open();
       if (this.session !== session) return;
       session.span = auditionWindowSeconds(metadata);
-      if (!Number.isFinite(session.span) || session.span <= 0) throw Error('音轨采样格式无效');
+      if (!Number.isFinite(session.span) || session.span <= 0) throw new MessageError(describe("media.invalidAudioSampleFormat", "音轨采样格式无效"));
       const prepared: { end: number; chunks: PcmChunk[] }[] = [];
       // Short ranges are fully prepared; long ranges start with two bounded windows.
       while (prepared.length < 2 && session.next < session.range.end / 1000) {
@@ -127,11 +128,11 @@ export class AudioAuditionController {
       }
       await resumed;
       if (this.session !== session) return;
-      if (context.state !== 'running') throw Error('浏览器尚未允许音频输出，请再次触发试听');
+      if (context.state !== 'running') throw new MessageError(describe("media.theBrowserHasNotAllowedAudioOutputStart", "浏览器尚未允许音频输出，请再次触发试听"));
       session.origin = context.currentTime + 0.05;
       this.scheduleEnd(session);
       for (const window of prepared) this.schedule(session, window.end, window.chunks);
-      if (context.currentTime >= session.origin) throw Error('音频排程未及时完成，请重新试听');
+      if (context.currentTime >= session.origin) throw new MessageError(describe("media.audioSchedulingDidNotFinishInTimeTry", "音频排程未及时完成，请重新试听"));
       this.publish({ phase: 'playing', position: range.start, message: '' });
       this.timer = setInterval(() => this.tick(session!), 25);
     } catch (error) { this.fail(session, error); }
@@ -183,14 +184,14 @@ export class AudioAuditionController {
     const position = this.getPosition()!;
     if (session.next < session.range.end / 1000 &&
         context.currentTime >= session.origin + session.next - session.range.start / 1000) {
-      this.fail(session, Error('音频预取未及时完成，请重新试听'));
+      this.fail(session, new MessageError(describe("media.audioPrefetchDidNotFinishInTimeTry", "音频预取未及时完成，请重新试听")));
       return;
     }
     if (position >= session.range.end) {
       this.finish(session);
       return;
     }
-    if (context.state !== 'running') { this.fail(session, Error('浏览器音频输出已中断，请重新试听')); return; }
+    if (context.state !== 'running') { this.fail(session, new MessageError(describe("media.browserAudioOutputWasInterruptedTryPlaybackAgain", "浏览器音频输出已中断，请重新试听"))); return; }
     while (session.windows[0]?.end <= position / 1000) releaseWindow(session.windows.shift()!);
     this.publish({ phase: 'playing', position, message: '' });
     if (!session.loading && session.windows.length < 2 && session.next < session.range.end / 1000) {
@@ -206,7 +207,7 @@ export class AudioAuditionController {
       if (this.session !== session) return;
       // Never start late buffers at 'now', skip speech, or change the PTS mapping on underrun.
       if (this.context!.currentTime >= session.origin + start - session.range.start / 1000) {
-        throw Error('音频预取未及时完成，请重新试听');
+        throw new MessageError(describe("media.audioPrefetchDidNotFinishInTimeTry", "音频预取未及时完成，请重新试听"));
       }
       this.schedule(session, end, chunks); session.next = end;
     } catch (error) { this.fail(session, error); }

@@ -15,7 +15,7 @@ const file = join(artifacts, 'frames.mp4');
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:r=10:d=15',
   '-f', 'lavfi', '-i', 'sine=frequency=440:duration=15', '-c:v', 'libx264', '-bf', '3', '-pix_fmt', 'yuv420p', '-c:a', 'aac', file]);
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
+const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
 context.setDefaultTimeout(10000);
 const fixture = uiDocument(['Default', 'Other']);
 fixture.cues = [['c', 8000], ['a', 2000], ['b', 5000], ['d', 11000]].map(([id, start]) => ({
