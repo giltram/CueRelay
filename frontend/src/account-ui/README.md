@@ -40,4 +40,4 @@ toggle-text-focus 使用同一 shortcut_overrides，默认 Tab，只能在「字
 
 ## 中英文展示边界（2026-11-15）
 
-语言控件由 App 组合并归 i18n/use-language-preference 所有；PersonalPanel 不以语言为 key，不因翻译重建密码/快捷键草稿。账号设置扩展 language_preference，PATCH 只提交本次字段；反馈保留 Error/descriptor，由展示时解析。快捷键名称由 i18n/shortcuts 读取翻译资源，动作 ID/默认绑定仍归 shared JSON。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。
+`SettingsPage` 仅在个人设置正文呈现语言控件。App 通过 i18n/use-language-preference 管理当前语言、保存与重试状态；控件在账号设置首次加载期间可用，因此不受其他个人表单的加载或局部保存状态影响。PersonalPanel 不以语言为 key，不因翻译重建密码/快捷键草稿。语言 PATCH 只提交 language_preference；反馈保留 Error/descriptor，由展示时解析。快捷键名称由 i18n/shortcuts 读取翻译资源，动作 ID/默认绑定仍归 shared JSON。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。

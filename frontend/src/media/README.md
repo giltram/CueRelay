@@ -12,6 +12,8 @@
 - `media-manifest.ts` / `file-hash*.ts`：新建项目检查可播放首帧和合法时长，再以 Worker 分块计算完整 SHA-256；打开已有项目核对大小和完整摘要。播放器 loadedmetadata 继续检查合法时长后才通知 verified。新建同页的 InitialVideo 已完成完整校验，允许复用该次摘要；刷新后的句柄必须重新取 File/算完整摘要，不相信文件名、修改时间或旧摘要。
 - `LocalVideoPlayer.tsx`：video 节点、Object URL 创建/释放、元数据/播放错误、进度条与全屏 UI；通过 onFile 发布同一个接受的 File。只有播放器元数据通过后才记住句柄。校验失败不解锁编辑，不改变字幕或服务器基准。
 
+工作区通过 `playbackControls` 提供播放和时钟，通过 `subtitleToggle` 提供字幕开关。播放器将字幕开关与导入视频排在一起，空间不足时两者一起换行。
+
 ## 恢复行为与边界
 
 App 将当前已登录且仍有项目访问权的账号 ID 传入工作区；工作区构造项目专属 key，媒体模块不反查账号或路由。新建项目经 ProjectForm → ProjectsPanel → App → app-workspace → EditorWorkbench 显式传递 SelectedVideo。只有 media 的存储函数执行 IndexedDB 读写，业务 HTTP DTO 不变。

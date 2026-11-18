@@ -137,5 +137,20 @@
   "archivedState": " · Archived, read-only",
   "unavailableState": " · Editing unavailable",
   "qcLabel": "QC · {{count}}",
-  "emptyText": "(empty)"
+  "emptyText": "(empty)",
+  "draftSaving": "Saving local draft…",
+  "draftSaved": "Local draft saved.",
+  "draftFailed": "Could not save or read the local draft. You can still edit or export ASS.",
+  "draftsFound": "Local drafts found",
+  "draftUseOriginal": "Use original version",
+  "draftUseServer": "Use server version",
+  "draftKeepCurrent": "Keep current version",
+  "draftConflict": "This draft is based on a different server version. You can export a copy.",
+  "draftConflictReload": "This draft is based on a different server version. Export a copy or reload the project to see the latest version.",
+  "draftTiming": "Unapplied times in the draft run from {{start}} to {{end}}.",
+  "draftRestore": "Restore draft",
+  "draftExport": "Export draft ASS",
+  "draftDiscard": "Discard draft",
+  "draftShow": "View local drafts",
+  "draftActionFailed": "Could not complete the draft action. Reopen the workspace and try again."
 }

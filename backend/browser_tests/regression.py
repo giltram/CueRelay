@@ -53,6 +53,7 @@ class WorkspaceRegressionTests(LiveServerTestCase):
             media={'sha256': hashlib.sha256(self.video.read_bytes()).hexdigest(),
                    'size': self.video.stat().st_size, 'duration_ms': 8000})
         self.fixtures = {'username': self.member.username, 'password': PASSWORD, 'video': str(self.video),
+                         'organizer': organizer.username, 'subtitles': str(ROOT / 'backend/ass_format/fixtures/basic.ass'),
                          'projectPath': f'/api/organizations/{organization.pk}/projects/{project.pk}',
                          'workspacePath': f'/organizations/{organization.pk}/projects/{project.pk}/workspace'}
 
@@ -86,3 +87,18 @@ class WorkspaceRegressionTests(LiveServerTestCase):
 
     def test_english_language_preserves_editor_state(self):
         self.run_browser('english language preserves editor state')
+
+    def test_workspace_draft_local(self):
+        self.run_browser('workspace draft local')
+
+    def test_workspace_draft_project(self):
+        self.run_browser('workspace draft project')
+
+    def test_workspace_draft_tabs(self):
+        self.run_browser('workspace draft duplicate tabs')
+
+    def test_workspace_draft_accounts(self):
+        self.run_browser('workspace draft account isolation')
+
+    def test_workspace_draft_storage_failure(self):
+        self.run_browser('workspace draft IndexedDB write failure')

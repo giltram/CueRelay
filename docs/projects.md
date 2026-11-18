@@ -24,6 +24,8 @@ member 可查看本组织项目并编辑/保存字幕，不能管理项目元数
 
 项目工作区初次、直接访问或整页刷新时，按 URL 加载指定组织和项目的数据库快照，不能回退到默认组织或列表。新标签页/刷新拥有独立工作区，优先尝试读取本机记住的视频句柄并重新完成完整 SHA-256 校验；授权失效时点击「重新授权视频」，文件不可读、校验失败或无记录时仍可手动选择同一视频。支持文件句柄的浏览器首次通过校验后仅在本机记住句柄，视频不复制、不上传。无权限、不存在及失败有明确状态、返回列表和重试入口；归档在原地址只读打开。未匹配前可浏览字幕，修改与提交禁用；归档始终只读。保存只含已应用的字幕，未提交时间须先按提交快捷键提交，界面明确说明。导出仍使用公开 /api/ass/export，会话失效也能导出本地稿。
 
+未提交的编辑会自动写入本机草稿。重新打开时可确认恢复，服务端 revision 变化时可导出旧草稿。详见 [本机草稿模块](../frontend/src/workspace-drafts/README.md)。
+
 每次手动保存提交 revision；服务器拒绝旧版本，保留客户端输入并提示重新加载。多个浏览器不会悄悄互相覆盖，也不会自动合并。app-workspace 轮询观察归档/访问权限状态，本页归档/恢复也即时同步状态；不将取得的服务器文档/revision 覆盖到编辑器；有新版本须经保护步骤显式重载。会话失效后同账号登录继续当前工作区。
 
 「本地工作区」仍是独立工具，无云端项目归属；现有稿件不自动绑定新项目。它的字幕仍仅在内存，用户自行导出。
@@ -50,11 +52,11 @@ Session/CSRF、账号变更头、no-store、错误格式复用既有 HTTP 边界
 
 应用增量迁移 `python manage.py migrate`，前端 `npm ci` 安装新增的 @noble/hashes 2.0.1（MIT）；既有音频依赖及实现保留。后台未注册 Project 写入口，项目管理使用面板/API，维护脚本调用 projects.services。
 
-这是项目快照切片，不实现自动保存、实时协作、行锁、历史事件/恢复、组织样式库、媒体上传或更换基准。SHA-256 是浏览器防误选能力，无法证明恶意客户端实际播放了什么。大型真实片源性能、多浏览器及生产部署仍需验收。
+项目快照通过手动保存和既有具名操作提交。草稿自动保存仅使用本机 IndexedDB。SHA-256 是浏览器防误选能力，无法证明恶意客户端实际播放了什么。大型真实片源性能、多浏览器及生产部署仍需验收。
 
 测试命令见根 README。浏览器测试使用新建的 cuerelay_projects_browser 数据库，设置 PGDATABASE、DEBUG=1、BROWSER_TEST_PASSWORD 后执行 migrate 和 `python backend/manage.py shell < backend/browser_tests/seed_projects.py`；启动该库的后端及 Vite，运行 `BROWSER_TEST_PASSWORD=... node frontend/browser-tests/projects.mjs`，可用 PROJECTS_URL 指定地址（默认 5177）。播种拒绝已有账号数据库，测试输出截图目录。实际结果见 [验收记录](experiments/projects.md)。
 
-前端路由/保留实例的职责分别见 [navigation](../frontend/src/navigation/README.md) 与 [app-workspace](../frontend/src/app-workspace/README.md)。深路径部署及导航回归运行方式见 [前端部署](frontend-deployment.md)。URL 和 history 不保存正文、视频或草稿；仅 media 模块将只读文件句柄存入本机 IndexedDB，不新增字幕持久化或跨标签页草稿同步。
+前端路由/保留实例的职责分别见 [navigation](../frontend/src/navigation/README.md) 与 [app-workspace](../frontend/src/app-workspace/README.md)。深路径部署及导航回归运行方式见 [前端部署](frontend-deployment.md)。URL 和 history 负责路由。media 模块将只读文件句柄存入本机 IndexedDB，字幕草稿使用独立数据库和工作区标识。
 
 项目列表右上角的「设置」进入个人/组织设置独立页面，路径和职责见 [账号界面](../frontend/src/account-ui/README.md)。已移除「返回工作区」入口；默认点击同项目链接仍新开独立工作区；只有同文档浏览器前进/回退恢复保留实例。组织切换器仅在项目列表，工作区和设置页不保留。
 

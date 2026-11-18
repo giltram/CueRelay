@@ -107,7 +107,7 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .media-panel, .editing-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .media-panel { container-type: size; }
 .player-section { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
-/* Reserve space for the progress slider and shared import / playback row. */
+/* Reserve space for the progress slider and the transport, including wrapped actions. */
 .video-stage { position: relative; flex: none; align-self: center; width: min(100%, calc((100cqh - var(--video-controls-space)) * 16 / 9)); aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
 .video-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ass-preview-canvas { position: absolute; pointer-events: none; }
@@ -118,8 +118,9 @@ input.video-progress { flex: none; height: 20px; margin: 4px 0 0; padding: 0; bo
 .video-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: #cbd9cc; pointer-events: none; }
 .video-placeholder span { font-size: 12px; color: #92a095; }
 .hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.transport { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 8px; margin-top: 8px; }
-.transport .file-picker { margin-left: auto; flex-shrink: 0; }
+.transport { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 6px 4px; margin-top: 8px; }
+.transport-actions { display: flex; align-items: center; gap: 4px; max-width: 100%; margin-left: auto; }
+.transport-actions > button { min-height: 28px; padding: 2px 6px; font-size: 12px; }
 .playback-button { width: 28px; min-height: 28px; padding: 4px; }
 .time-display { font: 14px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .time-display span { font-size: 12px; color: var(--text-muted); }
@@ -187,6 +188,8 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .error { background: #fff0ed; border-color: #eac2b8; color: #9b4535; }
 .warning, .confirm { background: #fff6df; border-color: #e4d6a4; color: #806528; }
 .confirm .controls { margin-top: 12px; }
+.workspace-drafts .controls { margin-top: 0; }
+.workspace-drafts .controls + .controls { margin-top: 8px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 1100px) and (min-width: 901px) {
@@ -208,8 +211,6 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 }
 
 @container (max-width: 360px) {
-  .transport { gap: 6px; }
-  .transport .file-picker { padding: 6px 8px; font-size: 12px; }
   .time-display { font-size: 12px; }
   .time-display span { font-size: 11px; }
 }
@@ -218,8 +219,6 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
   main { padding: 0 12px 12px; }
   .workbench { padding: 12px; }
   .time-point input { font-size: 16px; }
-  .transport { gap: 6px; }
-  .transport .file-picker { padding: 6px 8px; font-size: 12px; }
   .time-display { font-size: 12px; }
   .time-display span { font-size: 11px; }
 }
@@ -292,11 +291,9 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 
 /* Locale-independent sizing. Dense workspace toolbars own horizontal scrolling;
    ordinary forms and dialogs wrap complete actions without changing font sizes. */
-.language-control { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
-.language-control > label { white-space: nowrap; }
-.language-control > select { width: auto; min-width: 9ch; max-width: 15rem; }
-.language-control > [role="alert"] { flex-basis: 100%; white-space: normal; overflow-wrap: anywhere; }
-.app-header .language-control { flex-wrap: nowrap; flex-shrink: 0; }
+.language-control { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.language-control > select { width: auto; min-width: 9ch; max-width: min(15rem, 100%); }
+.language-control > [role="alert"] { overflow-wrap: anywhere; }
 .app-header :is(button, .button-link, .file-picker) { white-space: nowrap; }
 .account-form :is(button, .button-link), .account-dialog :is(button, .button-link) { max-width: 100%; }
 .dialog-heading { min-width: 0; align-items: flex-start; }

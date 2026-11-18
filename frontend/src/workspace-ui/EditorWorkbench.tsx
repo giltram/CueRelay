@@ -45,10 +45,15 @@ import { useSubtitleQc } from './use-subtitle-qc';
 import { GlossaryPanel } from '../glossary-ui/GlossaryPanel';
 import { useTermInsertion } from './use-term-insertion';
 import { SubtitleQcPanel } from './SubtitleQcPanel';
+import { WorkspaceDraftNotice } from './WorkspaceDraftNotice';
+import type { DraftContent, WorkspaceDraft } from '../workspace-drafts/model';
+import { useWorkspaceDraft, unappliedTiming } from './use-workspace-draft';
+import { sameSnapshotValue } from '../subtitle-model/snapshot-equality';
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
   exportDraft: () => Promise<void>;
+  discardDraft: () => Promise<void>;
 }
 interface Props {
   ref?: Ref<WorkbenchHandle>;
@@ -70,12 +75,15 @@ interface Props {
   styleOrganizationId?: number;
   canManageTemplates?: boolean;
   onReload?: () => void;
+  draftScope?: string;
+  onCheckDraftRevision?: () => Promise<number | null>;
 }
 
-export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload }: Props) {
+export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload, draftScope, onCheckDraftRevision }: Props) {
   useLocale();
   const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' }, diagnosticOwner);
   const { document, selectedId, startText, endText } = edits.state;
+  const selected = document?.cues.find(cue => cue.id === selectedId);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -92,6 +100,16 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
   const [savedRevision, setSavedRevision] = useState(project?.revision ?? 0);
   const [savedDocument, setSavedDocument] = useState(project?.document);
+  const localBaseline = useRef<AssDocument>(null);
+  const [checkedRevision, setCheckedRevision] = useState<number | null>(null);
+  const isProject = Boolean(project);
+  const draftContent = useMemo<DraftContent | null>(() => {
+    if (!draftScope || !document) return null;
+    const timing = unappliedTiming(edits.state, selected);
+    if (!timing && document === (isProject ? savedDocument : localBaseline.current)) return null;
+    return { document, timing, baseRevision: isProject ? savedRevision : null };
+  }, [draftScope, document, edits.state, isProject, savedDocument, savedRevision, selected]);
+  const draft = useWorkspaceDraft(draftScope, draftContent);
   const [mediaVerified, setMediaVerified] = useState(false);
   const [saveMessage, setSaveMessage] = useMessageState('');
   useEffect(() => { setSaveMessage(''); }, [document]);
@@ -122,7 +140,6 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     if (!visible || shortcutsPaused || busy || stylesOpen || pasteOver || pendingImport) edits.finish();
   }, [visible, shortcutsPaused, busy, stylesOpen, pasteOver, pendingImport]);
   const selectedIds = selectedLineIds(edits.state);
-  const selected = document?.cues.find(cue => cue.id === selectedId);
   const selectedStyleId = document ? selectedLineStyle(document, selectedIds) : '';
   // Inspection/export operates on the retained document, even after session expiry.
   const qcEnabled = visible && !pendingImport && !stylesOpen && !pasteOver;
@@ -167,11 +184,12 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     if (project) return;
     let active = true;
     loadEmptyDocument().then(value => {
-      if (!active) return;
+      if (!active || edits.current().document) return;
       const initial = initializeDocument(value, () => `new-${crypto.randomUUID()}`);
+      localBaseline.current = initial;
       edits.baseline(withSelection({ ...edits.current(), document: initial }, initial.cues[0]));
     })
-      .catch(reason => { if (active) setError(reason instanceof MessageError ? reason : msg("workspaceUi.cannotConnectToTheAssServiceStartDjango")); });
+      .catch(reason => { if (active && !edits.current().document) setError(reason instanceof MessageError ? reason : msg("workspaceUi.cannotConnectToTheAssServiceStartDjango")); });
     return () => { active = false; };
   }, []);
 
@@ -191,6 +209,47 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const failed = (reason: unknown) => { reportFailure('workspace', action.name || 'action', reason, origin, operationId); setErrorState(reason as Error); };
     try { void Promise.resolve(action()).catch(failed); }
     catch (reason) { failed(reason); }
+  }
+
+  function draftAction(action: () => Promise<void>) {
+    if (transforming.current || busy) return;
+    transforming.current = true; setBusy(true);
+    run(async () => {
+      try { await action(); }
+      finally { transforming.current = false; setBusy(false); }
+    });
+  }
+
+  function restoreDraft(record: WorkspaceDraft) {
+    if (draftContent || readOnly) return;
+    draftAction(async () => {
+      if (project) {
+        const latest = await onCheckDraftRevision?.();
+        if (typeof latest !== 'number') return;
+        setCheckedRevision(latest);
+        if (latest !== savedRevision || latest !== record.baseRevision) return;
+      }
+      if (!await resolveDraft(record, true)) return;
+      const restored = savedDocument && sameSnapshotValue(savedDocument, record.document) ? savedDocument : record.document;
+      const cue = record.timing?.cueId === null ? undefined
+        : restored.cues.find(cue => cue.id === record.timing?.cueId) ?? restored.cues[0];
+      const state = withSelection({ ...edits.current(), document: restored }, cue);
+      if (record.timing) {
+        // A saved zero-duration input on an empty project can be an edit of
+        // the initial proposed duration. Keep that draft dirty after recovery.
+        if (!cue && record.timing.endText === state.endText) state.selectedIds = undefined;
+        state.startText = record.timing.startText;
+        state.endText = record.timing.endText;
+      }
+      edits.baseline(state);
+      if (!project) setHasImportedDocument(true);
+      cancelAudition();
+    });
+  }
+
+  async function resolveDraft(record: WorkspaceDraft, restore: boolean) {
+    try { return await draft.resolveCandidate(record, restore); }
+    catch { throw new MessageError(msg('workspaceUi.draftActionFailed')); }
   }
 
   function withSelection(state: EditState, cue?: Cue): EditState {
@@ -309,9 +368,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       let result: SplitResult;
       if (project) {
         if (!onSplit) throw new MessageError(describe("workspaceUi.projectSplitAndSaveIsNotReady", "项目拆分保存尚未就绪。"));
+        draft.flush();
         const persisted = await onSplit(request, savedRevision);
         result = persisted;
         setSavedRevision(persisted.project.revision); setSavedDocument(persisted.document);
+        setCheckedRevision(null);
       } else result = await splitAss(request);
       const first = result.document.cues.find(cue => cue.id === result.first_id)!;
       edits.edit(withSelection({ ...edits.current(), document: result.document }, first));
@@ -369,7 +430,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary]')) return;
+      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-workspace-drafts]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
       const blocked = busy || transforming.current || pendingImport || stylesOpen || pasteOver || shortcutsPaused || !visible;
       if (candidate && blocked) noteIgnored('editor', stylesOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
@@ -444,10 +505,17 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     diagnostics.record('editor', 'save', 'start', { revision: savedRevision });
     setBusy(true); setSaveMessage('');
     edits.finish();
+    draft.flush();
     try {
       const result = await onSave({ document, revision: savedRevision, baseDocument: savedDocument, requiredStyleIds: edits.styleIds() });
-      const saved = result.document === document ? document : edits.adoptStyles(result.document).document!;
+      let saved = result.document;
+      if (saved !== document) {
+        const stillSubmittedDocument = edits.current().document === document;
+        const adopted = edits.adoptStyles(saved);
+        if (stillSubmittedDocument) saved = adopted.document!;
+      }
       setSavedRevision(result.project.revision); setSavedDocument(saved);
+      setCheckedRevision(null);
       diagnostics.record('editor', 'save', 'success', { revision: result.project.revision });
       setSaveMessage(msg("workspaceUi.projectSavedUnappliedTimeInputsAreNotIncluded"));
     } finally { setBusy(false); }
@@ -469,7 +537,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
 
   async function exportDraft() {
     if (!document) throw new MessageError(describe("workspaceUi.theAssServiceIsNotReady", "ASS 服务尚未就绪"));
-    const source = await exportAss(document);
+    await exportSnapshot(document);
+  }
+  async function exportSnapshot(snapshot: AssDocument) {
+    const source = await exportAss(snapshot);
     downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name));
   }
   async function downloadDraft() {
@@ -484,14 +555,20 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     else await downloadDraft();
   }
   const hasContent = () => hasProtectedContent;
-  useImperativeHandle(ref, () => ({ hasContent, exportDraft }));
+  useImperativeHandle(ref, () => ({
+    hasContent, exportDraft,
+    async discardDraft() {
+      try { await draft.discard(); }
+      catch { throw new MessageError(msg('workspaceUi.draftActionFailed')); }
+    },
+  }));
 
   return (
     <PageLayout title={title ?? 'CueRelay'} navigation={header} className="editor-workbench" ref={workbench} tabIndex={-1} onBlurCapture={() => edits.finish()} onCompositionStartCapture={() => edits.beginComposition()} onCompositionEndCapture={() => edits.endComposition()} onClick={event => {
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-workspace-drafts]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -518,6 +595,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(exportWithQc)}>{t("workspaceUi.exportAss")}</button>
         </div>
       }>
+      <WorkspaceDraftNotice status={draft.status} candidates={draft.candidates} revision={project ? savedRevision : null}
+        revisionChanged={checkedRevision !== null && checkedRevision !== savedRevision}
+        canRestore={!draftContent && !readOnly} disabled={busy || shortcutsPaused || Boolean(pendingImport || stylesOpen || pasteOver)}
+        onRestore={restoreDraft} onExport={record => draftAction(() => exportSnapshot(record.document))}
+        onDiscard={record => draftAction(async () => { await resolveDraft(record, false); })} />
       {busy && <HeaderNotice>{t("workspaceUi.converting")}</HeaderNotice>}
       {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
         ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")
@@ -563,17 +645,17 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}
             enabled={visible && (!project || mediaOwnerId !== undefined)} expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
-            controls={<>
-            <button className="playback-button" aria-label={t("workspaceUi.playPause")}
-              disabled={!duration} onClick={() => run(togglePlayback)}>
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M2 3v14l8-7zM12 3h2v14h-2zM16 3h2v14h-2z" />
-              </svg>
-            </button>
-            <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
-            <button type="button" aria-label={t("workspaceUi.showSubtitles")} aria-pressed={subtitles.enabled}
-              onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? t("workspaceUi.hideSubtitles") : t("workspaceUi.showSubtitles")}</button>
-          </>} />
+            playbackControls={<>
+              <button className="playback-button" aria-label={t("workspaceUi.playPause")}
+                disabled={!duration} onClick={() => run(togglePlayback)}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M2 3v14l8-7zM12 3h2v14h-2zM16 3h2v14h-2z" />
+                </svg>
+              </button>
+              <div className="time-display">{formatTime(currentTime)}<span> / {formatTime(duration)}</span></div>
+            </>}
+            subtitleToggle={<button type="button" aria-label={t("workspaceUi.showSubtitles")} aria-pressed={subtitles.enabled}
+              onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? t("workspaceUi.hideSubtitles") : t("workspaceUi.showSubtitles")}</button>} />
       } editor={<>
           <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}

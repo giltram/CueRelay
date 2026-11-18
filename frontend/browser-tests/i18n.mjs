@@ -19,16 +19,33 @@ const browser = await chromium.launch({ headless: true });
 const productLanguages = Object.keys(JSON.parse(readFileSync(new URL('../../shared/languages.json', import.meta.url), 'utf8')));
 const acceptanceLanguages = [...productLanguages, 'en-XA'];
 const reports = [];
-const languageControl = page => page.locator('main:visible .language-control select');
+const personalPath = '/organizations/1/settings/personal';
+const workspacePath = '/organizations/1/projects/7/workspace';
+const languageControl = page => page.locator('.settings-content .language-control select');
 async function selectLanguage(page, language) {
   await languageControl(page).selectOption(language);
   await expect(page.locator('html')).toHaveAttribute('lang', language);
   await expect(languageControl(page)).toBeEnabled();
 }
+async function openPersonalInCurrentTab(page) {
+  const settings = page.locator(`.app-header a[href="${personalPath}"]`);
+  await settings.evaluate(link => { link.target = '_self'; });
+  await settings.click();
+  await expect(page).toHaveURL(origin + personalPath);
+}
+async function changeWorkspaceLanguage(page, language) {
+  await openPersonalInCurrentTab(page);
+  await selectLanguage(page, language);
+  await page.goBack();
+  await expect(page).toHaveURL(origin + workspacePath);
+  await expect(page.locator('main.editor-workbench')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
+}
 async function open(page, path, language) {
   await page.goto(origin + path);
-  await languageControl(page).waitFor();
-  if (await languageControl(page).inputValue() !== language) await selectLanguage(page, language);
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
+  await expect(page.locator('.app-header .language-control')).toHaveCount(0);
+  await expect(page.locator('.language-control')).toHaveCount(path === personalPath ? 1 : 0);
   await page.addStyleTag({ content: screenshotStyles });
   await page.evaluate(() => document.fonts.load('14px LayoutAcceptance'));
 }
@@ -41,6 +58,8 @@ try {
   for (const language of acceptanceLanguages) {
     const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 960 } });
     const { state, errors } = await installI18nFixtures(context, bytes);
+    // Seed the rendered locale for direct-entry layout checks, including the dev-only pseudo locale.
+    state.preferences[1] = language;
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     for (const width of [1440, 800]) {
       await page.setViewportSize({ width, height: 960 });
@@ -54,10 +73,9 @@ try {
       await expect(page.locator('dialog')).toBeVisible();
       await capture(page, `${language}-${width}-create`, [page.locator('dialog .controls').last().getByRole('button').first(), page.locator('dialog .controls').last().getByRole('button').last()], ['dialog']);
       await page.keyboard.press('Escape');
-      await open(page, '/organizations/1/settings/personal', language);
+      await open(page, personalPath, language);
       await page.locator('.shortcut-row').first().waitFor();
-      await capture(page, `${language}-${width}-personal`, [page.locator('.shortcut-row button').first(), page.locator('.shortcut-row button').nth(1), page.locator('.diagnostic-export button')], ['.settings-content']);
-      // Existing error updates when the language changes; no password operation is repeated.
+      await capture(page, `${language}-${width}-personal`, [languageControl(page), page.locator('.shortcut-row button').first(), page.locator('.shortcut-row button').nth(1), page.locator('.diagnostic-export button')], ['.settings-content']);
       const passwords = page.locator('input[type=password]');
       await passwords.nth(0).fill('incorrect'); await passwords.nth(1).fill('new-test-long-password-123!'); await passwords.nth(2).fill('new-test-long-password-123!');
       await passwords.nth(2).press('Enter');
@@ -81,6 +99,29 @@ try {
       await page.locator('.handbook-content section').first().waitFor();
       await capture(page, `${language}-${width}-handbook`, [page.locator('.handbook-toc a').first()], ['.handbook-layout']);
     }
+    await page.goto(origin + workspacePath);
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
+    const transport = page.locator('.transport');
+    await expect(transport).toBeVisible();
+    for (const width of [1120, 1000, 390]) {
+      await page.setViewportSize({ width, height: 680 });
+      const { sameRow, followsClock, fits } = await transport.evaluate(async element => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const bounds = element.getBoundingClientRect();
+        const subtitles = element.querySelector('button[aria-pressed]').getBoundingClientRect();
+        const picker = element.querySelector('.file-picker').getBoundingClientRect();
+        const clock = element.querySelector('.time-display').getBoundingClientRect();
+        const center = rect => rect.top + rect.height / 2;
+        return {
+          sameRow: Math.abs(center(subtitles) - center(picker)) < 1,
+          followsClock: Math.abs(center(subtitles) - center(clock)) < 1,
+          fits: subtitles.left >= bounds.left && subtitles.right <= picker.left && picker.right <= bounds.right + 1,
+        };
+      });
+      assert(sameRow && fits, `${language}-${width}: video actions must fit side by side`);
+      if (language === 'en' && width === 1120) assert(followsClock, 'English video actions must fit on the clock row');
+    }
+    reports.push(`${language}: video actions stay together on desktop and mobile`);
     assert.deepEqual(errors, [], `${language} browser errors`);
     await context.close();
   }
@@ -89,7 +130,7 @@ try {
   await context.addInitScript(instrumentMedia);
   const { state, errors } = await installI18nFixtures(context, bytes);
   const page = await context.newPage(); page.setDefaultTimeout(20000);
-  await open(page, '/organizations/1/projects/7/workspace', 'zh-CN');
+  await open(page, workspacePath, 'zh-CN');
   await page.evaluate(async base64 => {
     const root = await navigator.storage.getDirectory(), handle = await root.getFileHandle('video.mp4', { create: true });
     const writer = await handle.createWritable(); await writer.write(Uint8Array.from(atob(base64), char => char.charCodeAt(0))); await writer.close();
@@ -107,7 +148,7 @@ try {
   await page.evaluate(() => { window.__videoRef = document.querySelector('.video-stage video'); window.__canvasRef = document.querySelector('.video-stage canvas'); window.__videoSrc = window.__videoRef.src; });
   const instances = await page.evaluate(() => ({ ...window.__mediaCounts }));
   for (const language of ['en', 'en-XA', 'zh-CN']) {
-    await selectLanguage(page, language);
+    await changeWorkspaceLanguage(page, language);
     await expect(text).toHaveValue('未保存的文本草稿 Unsubmitted draft'); await expect(start).toHaveValue('0:bad');
     assert.deepEqual(await page.locator('tr[aria-selected=true]').evaluateAll(rows => rows.map(row => row.dataset.cueId)), selection);
     assert.equal(await page.locator('.row-number[aria-pressed=true]').innerText(), active);
@@ -121,30 +162,30 @@ try {
   }
   // Preserve both history branches: undo, switch locale, redo restores the raw invalid draft.
   await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+z'); await expect(start).not.toHaveValue('0:bad');
-  await selectLanguage(page, 'en');
+  await changeWorkspaceLanguage(page, 'en');
   await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Shift+z'); await expect(start).toHaveValue('0:bad');
   await expect(text).toHaveValue('未保存的文本草稿 Unsubmitted draft');
   await page.locator('[data-cue-qc][aria-expanded]').click();
   await expect(page.locator('.qc-issue').first()).toBeVisible();
   const inspected = state.inspections, issueTypes = await page.locator('.qc-issue').evaluateAll(items => items.map(item => item.dataset.qcType));
-  await selectLanguage(page, 'zh-CN');
+  await changeWorkspaceLanguage(page, 'zh-CN');
   assert.equal(state.inspections, inspected, 'Language reran QC');
   assert.deepEqual(await page.locator('.qc-issue').evaluateAll(items => items.map(item => item.dataset.qcType)), issueTypes);
   for (const language of acceptanceLanguages) {
-    await selectLanguage(page, language);
+    await changeWorkspaceLanguage(page, language);
     for (const viewport of [{ width: 1440, height: 900 }, { width: 1120, height: 680 }, { width: 800, height: 960 }]) {
       await page.setViewportSize(viewport);
       await capture(page, `${language}-${viewport.width}-workspace-qc`, [page.locator('.qc-heading button').first(), page.locator('.file-actions button.primary').first()], ['.subtitle-qc-panel']);
     }
   }
-  await page.setViewportSize({ width: 1440, height: 960 }); await selectLanguage(page, 'en');
+  await page.setViewportSize({ width: 1440, height: 960 }); await changeWorkspaceLanguage(page, 'en');
   await page.locator('[data-cue-qc][aria-expanded]').click();
   await page.locator('[data-glossary][aria-expanded]').click();
   await capture(page, 'en-workspace-glossary', [page.locator('.glossary-association button').first(), page.locator('.glossary-entries button').first()], ['.glossary-panel']);
   await page.locator('[data-glossary][aria-expanded]').click();
   await page.evaluate(() => { window.__clipboard = navigator.clipboard; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: async () => 'Clipboard layout fixture' } }); });
   for (const language of acceptanceLanguages) {
-    await selectLanguage(page, language);
+    await changeWorkspaceLanguage(page, language);
     for (const viewport of [{ width: 1120, height: 680 }, { width: 800, height: 960 }]) {
       await page.setViewportSize(viewport);
       await page.locator('tr[data-cue-id="new-line-0"]').click({ button: 'right' });
@@ -158,7 +199,7 @@ try {
     }
   }
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: window.__clipboard }));
-  await page.setViewportSize({ width: 1440, height: 960 }); await selectLanguage(page, 'en');
+  await page.setViewportSize({ width: 1440, height: 960 }); await changeWorkspaceLanguage(page, 'en');
   // Windowed list position survives changed header measurements.
   await page.locator('.table-scroll').evaluate(element => { element.scrollTop = 4000; });
   await page.waitForFunction(() => document.querySelector('.table-scroll').scrollTop > 3900);
@@ -169,7 +210,7 @@ try {
     return { id: row.dataset.cueId, inset: top - row.getBoundingClientRect().top };
   });
   const before = await anchor();
-  await selectLanguage(page, 'zh-CN');
+  await changeWorkspaceLanguage(page, 'zh-CN');
   await expect.poll(async () => (await anchor()).id).toBe(before.id);
   assert(Math.abs((await anchor()).inset - before.inset) < 2, 'Virtualized list lost its reading inset');
   reports.push('state: text, raw times, active row, multiselection, undo/redo, video/canvas, Workers/Object URLs, persisted handle, QC snapshot and windowed scroll');
@@ -180,9 +221,12 @@ try {
   const fixtures = await installI18nFixtures(identity, bytes), accountPage = await identity.newPage();
   fixtures.state.anonymous = true;
   await accountPage.goto(origin + '/'); await expect(accountPage.locator('html')).toHaveAttribute('lang', 'en');
-  await selectLanguage(accountPage, 'zh-CN'); await accountPage.reload(); await expect(accountPage.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(accountPage.locator('.login-page')).toBeVisible();
+  await expect(accountPage.locator('.language-control')).toHaveCount(0);
+  await accountPage.evaluate(() => localStorage.setItem('cuerelay.anonymous-language', 'zh-CN'));
+  await accountPage.reload(); await expect(accountPage.locator('html')).toHaveAttribute('lang', 'zh-CN');
   fixtures.state.anonymous = false;
-  await accountPage.goto(origin + '/organizations/1/settings/personal');
+  await accountPage.goto(origin + personalPath);
   let release; fixtures.state.settingsGate = new Promise(resolve => { release = resolve; });
   await languageControl(accountPage).selectOption('en'); await expect(languageControl(accountPage)).toBeDisabled();
   fixtures.state.preferences[2] = 'zh-CN';
@@ -190,10 +234,13 @@ try {
   await accountPage.evaluate(() => window.dispatchEvent(new Event('focus')));
   await accountPage.locator('dialog').waitFor(); await accountPage.locator('dialog .controls button').last().click();
   await expect(accountPage.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(accountPage.locator('.project-table')).toBeVisible();
+  await openPersonalInCurrentTab(accountPage);
   release(); fixtures.state.settingsGate = null;
+  await expect.poll(() => fixtures.state.preferences[1]).toBe('en');
   await expect(languageControl(accountPage)).toHaveValue('zh-CN'); await expect(languageControl(accountPage)).toBeEnabled();
   assert.equal(fixtures.state.preferences[2], 'zh-CN');
-  reports.push('identity: browser/System fallback, anonymous persistence, account switch and delayed prior-account preference reply');
+  reports.push('identity: browser/System fallback, legacy anonymous preference, account switch and delayed prior-account preference reply');
   await identity.close();
   writeFileSync(join(artifacts, 'results.json'), JSON.stringify({ screenshotsReviewed: false, reports }, null, 2));
   console.log(JSON.stringify({ artifacts, checks: reports.length }, null, 2));

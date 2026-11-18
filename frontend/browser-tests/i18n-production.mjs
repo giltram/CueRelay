@@ -22,7 +22,11 @@ try {
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.handbook-title')).toHaveText('Handbook');
   await expect(page.locator('#first-cue h2')).toHaveText('Make your first subtitle');
-  assert.equal(await page.locator('option[value="en-XA"]').count(), 0);
+  await expect(page.locator('.language-control')).toHaveCount(0);
+  await page.goto(origin + '/settings');
+  const language = page.getByRole('combobox', { name: 'Language', exact: true });
+  await expect(language).toHaveValue('en');
+  await expect(language.locator('option[value="en-XA"]')).toHaveCount(0);
   assert.deepEqual(markdown, []);
   await page.goto(origin + '/open-source/index.en.html');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');

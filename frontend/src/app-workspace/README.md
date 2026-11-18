@@ -2,11 +2,11 @@
 
 `useWorkspace` 拥有单个工作区实例、初始化 ProjectDetail/File、挂载代号、按路由加载状态、显式保存/重载和归档/权限观察。字幕正文、选中行、时间草稿、视频节点和播放状态仍唯一属于 EditorWorkbench/LocalVideoPlayer。
 
-公开接口：workspace/visible/projectLoad/accessDenied；clear、adoptCreated、save、split、reload、updateSummary、retry。save 接收 contracts/projects.ProjectSaveRequest（document、上次成功保存的 baseDocument/revision、历史所需样式 ID），返回 ProjectSaveResult（project 摘要和实际保存 document）；基准与历史信息只在内存传递，不进入 HTTP。App 在获得切换许可后调用 clear；在列表点击新建时先处理该文档保留的旧稿保护，再打开本地单页表单；创建成功后把已有详情与所选 File/可选只读句柄交给 adoptCreated，再 push 工作区 URL。创建表单不拥有页面路由，不新开标签页。初始化 File 只留本标签页内存，不放 URL/history/Storage；media 模块在播放器校验通过后仅将句柄存入本机 IndexedDB。
+公开接口：workspace/visible/projectLoad/accessDenied；clear、adoptCreated、save、split、reload、updateSummary、checkDraftRevision、retry。checkDraftRevision 供草稿恢复读取当前服务端 revision，不改变保留实例的保存基准。save 接收 contracts/projects.ProjectSaveRequest（document、上次成功保存的 baseDocument/revision、历史所需样式 ID），返回 ProjectSaveResult（project 摘要和实际保存 document）；基准与历史信息只在内存传递，不进入 HTTP。App 在获得切换许可后调用 clear；在列表点击新建时先处理该文档保留的旧稿保护，再打开本地单页表单；创建成功后把已有详情与所选 File/可选只读句柄交给 adoptCreated，再 push 工作区 URL。创建表单不拥有页面路由，不新开标签页。初始化 File 只留本标签页内存，不放 URL/history/Storage；media 模块在播放器校验通过后仅将句柄存入本机 IndexedDB。
 
 路由进入项目时调用既有 projects-api.get，序号与 effect 清理隔离已过期响应。重返同组织同项目只更新归档状态，不替换内存文档或保存 revision；新标签页/刷新没有保留实例，加载服务器快照；media 按当前账号、组织、项目和媒体基准尝试恢复本机句柄，重新完整校验，失败则手动选片。轮询/焦点检查也只观察状态，不悄悄接受远端 revision；撤权/不存在时禁止继续编辑并保留导出。显式 reload 在 App 的导出/取消/明确放弃流程后读取新快照并更换挂载代号。
 
-浏览个人设置、同组织设置或列表时不 clear，不卸载 EditorWorkbench；隐藏时由既有 visible 契约暂停播放和快捷键。新标签页列表不改变本页路由或 visible，不主动暂停视频。只有跨项目/本地工作区/组织/账号的已确认替换和显式重载才能替换实例。没有多项目工作区缓存、自动保存、跨标签页草稿同步或字幕持久化。本机句柄不保存字幕、历史或播放位置。
+浏览个人设置、同组织设置或列表时不 clear，不卸载 EditorWorkbench；隐藏时由既有 visible 契约暂停播放和快捷键。新标签页列表不改变本页路由或 visible，不主动暂停视频。只有跨项目/本地工作区/组织/账号的已确认替换和显式重载才能替换实例。App 按挂载实例传入账号、组织和项目范围供工作台保护本机草稿。草稿存储由 [workspace-drafts](../workspace-drafts/README.md) 管理。本机媒体句柄依旧独立于字幕与历史。
 
 依赖方向：App → app-workspace → project-data/contracts/navigation 的路由类型及 media 的 SelectedVideo/InitialVideo 类型；workspace-ui 不依赖 app-workspace。单元路由检查及 projects/navigation/main-audio-integration 浏览器测试覆盖集成边界。
 

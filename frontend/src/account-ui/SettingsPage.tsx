@@ -1,5 +1,6 @@
 import { useMessageState, useLocale } from '../i18n/react';
 import { t } from "../i18n";
+import { LanguageSelector, type LanguageControl } from '../i18n/LanguageSelector';
 import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { ExportDiagnostics } from '../page-ui/ExportDiagnostics';
 import { useState, type ReactNode } from 'react';
@@ -11,10 +12,10 @@ import { RouteLink } from '../navigation/RouteLink';
 import type { Route } from '../navigation/routes';
 
 /** Page layout only; App owns session, organization selection and guarded actions. */
-export function SettingsPage({ user, organization, section, header, organizationStyles, organizationGlossary, enabled, ready, request, settings, navigate,
+export function SettingsPage({ user, organization, section, header, organizationStyles, organizationGlossary, enabled, ready, request, settings, language, navigate,
   onSettings, onExit, onChanged, onLeave, onRetry }: {
   user: User; organization?: Organization; section: 'personal' | 'organization'; header: ReactNode;
-  enabled: boolean; ready: boolean; request: AccountRequest; settings: Settings;
+  enabled: boolean; ready: boolean; request: AccountRequest; settings: Settings; language: LanguageControl;
   organizationStyles?: ReactNode; organizationGlossary?: ReactNode;
   navigate: (route: Route) => void; onSettings: (changes: Partial<Settings>) => void;
   onExit: () => void; onChanged: () => void; onLeave: () => void; onRetry: () => void;
@@ -34,6 +35,7 @@ export function SettingsPage({ user, organization, section, header, organization
       </nav>
       <section className="settings-content" aria-label={section === 'personal' ? t("accountUi.personalSettings") : t("accountUi.organizationSettings")}>
         <h2>{section === 'personal' ? t("accountUi.personalSettings") : t("accountUi.organizationSettings")}</h2>
+        {section === 'personal' && <fieldset disabled={!enabled}><LanguageSelector control={language} /></fieldset>}
         {!ready ? <HeaderNotice>{t("accountUi.loadingSettings")}</HeaderNotice> : <fieldset disabled={!enabled}>
           {section === 'personal' ? <div className="account-form">
             <div className="controls"><span>{user.username}{user.is_dev ? ' · dev' : ''}</span>

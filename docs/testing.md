@@ -87,7 +87,8 @@ docker compose -f compose.test.yml down
 | 组织默认术语与项目fork | projects.test_glossary / test_glossary_migration、regression/workspace.spec.mjs 的 organization glossary fork stays isolated | 组织唯一默认、默认只读、完整快照/新ID、双向隔离、迁移保留、字幕revision不变 |
 | ASS 语义和保留字段 | `ass_format/test_compatibility.py`、`test_follow_up.py`、`http_api/test_ass_compatibility.py`、`projects/test_ass_compatibility.py`、`test:ass-compatibility` | 手写期望、HTTP/DB 往返、独立 libass 字形及模型样式身份 |
 | 字幕创建、拆分、撤销/重做 | 既有 `commit-timing.test.ts`、`edit-history.test.ts`、`line-edits.test.ts`、`ass_format/test_splitting.py`、`projects/test_splitting.py`；新增 `regression/workspace.spec.mjs` 第一例 | 纯转换和真实浏览器→HTTP→DB；原子步骤、选行、UUID、最新 revision |
-| 保存后刷新恢复 | 既有 `projects/test_ass_compatibility.py`；新增第一例 | 整文档持久化、刷新读取、刷新后无旧撤销历史；不承诺未保存稿件跨刷新恢复 |
+| 保存后刷新恢复 | 既有 `projects/test_ass_compatibility.py`；新增第一例 | 整文档持久化、刷新读取、刷新后建立新撤销历史 |
+| 本机草稿 | `workspace-drafts/autosave.test.ts`、`regression/workspace-drafts.spec.mjs` | 本地/项目刷新恢复，真实 IndexedDB 事务，revision 冲突及导出，复制标签页、账号隔离、失败与精确清理 |
 | revision 冲突/本地保护 | 既有 `projects/tests.py` 并发保存/归档；新增第二例 | 真实 409、服务器快照未被覆盖、正文/非法时间草稿保留、备份下载、取消/明确放弃、重载新基线 |
 | 项目与组织权限 | `projects/tests.py`、`projects/test_styles.py`、`http_api/test_identity.py`、`organizations/tests.py` | member/organizer/dev、跨组织、撤权、停用、CSRF、并发最后 organizer |
 | 项目样式/ASS 导出 | `ass_format/test_styles.py`、`projects/test_styles.py`、兼容性语料/独立引擎 | 样式 UUID/引用/颜色/字体/字号、模板独立快照、失败整批回滚、样式 revision |

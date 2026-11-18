@@ -423,13 +423,18 @@ test('organization glossary fork stays isolated', async ({ page, context }) => {
 
 test('english language preserves editor state', async ({ page }) => {
   await openWorkspace(page);
-  const video = page.locator('.video-stage video');
   await page.evaluate(() => { window.__languageVideo = document.querySelector('.video-stage video'); window.__languageSrc = window.__languageVideo.src; });
   await text(page).fill('Unsubmitted English draft 用户内容');
   await start(page).fill('0:unfinished');
-  const change = page.waitForResponse(response => response.url().endsWith('/api/me/settings') && response.request().method() === 'PATCH');
-  await page.locator('.language-control select').selectOption('en');
+  const settingsTab = page.waitForEvent('popup');
+  await page.getByRole('link', { name: '设置', exact: true }).click();
+  const personal = await settingsTab;
+  const change = personal.waitForResponse(response => response.url().endsWith('/api/me/settings') && response.request().method() === 'PATCH');
+  await personal.locator('.settings-content .language-control select').selectOption('en');
   expect((await change).status()).toBe(200);
+  await personal.close();
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page).toHaveTitle('CueRelay — Subtitle editor');
   await expect(page.getByRole('textbox', { name: 'Subtitle text input', exact: true })).toHaveValue('Unsubmitted English draft 用户内容');

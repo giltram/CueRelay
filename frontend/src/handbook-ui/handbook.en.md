@@ -101,9 +101,11 @@ The Style selector applies the chosen style to all selected lines. Mixed styles 
 
 **When import is rejected:** Drawings, animation, karaoke, local font/color/position overrides, attachments and unsupported fields or tags reject the whole import. Keep the original; save a separate compatible copy in Aegisub. Do not overwrite your typeset original to make it importable. Text cursor splitting is stricter: lines with ASS tags or backslash escapes (including line breaks) cannot currently be split.
 
+After editing, wait for “Local draft saved.” Open the same workspace with the same browser and account after a refresh or tab closure, then select “Restore draft.” You can restore subtitles before verifying the video. If the server version has changed, “Export draft ASS” downloads the applied subtitles. Any unapplied times appear in the draft notice. “Use server version” or “Use original version” closes the notice, and “View local drafts” opens it again. “Discard draft” deletes that draft. Clearing site data also deletes local drafts.
+
 **QC and saving:** QC checks applied subtitle times, not unapplied time inputs. Editing invalidates a previous report; run the check again. Errors block export; warnings remain reviewable. Project Save does not submit time inputs until you apply them. If another operation changed the project, your local input is kept. Export a backup before discarding or reloading. A safe merge of remote style definitions can happen on explicit Save when subtitles on the server have not changed; it does not replace your video or history.
 
-**Split-and-save exception:** Text-cursor and empty-line playhead splitting inside a project immediately save the full current subtitle snapshot, using the current valid time inputs. Undo restores local edits; it does not reverse that server save. The line menu's frame-before/frame-after splits remain local edits and require Save project. All local workspace changes need Export ASS to keep them.
+**Split-and-save exception:** Text-cursor and empty-line playhead splitting inside a project immediately save the full current subtitle snapshot, using the current valid time inputs. Undo restores local edits; it does not reverse that server save. The line menu's frame-before/frame-after splits remain local edits and require Save project. In a local workspace, Export ASS downloads a standalone subtitle file and keeps the local recovery copy. Use Save project to submit project subtitles to the server.
 
 ## Acknowledgements {#acknowledgement}
 

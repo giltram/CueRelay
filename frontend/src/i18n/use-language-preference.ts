@@ -18,7 +18,7 @@ function anonymousPreference(): LanguagePreference {
 /** Identity-scoped optimistic preference. Neither account values nor pending replies leak to another account. */
 export function useLanguagePreference(userId: number | null, ready: boolean, saved: LanguagePreference | undefined,
   request: JsonRequest, onSaved: (preference: LanguagePreference) => void) {
-  const [anonymous, setAnonymous] = useState(anonymousPreference);
+  const [anonymous] = useState(anonymousPreference);
   const [choice, setChoice] = useState<AccountChoice | null>(null);
   const sequence = useRef(0);
   const actor = useRef(userId); actor.current = userId;
@@ -42,13 +42,10 @@ export function useLanguagePreference(userId: number | null, ready: boolean, sav
     return () => window.removeEventListener('languagechange', changed);
   }, [preference]);
   async function select(next: LanguagePreference) {
-    const id = userId, serial = ++sequence.current;
+    const id = userId;
+    if (id === null) return;
+    const serial = ++sequence.current;
     applyLanguage(next);
-    if (id === null) {
-      setAnonymous(next);
-      try { localStorage.setItem(anonymousKey, next); } catch { /* Session choice still works without storage. */ }
-      return;
-    }
     const selected = { userId: id, preference: next, sequence: serial };
     // Development pseudo language is transient and never becomes an account preference.
     if (next === 'en-XA') { setChoice({ ...selected, phase: 'transient', error: '' }); return; }

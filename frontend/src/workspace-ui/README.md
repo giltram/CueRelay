@@ -68,7 +68,9 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 普通导出和离开前的备份导出统一调用 `exportDraft`，文件名由 `export-filename.ts` 生成：`项目名称_YYYY-MM-DD_HH-mm-ss.ass`，使用下载时的浏览器本地时间（精确到秒）。名称替换文件系统非法字符并限制为 80 个字符；本地工作区使用 `cuerelay` 前缀。只导出当前已应用的文档，不提交时间草稿或保存项目。
 
-成功导入建立新基线、清除旧历史；失败保留。实例隐藏/恢复保留历史；显式重载、切项目/组织/账号和销毁由 app-workspace/App 的原有 clear/挂载 generation 生命周期创建新历史。无跨刷新恢复、跨标签页/多人撤销、自动保存或持久历史。
+成功导入建立新基线、清除旧历史；失败保留。实例隐藏/恢复保留历史；显式重载、切项目/组织/账号和销毁由 app-workspace/App 的原有 clear/挂载 generation 生命周期创建新历史。确认恢复本机草稿也建立新历史基线。
+
+`use-workspace-draft` 从当前编辑状态和保存基准投影出最小草稿，调用 [workspace-drafts](../workspace-drafts/README.md)。WorkspaceDraftNotice 展示状态、恢复、放弃及冲突导出入口。恢复时复用 `baseline`，项目检查 revision 与权限后即可恢复，后续编辑仍沿用原片源验证。显式保存和拆分确认后经已有保存基准更新触发清理或重新保存待提交输入。
 
 ## 验证入口
 
@@ -124,7 +126,7 @@ ResizeObserver 观察布局容器、上方区域和字幕容器，读取实际�
 
 工作区「样式」下拉框作用于完整多选：macOS Cmd / Windows、Linux Ctrl 单击增减选行，Shift 按可见时间顺序连选，沿用 line-selection.ts 的锚点规则。样式不一致时显示不可选的「多种样式」，用户可选择任一真实样式统一分配（包括当前活动行已有样式）。
 
-line-styles.ts 只拥有共同样式投影和按 ID 不可变分配，依赖 contracts；EditorWorkbench 从 edits.current 读取完整选择，一次 edits.edit 写入，不重置活动行、选择锚点或原始时间草稿，不自动保存。无变化不产生历史步骤，整批作为一步撤销/重做；文字与时间仍只编辑当前活动行。权限、片源校验和忙碌禁用沿用原编辑区。
+line-styles.ts 只拥有共同样式投影和按 ID 不可变分配，依赖 contracts；EditorWorkbench 从 edits.current 读取完整选择，一次 edits.edit 写入，不重置活动行、选择锚点或原始时间草稿。待提交的样式分配会写入本机恢复副本。无变化不产生历史步骤，整批作为一步撤销/重做；文字与时间仍只编辑当前活动行。权限、片源校验和忙碌禁用沿用原编辑区。
 
 验证：line-styles.test.ts、npm run test:subtitle-line-menu（含多选、混合样式、整批历史、只读与项目保存/重载）。
 

@@ -1,7 +1,6 @@
 import { roleName } from './i18n/shortcuts';
 import type { MessageValue } from './contracts/messages';
 import { formatMessage, t, msg } from './i18n';
-import { LanguageSelector } from './i18n/LanguageSelector';
 import { useLanguagePreference } from './i18n/use-language-preference';
 import { useMessageState, useLocale } from './i18n/react';
 import { PageLayout, HeaderNotice } from './page-ui/PageLayout';
@@ -25,8 +24,10 @@ import { useWorkspace } from './app-workspace/use-workspace';
 import './style-ui/style-management.css';
 import { OrganizationGlossary } from './glossary-ui/OrganizationGlossary';
 import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
+import { draftScope } from './workspace-drafts/model';
 
-interface Transition { label: MessageValue; action: () => Promise<void> }
+type TransitionAction = () => Promise<void | false>;
+interface Transition { label: MessageValue; action: TransitionAction }
 
 export default function App() {
   useLocale();
@@ -173,7 +174,7 @@ export default function App() {
     }
   }, [route, user, settingsReady, organizations, selectedOrganizationId, navigateApproved]);
 
-  function requestTransition(label: MessageValue, action: () => Promise<void>, always = false) {
+  function requestTransition(label: MessageValue, action: TransitionAction, always = false) {
     if (transitionRef.current) return;
     setPanel(null); setMessage('');
     if (always || workbench.current?.hasContent()) {
@@ -197,9 +198,14 @@ export default function App() {
     if (replaceWorkspace) requestTransition(changesOrganization ? msg("app.switchOrganization") : next.kind === 'local' ? msg("app.openLocalWorkspace") : msg("app.openAnotherProject"), action);
     else void action();
   }
-  async function execute(action: () => Promise<void>) {
+  async function execute(action: TransitionAction, discard = false) {
+    const discardDraft = discard ? workbench.current?.discardDraft : undefined;
     setBusy(true); setMessage('');
-    try { await action(); transitionRef.current = null; setTransition(null); }
+    try {
+      const replaced = await action();
+      transitionRef.current = null; setTransition(null);
+      if (replaced !== false) await discardDraft?.();
+    }
     catch (reason) { setMessage(reason as Error); }
     finally { setBusy(false); }
   }
@@ -237,7 +243,6 @@ export default function App() {
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
   const feedback = message && !transition && <HeaderNotice role="alert">{message}<button onClick={() => void observe()}>{t("app.refreshSessionAndSettings")}</button></HeaderNotice>;
   const header = <div className="account-toolbar">
-    <LanguageSelector control={language} />
     {owner && !user && <HeaderNotice>{t("app.yourSessionExpiredOrTheAccountChangedSubtitles")}</HeaderNotice>}
     {owner && user && organizations.length === 0 && <HeaderNotice>{t("app.noOrganizationsAskADevOrOrganizerTo")}</HeaderNotice>}
     {feedback}
@@ -277,8 +282,8 @@ export default function App() {
         organizationStyles={organization && <OrganizationStyleLibrary key={`${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
           canManage={organization.can_manage} enabled={Boolean(user && settingsReady && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
-        enabled={Boolean(user && settingsReady && !busy && !transition)} ready={settingsReady}
-        request={api} settings={settings} navigate={navigate} onSettings={acceptSavedSettings}
+        enabled={Boolean(user && !busy && !transition)} ready={settingsReady}
+        request={api} settings={settings} language={language} navigate={navigate} onSettings={acceptSavedSettings}
         onExit={() => requestTransition(msg("app.signOut"), exit)}
         onRetry={() => void loadContext().catch(reason => setMessage(reason))}
         onChanged={() => void loadContext().catch(reason => setMessage(reason))}
@@ -295,6 +300,8 @@ export default function App() {
           retry={route.kind === 'project' ? workspaceState.retry : undefined} exportDraft={workspace ? () => void exportDraft() : undefined} />}
       {workspace && <div hidden={!visible}><EditorWorkbench key={workspace.generation} ref={workbench} header={visible ? header : null} title={<HomeLink navigate={navigate} />}
         diagnosticOwner={owner.id} mediaOwnerId={user && !workspaceState.accessDenied ? user.id : undefined} visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
+        draftScope={draftScope(owner.id, workspace.project?.organization_id ?? workspace.localOrganizationId, workspace.project?.id)}
+        onCheckDraftRevision={workspace.project ? workspaceState.checkDraftRevision : undefined}
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined}
         onSplit={workspace.project ? workspaceState.split : undefined}
@@ -302,7 +309,7 @@ export default function App() {
         onReload={workspace.project ? () => requestTransition(msg("app.reloadProject"), workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user || !settingsReady)} /></div>}
     </> : <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}>
-      {feedback}<div className="login-page"><LanguageSelector control={language} /><p>{t("app.internalAccountsAreCreatedByTheSiteAdministrator")}</p>
+      {feedback}<div className="login-page"><p>{t("app.internalAccountsAreCreatedByTheSiteAdministrator")}</p>
         <LoginForm api={accountApi} onLogin={onLogin} feedbackInHeader /></div>
     </PageLayout>}
     {handbookPromptOpen && user && <HandbookPrompt key={user.id} organizationId={organizationId ?? undefined} navigate={navigate} onDismiss={dismissHandbook} />}
@@ -315,7 +322,7 @@ export default function App() {
       <div className="controls">
         <button disabled={busy} onClick={() => void exportDraft()}>{t("app.exportAss")}</button>
         <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>{t("app.cancel")}</button>
-        <button disabled={busy} onClick={() => void execute(transition.action)}>{t("app.discardAndContinue")}</button>
+        <button disabled={busy} onClick={() => void execute(transition.action, true)}>{t("app.discardAndContinue")}</button>
       </div>
       {message && <p role="status">{message}</p>}
     </Modal>}

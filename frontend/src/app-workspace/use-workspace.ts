@@ -9,7 +9,7 @@ import { saveProjectDocument } from '../project-data/project-document-save';
 import type { InitialVideo, SelectedVideo } from '../media/video-file-access';
 import type { Route } from '../navigation/routes';
 
-interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; generation: number }
+interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; localOrganizationId?: number; generation: number }
 interface LoadState { key: string; status: 'loading' | 'ready' | 'error'; error?: Error }
 const projectKey = (organizationId: number, projectId: number) => `${organizationId}:${projectId}`;
 const matches = (workspace: Workspace | null, organizationId: number, projectId: number) =>
@@ -35,6 +35,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
   }, []);
   const organizationId = route.kind === 'project' ? route.organizationId : undefined;
   const projectId = route.kind === 'project' ? route.projectId : undefined;
+  const localOrganizationId = route.kind === 'local' ? route.organizationId : undefined;
   const kind = route.kind;
   const [retry, setRetry] = useState(0);
 
@@ -42,7 +43,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     const version = ++sequence.current;
     if (!enabled) return;
     if (kind === 'local') {
-      setWorkspace(value => value && !value.project ? value : { generation: ++generation.current });
+      setWorkspace(value => value && !value.project ? value : { localOrganizationId, generation: ++generation.current });
       setLoad(null); setAccessDenied(false);
       return;
     }
@@ -60,7 +61,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       setLoad({ key, status: 'ready' }); setAccessDenied(false);
     }).catch(error => { if (version === sequence.current) setLoad({ key, status: 'error', error }); });
     return () => { sequence.current++; };
-  }, [kind, organizationId, projectId, request, enabled, actorId, retry]);
+  }, [kind, organizationId, projectId, localOrganizationId, request, enabled, actorId, retry]);
 
   const updateSummary = useCallback((summary: ProjectSummary) => {
     setWorkspace(value => matches(value, summary.organization_id, summary.id) ? { ...value!, project: { ...value!.project!, ...summary } } : value);
@@ -96,13 +97,19 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     }
   }, [workspace?.project, request, updateSummary]);
 
+  const checkDraftRevision = useCallback(async () => {
+    if (organizationId === undefined || projectId === undefined) return null;
+    return (await projectApi(request, organizationId).get(projectId)).revision;
+  }, [request, organizationId, projectId]);
+
   const reload = useCallback(async () => {
     const project = workspace?.project;
     if (!project) return;
     diagnostics.record('workspace', 'reload', 'start', { revision: project.revision });
     const version = ++sequence.current;
     const detail = await projectApi(request, project.organization_id).get(project.id);
-    if (version !== sequence.current) return;
+    // The caller must keep the existing draft if no replacement took place.
+    if (version !== sequence.current) return false as const;
     diagnostics.record('workspace', 'reload', 'success', { revision: detail.revision });
     setWorkspace({ project: detail, generation: ++generation.current });
     setLoad({ key: projectKey(detail.organization_id, detail.id), status: 'ready' }); setAccessDenied(false);
@@ -135,5 +142,5 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     : null;
   const visible = Boolean(workspace && (kind === 'local' && !workspace.project ||
     organizationId !== undefined && projectId !== undefined && matches(workspace, organizationId, projectId) && projectLoad?.status === 'ready'));
-  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, split, reload, retry: () => setRetry(value => value + 1) };
+  return { workspace, visible, projectLoad, accessDenied, clear, adoptCreated, updateSummary, save, split, reload, checkDraftRevision, retry: () => setRetry(value => value + 1) };
 }

@@ -19,7 +19,8 @@ interface Props {
   currentTime: number;
   duration: number;
   onSeek: (milliseconds: number) => void;
-  controls: ReactNode;
+  playbackControls: ReactNode;
+  subtitleToggle: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: InitialVideo;
   persistenceKey?: string;
@@ -27,7 +28,7 @@ interface Props {
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, controls, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, playbackControls, subtitleToggle, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
   useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -89,13 +90,16 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
       aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
       disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
     <div className="transport" role="group" aria-label={t("media.videoImportAndPlaybackControls")}>
-      {controls}
+      {playbackControls}
       {checking && <HeaderNotice>{t("media.verificationProgress", { percent: Math.round(progress * 100) })}<button onClick={source.cancel}>{t("media.cancelVerification")}</button></HeaderNotice>}
       {source.notice && <HeaderNotice>{formatMessage(source.notice)}{source.needsAuthorization &&
         <button disabled={checking || !enabled} onClick={source.authorize}>{t("media.authorizeVideoAgain")}</button>}</HeaderNotice>}
-      <VideoFilePicker label={t("media.importLocalVideo")} disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
-        onSelect={value => void source.choose(value)} onError={onError} title={locked
-          ? t("media.sourceFixedValueExportSubtitlesAndRefreshBefore", { v0: file?.name }) : undefined}>{t("media.importVideo")}</VideoFilePicker>
+      <div className="transport-actions">
+        {subtitleToggle}
+        <VideoFilePicker label={t("media.importLocalVideo")} disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
+          onSelect={value => void source.choose(value)} onError={onError} title={locked
+            ? t("media.sourceFixedValueExportSubtitlesAndRefreshBefore", { v0: file?.name }) : undefined}>{t("media.importVideo")}</VideoFilePicker>
+      </div>
     </div>
   </section>;
 }

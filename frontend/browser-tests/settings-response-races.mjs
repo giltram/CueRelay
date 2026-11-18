@@ -8,7 +8,7 @@ const origin = process.env.SETTINGS_RACES_URL || 'http://127.0.0.1:5240';
 const browser = await chromium.launch({ headless: true });
 const only = process.argv[2];
 const languageControl = page => page.locator('main:visible .language-control select');
-const audioControl = page => page.locator('.settings-content select').first();
+const audioControl = page => page.getByRole('combobox', { name: /^(音频显示模式|Audio display mode)$/ });
 const settle = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 async function remountPersonal(page) {
   await page.getByRole('link', { name: 'Organization settings', exact: true }).click();

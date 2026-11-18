@@ -135,5 +135,20 @@
   "archivedState": " · 已归档，只读",
   "unavailableState": " · 暂不可编辑",
   "qcLabel": "QC · {{count}}",
-  "emptyText": "（empty）"
+  "emptyText": "（empty）",
+  "draftSaving": "正在保存本地草稿…",
+  "draftSaved": "本地草稿已保存。",
+  "draftFailed": "本地草稿未能保存或读取。可以继续编辑或导出 ASS。",
+  "draftsFound": "检测到本地草稿",
+  "draftUseOriginal": "使用原始版本",
+  "draftUseServer": "使用服务器版本",
+  "draftKeepCurrent": "保留当前版本",
+  "draftConflict": "草稿与服务器版本不一致。可导出草稿留存。",
+  "draftConflictReload": "草稿与服务器版本不一致。可导出草稿，或重新加载项目以查看最新版本。",
+  "draftTiming": "草稿中的未应用时间为 {{start}} 至 {{end}}。",
+  "draftRestore": "恢复草稿",
+  "draftExport": "导出草稿 ASS",
+  "draftDiscard": "放弃草稿",
+  "draftShow": "查看本地草稿",
+  "draftActionFailed": "无法完成草稿操作。请重新打开工作区后再试。"
 }

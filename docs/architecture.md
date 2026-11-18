@@ -16,7 +16,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-11-16 review F1–F3 复核修复及反馈补修：工作区纯 QC/导出与会话/编辑快捷键暂停解耦，术语操作保留账号门禁；App 按字段接纳成功 PATCH，并以各字段的内存版本合并 GET，保护已写入字段、补齐其余设置并完成首次 ready。语言 hook 以单份 choice 明确区分 pending/saved/failed/transient；成功选择仅在尚未 ready 时临时展示，ready 后立即采用 App.saved 并清理，不要求与本地值相等，后续远端更新可正常展示。待保存、失败重试与临时伪语言继续保留用户选择。ass_format/clipboard 将严格 UTF-8 编码失败转换为既有 AssError/422。无新增模块依赖、HTTP API 或持久字段；PersonalPanel/SettingsPage 的 onSettings 只回传本次保存字段。失败复现、定向回归与执行结果见 [修复记录](plans/workspace-review-fixes-2026-11-16.md)。
 
-已接入 i18next / react-i18next，产品语言、浏览器匹配与中文回退统一于 `shared/languages.json`；账号偏好使用 PersonalSettings.language_preference / accounts.0007，匿名选择独立存储，账号与请求代次隔离。普通语言变化只订阅展示，不改变工作区 key、编辑历史、File/句柄、媒体 Worker 或 ASS 渲染器生命周期。资源按现有模块分文件，类型由资源生成；纯规则/QC/媒体控制器只依赖 contracts/messages，后端通过标准库叶子 message_contracts 提供 reason/params，并保留既有错误 code/message。展示层重译已有问题、通知和错误，不重新执行业务操作。
+已接入 i18next / react-i18next，产品语言、浏览器匹配与中文回退统一于 `shared/languages.json`。App 持有语言偏好，`SettingsPage` 仅在个人设置正文呈现语言控件。账号偏好使用 PersonalSettings.language_preference / accounts.0007，账号与请求代次隔离。登录页沿用已有匿名偏好，否则根据浏览器语言匹配。普通语言变化只订阅展示，不改变工作区 key、编辑历史、File/句柄、媒体 Worker 或 ASS 渲染器生命周期。资源按现有模块分文件，类型由资源生成；纯规则/QC/媒体控制器只依赖 contracts/messages，后端通过标准库叶子 message_contracts 提供 reason/params，并保留既有错误 code/message。展示层重译已有问题、通知和错误，不重新执行业务操作。
 
 依赖为 `{App, UI presentation} → i18n → {contracts, shared registry, external runtime}`、`{backend business, HTTP} → message_contracts → stdlib`。诊断导出控件移入 page-ui，诊断数据格式继续稳定。双语手册仍由既有 Markdown 构建插件预编译，章节/快捷键 ID 稳定；共享布局及 Playwright 语言矩阵检查长文案、可达性、草稿/选择/历史/媒体保留，首次截图不自动批准。公开契约、新功能/新语言流程与本地命令见 [国际化](internationalization.md)、[术语对照](i18n-terminology.md)；实际结果见 [执行记录](plans/internationalization.md)。
 
@@ -206,6 +206,10 @@ projects 内按具体职责组织聚焦文件：模型定义、权限、时间�
 
 其他模块只通过公开命令/查询读取数据，即便同处一个进程也不导入私有 models。`projects` 是一个项目编辑业务模块，不是承载登录、媒体解码、UI 或任意共享工具的杂物箱；将来出现独立生命周期再按证据提取。
 
+## 本机草稿保存与恢复
+
+EditorWorkbench 观察编辑历史中的不可变 ASS 文档与未应用时间，project-data 继续负责项目 HTTP 保存及 revision 校验。新的 [workspace-drafts](../frontend/src/workspace-drafts/README.md) 只负责本机恢复副本，使用账号、组织、项目和标签页身份进行隔离。通过 `sessionStorage` 延续刷新身份，通过 Web Locks 给复制标签页分配不同 ID。项目恢复前读取最新服务端 revision，冲突时保留可导出的草稿。服务器成功回执更新保存基准，再清理已提交内容或按新 revision 保留剩余输入。用户可以显式恢复已关闭标签页的草稿。
+
 ## 4. 前端模块与数据所有权
 
 下表包含未来协作结构；ass-preview 已实现本地实时预览，project-data 的 WS/协作状态等仍是未来设计。当前依赖以文首可运行入口为准。
@@ -214,6 +218,7 @@ projects 内按具体职责组织聚焦文件：模型定义、权限、时间�
 | --- | --- |
 | contracts | HTTP/WS 的类型、错误类别与无副作用数据结构；不把后端 ORM 模型自动当成客户端模型 |
 | project-data | HTTP/WS 客户端、服务器副本、连续序号应用、回执关联与重同步；独立草稿身份/代次、未决命令持久化和恢复也由此模块负责，规则见协议第 3/5 节；不依赖 UI 或媒体，不引入通用离线队列 |
+| workspace-drafts | 标签页与记录身份、IndexedDB 事务及本机快照写入，依赖 contracts 和浏览器 API |
 | media | 文件选择、本地校验 Worker、播放/跳转/试听、未来峰值缓存；只输出播放接口、验证状态和允许的元数据，禁止依赖网络客户端 |
 | ass-preview | 本地字幕渲染与字体能力提示；接收字幕快照/本地 video 句柄，第三方引擎封装在这里，不承担保存和业务权限 |
 | workspace-ui | 字幕列表、时间输入、翻译/审核队列、样式管理、历史视图和冲突界面；组合 project-data/media/ass-preview；快捷键只在正确焦点与非 IME composition 时工作 |
@@ -297,7 +302,7 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 
 2026-10-24：页面路径由 [navigation](../frontend/src/navigation/README.md) 唯一定义，采用原生 History API 和真实链接。App 根据目标资源是否替换当前实例编排保护；popstate 先恢复已提交历史条目，取消不改页面，确认重放原跨度。入口默认组织只用于 `/` 和 `/projects`，登录、刷新、直接访问不能覆盖显式组织/项目地址。工作区新开列表不改变本页 visible，同页返回列表才隐藏并暂停。
 
-[app-workspace](../frontend/src/app-workspace/README.md) 负责单个保留实例、指定资源加载、创建 File 交接、保存/重载和归档/撤权观察。只有新项目/组织/账号或明确重载更换实例；同文档历史重返同项目和轮询只观察归档，不替换内存文档/revision。字幕与草稿仍归 EditorWorkbench，File/Object URL 归 LocalVideoPlayer，底层不依赖导航。没有 Storage 草稿或标签页同步。部署和验证见 [运行契约](frontend-deployment.md) 与 [导航记录](experiments/frontend-navigation.md)。
+[app-workspace](../frontend/src/app-workspace/README.md) 负责单个保留实例、指定资源加载、创建 File 交接、保存/重载和归档/撤权观察。只有新项目/组织/账号或明确重载更换实例；同文档历史重返同项目和轮询只观察归档，不替换内存文档/revision。字幕与草稿仍归 EditorWorkbench，File/Object URL 归 LocalVideoPlayer，底层不依赖导航。工作区恢复副本由 workspace-drafts 保存在本机 IndexedDB。部署和验证见 [运行契约](frontend-deployment.md) 与 [导航记录](experiments/frontend-navigation.md)。
 
 2026-10-24 设置页：项目列表右上角统一通过真实「设置」链接进入 `/settings` 或带组织上下文的个人设置地址；组织设置为 `/organizations/:organizationId/settings/organization`，旧 `/organizations/:organizationId/settings` 由既有入口规范化流程 replace 到新地址。`account-ui/SettingsPage` 只组合页面布局和 PersonalPanel / MembersPanel，App 保留账号、组织和退出保护编排；路由仍由 navigation 唯一定义。默认新开设置页不改变来源工作区；仅同文档历史浏览设置时隐藏并保留工作区，不清空字幕、File 或时间草稿；跨组织仍经原保护步骤，退出或移除自己也检查隐藏实例。列表不再提供「返回工作区」，同文档浏览器历史恢复原工作区，项目链接默认新开独立工作区。同文档内存保留与刷新/新标签页的独立状态边界不变。验证和限制见 [设置页记录](experiments/settings-pages.md)。
 
