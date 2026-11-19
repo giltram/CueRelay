@@ -148,6 +148,8 @@ CueTable 显式接收完整选择、右键选行、命令与可用性；右键�
 
 CueContextMenu 鼠标打开时聚焦容器、不预选操作，键盘打开时聚焦首个可用项；展示平台适用的首个有效键位，完整别名在设置维护；键盘导航隔离工作区快捷键。PasteOverDialog 只提供四项覆盖，使用共享 page-ui/Modal。账号设置向下读取 timing-shortcuts / line-actions 叶子，工作区不导入 account-ui。规则、接口、媒体/剪贴板边界及回归见 [字幕行操作](../../../docs/subtitle-line-operations.md)。
 
+「合并字幕行」在右键目标属于两条以上的选区且允许编辑时可用。`EditorWorkbench` 为保护未应用的时间输入，暂缓右键选择并沿用时间平移提示。`useLineCommands` 对 `subtitle-model/cue-merge` 的候选快照调用既有 `exportAss` 完整校验，工作区隐藏、禁编辑或卸载即取消验证；通过且快照仍有效才调用一次 `applyLineEdit`。结果沿用首条 cue 的 ID，历史恢复执行前的选区和时间输入。回归见 `frontend/regression/cue-merge.spec.mjs`，行为与 Aegisub 对照见 [合并字幕行](../../../docs/subtitle-line-operations.md#合并字幕行)。
+
 ## 术语侧栏与插入
 
 项目工作区在「查找 / QC」旁组合 glossary-ui/GlossaryPanel，本地工作区无入口。与 QC 共用 CueTable 的同一区域和1061px断点，同时只显示一个面板；打开/查询不受本地片源校验限制。项目默认只读组织表，显式「创建项目副本」fork当前组织词条后才可维护，新旧词条同样可编辑且不再同步/回写。模块只传项目身份、JsonRequest、可见/可维护性和同步 onInsert，不向术语模块传 document 或保存接口。查询/维护/切表不改变字幕保存基准、媒体节点或编辑历史。设置页通过公开同层组件复用，没有相互内部导入。

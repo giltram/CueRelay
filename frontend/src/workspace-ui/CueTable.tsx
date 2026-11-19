@@ -23,7 +23,7 @@ interface Props {
   selectedIds: readonly string[];
   onSelect: (cue: Cue, modifiers?: SelectionModifiers) => void;
   onContextSelect: (cue: Cue) => void;
-  onAction: (action: CueMenuAction) => void;
+  onAction: (action: CueMenuAction, cue: Cue) => void;
   editable: boolean;
   hasVideo: boolean;
   shortcutOverrides: ShortcutOverrides;
@@ -43,7 +43,8 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
   qc, glossary, revealCueId }: Props) {
   useLocale();
   const [menu, setMenu] = useState<{ x: number; y: number; cueId: string; keyboard: boolean } | null>(null);
-  useEffect(() => { if (!searchEnabled || (menu && !cues.some(cue => cue.id === menu.cueId))) setMenu(null); }, [searchEnabled, cues, menu]);
+  const menuCue = menu ? cues.find(cue => cue.id === menu.cueId) : undefined;
+  useEffect(() => { if (!searchEnabled || (menu && !menuCue)) setMenu(null); }, [searchEnabled, menuCue, menu]);
   const closeMenu = () => { setMenu(null); workspace.current?.focus({ preventScroll: true }); };
   const rows = useMemo(() => orderCues(cues), [cues]);
   const [widths, setWidths] = useState(defaultCueColumnWidths);
@@ -114,7 +115,8 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
     {search.open && <CueSearchBar search={search} enabled={searchEnabled} editable={editable} />}
     <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">{t("workspaceUi.noSubtitlesYetChooseStartAndEndTimes")}</p>}</div>
     </div>{qc?.open && qc.panel}{glossary?.open && glossary.panel}</div>
-    {menu && searchEnabled && <CueContextMenu x={menu.x} y={menu.y} keyboard={menu.keyboard} editable={editable} hasVideo={hasVideo} overrides={shortcutOverrides}
-      onClose={closeMenu} onAction={onAction} />}
+    {menu && menuCue && searchEnabled && <CueContextMenu x={menu.x} y={menu.y} keyboard={menu.keyboard} editable={editable}
+      canMerge={selectedSet.size > 1 && selectedSet.has(menuCue.id)} hasVideo={hasVideo} overrides={shortcutOverrides}
+      onClose={closeMenu} onAction={action => onAction(action, menuCue)} />}
   </section>;
 }

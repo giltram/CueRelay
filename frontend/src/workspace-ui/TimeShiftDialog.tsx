@@ -56,7 +56,7 @@ export function TimeShiftDialog({ selectedCount, totalCount, pendingTiming, onCl
       </div>
       <p role="status">{t('workspaceUi.timeShiftCount', { count })}</p>
       {(pendingTiming || error) && <p className="header-error" role="alert">
-        {pendingTiming ? t('workspaceUi.timeShiftPendingTiming') : formatMessage(error)}
+        {pendingTiming ? t('workspaceUi.applyOrRestoreTimeDraft') : formatMessage(error)}
       </p>}
       <div className="controls">
         <button type="submit" className="primary" disabled={!canApply}>{t('workspaceUi.timeShiftApply')}</button>

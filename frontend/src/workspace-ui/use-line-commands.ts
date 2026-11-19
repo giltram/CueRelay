@@ -1,13 +1,14 @@
 import { describe, MessageError } from "../contracts/messages";
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { EditState } from './edit-history';
 import { selectedLineIds } from './line-selection';
-import { needsVideoFrame, type LineAction } from './line-actions';
+import { needsVideoFrame, type LineCommand } from './line-actions';
 import { deleteLines, duplicateLines, insertLine, shareLineReferences, type LineEditResult } from './line-edits';
 import type { AssDocument } from '../contracts/subtitles';
 import { orderCues } from '../subtitle-model/cue-order';
+import { mergeCueLines } from '../subtitle-model/cue-merge';
 import { readVideoFrame } from '../media/video-frame';
-import { copyAssLines, pasteAssLines, type PasteField } from '../project-data/ass-api';
+import { copyAssLines, exportAss, pasteAssLines, type PasteField } from '../project-data/ass-api';
 
 interface Options {
   current: () => EditState;
@@ -15,22 +16,26 @@ interface Options {
   overwrite: (before: EditState, document: AssDocument, fields: PasteField[]) => void;
   active: boolean; editable: boolean;
   pending: RefObject<boolean>;
+  composing: RefObject<boolean>;
   onBusy: (value: boolean) => void;
   file: File | null; video: HTMLVideoElement | null; duration: number;
 }
-/** Orchestrates async clipboard/frame reads. History remains the sole state owner;
+/** Orchestrates clipboard, frame and format requests. History remains the sole state owner;
  * late results require the same snapshot and current visibility/permission. */
-export function useLineCommands({ current, apply, overwrite, active, editable, pending, onBusy, file, video, duration }: Options) {
+export function useLineCommands({ current, apply, overwrite, active, editable, pending, composing, onBusy, file, video, duration }: Options) {
   const [over, setOver] = useState<{ state: EditState; text: string } | null>(null);
   const availability = useRef({ active, editable });
-  availability.current = { active, editable };
-  useEffect(() => {
+  const mergeValidation = useRef<AbortController | null>(null);
+  useLayoutEffect(() => {
     availability.current = { active, editable };
-    return () => { availability.current = { active: false, editable: false }; };
+    return () => {
+      availability.current = { active: false, editable: false };
+      mergeValidation.current?.abort();
+    };
   }, [active, editable]);
   useEffect(() => { if (!active || !editable) setOver(null); }, [active, editable]);
-  async function lineCommand(action: LineAction) {
-    if (pending.current || !availability.current.active || over) return;
+  async function lineCommand(action: LineCommand) {
+    if (pending.current || !availability.current.active || over || (action === 'merge-lines' && composing.current)) return;
     if (action !== 'copy-lines' && !availability.current.editable) throw new MessageError(describe("workspaceUi.theProjectIsReadOnlyOrTheLocal", "项目只读或尚未验证本地片源。"));
     const before = current(), document = before.document, ids = selectedLineIds(before);
     if (!document || (!ids.length && action !== 'paste-lines')) throw new MessageError(describe("workspaceUi.selectSubtitleLinesFirst", "请先选择字幕行"));
@@ -42,6 +47,20 @@ export function useLineCommands({ current, apply, overwrite, active, editable, p
       && (action === 'copy-lines' || availability.current.editable);
     pending.current = true; onBusy(true);
     try {
+      if (action === 'merge-lines') {
+        const result = mergeCueLines(document, ids);
+        const controller = new AbortController();
+        mergeValidation.current = controller;
+        const canApply = () => !controller.signal.aborted && !composing.current && stillCurrent();
+        try {
+          await exportAss(result.document, controller.signal);
+        } catch (error) {
+          if (canApply()) throw error;
+          return;
+        } finally { mergeValidation.current = null; }
+        if (canApply()) apply(before, { document: result.document, selected: [result.cue] });
+        return;
+      }
       if (action === 'copy-lines' || action === 'cut-lines') {
         if (!navigator.clipboard) throw new MessageError(describe("workspaceUi.theBrowserCannotAccessTheClipboardUseHttps", "浏览器无法访问剪贴板，请使用 HTTPS 或 localhost"));
         const text = copyAssLines(document, ids);

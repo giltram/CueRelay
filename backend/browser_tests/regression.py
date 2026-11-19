@@ -16,7 +16,7 @@ from django.test import LiveServerTestCase, override_settings
 
 from accounts.models import PersonalSettings, User
 from organizations.services import add_member, create_organization
-from projects.services import create_project
+from projects.services import create_project, save_document, set_archived
 
 ROOT = Path(__file__).resolve().parents[2]
 PASSWORD = 'cuerelay-regression-password-927!'
@@ -52,6 +52,7 @@ class WorkspaceRegressionTests(LiveServerTestCase):
         project = create_project(self.organizer, organization.pk, name='回归测试项目', description='', source=source,
             media={'sha256': hashlib.sha256(self.video.read_bytes()).hexdigest(),
                    'size': self.video.stat().st_size, 'duration_ms': 8000})
+        self.project = project
         self.fixtures = {'username': self.member.username, 'password': PASSWORD, 'video': str(self.video),
                          'organizer': self.organizer.username, 'subtitles': str(ROOT / 'backend/ass_format/fixtures/basic.ass'),
                          'projectPath': f'/api/organizations/{organization.pk}/projects/{project.pk}',
@@ -99,6 +100,35 @@ class WorkspaceRegressionTests(LiveServerTestCase):
 
     def test_subtitle_replace_local(self):
         self.run_browser('subtitle replace local')
+
+    def test_workspace_merge_project(self):
+        header = self.project.document['source'].split('Dialogue:', 1)[0]
+        source = header + '\n'.join([
+            r'Dialogue: 2,0:00:03.00,0:00:04.00,Emphasis,甲,0010,0020,0030,,{\i1}甲乙\N继续',
+            'Comment: 0,0:00:02.00,0:00:02.50,Default,备注,0000,0000,0000,,保留注释',
+            'Dialogue: 0,0:00:01.00,0:00:02.00,Default,乙,0004,0005,0006,,保留',
+            'Dialogue: 1,0:00:00.00,0:00:05.00,Default,丙,0007,0008,0009,,甲乙',
+            'Dialogue: 0,0:00:07.00,0:00:08.00,Default,,0000,0000,0000,,尾句',
+        ]) + '\n'
+        organization_id = self.project.organization_id
+        project = create_project(self.organizer, organization_id, name='合并测试项目', description='',
+                                 source=source, media=self.project.media)
+        first, *remaining = project.document['cues']
+        anchored = {**first, 'id': 'new-merge-fixture', 'source_id': first['id'], 'ass_fields': {
+            'Layer': '4', 'Name': '合并说话人', 'MarginL': '0011', 'MarginR': '0022', 'MarginV': '0033',
+        }}
+        save_document(self.organizer, organization_id, project.pk, project.revision,
+                      {**project.document, 'cues': [anchored, *remaining]})
+        archived = create_project(self.organizer, organization_id, name='归档合并测试项目', description='',
+                                  source=source, media=self.project.media)
+        set_archived(self.organizer, organization_id, archived.pk, archived.revision, archived=True)
+        self.fixtures.update(projectPath=f'/api/organizations/{organization_id}/projects/{project.pk}',
+                             workspacePath=f'/organizations/{organization_id}/projects/{project.pk}/workspace',
+                             archivedWorkspacePath=f'/organizations/{organization_id}/projects/{archived.pk}/workspace')
+        self.run_browser('workspace merge project')
+
+    def test_workspace_merge_local(self):
+        self.run_browser('workspace merge local')
 
     def test_workspace_draft_local(self):
         self.run_browser('workspace draft local')

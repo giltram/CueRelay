@@ -3,27 +3,27 @@ import { t } from "../i18n";
 import { useLocale } from "../i18n/react";
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { effectiveBindings, shortcutDefaults, type ShortcutOverrides, type TimingShortcut } from './timing-shortcuts';
-import { needsVideoFrame, type LineAction } from './line-actions';
+import { effectiveBindings, type ShortcutOverrides } from './timing-shortcuts';
+import { needsVideoFrame, type LineCommand } from './line-actions';
 import './cue-context-menu.css';
 
-export type CueMenuAction = LineAction | 'delete-row';
+export type CueMenuAction = LineCommand | 'delete-row';
 const groups: CueMenuAction[][] = [
   ['insert-before', 'insert-after', 'insert-video-before', 'insert-video-after'],
-  ['duplicate-lines', 'split-frame-before', 'split-frame-after'],
+  ['duplicate-lines', 'split-frame-before', 'split-frame-after', 'merge-lines'],
   ['cut-lines', 'copy-lines', 'paste-lines', 'paste-lines-over', 'delete-row'],
 ];
 interface Props {
-  x: number; y: number; keyboard: boolean; editable: boolean; hasVideo: boolean; overrides: ShortcutOverrides;
+  x: number; y: number; keyboard: boolean; editable: boolean; canMerge: boolean; hasVideo: boolean; overrides: ShortcutOverrides;
   onAction: (action: CueMenuAction) => void; onClose: () => void;
 }
-export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, onAction, onClose }: Props) {
+export function CueContextMenu({ x, y, keyboard, editable, canMerge, hasVideo, overrides, onAction, onClose }: Props) {
   const locale = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-  const shortcutLabel = (action: CueMenuAction) => {
-    const bindings = effectiveBindings(action as TimingShortcut, overrides);
+  const shortcutLabel = (action: Exclude<CueMenuAction, 'merge-lines'>) => {
+    const bindings = effectiveBindings(action, overrides);
     const binding = bindings.find(value => mac ? !value.includes('Ctrl+') : !value.includes('Meta+')) ?? bindings[0] ?? '';
     return binding.replaceAll('Meta+', 'Cmd+').replaceAll('Key', '').replaceAll('Digit', '');
   };
@@ -55,6 +55,10 @@ export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, 
   return createPortal(<div ref={ref} role="menu" tabIndex={-1} aria-label={t("workspaceUi.subtitleLineCommands")} className="cue-context-menu" style={position}
     onContextMenu={event => event.preventDefault()} onKeyDown={event => {
       event.stopPropagation();
+      if (event.nativeEvent.isComposing) {
+        if (event.key === 'Enter' || event.key === ' ') event.preventDefault();
+        return;
+      }
       if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); onClose(); return; }
       if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
@@ -66,9 +70,11 @@ export function CueContextMenu({ x, y, keyboard, editable, hasVideo, overrides, 
       items[index]?.focus();
     }}>
     {groups.map((group, index) => <div role="group" key={index}>
-      {group.map(action => <button key={action} role="menuitem" disabled={(action !== 'copy-lines' && !editable) || (action !== 'delete-row' && needsVideoFrame(action) && !hasVideo)}
+      {group.map(action => <button key={action} role="menuitem" disabled={(action !== 'copy-lines' && !editable)
+          || (action === 'merge-lines' && !canMerge) || (action !== 'delete-row' && needsVideoFrame(action) && !hasVideo)}
         onClick={() => { onClose(); onAction(action); }}>
-        <span>{shortcutName(action)}</span><kbd>{shortcutLabel(action)}</kbd>
+        <span>{action === 'merge-lines' ? t('workspaceUi.mergeSubtitleLines') : shortcutName(action)}</span>
+        {action !== 'merge-lines' && <kbd>{shortcutLabel(action)}</kbd>}
       </button>)}
     </div>)}
   </div>, window.document.body);

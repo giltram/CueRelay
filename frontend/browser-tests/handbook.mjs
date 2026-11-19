@@ -90,7 +90,7 @@ try {
   const article = handbook.getByRole('article');
   assert.equal(await article.locator('section').count(), 6);
   assert(!(await article.innerText()).includes('**'), 'Markdown emphasis must render instead of displaying delimiters');
-  for (const phrase of ['未应用的时间输入', '音频试听时视频画面', '没有自动保存', '拆分会立即保存', 'Aegisub 用户速查', 'UTF-8']) {
+  for (const phrase of ['未应用的时间输入', '音频试听时视频画面', '本地草稿已保存', '合并字幕行', '拆分会立即保存', 'Aegisub 用户速查', 'UTF-8']) {
     assert((await article.innerText()).includes(phrase), phrase);
   }
   for (const anchor of await handbook.getByRole('navigation', { name: '手册目录' }).getByRole('link').all()) {

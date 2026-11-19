@@ -72,6 +72,8 @@ Cue 可额外包含 source_id：仅 new 行可引用模板内原始 Dialogue 的
 
 `copy_lines(document, ids) -> str` / `paste_lines(document, text, active_id, ids, fields=None) -> {document, selected_ids}` 在 clipboard.py；标准 ASS Dialogue / 普通文本互通，复用 codec 验证，插入时以 new 行可选 ass_fields 保留五项有界字符串，不替换 source/styles/script；覆盖仅修改四项结构化字段并保留目标隐藏元数据。新行和完整输出继续受 1MiB / 5000 事件限制。无网络/存储依赖，格式与顺序回归在 test_clipboard.py。完整契约见 [字幕行操作](../../docs/subtitle-line-operations.md)。
 
+合并字幕行由前端计算候选快照，沿用 `serialize_ass` 预检整份 ASS。首条 cue 的原始 ID 或 `source_id` 继续定位模板记录，新行的 `ass_fields` 继续按原优先级覆盖字段。格式限制和 Comment 槽位规则同普通导出。见 [合并字幕行](../../docs/subtitle-line-operations.md#合并字幕行)。
+
 剪贴板字节预算按严格 UTF-8 计算；JSON 中的孤立 surrogate 作为 `AssError`（`server.assContainsInvalidUnicode`）拒绝，HTTP 返回现有 issues/422，不替换字符或返回 500。纯函数与 `http_api.test_clipboard` 覆盖高/低 surrogate、中文/emoji 往返及 UTF-8 字节超限；HTTP 回归使用 SimpleTestCase 禁止数据库访问。
 
 ## 中英文展示边界（2026-11-15）

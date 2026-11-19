@@ -289,8 +289,8 @@ try {
     await target.click({ button: 'right' });
     const copy = readonly.getByRole('menuitem', { name: '复制字幕行' });
     assert.equal(await copy.isEnabled(), true);
-    assert.equal(await readonly.getByRole('menuitem').count(), 12);
-    assert.equal(await readonly.getByRole('menuitem').evaluateAll(items => items.filter(el => el.disabled).length), 11);
+    assert.equal(await readonly.getByRole('menuitem').count(), 13);
+    assert.equal(await readonly.getByRole('menuitem').evaluateAll(items => items.filter(el => el.disabled).length), 12);
     await copy.click();
     await readonly.waitForFunction(() => !document.body.textContent.includes('正在转换…'));
     assert((await readonly.evaluate(() => navigator.clipboard.readText())).includes(',,A'));

@@ -149,7 +149,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const transforming = useRef(false);
   const lineCommands = useLineCommands({ current: edits.current, apply: applyLineEdit, overwrite: overwriteLineFields,
     active: visible && !shortcutsPaused && !pendingImport && !stylesOpen && !timeShiftOpen, editable: canEdit,
-    pending: transforming, onBusy: setBusy, file: mediaFile, video, duration });
+    pending: transforming, composing, onBusy: setBusy, file: mediaFile, video, duration });
   const pasteOver = lineCommands.over;
   const controlsAvailable = visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver;
   const controlsEnabled = controlsAvailable && !timeShiftOpen;
@@ -391,7 +391,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const state = edits.current();
     if (!state.document) return;
     const active = state.document.cues.find(cue => cue.id === state.selectedId);
-    if (unappliedTiming(state, active)) return msg('workspaceUi.timeShiftPendingTiming');
+    if (unappliedTiming(state, active)) return msg('workspaceUi.applyOrRestoreTimeDraft');
     const targets = scope === 'all' ? 'all' : new Set(selectedLineIds(state));
     const result = shiftCueTimes(state.document, targets, offsetMs);
     if ('reason' in result) return msg(timeShiftErrors[result.reason]);
@@ -710,8 +710,13 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       </HeaderNotice>}
       <ResizableWorkbench subtitles={
         <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
-          selectedIds={selectedIds} onContextSelect={selectCueForContext}
-          onAction={action => run(action === 'delete-row' ? deleteSelectedCue : () => lineCommands.run(action))}
+          selectedIds={selectedIds} onContextSelect={cue => { if (!pendingTiming) selectCueForContext(cue); }}
+          onAction={(action, cue) => {
+            if (!controlsEnabled || transforming.current || composing.current) return;
+            if (action === 'merge-lines' && pendingTiming) { setError(msg('workspaceUi.applyOrRestoreTimeDraft')); return; }
+            if (pendingTiming) selectCueForContext(cue);
+            run(action === 'delete-row' ? deleteSelectedCue : () => lineCommands.run(action));
+          }}
           editable={canEdit} hasVideo={Boolean(video && mediaFile && duration)} shortcutOverrides={shortcutOverrides}
           workspace={workbench} searchEnabled={controlsEnabled} searchEpoch={edits.epoch} onReplace={applyCueReplacement}
           timeShiftEnabled={canOpenTimeShift} onTimeShift={() => setTimeShiftOpen(true)}

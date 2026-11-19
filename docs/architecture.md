@@ -347,6 +347,8 @@ EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编�
 
 字幕行右键菜单、Ctrl/Cmd 多选 / Shift 连选、插入 / 视频帧插入 / 重复 / 帧前后分割 / 剪切复制粘贴 / 四字段粘贴覆盖统一接入既有内存编辑历史。列表继续时间排序，文档 cues 顺序拥有导出 Dialogue 顺序；source ID / 新行可选 ass_fields 仅保留元数据，项目原始模板不替换。`line-selection` / `line-edits` 是纯转换，`use-line-commands` 编排实际帧时间和系统剪贴板，并校验迟到响应的快照、可见性及权限。`http_api → ass_format/clipboard → codec` 为无状态转换，无项目或数据库写入；设置通过原共享 JSON 声明新命令和默认。通用 Modal 下移 page-ui，避免 workspace-ui 与 account-ui 的反向依赖。规则、公开契约与验证入口见 [字幕行操作](subtitle-line-operations.md)。
 
+2026-11-19 字幕行合并：`workspace-ui/use-line-commands → subtitle-model/cue-merge` 按文档顺序合并选中 ID，保留首条的身份和元数据。命令经既有 `project-data/ass-api → /api/ass/export → ass_format/codec` 校验完整候选快照，当前工作区、权限和选择仍有效时提交一次内存历史。保存、草稿和预览继续消费同一文档。行为与上游源码见 [合并字幕行](subtitle-line-operations.md#合并字幕行)。
+
 ## 组织默认术语表与项目副本
 
 2026-11-13（调整2026-11-12首版）：glossary拥有组织唯一默认表、词条及fork快照；projects拥有可空关联、独立关联版本、有效表解析和包含归档的使用计数。`projects/glossary_services → glossary/services → organizations/accounts`，无反向私有ORM或signals。项目默认只读组织表；成员明确fork当前组织词条后，自由维护副本，复制后的新旧词条无区别，不再同步/回写。组织默认只在「设置→组织设置」维护；App通过organizationGlossary插槽组合公开UI，account-ui只做布局。organizer/dev可切回默认，旧表/词条不合并删除；既有显式关联迁移保留。
