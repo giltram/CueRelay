@@ -94,6 +94,12 @@ class WorkspaceRegressionTests(LiveServerTestCase):
     def test_workspace_time_shift_local(self):
         self.run_browser('workspace time shift local')
 
+    def test_subtitle_replace_project(self):
+        self.run_browser('subtitle replace project')
+
+    def test_subtitle_replace_local(self):
+        self.run_browser('subtitle replace local')
+
     def test_workspace_draft_local(self):
         self.run_browser('workspace draft local')
 

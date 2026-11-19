@@ -44,7 +44,7 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 每个状态包含 `document`、`selectedId`、可选多选 ID / 连选锚点、原始 `startText` / `endText`，以及未选行时用于识别草稿变化的默认出点。文档和未修改子对象共享引用，每步保存 before/after 引用，最多 100 步；不逐步深拷贝。File、PCM、媒体位置、视窗/缩放、服务端 revision、savedDocument 均不在历史内。
 
-所有修改入口经 `edit`：边界单击、时间输入、文本、行样式、播放头裁剪、提交、删除、拆分、本地样式/脚本操作。纯选行经 `navigate`，不生成步骤，但下一编辑准确捕获当时的选行及草稿。纯媒体动作不改编辑状态。成功加载/导入经 `baseline`；失败、相同值和校验拒绝不增加步骤，也不清除重做分支。新编辑清除重做。
+所有修改入口经 `edit`：边界单击、时间输入、文本、查找替换、行样式、播放头裁剪、提交、删除、拆分、本地样式/脚本操作。纯选行经 `navigate`，不生成步骤，但下一编辑准确捕获当时的选行及草稿。纯媒体动作不改编辑状态。成功加载/导入经 `baseline`；失败、相同值和校验拒绝不增加步骤，也不清除重做分支。新编辑清除重做。
 
 - 左击入点 / 右击出点每次有效修改一步。
 - 边界 pointerdown 发起一次工作区手势，pointerup / pointercancel / lostpointercapture / blur 结束，最终结果为一步（cancel 保留已发生的修改）。回到原始草稿不留步骤。撤销、其他编辑、隐藏/忙碌/弹窗等边界让旧令牌失效；迟到的 pointermove 不能再次写入。音频层只持有手势句柄和 pointer capture。
@@ -92,19 +92,23 @@ use-edit-history 向只读 edit-diagnostics 观察器报告已有 before/after �
 
 ## 字幕文本查找
 
-字幕列表标题「查找」切换一行查找条，展开时按钮使用既有选中配色（aria-pressed）并聚焦输入；没有独立关闭按钮。可见工作区内 Ctrl/Cmd+F 打开查找，已展开时再次按快捷键只聚焦并选中查找文字。查找框及前后按钮高 28px，整条高 32px，减少纵向占用，把剩余空间交给字幕列表。保留完整列表、时间排序和行号。输入只更新匹配及 React 文本节点高亮，不选行、不滚动、不提交时间草稿、不操纵媒体。
+字幕列表「查找」和 Ctrl/Cmd+F 打开同一查找条。重复按 Ctrl/Cmd+F 聚焦并选中查找词。查找保持完整时间排序列表，输入只更新命中及高亮。结果分别显示当前序号、命中次数和命中行数。查找框 Enter、Shift+Enter 及前后按钮逐处定位并循环。首次定位包含当前选行，未选行从首处或末处开始。显式定位复用选行、列表滚动和媒体定位，重选同一 cue ID 保留原始时间草稿。
 
-- `cue-search.ts` 是纯函数入口：`matchCueText` 返回原始正文的 UTF-16 高亮范围；`findCueMatches` 复用 `subtitle-model/cue-order.ts` 的 `orderCues`，每行一个结果；`navigateCueMatches` 通过 cue ID 计算包含当前选行的首次查找及后续前后循环。
-- 匹配当前文档（包含未保存正文），普通字面文本，英文 A–Z 不区分大小写。只忽略 codec 已支持的 `b/i/u/s` 0/1 组合标签，`\N` / `\n` / `\h` 各视作一个空格；不修剪关键词或折叠空白。非法/未完成的标签按字面文本处理，查找不验证或修改原稿。列表继续展示原文，因此跨标签匹配会分段高亮，空白匹配高亮对应原始转义。
-- `use-cue-search.ts` 仅拥有本列表的开关、关键词和当前命中 ID；派生结果不另存字幕。关键词变化重置游标，首次前后查找从当前选行开始（含本行），未选行从首/末结果开始；尚未跳转显示 `0 / N 行`。当前命中不再匹配/被删除时恢复首次规则，修改或重排仍按 ID 识别。
-- `CueSearchBar` 隔离工作区快捷键、处理 IME Enter（composition、isComposing、229）并通过 polite live region 报告数量。输入框 Enter/Shift+Enter 和前后按钮调用显式导航，按钮保留原生键盘激活；连续导航焦点回到查找框。空字符串无高亮，无匹配时禁用前后按钮。
-- `CueTable` 用行 ref 在主动跳转时只滚动自身容器（避开 sticky 表头），然后复用传入的 `selectCueFromTable`：重复选择同一 cue ID 保留原始时间草稿（含未完成/非法输入），真正换行才丢弃旧草稿并载入目标行已提交时间。行号、正文点击和查找定位共用此规则；仍取消试听，有可播放视频时暂停并定位该行已提交入点，无视频时仍可选行。查找无独立提交/保存逻辑，也不生成历史步骤。
-- `EditorWorkbench` 仅传可用性、工作区 ref 和已有选行回调，主容器鼠标点击聚焦跳过 `data-cue-search` 控件。查找不受可编辑权限/媒体验证限制，但隐藏、忙碌、导入确认、工作区/账号弹窗时不拦截 Ctrl/Cmd+F。初始 body 焦点也可打开当前可见工作区查找；其他页面保留浏览器查找。
-- Esc 或再次点击「查找」收起查找条并移除高亮，保留选行和视频位置，焦点返回工作区。关键词在本实例关闭/重开及隐藏/恢复时保留；重开重新按首次规则导航，实例销毁时清空。无搜索历史、替换、过滤、正则、网络请求或持久化。
+- `cue-search.ts` 将正文投影成可见文本，保留 UTF-16 原文坐标。匹配普通字面文本，英文 A–Z 不区分大小写，包含重叠命中。仅隐藏支持的 `b/i/u/s` 0/1 组合标签，`\N`、`\n`、`\h` 各视为一个空格。非法或未完成的语法按字面查找。列表展示原文，跨标签命中分段标记，当前命中单独高亮。
+- `use-cue-search` 派生结果并持有工作区内临时输入与游标。游标用 cue ID、命中原文起点、当时的正文和编辑历史 epoch 核对。改词、命中正文变化或删除、导入和历史回退使旧游标失效。时间重排可以保留同一命中。Esc 或「查找」收起并归还工作区焦点，保留本实例的输入。隐藏和恢复沿用本实例状态，销毁或重载时创建新实例。
+- `CueSearchBar` 隔离打轴按键并保留原生输入撤销和 IME。查找可用于只读和未验证片源的项目。隐藏、忙碌、导入确认、账号或工作区弹窗期间沿用现有快捷键门禁。
 
-依赖方向：`EditorWorkbench → CueTable → {use-cue-search, CueSearchBar, CueSearchText}`；`use-cue-search → cue-search → {subtitle-model/cue-order, contracts}`，展示组件只依赖类型及 React，不反向导入编排层。
+### 替换
 
-验证：`cue-search.test.ts`；`npm run test:subtitle-search`（真实 Chrome、FFmpeg、本地 Vite、隔离 HTTP fixture，无数据库写入）。实际结果与浏览器限制见 [查找验证记录](../../../docs/experiments/subtitle-search.md)。
+可编辑时在查找条展开「替换」。用前后导航设置当前命中，然后单次替换，也可直接替换全文。全部替换按同一内存快照逐行从左到右选取非重叠命中，不会在新插入的文字中继续替换。留空替换文本可删除命中。成功后报告实际改动次数并清除当前命中，下一次定位仍由用户触发。
+
+- `cue-replacement.ts` 复用可见投影，按原文范围移除匹配可见字符与命中的完整空白转义。新文字插在第一个被匹配的字符处，沿用这一点的格式，标签原字节与顺序保留。比如将 `你{\b1}好{\b0}` 中的「你好」替换为「早安」，得到 `早安{\b1}{\b0}`。匹配区间内被替换的可见文字与转义原样相同则跳过该处。输入中的实际换行编码为 `\N`，花括号与反斜线会被拒绝。非法草稿中的文字不会因编辑意外变成 ASS 语法。
+- `EditorWorkbench` 先准备候选稿并使用既有的无持久化 `project-data/ass-api.exportAss` 验证完整文档。失败保留整份草稿，迟到结果必须匹配计算时的文档引用，关闭查找或失去编辑上下文会取消在途校验。验证通过后只写入一次历史，原行 ID、时间与样式、隐藏元数据、事件顺序、选择和原始时间草稿随文档保留。没有实际变化时保留原文档和历史分支。
+- 替换本身不执行选行、试听或视频定位。正文变化复用本机草稿、保存状态、QC 待重查及 ASS Track 热更新。项目修订号继续由「保存项目」更新。完整 ASS 校验依赖现有服务，包括输出大小和未替换的其他行。
+
+依赖沿用 `EditorWorkbench → CueTable → {use-cue-search, CueSearchBar, CueSearchText}` 与 `EditorWorkbench → {cue-replacement, project-data/ass-api, use-edit-history}`。`cue-replacement → cue-search → {subtitle-model/cue-order, contracts}`。查找和替换结果均从当前文档派生。
+
+验证入口包括 `cue-search.test.ts`、`cue-replacement.test.ts`、`npm run test:subtitle-search` 和 `browser_tests.regression` 下的 `test_subtitle_replace_local`、`test_subtitle_replace_project`。后者使用独立数据库与真实 ASS 转换服务。
 
 ## 紧凑布局与提示
 

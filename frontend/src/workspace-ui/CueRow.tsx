@@ -14,7 +14,7 @@ interface Props {
   selected: boolean;
   primary: boolean;
   playing: boolean;
-  searchCurrent: boolean;
+  currentMatch?: TextRange;
   styleName: string | undefined;
   ranges: TextRange[] | undefined;
   menuEnabled: boolean;
@@ -24,7 +24,7 @@ interface Props {
 }
 
 /** Immutable cue references and per-row flags keep unrelated edits/playback cheap. */
-export const CueRow = memo(function CueRow({ cue, number, selected, primary, playing, searchCurrent, styleName,
+export const CueRow = memo(function CueRow({ cue, number, selected, primary, playing, currentMatch, styleName,
   ranges, menuEnabled, registerRow, onSelect, onMenu }: Props) {
   useLocale();
   const cps = useMemo(() => cueCps(cue), [cue.text, cue.start_ms, cue.end_ms]);
@@ -43,12 +43,12 @@ export const CueRow = memo(function CueRow({ cue, number, selected, primary, pla
       const rect = event.currentTarget.getBoundingClientRect();
       onMenu(cue, rect.left + 32, rect.bottom, true);
     }}
-    className={`${selected ? 'selected' : ''} ${playing ? 'playing' : ''} ${searchCurrent ? 'search-current' : ''}`}>
+    className={`${selected ? 'selected' : ''} ${playing ? 'playing' : ''} ${currentMatch ? 'search-current' : ''}`}>
     <td><button className="row-number" aria-label={t("workspaceUi.selectLineValue", { v0: number })} aria-pressed={primary}>{number}</button></td>
     <td className="time-cell">{formatTime(cue.start_ms)}</td>
     <td className="time-cell">{formatTime(cue.end_ms)}</td>
     <td className="cps-cell">{cps ?? '—'}</td>
     <td className="style-cell" title={styleName}>{styleName ?? t("workspaceUi.unknownStyle")}</td>
-    <td><button className="cue-text"><CueSearchText text={cue.text} ranges={ranges} /></button></td>
+    <td><button className="cue-text"><CueSearchText text={cue.text} ranges={ranges} current={currentMatch} /></button></td>
   </tr>;
 });

@@ -70,8 +70,8 @@ The table lists default bindings. `Ctrl` is for Windows/Linux, `Cmd` for macOS; 
 | Paste Lines <!-- shortcut:paste-lines --> | `Ctrl+V` / `Cmd+V` |
 | Paste Lines Over <!-- shortcut:paste-lines-over --> | `Ctrl+Shift+V` / `Cmd+Shift+V` |
 | Open Find or focus and select its query | `Ctrl+F` / `Cmd+F` |
-| Find next matching line (Find input focused) | `Enter` |
-| Find previous matching line (Find input focused) | `Shift+Enter` |
+| Find next match (Find input focused) | `Enter` |
+| Find previous match (Find input focused) | `Shift+Enter` |
 | Close Find and return to timing | `Esc` |
 | Insert a line break stored as ASS `\\N` (subtitle text focused) | `Enter` |
 | Play / pause video in fullscreen | `Space` |
@@ -88,6 +88,10 @@ The table lists default bindings. `Ctrl` is for Windows/Linux, `Cmd` for macOS; 
 | Set minimum / maximum video width (divider focused) | `Home` / `End` |
 | Resize a column by 8px, or 24px with Shift (column divider focused) | `←` / `→`;`Shift+←` / `Shift+→` |
 | Set minimum / maximum column width (column divider focused) | `Home` / `End` |
+
+**Find and replace.** Select Find or press Ctrl/Cmd+F. The count shows both matches and matching lines. Previous and Next visit each match, including multiple matches on the same line. When editing is available, open Replace and choose Replace current match to change the highlighted occurrence. Replace all works left to right on non-overlapping matches across the document. Leave the replacement text empty to delete matches. Each action is one undo step and keeps unapplied time inputs. Use Save project to submit project edits.
+
+Find treats `\N`, `\n` and `\h` as spaces. When a match crosses formatting tags, the replacement uses the formatting at the start of the match and keeps the existing tags. Press Enter in the replacement field to insert a line break stored as `\N`. Braces and backslashes are rejected. If ASS validation fails, CueRelay shows the reason and keeps the original draft.
 
 **Line menu:** Right-click a subtitle row to open commands. Ctrl/Cmd-click selects multiple lines; Shift-click selects a range in visible time order. Right-clicking a selected row keeps the selection and does not seek video. Delete, Cut, Copy, Duplicate and frame splits act on selected lines. Use `Shift+F10` on a row button to open the menu from the keyboard, arrows to move and Esc to close. The grid stays sorted by time; insertion position is retained in document and exported ASS order.
 

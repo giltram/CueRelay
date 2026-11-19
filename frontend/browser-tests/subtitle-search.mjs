@@ -103,29 +103,34 @@ try {
   assert(await focused(input)); assert.equal(await status.textContent(), '');
   const before = await snapshot(), beforeRequests = requests.length;
   await query('你好');
-  assert.equal(await status.textContent(), '0 / 3 行');
+  assert.equal(await status.textContent(), '0 / 6 处 · 3 行');
   assert.deepEqual(await snapshot(), before); assert.equal(requests.length, beforeRequests);
   assert.equal(await rows.count(), 32); assert.equal(await rows.nth(1).locator('mark').count(), 3);
   assert.equal(await rows.nth(1).locator('.cue-text').textContent(), documentFixture.cues.find(cue => cue.id === 'new-2').text);
   assert.equal(await rows.nth(1).locator('mark').allTextContents().then(parts => parts.join('')), '你好你好');
-  await query('hello world'); assert.equal(await status.textContent(), '0 / 3 行');
+  await query('hello world'); assert.equal(await status.textContent(), '0 / 3 处 · 3 行');
   await query('b1'); assert.equal(await status.textContent(), '无匹配');
   await query('hello');
   assert.deepEqual(await snapshot(), before);
   checks.push('typing is read-only: full time-sorted rows, raw ASS source, multiple highlights, no selection/draft/media/scroll/request changes');
 
-  await page.keyboard.press('Enter'); assert.equal(await selected(), '16'); assert.equal(await status.textContent(), '2 / 3 行');
+  await page.keyboard.press('Enter'); assert.equal(await selected(), '16'); assert.equal(await status.textContent(), '3 / 6 处 · 3 行');
   assert.equal(await start.inputValue(), '0:'); assert.equal(await end.inputValue(), '0:00:04.55');
   assert(await focused(input));
-  await page.keyboard.press('Enter'); assert.equal(await selected(), '30'); assert.equal(await status.textContent(), '3 / 3 行');
+  await page.keyboard.press('Enter'); assert.equal(await selected(), '16'); assert.equal(await status.textContent(), '4 / 6 处 · 3 行');
+  assert.deepEqual(await rows.nth(15).locator('mark.current-match').allTextContents(), ['hello']);
+  assert.equal(await start.inputValue(), '0:');
+  await page.keyboard.press('Enter'); assert.equal(await selected(), '30'); assert.equal(await status.textContent(), '5 / 6 处 · 3 行');
   assert.equal(await start.inputValue(), '0:00:03.00'); assert.equal(await end.inputValue(), '0:00:03.10');
   assert.equal(await rows.filter({ has: page.locator('.cue-text') }).count(), 32);
   assert(await rows.nth(29).evaluate(el => {
     const box = el.getBoundingClientRect(), container = el.closest('.table-scroll').getBoundingClientRect();
     return box.top >= container.top + el.closest('table').querySelector('thead').getBoundingClientRect().height - 1 && box.bottom <= container.bottom + 1;
   }));
+  await next.click(); assert.equal(await selected(), '30');
   await next.click(); assert.equal(await selected(), '2'); assert(await focused(input));
   await previous.focus(); await page.keyboard.press('Enter'); assert.equal(await selected(), '30'); assert(await focused(input));
+  await page.keyboard.press('Shift+Enter'); assert.equal(await selected(), '30');
   await page.keyboard.press('Shift+Enter'); assert.equal(await selected(), '16');
   assert.equal(await page.locator('tr.search-current').count(), 1);
   await query('HELLO'); await page.keyboard.press('Shift+Enter'); assert.equal(await selected(), '16');
@@ -172,17 +177,17 @@ try {
 
   await select(5); await text.fill('needle <img src=x onerror=alert(1)>');
   await main.focus(); await page.keyboard.press('Control+f'); await query('needle');
-  assert.equal(await status.textContent(), '0 / 1 行');
+  assert.equal(await status.textContent(), '0 / 1 处 · 1 行');
   await page.keyboard.press('Enter'); assert.equal(await selected(), '5');
-  await query('<img'); assert.equal(await rows.locator('.cue-text img').count(), 0); assert.equal(await status.textContent(), '0 / 1 行');
+  await query('<img'); assert.equal(await rows.locator('.cue-text img').count(), 0); assert.equal(await status.textContent(), '0 / 1 处 · 1 行');
   await query('needle'); await page.keyboard.press('Enter');
   await text.fill('removed'); assert.equal(await status.textContent(), '无匹配');
-  await main.focus(); await page.keyboard.press('Control+z'); assert.equal(await status.textContent(), '0 / 1 行');
+  await main.focus(); await page.keyboard.press('Control+z'); assert.equal(await status.textContent(), '0 / 1 处 · 1 行');
   await input.focus(); await page.keyboard.press('Enter');
   await page.getByRole('button', { name: '删除选中行', exact: true }).click();
   assert.equal(await rows.count(), 31); assert.equal(await status.textContent(), '无匹配');
   await main.focus(); await page.keyboard.press('Control+z');
-  assert.equal(await rows.count(), 32); assert.equal(await status.textContent(), '0 / 1 行');
+  assert.equal(await rows.count(), 32); assert.equal(await status.textContent(), '0 / 1 处 · 1 行');
   assert.equal(await text.inputValue(), 'needle <img src=x onerror=alert(1)>');
   checks.push('unsaved text edits/deletion/undo update results by cue ID; search creates no history step; HTML-like text stays inert');
 
@@ -263,7 +268,8 @@ try {
     const field = view.getByRole('textbox', { name: '查找字幕文本', exact: true });
     const viewMain = view.locator('main.editor-workbench');
     await viewMain.focus(); await view.keyboard.press('Control+f'); await field.fill('hello');
-    assert.equal(await view.locator('.cue-search-status').textContent(), '0 / 3 行');
+    assert.equal(await view.locator('.cue-search-status').textContent(), '0 / 6 处 · 3 行');
+    assert(await view.getByRole('button', { name: '展开替换', exact: true }).isDisabled());
     const save = view.getByRole('button', { name: '保存项目', exact: true });
     if (id === 1) assert(await save.isDisabled());
     await view.keyboard.press(id === 1 ? 'Enter' : 'Shift+Enter');

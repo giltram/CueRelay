@@ -51,12 +51,21 @@ import type { DraftContent, WorkspaceDraft } from '../workspace-drafts/model';
 import { useWorkspaceDraft, unappliedTiming } from './use-workspace-draft';
 import { sameSnapshotValue } from '../subtitle-model/snapshot-equality';
 import { shiftCueTimes } from '../subtitle-model/time-shift';
+import { replaceCueText, type ReplaceCueRequest, type ReplaceFailure, type ReplaceFeedback } from './cue-replacement';
 
 const timeShiftErrors = {
   'invalid-offset': 'workspaceUi.timeShiftInvalidOffset',
   'out-of-range': 'workspaceUi.timeShiftOutOfRange',
   'invalid-interval': 'workspaceUi.timeShiftInvalidInterval',
 } as const;
+
+const replaceErrors = {
+  'invalid-input': 'workspaceUi.replacementInvalidInput',
+  'stale-match': 'workspaceUi.replacementStale',
+  'changed-syntax': 'workspaceUi.replacementChangesSyntax',
+  'text-too-long': 'server.subtitleTextMustBeAStringOfAtMost',
+  'document-too-large': 'server.assTextMustNotExceed1Mib',
+} as const satisfies Record<ReplaceFailure, string>;
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -352,6 +361,29 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     if (document === state.document) return;
     edits.edit({ ...state, document });
     setHasEdits(true);
+  }
+
+  async function applyCueReplacement(request: ReplaceCueRequest, signal: AbortSignal): Promise<ReplaceFeedback> {
+    const snapshot = edits.current().document;
+    if (!snapshot || !canEdit || !controlsEnabled || transforming.current || composing.current) {
+      return { message: msg('workspaceUi.replacementStale') };
+    }
+    const result = replaceCueText(snapshot, request);
+    if ('reason' in result) return { message: msg(replaceErrors[result.reason]) };
+    if (result.document === snapshot) return { count: 0 };
+    try {
+      await exportAss(result.document, signal);
+    } catch (error) {
+      return { message: error instanceof MessageError ? msg('workspaceUi.replacementRejected', { reason: error })
+        : msg('workspaceUi.replacementValidationFailed') };
+    }
+    const current = edits.current();
+    if (signal.aborted || transforming.current || composing.current || current.document !== snapshot) {
+      return { message: msg('workspaceUi.replacementStale') };
+    }
+    edits.edit({ ...current, document: result.document });
+    setHasEdits(true);
+    return { count: result.count };
   }
 
   function applyTimeShift(scope: TimeShiftScope, offsetMs: number) {
@@ -681,7 +713,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           selectedIds={selectedIds} onContextSelect={selectCueForContext}
           onAction={action => run(action === 'delete-row' ? deleteSelectedCue : () => lineCommands.run(action))}
           editable={canEdit} hasVideo={Boolean(video && mediaFile && duration)} shortcutOverrides={shortcutOverrides}
-          workspace={workbench} searchEnabled={controlsEnabled}
+          workspace={workbench} searchEnabled={controlsEnabled} searchEpoch={edits.epoch} onReplace={applyCueReplacement}
           timeShiftEnabled={canOpenTimeShift} onTimeShift={() => setTimeShiftOpen(true)}
           revealCueId={qcReveal}
           glossary={project && styleRequest && mediaOwnerId !== undefined ? { open: glossaryOpen,

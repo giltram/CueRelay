@@ -71,3 +71,9 @@
 - `git diff --check` 通过。
 
 报告目录：`/var/folders/cb/g5d9zp7j4hscwq5bclqwmj7w0000gn/T/cuerelay-subtitle-search-lejcpl`。测试复用已有 Vite、隔离 HTTP fixture 和合成媒体，不写开发数据库。浏览器启动需要沙箱外执行，获准后完成；跨浏览器/真实片源限制同上。未创建 git commit。
+
+## 逐处定位与查找替换（2026-11-19）
+
+前端 60 个测试文件、515 个测试全部通过，包括依赖环检查、同一行重叠命中、ASS 原文范围与候选稿转换。TypeScript、双语资源检查、生产构建与 `git diff --check` 通过。后端 `ass_format` 和 `http_api.test_ass_compatibility` 共 74 项通过，真实 JASSUB WASM 的 `test:ass-compatibility` 通过。
+
+隔离 HTTP 和 Chrome 下的 `test:subtitle-search`、`test:workspace-history`、`test:cue-window` 均通过。临时 PostgreSQL、真实 Django 与 Playwright Chromium 下的两个查找替换和两个批量时间平移场景均通过。替换覆盖项目媒体验证、原始时间草稿、选择、QC 失效、预览和媒体实例、按 revision 显式保存及草稿恢复。英文 360px 场景覆盖输入法、原生输入撤销、一步批量撤销/重做、ASS 校验失败的整批原子性、延迟响应与隐藏取消。浏览器验证使用合成媒体和 Chrome/Chromium。

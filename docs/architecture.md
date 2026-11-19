@@ -62,7 +62,7 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 2026-11-07 首次使用手册：`accounts.User.handbook_seen` 拥有账号级确认状态，GET `/api/me/settings` 只读返回，POST `/api/me/handbook` 以空 JSON 幂等确认本人；原个人偏好 PATCH 和 safe_user 身份投影不变。accounts.0006 仅将升级前 last_login 非空的账号标记为已提示，未登录/新账号保留首次提示。App 组合 account-ui/HandbookPrompt、账号代次保护和工作区快捷键暂停；点击打开/稍后阅读/Escape 立即收起并异步持久化，失败不阻塞操作。navigation 拥有 `/handbook` 及带组织上下文的地址，设置与首次提示默认新开同一手册；`handbook-ui → {navigation, page-ui}` 只拥有静态正文/阅读样式，不依赖工作区内部或请求账号。目录只滚动正文、不添加路由历史。内容职责和维护点见 [手册模块](../frontend/src/handbook-ui/README.md)，检查及部署见 [验证记录](experiments/user-handbook.md)。
 
-2026-11-06 字幕文本查找与定位：`workspace-ui/cue-search.ts` 纯函数从现有字幕正文派生支持 ASS 标签/空白转义的字面匹配，复用 subtitle-model 时间排序和 cue ID 导航；`use-cue-search` 只拥有当前实例的开关、关键词和游标。CueTable 保留所有行/原文，用 React 文本节点高亮，仅显式跳转滚动，并通过既有 selectCueFromTable 处理选行、草稿和媒体。选行统一按 cue ID 判断：重复选择当前行保留原始时间草稿，真正换行才丢弃草稿；媒体定位/取消试听沿用原行为。查找不受编辑权限/媒体验证限制，Ctrl/Cmd+F 限可见且无弹窗的工作区，查找条隔离打轴快捷键及 IME；无数据契约、历史、保存或网络接口变更。职责/交互见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕文本查找)，实际检查及限制见 [验证记录](experiments/subtitle-search.md)。
+2026-11-19 字幕查找替换沿用查找条、原文投影、时间排序和 cue ID。查找游标增加原文位置和编辑 epoch，结果从内存稿派生。纯 `workspace-ui/cue-replacement → cue-search → subtitle-model/cue-order` 生成保留 ASS 标签、行元数据与事件顺序的候选稿。EditorWorkbench 经既有无持久化 `project-data/ass-api.exportAss` 校验后一次写入历史，保留选择和未应用的时间输入。项目仍显式按 revision 保存，预览、QC 失效和本机草稿走原文档链路。显式定位复用选行与媒体定位，替换只更新正文。查找在只读工作区仍可用，替换沿用既有可编辑和生命周期门禁。交互、格式策略及回归入口见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕文本查找)。
 
 本机 PostgreSQL 的持久目录、连接配置及启停操作见 [本机开发数据库](local-development.md)；数据库结构由各模块 migrations 管理。
 

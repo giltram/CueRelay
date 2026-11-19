@@ -8,6 +8,7 @@ import { CueContextMenu, type CueMenuAction } from './CueContextMenu';
 import type { SelectionModifiers } from './line-selection';
 import type { ShortcutOverrides } from './timing-shortcuts';
 import { useCueSearch } from './use-cue-search';
+import type { ReplaceCueRequest, ReplaceFeedback } from './cue-replacement';
 import { CueSearchBar } from './CueSearchBar';
 import { CueRow } from './CueRow';
 import { useCueWindow } from './use-cue-window';
@@ -27,6 +28,8 @@ interface Props {
   hasVideo: boolean;
   shortcutOverrides: ShortcutOverrides;
   searchEnabled: boolean;
+  searchEpoch: number;
+  onReplace: (request: ReplaceCueRequest, signal: AbortSignal) => Promise<ReplaceFeedback>;
   timeShiftEnabled: boolean;
   onTimeShift: () => void;
   workspace: RefObject<HTMLElement | null>;
@@ -35,7 +38,9 @@ interface Props {
   revealCueId?: { id: string; request: number } | null;
 }
 
-export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, timeShiftEnabled, onTimeShift, workspace, qc, glossary, revealCueId }: Props) {
+export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction,
+  editable, hasVideo, shortcutOverrides, searchEnabled, searchEpoch, onReplace, timeShiftEnabled, onTimeShift, workspace,
+  qc, glossary, revealCueId }: Props) {
   useLocale();
   const [menu, setMenu] = useState<{ x: number; y: number; cueId: string; keyboard: boolean } | null>(null);
   useEffect(() => { if (!searchEnabled || (menu && !cues.some(cue => cue.id === menu.cueId))) setMenu(null); }, [searchEnabled, cues, menu]);
@@ -47,7 +52,7 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
   const rowWindow = useCueWindow(rows, scroll, JSON.stringify(widths));
   const reveal = rowWindow.reveal;
   useEffect(() => { if (revealCueId) reveal(revealCueId.id); }, [revealCueId, qc?.open]);
-  const search = useCueSearch({ cues, selectedId, enabled: searchEnabled, workspace, onSelect, onReveal: reveal,
+  const search = useCueSearch({ cues, selectedId, epoch: searchEpoch, enabled: searchEnabled, editable, workspace, onSelect, onReveal: reveal, onReplace,
     onShow() { if (pane.current && !pane.current.getClientRects().length) { qc?.onClose(); glossary?.onClose(); } } });
   const highlights = useMemo(() => new Map(search.matches.map(match => [match.cueId, match.ranges])), [search.matches]);
   const handlers = useRef({ onSelect, onContextSelect });
@@ -85,7 +90,8 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
             registerRow={rowWindow.registerRow} onSelect={selectRow} onMenu={openMenu} menuEnabled={searchEnabled}
             selected={selectedSet.has(cue.id)} primary={cue.id === selectedId}
             playing={currentTime >= cue.start_ms && currentTime < cue.end_ms}
-            searchCurrent={cue.id === search.currentId} ranges={highlights.get(cue.id)} styleName={names.get(cue.style_id)} />
+            currentMatch={cue.id === search.currentId ? search.currentRange : undefined}
+            ranges={highlights.get(cue.id)} styleName={names.get(cue.style_id)} />
         </Fragment>;
       })}{rowWindow.indices.length > 0 && rowWindow.indices.at(-1)! < rows.length - 1 &&
         <tr aria-hidden="true" className="cue-spacer"><td colSpan={6} style={{ height: rowWindow.offsets[rows.length] - rowWindow.offsets[rowWindow.indices.at(-1)! + 1] }} /></tr>}
@@ -105,7 +111,7 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
         {glossary && <button data-glossary aria-label={t("workspaceUi.glossary")} aria-expanded={glossary.open} aria-pressed={glossary.open}
           disabled={!searchEnabled} onClick={glossary.onToggle}>{t("workspaceUi.glossary")}</button>}</div></div>
     <div className="cue-list-body"><div className="cue-table-pane" ref={pane}>
-    {search.open && <CueSearchBar search={search} enabled={searchEnabled} />}
+    {search.open && <CueSearchBar search={search} enabled={searchEnabled} editable={editable} />}
     <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">{t("workspaceUi.noSubtitlesYetChooseStartAndEndTimes")}</p>}</div>
     </div>{qc?.open && qc.panel}{glossary?.open && glossary.panel}</div>
     {menu && searchEnabled && <CueContextMenu x={menu.x} y={menu.y} keyboard={menu.keyboard} editable={editable} hasVideo={hasVideo} overrides={shortcutOverrides}
