@@ -14,7 +14,7 @@ import { HomeLink } from '../navigation/HomeLink';
 import type { Route } from '../navigation/routes';
 import { ReadOrder } from '../request-state/read-order';
 
-interface ListReads { order: ReadOrder; pending: number }
+interface ListReads { order: ReadOrder; pending: number; lastPage?: number }
 
 export function ProjectsPanel({ organization, localOrganizationId, localScopeReady, request, header, enabled, refreshVersion, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
   organization: Organization | undefined; request: JsonRequest; header: ReactNode; enabled: boolean;
@@ -43,9 +43,15 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
   const organizationId = organization?.id;
   const api = useMemo(() => projectApi(request, organizationId ?? 0), [request, organizationId]);
   useEffect(() => {
+    if (search === query) return;
     const timer = setTimeout(() => { setQuery(search); setPage(1); }, 250);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, query]);
+  useEffect(() => {
+    // A different filter/resource owns new feedback. Page correction keeps the
+    // filter, so preserve its relevant error until a successful recovery.
+    setError('');
+  }, [api, status, query, enabled, setError]);
   useEffect(() => {
     activeReads.current = { order: new ReadOrder(), pending: 0 };
     setLoading(false);
@@ -58,11 +64,12 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
     const { order } = reads;
     const version = order.start();
     reads.pending++;
-    setLoading(true); setError('');
+    setLoading(true);
     void api.list(status, query, page).then(value => {
       if (activeReads.current !== reads || !order.acceptData(version)) return;
       if (order.acceptFeedback(version)) setError('');
       const lastPage = Math.max(1, Math.ceil(value.total / 25));
+      reads.lastPage = lastPage;
       if (page > lastPage) {
         if (order.isLatest(version)) setPage(lastPage);
       }
@@ -70,15 +77,32 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
     })
       .catch(reason => {
         if (activeReads.current !== reads) return;
-        if (reason.code === 'request_superseded') return;
+        if (reason.code === 'request_superseded') {
+          // Identity was reconfirmed after this request. Retry the same query
+          // without waiting for an unrelated organization refresh to succeed.
+          if (order.isLatest(version)) setRefresh(value => value + 1);
+          return;
+        }
         if (['permission_denied', 'not_found', 'authentication_required', 'account_changed'].includes(reason.code)
-          && order.acceptData(version)) setLoaded(null);
+          && order.acceptData(version)) {
+          reads.lastPage = undefined;
+          setLoaded(null);
+        }
         if (order.acceptFeedback(version)) setError(reason);
       }).finally(() => {
         reads.pending--;
-        if (activeReads.current === reads) setLoading(reads.pending > 0);
+        if (activeReads.current !== reads) return;
+        setLoading(reads.pending > 0);
+        // A newer failure supplies feedback, not a total. Once all reads settle,
+        // the last accepted total is authoritative even if it came from an older read.
+        if (reads.pending === 0 && reads.lastPage !== undefined && page > reads.lastPage) setPage(reads.lastPage);
       });
   }, [api, organizationId, status, query, page, refresh, refreshVersion, enabled]);
+  // User navigation clears old page feedback; automatic correction uses setPage.
+  function changePage(nextPage: number) {
+    if (nextPage !== page) setError('');
+    setPage(nextPage);
+  }
   function saved(project: ProjectDetail, video?: SelectedVideo) {
     setCreating(false); setRefresh(value => value + 1);
     onCreated(project, video);
@@ -95,8 +119,8 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
     {organization ? <>
       <div className="project-filters">
         <div className="project-tabs" role="tablist" aria-label={t("projectUi.projectStatus")}>
-          <button role="tab" aria-selected={status === 'active'} onClick={() => { setStatus('active'); setPage(1); }}>{t("projectUi.active")}</button>
-          <button role="tab" aria-selected={status === 'archived'} onClick={() => { setStatus('archived'); setPage(1); }}>{t("projectUi.archived")}</button>
+          <button role="tab" aria-selected={status === 'active'} onClick={() => { setStatus('active'); changePage(1); }}>{t("projectUi.active")}</button>
+          <button role="tab" aria-selected={status === 'archived'} onClick={() => { setStatus('archived'); changePage(1); }}>{t("projectUi.archived")}</button>
         </div>
         <label>{t("projectUi.searchProjects")}<input type="search" value={search} maxLength={100} onChange={event => setSearch(event.target.value)} placeholder={t("projectUi.searchByProjectName")} /></label>
       </div>
@@ -122,8 +146,8 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
         </div>}
       </div>}
       {data && <div className="project-pagination"><span>{t("projectUi.pagination", { count: data.total, page: data.page })}</span><div className="controls">
-        <button disabled={page === 1} onClick={() => setPage(value => value - 1)}>{t("projectUi.previousPage")}</button>
-        <button disabled={!data.has_more} onClick={() => setPage(value => value + 1)}>{t("projectUi.nextPage")}</button>
+        <button disabled={page === 1} onClick={() => changePage(page - 1)}>{t("projectUi.previousPage")}</button>
+        <button disabled={!data.has_more} onClick={() => changePage(page + 1)}>{t("projectUi.nextPage")}</button>
       </div></div>}
     </> : <div className="empty"><p role={unavailableOrganization ? 'alert' : undefined}>{unavailableOrganization
       ? t("projectUi.theRequestedOrganizationDoesNotExistOrIs")

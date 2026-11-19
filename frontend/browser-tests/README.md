@@ -10,7 +10,7 @@
 
 ## 项目资源响应竞态
 
-启动默认 5173 Vite 后运行 `npm run test:resource-response-races`（`RESOURCE_RACES_URL` 可覆盖）。真实 Chromium、8 秒 FFmpeg 合成视频、Python ASS codec 与可控 HTTP，不写应用数据库。四组可单独传 `workspace` / `authentication` / `completion` / `pagination`：验证轮询/重返/显式重载的旧成功不能解除较新 403/404 只读、较新成功可恢复且编辑器/草稿保留；工作区的迟到 401 预期取消保持静默；唯一被取代的列表请求完成后结束 loading；旧总数不回退有效第二页、最新确认越界仍正常校正。脚本结束关闭浏览器并删除合成媒体临时目录。
+启动默认 5173 Vite 后运行 `npm run test:resource-response-races`（`RESOURCE_RACES_URL` 可覆盖）。真实 Chromium、8 秒 FFmpeg 合成视频、Python ASS codec、IndexedDB 与可控 HTTP，不写应用数据库。十六组可单独传 `workspace` / `authentication` / `completion` / `pagination` / `reload` / `reentry` / `archive` / `settled` / `recovery` / `isolation` / `denial` / `attempt` / `reselect` / `feedback` / `cancellation` / `search`：验证轮询/重返/显式重载的旧成功不能解除较新 403/404 只读、较新成功可恢复且编辑器/内存及持久草稿保留；迟到 401 静默且首次工作区/项目列表取消后自动重读；已恢复路由迟到取消不增加请求、不隐藏原编辑器/内存及持久草稿，并保留后续撤权状态；组织持续 503 时当前列表独立恢复/直接重试；旧总数不提前回退有效第二页，所有读取结束后采用有效总数校正，覆盖较新 503 先/后返回且保留其反馈；相同新 revision 的焦点成功不取消显式重载，成功替换后清理已放弃草稿；旧路由拒绝不隐藏新成功确认的编辑器，当前路由错误可由新检查恢复；双 503 保留路由错误及直接重试，隐藏期间旧轮询成功不能恢复新路由，原编辑节点/内存及 IndexedDB 草稿保留；用户切换状态/搜索/页码隔离旧错误与在途重试，同查询重试仍保留反馈；已恢复路由在后续撤权时保持只读编辑器，旧路由 404 不重现；路由重试建立新恢复门槛；重选任一当前状态标签回首页清除旧页错误；搜索在防抖期间改回已生效的空/非空查询时，保留第 2 页、错误、重试入口和请求数，真正改变查询仍回首页并隔离旧反馈；成功项目检查只清除项目反馈，保留组织错误和用户导出失败；保存和拆分确认归档后旧 active 不解除只读，真正较新恢复仍生效。脚本结束关闭浏览器并删除合成媒体临时目录。
 
 ## ASS 独立引擎兼容性
 

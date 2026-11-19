@@ -4,9 +4,11 @@ ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、�
 
 公开输入是 Organization、localOrganizationId、localScopeReady、contracts/http.JsonRequest、navigate、创建前保护/创建成功和生命周期回调。localOrganizationId 由 App 的路由/选择 ID 提供，已知显式组织时本地工作区链接不等待 Organization 返回；默认组织尚未确定时，localScopeReady=false 使同一入口禁用，成功确定组织或确认没有组织后才开放，避免入口范围随首次加载变化而找不到旧稿。项目 API 仍只使用已解析的 Organization。项目名称、项目设置、本地工作区使用 navigation.RouteLink 的真实 href；路径解析/生成不属于面板。所有 HTTP 契约封装在 project-data/projects-api.ts，DTO 在 contracts/projects.ts。media/media-manifest.ts 只负责本地媒体元数据与 Worker 完整 SHA-256，不依赖 UI/账号。
 
-App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显式通知列表更新，不等待个人设置；列表不依赖 Organization 对象引用变化触发请求。首次进入或切换状态/搜索/页码，没有当前查询数据时显示加载提示；后台更新同一查询时保留表格和分页交互。同查询的重试/后台刷新共用一个 request-state/ReadOrder，不因新请求开始而作废旧请求，成功响应按数据版本接纳；暂时失败只更新反馈，不能遮蔽较早的有效列表或权限拒绝。明确的权限/资源失效错误按权威数据版本清除旧列表，较新成功结果阻止旧拒绝清空新数据。切组织/查询/可用性或卸载时换掉 ReadOrder，隔离旧生命周期的成功和失败；组织移除及账号切换继续沿用 App 的挂载边界。后台更新不重置搜索、状态或页码。回归：`npm run test:projects-refresh`（真实 Chrome、内存 HTTP 夹具，不写开发数据库）；组织慢响应、早打开本地工作区和退出组织后慢设置见 `npm run test:context-refresh`。
+App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显式通知列表更新，不等待个人设置；列表不依赖 Organization 对象引用变化触发请求。首次进入或切换状态/搜索/页码，没有当前查询数据时显示加载提示；后台更新同一查询时保留表格和分页交互。同查询的重试/后台刷新共用一个 request-state/ReadOrder，不因新请求开始而作废旧请求，成功响应按数据版本接纳；暂时失败只更新反馈，不能遮蔽较早的有效列表或权限拒绝。明确的权限/资源失效错误按权威数据版本清除旧列表，较新成功结果阻止旧拒绝清空新数据。切组织/查询/可用性或卸载时换掉 ReadOrder，隔离旧生命周期的成功和失败；组织移除及账号切换继续沿用 App 的挂载边界。后台更新不重置搜索、状态或页码。搜索经 250ms 防抖后，仅在最终输入与已生效查询不同时提交查询并重置到第 1 页；防抖期间改回原查询保留当前页、反馈和请求数。回归：`npm run test:projects-refresh`（真实 Chrome、内存 HTTP 夹具，不写开发数据库）；组织慢响应、早打开本地工作区和退出组织后慢设置见 `npm run test:context-refresh`。
 
-列表的 pending 计数属于同一查询生命周期，所有请求在 finally 中收尾，包括 request_superseded、旧数据/旧错误被忽略的路径；旧查询收尾不能修改新查询的 loading。数据接纳与页码校正分开：旧成功结果可以补齐当前页数据，但自动回退到较小末页只允许最新发起的读取执行，避免在更新的第二页检查尚未完成时跳回第一页。最新结果确认越界仍沿用原有回退。上述边界的回归见 `npm run test:resource-response-races` 的 completion/pagination 组。
+列表的 pending 计数属于同一查询生命周期，所有请求在 finally 中收尾，包括 request_superseded、旧数据/旧错误被忽略的路径；旧查询收尾不能修改新查询的 loading。最新发起的读取被身份确认取代时，直接重试当前查询，不依赖组织刷新成功；重试失败沿用现有错误与「重试」入口，避免无数据、无反馈且无操作的空白状态。
+
+数据接纳与页码校正分开：旧成功结果可以补齐当前页数据并记录有效末页，但较新检查仍在途时不能自动回退。最新成功确认越界可立即校正；所有请求收尾后按最后接纳的有效总数校正，较新 503 等暂时失败不使该总数失效。明确权限/资源拒绝清除总数及行数据。同查询发起读取/重试和自动校正页码不清除现有错误，只有可接纳的成功反馈才清除，保留较新失败而不让旧成功抹掉提示。切换组织/可用性/状态/搜索清除旧查询反馈，用户手动翻页与重选当前状态标签引起的页码重置统一经 changePage 清除旧页错误；两者与自动校正区分，避免新查询仍显示旧错误和重试按钮。上述边界的回归见 `npm run test:resource-response-races` 的 completion/pagination/settled/isolation/reselect/search 组。
 
 同文档历史浏览列表保持 EditorWorkbench 挂载，但隐藏并暂停其播放和全局快捷键；默认新开列表不改变来源工作区；同文档历史重新进入同一项目恢复当前快照；默认链接新开标签页并加载独立服务器快照，切项目/组织/账号或重新加载先走导出/取消/明确放弃。App 的同账号会话刷新不会替换文档或接纳新的保存 revision。
 

@@ -6,7 +6,7 @@ export class ReadOrder {
 
   start(): number { return ++this.sequence; }
 
-  /** Destructive follow-up actions must wait for the newest issued read. */
+  /** Whether this is the newest issued read; callers separately track completion. */
   isLatest(version: number): boolean { return version === this.sequence; }
 
   /** Successful data or an authoritative denial supersedes older data. */

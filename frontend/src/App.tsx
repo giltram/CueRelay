@@ -73,7 +73,7 @@ export default function App() {
   const { request: api, session, expectUser } = accountApi;
   const language = useLanguagePreference(user?.id ?? null, settingsReady, settings.language_preference, api,
     preference => acceptSavedSettings({ language_preference: preference }));
-  const workspaceState = useWorkspace(route, api, Boolean(user), owner?.id, setMessage);
+  const workspaceState = useWorkspace(route, api, Boolean(user), owner?.id);
   const { workspace, visible } = workspaceState;
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
   const organizations = organizationSnapshot?.list ?? null;
@@ -296,7 +296,8 @@ export default function App() {
     });
   }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
-  const feedbackMessage = [message, ...Object.values(contextErrors).map(error => formatMessage(error))].filter(Boolean).join(' ');
+  const feedbackMessage = [message, formatMessage(workspaceState.statusIssue),
+    ...Object.values(contextErrors).map(error => formatMessage(error))].filter(Boolean).join(' ');
   const feedback = feedbackMessage && !transition && <HeaderNotice role="alert">{feedbackMessage}<button onClick={() => void observe()}>{t("app.refreshSessionAndSettings")}</button></HeaderNotice>;
   const header = <div className="account-toolbar">
     {owner && !user && <HeaderNotice>{t("app.yourSessionExpiredOrTheAccountChangedSubtitles")}</HeaderNotice>}
