@@ -25,9 +25,16 @@ import './style-ui/style-management.css';
 import { OrganizationGlossary } from './glossary-ui/OrganizationGlossary';
 import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
 import { draftScope } from './workspace-drafts/model';
+import { ReadOrder } from './request-state/read-order';
 
 type TransitionAction = () => Promise<void | false>;
-interface Transition { label: MessageValue; action: TransitionAction }
+interface Transition { label: MessageValue; action: TransitionAction; afterSuccess?: () => Promise<void> }
+interface OrganizationSnapshot {
+  list: Organization[];
+  readVersion: number;
+  needsRefresh: boolean;
+}
+type ContextResource = 'organizations' | 'settings';
 
 export default function App() {
   useLocale();
@@ -36,8 +43,7 @@ export default function App() {
   // Ownership outlives session validity. Never use authentication as the editor key.
   const [owner, setOwner] = useState<User | null>(null);
   const ownerRef = useRef(owner); ownerRef.current = owner;
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [contextVersion, setContextVersion] = useState(0);
+  const [organizationSnapshot, setOrganizationSnapshot] = useState<OrganizationSnapshot | null>(null);
   const [selectedOrganizationId, setOrganizationId] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings>(createDefaultSettings);
   const settingsVersions = useRef<Partial<Record<keyof Settings, number>>>({});
@@ -53,29 +59,33 @@ export default function App() {
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionRef = useRef(transition); transitionRef.current = transition;
   const [message, setMessage] = useMessageState('');
+  const [contextErrors, setContextErrors] = useState<Partial<Record<ContextResource | 'session', MessageValue>>>({});
   const [busy, setBusy] = useState(false);
   const workbench = useRef<WorkbenchHandle>(null);
   const epoch = useRef(0);
+  const latestSessionRead = useRef(0);
+  const contextReads = useRef({ organizations: new ReadOrder(), settings: new ReadOrder() });
   const bypassNavigation = useRef(false);
   const { route, navigate } = useNavigation(requestNavigation);
-  const routeRef = useRef(route); routeRef.current = route;
   const [accountApi] = useState(() => createAccountApi(() => {
     epoch.current++; setUser(null); setPanel('login');
   }));
   const { request: api, session, expectUser } = accountApi;
   const language = useLanguagePreference(user?.id ?? null, settingsReady, settings.language_preference, api,
     preference => acceptSavedSettings({ language_preference: preference }));
-  const workspaceState = useWorkspace(route, api, Boolean(user && settingsReady), owner?.id, setMessage);
+  const workspaceState = useWorkspace(route, api, Boolean(user), owner?.id, setMessage);
   const { workspace, visible } = workspaceState;
   const organizationId = routeOrganization(route) ?? selectedOrganizationId;
-  const organization = organizations.find(org => org.id === organizationId);
+  const organizations = organizationSnapshot?.list ?? null;
+  const organizationsReady = organizations !== null;
+  const organization = organizations?.find(org => org.id === organizationId);
   useEffect(() => { diagnostics.setContext({ page: route.kind, organizationId: organizationId ?? undefined, projectId: 'projectId' in route ? route.projectId : undefined }); }, [route, organizationId]);
   useEffect(() => {
     if (!user) return;
     return provideAccountStatus(user.id, () => ({ id: user.id, username: user.username, is_dev: user.is_dev,
-      organization: settingsReady && organization ? { id: organization.id, name: organization.name,
+      organization: organization ? { id: organization.id, name: organization.name,
         role: organization.role, can_manage: organization.can_manage } : null }));
-  }, [user, organization, settingsReady]);
+  }, [user, organization]);
   const isList = route.kind === 'projects' || route.kind === 'entry';
   const isSettings = route.kind === 'settings' || route.kind === 'organization-settings';
   const handbookPromptOpen = Boolean(user && settingsReady && settings.handbook_seen === false &&
@@ -88,44 +98,64 @@ export default function App() {
     try { navigate(next, replace); } finally { bypassNavigation.current = false; }
   }, [navigate]);
 
-  const loadContext = useCallback(async (selectInitial = false) => {
+  const loadContext = useCallback(async () => {
     const version = epoch.current;
+    const orders = contextReads.current;
+    const reads = { organizations: orders.organizations.start(), settings: orders.settings.start() };
     const settingsReadVersions = { ...settingsVersions.current };
-    const [orgs, preferences] = await Promise.all([
-      api<{ organizations: Organization[] }>('/organizations'), api<Settings>('/me/settings'),
-    ]);
-    if (epoch.current !== version) return;
-    setOrganizations(orgs.organizations);
-    // Hydrate every untouched field, including on the first load. A local write
-    // only supersedes that field in reads already in flight; later reads refresh it.
-    const changes = Object.fromEntries(Object.entries(preferences).filter(([key]) => {
-      const field = key as keyof Settings;
-      return settingsVersions.current[field] === settingsReadVersions[field];
-    }));
-    setSettings(previous => ({ ...previous, ...changes })); setSettingsReady(true);
-    setContextVersion(value => value + 1);
-    if (selectInitial) setOrganizationId(routeOrganization(routeRef.current) ?? orgs.organizations[0]?.id ?? null);
+    const acceptData = (resource: ContextResource) =>
+      epoch.current === version && orders[resource].acceptData(reads[resource]);
+    const report = (resource: ContextResource, error?: MessageValue) => {
+      if (error instanceof ApiError && error.code === 'request_superseded') return;
+      if (epoch.current !== version || !orders[resource].acceptFeedback(reads[resource])) return;
+      setContextErrors(previous => ({ ...previous, [resource]: error }));
+    };
+    const readOrganizations = api<{ organizations: Organization[] }>('/organizations').then(({ organizations: list }) => {
+      if (!acceptData('organizations')) return;
+      report('organizations');
+      setOrganizationSnapshot({ list, readVersion: reads.organizations, needsRefresh: false });
+      setOrganizationId(selected => selected ?? list[0]?.id ?? null);
+    }).catch(reason => { report('organizations', reason); });
+    const readSettings = api<Settings>('/me/settings').then(preferences => {
+      if (!acceptData('settings')) return;
+      report('settings');
+      // A local write supersedes that field in settings reads already in flight.
+      const changes = Object.fromEntries(Object.entries(preferences).filter(([key]) => {
+        const field = key as keyof Settings;
+        return settingsVersions.current[field] === settingsReadVersions[field];
+      }));
+      setSettings(previous => ({ ...previous, ...changes })); setSettingsReady(true);
+    }).catch(reason => { report('settings', reason); });
+    await Promise.all([readOrganizations, readSettings]);
   }, [api]);
 
   const accept = useCallback(async (next: User) => {
     const previous = ownerRef.current;
-    if (!previous || previous.id !== next.id) setSettingsReady(false);
+    const accountChanged = previous?.id !== next.id;
+    if (accountChanged) {
+      setSettingsReady(false); setOrganizationSnapshot(null); setOrganizationId(null);
+      setContextErrors({});
+    }
     epoch.current++; expectUser(next.id);
     setUser(next); setOwner(next); ownerRef.current = next; setPanel(null); setMessage('');
     if (previous && previous.id !== next.id) {
       workspaceState.clear(); setSettings(createDefaultSettings());
       navigateApproved({ kind: 'entry' }, true);
     }
-    try { await loadContext(!previous || previous.id !== next.id); }
-    catch (reason) { setMessage(reason as Error); }
+    // Accepting ownership completes the transition. Reads must not delay the
+    // caller's disposition of the old workspace draft.
+    void loadContext();
   }, [loadContext, expectUser, workspaceState.clear, navigateApproved]);
 
   const observe = useCallback(async () => {
     if (transitionRef.current) return;
     const version = epoch.current;
+    const readVersion = ++latestSessionRead.current;
     try {
       const result = await session();
       if (version !== epoch.current) return;
+      setContextErrors(previous => ({ ...previous, session: undefined }));
+      setInitializing(false);
       if (!result.user) {
         setUser(null);
       } else if (ownerRef.current && ownerRef.current.id !== result.user.id) {
@@ -140,11 +170,11 @@ export default function App() {
       }
     } catch (reason) {
       // Focus and visibility events can overlap. A newer observation owns the result.
-      if (version === epoch.current && !(reason instanceof ApiError && reason.code === 'request_superseded')) {
-        setMessage(reason as Error);
+      if (version === epoch.current && readVersion === latestSessionRead.current && !(reason instanceof ApiError && reason.code === 'request_superseded')) {
+        setInitializing(false);
+        setContextErrors(previous => ({ ...previous, session: reason as Error }));
       }
     }
-    finally { setInitializing(false); }
   }, [accept, loadContext, session]);
 
   useEffect(() => {
@@ -162,24 +192,30 @@ export default function App() {
   useEffect(() => {
     const requested = routeOrganization(route);
     if (requested !== undefined) setOrganizationId(requested);
-    if (!user || !settingsReady) return;
+    if (!user || !organizationSnapshot) return;
+    const { list, needsRefresh } = organizationSnapshot;
     if (route.kind === 'entry') {
-      if (!organizations.some(org => org.id === selectedOrganizationId)) setOrganizationId(organizations[0]?.id ?? null);
+      if (!list.some(org => org.id === selectedOrganizationId)) setOrganizationId(list[0]?.id ?? null);
     } else if (route.kind === 'projects' && route.organizationId === undefined) {
-      const id = organizations.some(org => org.id === selectedOrganizationId) ? selectedOrganizationId : organizations[0]?.id;
+      // Membership changes invalidate the cached list for automatic navigation.
+      if (needsRefresh) return;
+      const id = list.some(org => org.id === selectedOrganizationId) ? selectedOrganizationId : list[0]?.id;
       const target: Route = { kind: 'projects', ...(id ? { organizationId: id } : {}) };
       if (routePath(route) !== routePath(target)) navigateApproved(target, true);
     } else if (route.kind !== 'not-found' && window.location.pathname !== routePath(route)) {
       navigateApproved(route, true);
     }
-  }, [route, user, settingsReady, organizations, selectedOrganizationId, navigateApproved]);
+  }, [route, user, organizationSnapshot, selectedOrganizationId, navigateApproved]);
 
-  function requestTransition(label: MessageValue, action: TransitionAction, always = false) {
+  function requestTransition(label: MessageValue, action: TransitionAction, options: {
+    always?: boolean; afterSuccess?: Transition['afterSuccess'];
+  } = {}) {
     if (transitionRef.current) return;
     setPanel(null); setMessage('');
-    if (always || workbench.current?.hasContent()) {
-      const next = { label, action }; transitionRef.current = next; setTransition(next);
-    } else void execute(action);
+    const next = { label, action, afterSuccess: options.afterSuccess };
+    if (options.always || workbench.current?.hasContent()) {
+      transitionRef.current = next; setTransition(next);
+    } else void execute(next);
   }
   function requestNavigation(next: Route, commit: () => void) {
     if (bypassNavigation.current) { commit(); return; }
@@ -198,16 +234,34 @@ export default function App() {
     if (replaceWorkspace) requestTransition(changesOrganization ? msg("app.switchOrganization") : next.kind === 'local' ? msg("app.openLocalWorkspace") : msg("app.openAnotherProject"), action);
     else void action();
   }
-  async function execute(action: TransitionAction, discard = false) {
+  async function execute({ action, afterSuccess }: Transition, discard = false) {
     const discardDraft = discard ? workbench.current?.discardDraft : undefined;
+    let discardFailed = false;
+    let completed = false;
     setBusy(true); setMessage('');
     try {
       const replaced = await action();
       transitionRef.current = null; setTransition(null);
-      if (replaced !== false) await discardDraft?.();
+      if (replaced !== false) {
+        try { await discardDraft?.(); }
+        catch (reason) {
+          discardFailed = true;
+          setMessage(reason as Error);
+        }
+        completed = true;
+      }
     }
-    catch (reason) { setMessage(reason as Error); }
+    catch (reason) {
+      // Keep the warning about a retained local copy if the refresh also fails.
+      if (!discardFailed) setMessage(reason as Error);
+    }
     finally { setBusy(false); }
+    // The action and draft disposition own busy. Background context refreshes
+    // must not keep the next page disabled while personal settings are slow.
+    if (completed) {
+      try { await afterSuccess?.(); }
+      catch (reason) { if (!discardFailed) setMessage(reason as Error); }
+    }
   }
   async function exportDraft() {
     setBusy(true); setMessage('');
@@ -219,7 +273,7 @@ export default function App() {
     epoch.current++;
     if (owner && owner.id !== next.id) {
       setUser(null); setPanel(null);
-      requestTransition(msg("app.switchToAccountValue", { v0: next.username }), () => accept(next), true);
+      requestTransition(msg("app.switchToAccountValue", { v0: next.username }), () => accept(next), { always: true });
     } else void accept(next);
   }
   async function exit() {
@@ -227,7 +281,8 @@ export default function App() {
     epoch.current++;
     setUser(null); setOwner(null); ownerRef.current = null; expectUser(null);
     workspaceState.clear(); navigateApproved({ kind: 'entry' }, true);
-    setSettings(createDefaultSettings()); setSettingsReady(false); setOrganizations([]); setOrganizationId(null); setPanel(null);
+    setSettings(createDefaultSettings()); setSettingsReady(false); setOrganizationSnapshot(null); setOrganizationId(null); setPanel(null);
+    setContextErrors({});
   }
   function dismissHandbook() {
     if (!user || handbookDismissedFor === user.id) return;
@@ -241,17 +296,18 @@ export default function App() {
     });
   }
   const listRoute: Route = { kind: 'projects', organizationId: workspace?.project?.organization_id ?? organizationId ?? undefined };
-  const feedback = message && !transition && <HeaderNotice role="alert">{message}<button onClick={() => void observe()}>{t("app.refreshSessionAndSettings")}</button></HeaderNotice>;
+  const feedbackMessage = [message, ...Object.values(contextErrors).map(error => formatMessage(error))].filter(Boolean).join(' ');
+  const feedback = feedbackMessage && !transition && <HeaderNotice role="alert">{feedbackMessage}<button onClick={() => void observe()}>{t("app.refreshSessionAndSettings")}</button></HeaderNotice>;
   const header = <div className="account-toolbar">
     {owner && !user && <HeaderNotice>{t("app.yourSessionExpiredOrTheAccountChangedSubtitles")}</HeaderNotice>}
-    {owner && user && organizations.length === 0 && <HeaderNotice>{t("app.noOrganizationsAskADevOrOrganizerTo")}</HeaderNotice>}
+    {owner && user && organizations?.length === 0 && <HeaderNotice>{t("app.noOrganizationsAskADevOrOrganizerTo")}</HeaderNotice>}
     {feedback}
     {isList && <><label className="sr-only" htmlFor="organization">{t("app.currentOrganization")}</label>
-    <select id="organization" disabled={!user || busy} value={organizationId ?? ''} onChange={event => {
+    <select id="organization" disabled={!user || !organizationsReady || busy} value={organizationId ?? ''} onChange={event => {
       navigate({ kind: 'projects', organizationId: Number(event.target.value) });
     }}>
       {!organization && <option value={organizationId ?? ''}>{organizationId ? t("app.previousOrganizationIsNoLongerAccessible") : t("app.noOrganizations")}</option>}
-      {organizations.map(org => <option key={org.id} value={org.id}>{org.name} · {roleName(org.role)}</option>)}
+      {organizations?.map(org => <option key={org.id} value={org.id}>{org.name} · {roleName(org.role)}</option>)}
     </select></>}
     <RouteLink className="button-link" route={listRoute} navigate={navigate}
       aria-current={isList ? 'page' : undefined}>{t("app.projects")}</RouteLink>
@@ -265,8 +321,10 @@ export default function App() {
   return <>
     {owner ? <>
       {isList && <ProjectsPanel key={`${owner.id}:${organizationId ?? 'none'}`} organization={organization} request={api}
-        header={header} enabled={Boolean(user && settingsReady && !busy)} refreshVersion={contextVersion} navigate={navigate}
-        unavailableOrganization={organizationId !== null && !organization}
+        localOrganizationId={organizationId ?? undefined}
+        localScopeReady={organizationId !== null || Boolean(organizationSnapshot?.list.length === 0 && !organizationSnapshot.needsRefresh)}
+        header={header} enabled={Boolean(user && organizationsReady && !busy)} refreshVersion={organizationSnapshot?.readVersion ?? 0} navigate={navigate}
+        unavailableOrganization={organizationsReady && organizationId !== null && !organization}
         onCreate={open => requestTransition(msg("app.newProject"), async () => { workspaceState.clear(); open(); })}
         onCreated={(project, video) => {
           workspaceState.adoptCreated(project, video);
@@ -275,24 +333,31 @@ export default function App() {
       {route.kind === 'handbook' && <HandbookPage header={header} navigate={navigate} />}
       {route.kind === 'project-settings' && <ProjectSettingsPage key={`${owner.id}:${route.organizationId}:${route.projectId}`}
         organization={organization} organizationId={route.organizationId} projectId={route.projectId}
-        request={api} header={header} enabled={Boolean(user && settingsReady && !busy && !transition)} navigate={navigate} />}
+        request={api} header={header} enabled={Boolean(user && organizationsReady && !busy && !transition)} navigate={navigate} />}
       {isSettings && <SettingsPage user={user ?? owner} organization={organization}
         organizationGlossary={organization && <OrganizationGlossary key={`glossary:${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
-          enabled={Boolean(user && settingsReady && !busy && !transition && route.kind === 'organization-settings')} />}
+          enabled={Boolean(user && !busy && !transition && route.kind === 'organization-settings')} />}
         organizationStyles={organization && <OrganizationStyleLibrary key={`${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
-          canManage={organization.can_manage} enabled={Boolean(user && settingsReady && !busy && !transition)} />}
+          canManage={organization.can_manage} enabled={Boolean(user && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
-        enabled={Boolean(user && !busy && !transition)} ready={settingsReady}
+        enabled={Boolean(user && !busy && !transition)} ready={route.kind === 'organization-settings' ? organizationsReady : settingsReady}
         request={api} settings={settings} language={language} navigate={navigate} onSettings={acceptSavedSettings}
         onExit={() => requestTransition(msg("app.signOut"), exit)}
-        onRetry={() => void loadContext().catch(reason => setMessage(reason))}
-        onChanged={() => void loadContext().catch(reason => setMessage(reason))}
+        onRetry={() => void loadContext()}
+        onChanged={() => void loadContext()}
         onLeave={() => {
           if (!organization) return;
           requestTransition(msg("app.leaveThisOrganization"), async () => {
             await api(`/organizations/${organization.id}/leave`, 'POST', {});
-            setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true); await loadContext(true);
-          }, true);
+            epoch.current++;
+            setOrganizationSnapshot(snapshot => snapshot && {
+              ...snapshot, needsRefresh: true,
+              list: user?.is_dev
+                ? snapshot.list.map(value => value.id === organization.id ? { ...value, role: null, can_manage: true } : value)
+                : snapshot.list.filter(value => value.id !== organization.id),
+            });
+            setOrganizationId(null); workspaceState.clear(); navigateApproved({ kind: 'projects' }, true);
+          }, { always: true, afterSuccess: loadContext });
         }} />}
       {(route.kind === 'not-found' || route.kind === 'project' && projectLoad?.status !== 'ready') &&
         <RouteStatus header={header} loading={route.kind === 'project' && projectLoad?.status === 'loading'}
@@ -307,7 +372,7 @@ export default function App() {
         onSplit={workspace.project ? workspaceState.split : undefined}
         styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
         onReload={workspace.project ? () => requestTransition(msg("app.reloadProject"), workspaceState.reload) : undefined}
-        mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user || !settingsReady)} /></div>}
+        mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user)} /></div>}
     </> : <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}>
       {feedback}<div className="login-page"><p>{t("app.internalAccountsAreCreatedByTheSiteAdministrator")}</p>
         <LoginForm api={accountApi} onLogin={onLogin} feedbackInHeader /></div>
@@ -322,7 +387,7 @@ export default function App() {
       <div className="controls">
         <button disabled={busy} onClick={() => void exportDraft()}>{t("app.exportAss")}</button>
         <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>{t("app.cancel")}</button>
-        <button disabled={busy} onClick={() => void execute(transition.action, true)}>{t("app.discardAndContinue")}</button>
+        <button disabled={busy} onClick={() => void execute(transition, true)}>{t("app.discardAndContinue")}</button>
       </div>
       {message && <p role="status">{message}</p>}
     </Modal>}

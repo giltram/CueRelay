@@ -210,6 +210,8 @@ projects 内按具体职责组织聚焦文件：模型定义、权限、时间�
 
 EditorWorkbench 观察编辑历史中的不可变 ASS 文档与未应用时间，project-data 继续负责项目 HTTP 保存及 revision 校验。新的 [workspace-drafts](../frontend/src/workspace-drafts/README.md) 只负责本机恢复副本，使用账号、组织、项目和标签页身份进行隔离。通过 `sessionStorage` 延续刷新身份，通过 Web Locks 给复制标签页分配不同 ID。项目恢复前读取最新服务端 revision，冲突时保留可导出的草稿。服务器成功回执更新保存基准，再清理已提交内容或按新 revision 保留剩余输入。用户可以显式恢复已关闭标签页的草稿。
 
+未选行的时间草稿记录输入基准，恢复后仍能区分初始出点与清空选择后的零出点。QC 和诊断复用该判断，诊断和本机草稿再结合当前字幕文档基准。恢复、放弃和导出用共享锁排除活动来源页，并按记录 ID 核对归属和代次。退出组织成功后，App 更新成员角色，保留 dev 权限可访问的组织，先尝试删除明确放弃的活跃草稿，再刷新组织列表和个人设置。
+
 ## 4. 前端模块与数据所有权
 
 下表包含未来协作结构；ass-preview 已实现本地实时预览，project-data 的 WS/协作状态等仍是未来设计。当前依赖以文首可运行入口为准。
@@ -302,7 +304,11 @@ EditorWorkbench 的 `hasProtectedContent` 同时服务 beforeunload 与 Workbenc
 
 2026-10-24：页面路径由 [navigation](../frontend/src/navigation/README.md) 唯一定义，采用原生 History API 和真实链接。App 根据目标资源是否替换当前实例编排保护；popstate 先恢复已提交历史条目，取消不改页面，确认重放原跨度。入口默认组织只用于 `/` 和 `/projects`，登录、刷新、直接访问不能覆盖显式组织/项目地址。工作区新开列表不改变本页 visible，同页返回列表才隐藏并暂停。
 
-[app-workspace](../frontend/src/app-workspace/README.md) 负责单个保留实例、指定资源加载、创建 File 交接、保存/重载和归档/撤权观察。只有新项目/组织/账号或明确重载更换实例；同文档历史重返同项目和轮询只观察归档，不替换内存文档/revision。字幕与草稿仍归 EditorWorkbench，File/Object URL 归 LocalVideoPlayer，底层不依赖导航。工作区恢复副本由 workspace-drafts 保存在本机 IndexedDB。部署和验证见 [运行契约](frontend-deployment.md) 与 [导航记录](experiments/frontend-navigation.md)。
+App 分别管理组织列表和个人设置的数据版本与反馈版本。当前账号 epoch 内，成功数据按发起顺序接纳，不等待更晚发起且尚未成功的请求；暂时失败只更新反馈，不推进数据版本，不能遮蔽较早成功返回的撤权结果。较新成功数据阻止旧数据覆盖；较新反馈阻止旧错误重现或旧成功清除新错误。个人设置另按各字段的写入版本合并。会话检查错误也单独保存，重试成功清除，不覆盖草稿操作等其他反馈。App 与 ProjectsPanel 共用无外部依赖的 [request-state/ReadOrder](../frontend/src/request-state/README.md)，调用方负责 epoch/查询生命周期隔离；项目列表的明确权限/资源拒绝属于权威数据结果，同查询后台刷新不作废在途读取，切查询/组织/可用性或卸载才作废。身份失效由账号客户端单独决定：请求发出后已有成功会话/登录/退出确认时，迟到的认证失败作为 request_superseded 静默丢弃；仅发起但未成功的身份检查不屏蔽真实认证失败。
+
+工作区按登录会话及项目接口加载，个人设置暂不可用时使用当前账号已知设置或默认值。账号接纳只完成所有权/路由/默认设置切换，随后后台加载上下文，不阻塞已明确放弃的旧草稿清理。项目列表的本地工作区链接使用已知路由/选择组织 ID，不依赖组织对象是否加载成功；默认组织未知时入口禁用，成功确定组织或确认无组织后开放，实例的草稿范围保持固定。退出组织并处理明确放弃的草稿后解除 busy，再独立刷新上下文；项目列表停在通用 `/projects`，直到收到成功的组织列表响应，再从中选择可访问组织，不等待个人设置。显式组织地址继续按原路由规则处理。补充 review 的实现与验证见 [11-18 修复记录](plans/context-refresh-review-2026-11-18.md) 和 [11-19 反馈修复](plans/context-refresh-follow-up-2026-11-19.md)。
+
+[app-workspace](../frontend/src/app-workspace/README.md) 负责单个保留实例、指定资源加载、创建 File 交接、保存/重载和归档/撤权观察。只有新项目/组织/账号或明确重载更换实例；同文档历史重返同项目和轮询只观察归档，不替换内存文档/revision。同一账号/项目的路由读取、reload 和后台状态检查共用 ReadOrder，clear/替换/会话禁用使旧上下文失效；较新明确拒绝不能被旧成功解除，过期 reload 返回 false，保留原实例及草稿。预期 request_superseded 在观察路径静默处理，首次加载被取代时重新读取当前资源。列表另外持有每查询的 pending 计数，finally 无条件收尾当前生命周期的请求；自动页码校正只允许最新发起的读取执行，不将提前显示数据等同于允许旧总数跳转。职责与验证见 [资源响应补修](plans/resource-response-review-2026-11-19.md)。字幕与草稿仍归 EditorWorkbench，File/Object URL 归 LocalVideoPlayer，底层不依赖导航。工作区恢复副本由 workspace-drafts 保存在本机 IndexedDB。部署和验证见 [运行契约](frontend-deployment.md) 与 [导航记录](experiments/frontend-navigation.md)。
 
 2026-10-24 设置页：项目列表右上角统一通过真实「设置」链接进入 `/settings` 或带组织上下文的个人设置地址；组织设置为 `/organizations/:organizationId/settings/organization`，旧 `/organizations/:organizationId/settings` 由既有入口规范化流程 replace 到新地址。`account-ui/SettingsPage` 只组合页面布局和 PersonalPanel / MembersPanel，App 保留账号、组织和退出保护编排；路由仍由 navigation 唯一定义。默认新开设置页不改变来源工作区；仅同文档历史浏览设置时隐藏并保留工作区，不清空字幕、File 或时间草稿；跨组织仍经原保护步骤，退出或移除自己也检查隐藏实例。列表不再提供「返回工作区」，同文档浏览器历史恢复原工作区，项目链接默认新开独立工作区。同文档内存保留与刷新/新标签页的独立状态边界不变。验证和限制见 [设置页记录](experiments/settings-pages.md)。
 

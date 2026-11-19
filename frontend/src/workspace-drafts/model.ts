@@ -4,12 +4,15 @@ export interface TimingDraft {
   cueId: string | null;
   startText: string;
   endText: string;
+  unselectedEndMs?: number;
 }
 
 export interface DraftContent {
   document: AssDocument;
   timing: TimingDraft | null;
   baseRevision: number | null;
+  /** The local workspace's original blank document accompanies raw timing input. */
+  localTimingOnly?: true;
 }
 
 export interface WorkspaceDraft extends DraftContent {
@@ -27,6 +30,8 @@ export function draftScope(userId: number, organizationId?: number, projectId?: 
 
 export function sameDraftContent(a: DraftContent | null, b: DraftContent | null): boolean {
   return a === b || Boolean(a && b && a.document === b.document && a.baseRevision === b.baseRevision
+    && a.localTimingOnly === b.localTimingOnly
     && a.timing?.cueId === b.timing?.cueId && a.timing?.startText === b.timing?.startText
-    && a.timing?.endText === b.timing?.endText);
+    && a.timing?.endText === b.timing?.endText
+    && a.timing?.unselectedEndMs === b.timing?.unselectedEndMs);
 }

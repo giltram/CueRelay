@@ -41,19 +41,19 @@ class WorkspaceRegressionTests(LiveServerTestCase):
         ], check=True, timeout=30)
 
     def setUp(self):
-        organizer = User.objects.create_user('regression-organizer', password=PASSWORD, handbook_seen=True)
+        self.organizer = User.objects.create_user('regression-organizer', password=PASSWORD, handbook_seen=True)
         self.member = User.objects.create_user('regression-member', password=PASSWORD, handbook_seen=True)
-        organization = create_organization('回归测试组织', organizer.pk)
-        add_member(organizer, organization.pk, self.member.username)
+        organization = create_organization('回归测试组织', self.organizer.pk)
+        add_member(self.organizer, organization.pk, self.member.username)
         PersonalSettings.objects.create(user=self.member, shortcut_overrides={'split-text': ['Ctrl+KeyT']})
         source = (ROOT / 'backend/ass_format/fixtures/basic.ass').read_text()
         # One plain cue makes text-split expectations independent of the codec.
         source = source[:source.index('Dialogue:')] + 'Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0000,0000,0000,,甲乙\n'
-        project = create_project(organizer, organization.pk, name='回归测试项目', description='', source=source,
+        project = create_project(self.organizer, organization.pk, name='回归测试项目', description='', source=source,
             media={'sha256': hashlib.sha256(self.video.read_bytes()).hexdigest(),
                    'size': self.video.stat().st_size, 'duration_ms': 8000})
         self.fixtures = {'username': self.member.username, 'password': PASSWORD, 'video': str(self.video),
-                         'organizer': organizer.username, 'subtitles': str(ROOT / 'backend/ass_format/fixtures/basic.ass'),
+                         'organizer': self.organizer.username, 'subtitles': str(ROOT / 'backend/ass_format/fixtures/basic.ass'),
                          'projectPath': f'/api/organizations/{organization.pk}/projects/{project.pk}',
                          'workspacePath': f'/organizations/{organization.pk}/projects/{project.pk}/workspace'}
 
@@ -102,3 +102,54 @@ class WorkspaceRegressionTests(LiveServerTestCase):
 
     def test_workspace_draft_storage_failure(self):
         self.run_browser('workspace draft IndexedDB write failure')
+
+    def test_workspace_draft_unselected_timing(self):
+        self.run_browser('workspace draft keeps unselected project timing')
+
+    def test_workspace_draft_empty_timing(self):
+        self.run_browser('workspace draft keeps the timing baseline')
+
+    def test_workspace_draft_leave(self):
+        self.run_browser('workspace draft discard follows the result of leaving')
+
+    def test_workspace_draft_stale_offers(self):
+        self.run_browser('workspace draft removes stale offers')
+
+    def test_workspace_draft_dev_leave(self):
+        self.member.is_superuser = True
+        self.member.save(update_fields=['is_superuser'])
+        self.run_browser('workspace draft dev can manage after leaving')
+
+    def test_workspace_draft_leave_delete_failure(self):
+        organization = create_organization('仍可访问的组织', self.organizer.pk)
+        add_member(self.organizer, organization.pk, self.member.username)
+        self.run_browser('workspace draft leave refreshes after local deletion fails')
+
+    def test_workspace_draft_concurrent_exports(self):
+        self.run_browser('workspace draft concurrent exports keep both offers')
+
+    def test_organizations_load_when_preferences_fail(self):
+        self.run_browser('project list loads when personal settings fail')
+
+    def test_workspace_leave_uses_refreshed_organizations(self):
+        self.seed_organization_change()
+        self.run_browser('workspace leave uses the refreshed organization list')
+
+    def test_workspace_leave_retries_organizations(self):
+        self.seed_organization_change()
+        self.run_browser('workspace leave retries organization refresh from the unscoped list')
+
+    def test_organization_refresh_ignores_old_permissions(self):
+        self.seed_organization_change()
+        self.run_browser('organization refresh ignores a late list from before revocation')
+
+    def seed_organization_change(self):
+        revoked = create_organization('同步前可访问的组织', self.organizer.pk)
+        membership = add_member(self.organizer, revoked.pk, self.member.username)
+        available = create_organization('同步后可访问的组织', self.organizer.pk)
+        add_member(self.organizer, available.pk, self.member.username)
+        self.fixtures.update(revokedMembershipPath=f'/api/organizations/{revoked.pk}/members/{membership.pk}',
+                             availableListPath=f'/organizations/{available.pk}/projects')
+
+    def test_workspace_draft_local_timing_diagnostics(self):
+        self.run_browser('workspace draft local timing diagnostics clear at baseline')

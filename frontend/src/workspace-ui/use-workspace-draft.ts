@@ -8,12 +8,12 @@ import type { EditState } from './edit-history';
 import type { Cue } from '../contracts/subtitles';
 
 export function unappliedTiming(state: EditState, cue?: Cue): TimingDraft | null {
-  const start = cue ? formatTime(cue.start_ms) : '0:00:00.00';
-  // Empty projects start with the proposed duration. Removing the last row
-  // resets both displayed inputs to zero through withSelection.
-  const end = cue ? formatTime(cue.end_ms) : state.selectedIds ? '0:00:00.00' : '0:00:02.00';
-  return (cue || !state.document?.cues.length) && (state.startText !== start || state.endText !== end)
-    ? { cueId: state.selectedId, startText: state.startText, endText: state.endText } : null;
+  const unselectedEndMs = state.unselectedEndMs ?? 0;
+  const start = formatTime(cue?.start_ms ?? 0);
+  const end = formatTime(cue?.end_ms ?? unselectedEndMs);
+  if (state.startText === start && state.endText === end) return null;
+  return { cueId: state.selectedId, startText: state.startText, endText: state.endText,
+    ...(cue ? {} : { unselectedEndMs }) };
 }
 
 interface Session { store: DraftStore; tabId: string; autosave: DraftAutosave; mounted: boolean }
@@ -57,20 +57,23 @@ export function useWorkspaceDraft(scope: string | undefined, content: DraftConte
     };
   }, [scope]);
 
-  async function resolveCandidate(record: WorkspaceDraft, restore: boolean) {
+  async function accessCandidate(record: WorkspaceDraft, action: 'read' | 'restore' | 'discard') {
     const current = session.current;
-    if (!current?.mounted) return false;
-    const change = () => current.store.changeCandidate(record, restore ? current.tabId : null);
-    if (record.tabId !== current.tabId) await withInactiveDraftTab(record.tabId, change);
-    else if (!restore) await change();
-    if (!current.mounted) return false;
-    if (restore) current.autosave.adopt(record);
-    setCandidates(values => values.filter(value => value.id !== record.id));
-    return true;
+    if (!current?.mounted) return null;
+    const access = () => current.store.accessCandidate(record, action === 'restore' && record.tabId !== current.tabId
+      ? { kind: 'restore', tabId: current.tabId }
+      : { kind: action === 'discard' ? 'discard' : 'read' });
+    const matched = record.tabId === current.tabId ? await access() : await withInactiveDraftTab(record.tabId, access);
+    if (!current.mounted) return null;
+    if (matched && action === 'restore') current.autosave.adopt(matched);
+    if (!matched || action !== 'read') {
+      setCandidates(values => values.filter(value => value.id !== record.id));
+    }
+    return matched;
   }
 
   return {
-    status, candidates, resolveCandidate,
+    status, candidates, accessCandidate,
     flush: () => session.current?.autosave.flush(),
     discard: () => session.current?.autosave.discard(),
   };

@@ -4,6 +4,14 @@
 
 现有功能套件入口见 `package.json` 的 `test:*`，要求已安装 Chrome、FFmpeg、Node 和仓库 `.venv`。`ass-codec.mjs` 调用后端纯 codec 创建合法夹具，不访问数据库。脚本分别使用各自的 URL 环境变量，默认地址请查看对应文件。
 
+## 会话上下文刷新
+
+启动 `npm run dev -- --port 5173 --strictPort` 后运行 `npm run test:context-refresh`（`CONTEXT_REFRESH_URL` 可覆盖地址）。使用 Chromium、纯 Python codec、可控延迟 HTTP 和真实 IndexedDB，不写应用数据库。九组覆盖显式组织页的早开本地草稿范围与恢复（`local`）、持续重叠组织读取与旧权限隔离（`overlapping`）、退出后慢设置不阻塞列表（`leave`）、按资源清理错误（`retry`）、首页默认组织未知/首次失败/成功后相同入口恢复及无组织入口（`home`）、较新 503 不遮蔽成功撤权（`revocation`）、首次项目列表持续刷新与权限拒绝（`projects`）、账号切换后慢设置不阻塞明确放弃的草稿清理（`account`）、成功会话确认后迟到 401 静默且当前 401 正常登录保护（`authentication`）。可用括号内参数单独运行。
+
+## 项目资源响应竞态
+
+启动默认 5173 Vite 后运行 `npm run test:resource-response-races`（`RESOURCE_RACES_URL` 可覆盖）。真实 Chromium、8 秒 FFmpeg 合成视频、Python ASS codec 与可控 HTTP，不写应用数据库。四组可单独传 `workspace` / `authentication` / `completion` / `pagination`：验证轮询/重返/显式重载的旧成功不能解除较新 403/404 只读、较新成功可恢复且编辑器/草稿保留；工作区的迟到 401 预期取消保持静默；唯一被取代的列表请求完成后结束 loading；旧总数不回退有效第二页、最新确认越界仍正常校正。脚本结束关闭浏览器并删除合成媒体临时目录。
+
 ## ASS 独立引擎兼容性
 
 `npm run test:ass-compatibility` 在 Node 中直接加载已安装 JASSUB WASM 与仓库 Noto Sans SC 字体，不需要 Chrome、FFmpeg、HTTP 服务或数据库。仅将引擎的文件传输适配为本地 WASM 字节，不替换解析/渲染。检查 F1–F4 及复核 R1–R3 的真实解释差异、受支持 ASCII 数字/语法空白、完整语料的事件/样式/顺序及字形几何与位图哈希往返；每条有效 Cue 还将模型 style_id 解析出的名称/字号/字体与实际引擎引用直接比较。受影响的 Default/Emphasis 分别在 2s/3.6s 渲染，避免只在未受影响时刻比较。明确区分 libass 的文件行尾空白处理与 DTO 原文保留。它不是完整浏览器预览验收，浏览器生命周期/播放/Canvas 路径仍由 `test:ass-preview` 覆盖。

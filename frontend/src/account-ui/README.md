@@ -6,6 +6,8 @@ App 编排会话、组织上下文、登录/保护弹窗及工作区所有权。
 
 会话观察以最新请求为准；focus、visibilitychange、30 秒检查重叠产生的 request_superseded 由 App 静默忽略，不作为账号变更提示显示。主动登录/退出期间，客户端直接丢弃后台会话观察，避免观察请求使主动操作过期；主动操作完成或失败后恢复检查。原有旧账号响应过滤与真正账号切换的稿件保护仍生效。回归：api.test.ts；`npm run test:session-observation`（真实 Chrome、默认 5173 服务，SESSION_URL 可覆盖；HTTP 隔离夹具，不写开发数据库）。
 
+客户端分别记录身份请求的发起版本和最近成功确认版本。请求发出后，若已有成功的会话/登录/退出确认，则该请求迟到的 authentication_required/account_changed 只返回 request_superseded，不再通知 App 失效；检查尚未成功时仍接纳真实认证失败，成功确认之后新发的请求仍可使会话失效。旧账号响应继续由 expectedUser 隔离。App / ProjectsPanel 对预期的 request_superseded 保持静默。账号切换经用户明确放弃后，App 接纳所有权即返回，再独立加载组织/设置；草稿删除不等待这些读取。客户端级边界见 api.test.ts；真实 IndexedDB 与 App 登录框状态见 `test:context-refresh` 的 account/authentication 组。
+
 `page-ui/Modal`（共享展示模块）使用原生 dialog 的焦点约束和焦点恢复。showCloseButton 默认为 true，归档确认框设为 false，保留底部取消按钮；此属性只控制标题旁关闭按钮，不影响 Escape。onCancel 只响应弹窗自身（event.target === event.currentTarget），忽略文件 input 冒泡的 cancel，避免取消选片关闭整个表单；真正的 Escape 仍经 onClose 关闭，未提供 onClose 时阻止默认关闭。App 通过 shortcutsPaused 暂停工作区快捷键，通过 WorkbenchHandle.hasContent/exportDraft 处理切换前的本地稿件。普通会话检查或同账号重新登录不能重建工作区。
 
 MembersPanel 隐藏 organizer 对其他 organizer 的角色修改和移除入口（dev 除外），后端仍独立校验。移除其他成员使用 Modal 二次确认，移除自己经 App 的退出/稿件保护流程。组织名与添加成员表单共用 member-form 栅格对齐。账号入口、成员表和移除确认统一只显示 username，不重复展示另一份账号名。PersonalPanel 不提供显示名或资料字段；新密码/确认新密码前后端均校验，成功清空三项密码，个人设置仅保留退出账号入口。

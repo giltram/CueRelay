@@ -758,6 +758,7 @@ export type MessageKey =
   | "workspaceUi.draftSaving"
   | "workspaceUi.draftShow"
   | "workspaceUi.draftTiming"
+  | "workspaceUi.draftUnavailable"
   | "workspaceUi.draftUseOriginal"
   | "workspaceUi.draftUseServer"
   | "workspaceUi.draftsFound"

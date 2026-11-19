@@ -17,6 +17,7 @@ export type AccountApi = ReturnType<typeof createAccountApi>;
 export function createAccountApi(onExpired: () => void) {
   let expectedUser: number | null = null;
   let identitySequence = 0;
+  let confirmedIdentitySequence = 0;
   let pendingIdentityChanges = 0;
   const request: AccountRequest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     // Passive observations must not invalidate an explicit login or logout.
@@ -28,6 +29,7 @@ export function createAccountApi(onExpired: () => void) {
     const actor = expectedUser;
     const identityRequest = ['/auth/session', '/auth/login', '/auth/logout'].includes(path);
     const identityVersion = identityRequest ? ++identitySequence : identitySequence;
+    const confirmationAtStart = confirmedIdentitySequence;
     const diagnosticScope = diagnostics.scope();
     const protectedRequest = !['/auth/session', '/auth/login'].includes(path);
     const headers: Record<string, string> = method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRFToken': token };
@@ -42,13 +44,19 @@ export function createAccountApi(onExpired: () => void) {
       const value = await response.json();
       if (response.ok && identityRequest) {
         if (identityVersion !== identitySequence || (path === '/auth/session' && (actor !== expectedUser || diagnosticScope !== diagnostics.scope()))) throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
+        confirmedIdentitySequence = identityVersion;
         void diagnostics.identify(value.user?.id ?? null);
         diagnostics.record('account', path === '/auth/login' ? 'login' : path === '/auth/logout' ? 'logout' : 'session_observed', 'success');
       }
       if (protectedRequest && actor !== expectedUser) throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
       if (!response.ok) {
         const error = new ApiError(value.error?.code || 'request_failed', value.error ? messageFromWire(value.error) : describe("accountUi.requestFailed", "请求失败"), responseRequestId(response));
-        if (['authentication_required', 'account_changed'].includes(error.code)) onExpired();
+        if (['authentication_required', 'account_changed'].includes(error.code)) {
+          // A later successful identity check supersedes an older expiration.
+          // Merely starting a check does not hide a genuine authentication loss.
+          if (confirmationAtStart < confirmedIdentitySequence) throw new ApiError('request_superseded', describe("accountUi.theAccountContextChangedPleaseTryAgain", "账号上下文已变更，请重试。"));
+          onExpired();
+        }
         throw error;
       }
       return value as T;

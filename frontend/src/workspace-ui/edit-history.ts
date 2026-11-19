@@ -8,6 +8,8 @@ export interface EditState {
   selectionAnchorId?: string | null;
   startText: string;
   endText: string;
+  /** Untouched out-point with no active row. Selection resets it to zero. */
+  unselectedEndMs?: number;
 }
 export interface EditStep { before: EditState; after: EditState }
 export interface EditHistory {
@@ -37,6 +39,7 @@ export function sameEdit(a: EditState, b: EditState): boolean {
   const aIds = a.selectedIds ?? (a.selectedId ? [a.selectedId] : []);
   const bIds = b.selectedIds ?? (b.selectedId ? [b.selectedId] : []);
   return sameDocument(a.document, b.document) && a.selectedId === b.selectedId && a.startText === b.startText && a.endText === b.endText
+    && (a.unselectedEndMs ?? 0) === (b.unselectedEndMs ?? 0)
     && aIds.length === bIds.length && aIds.every((id, index) => id === bIds[index])
     && (a.selectionAnchorId ?? a.selectedId) === (b.selectionAnchorId ?? b.selectedId);
 }

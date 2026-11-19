@@ -12,9 +12,14 @@ import { ProjectForm } from './ProjectForm';
 import { RouteLink } from '../navigation/RouteLink';
 import { HomeLink } from '../navigation/HomeLink';
 import type { Route } from '../navigation/routes';
+import { ReadOrder } from '../request-state/read-order';
 
-export function ProjectsPanel({ organization, request, header, enabled, refreshVersion, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
+interface ListReads { order: ReadOrder; pending: number }
+
+export function ProjectsPanel({ organization, localOrganizationId, localScopeReady, request, header, enabled, refreshVersion, navigate, onCreate, onCreated, onLifecycle, unavailableOrganization }: {
   organization: Organization | undefined; request: JsonRequest; header: ReactNode; enabled: boolean;
+  localOrganizationId: number | undefined;
+  localScopeReady: boolean;
   refreshVersion: number;
   navigate: (route: Route) => void; onCreate: (open: () => void) => void;
   onCreated: (project: ProjectDetail, video?: SelectedVideo) => void; onLifecycle: (project: ProjectSummary) => void;
@@ -32,7 +37,7 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
   const [creating, setCreating] = useState(false);
   const [confirm, setConfirm] = useState<ProjectSummary | null>(null);
   const [busy, setBusy] = useState(false);
-  const sequence = useRef(0);
+  const activeReads = useRef<ListReads | null>(null);
   const context = `${status}:${query}:${page}`;
   const data = loaded?.context === context ? loaded : null;
   const organizationId = organization?.id;
@@ -42,22 +47,37 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
     return () => clearTimeout(timer);
   }, [search]);
   useEffect(() => {
-    const version = ++sequence.current;
+    activeReads.current = { order: new ReadOrder(), pending: 0 };
+    setLoading(false);
+    return () => { activeReads.current = null; };
+  }, [api, status, query, page, enabled]);
+  useEffect(() => {
+    const reads = activeReads.current;
     if (!organizationId || !enabled) return;
+    if (!reads) return;
+    const { order } = reads;
+    const version = order.start();
+    reads.pending++;
     setLoading(true); setError('');
     void api.list(status, query, page).then(value => {
-      if (sequence.current !== version) return;
+      if (activeReads.current !== reads || !order.acceptData(version)) return;
+      if (order.acceptFeedback(version)) setError('');
       const lastPage = Math.max(1, Math.ceil(value.total / 25));
-      if (page > lastPage) setPage(lastPage);
+      if (page > lastPage) {
+        if (order.isLatest(version)) setPage(lastPage);
+      }
       else setLoaded({ ...value, context });
     })
       .catch(reason => {
-        if (sequence.current !== version) return;
-        setError(reason);
-        if (['permission_denied', 'not_found', 'authentication_required', 'account_changed'].includes(reason.code)) setLoaded(null);
-      })
-      .finally(() => { if (sequence.current === version) setLoading(false); });
-    return () => { sequence.current++; };
+        if (activeReads.current !== reads) return;
+        if (reason.code === 'request_superseded') return;
+        if (['permission_denied', 'not_found', 'authentication_required', 'account_changed'].includes(reason.code)
+          && order.acceptData(version)) setLoaded(null);
+        if (order.acceptFeedback(version)) setError(reason);
+      }).finally(() => {
+        reads.pending--;
+        if (activeReads.current === reads) setLoading(reads.pending > 0);
+      });
   }, [api, organizationId, status, query, page, refresh, refreshVersion, enabled]);
   function saved(project: ProjectDetail, video?: SelectedVideo) {
     setCreating(false); setRefresh(value => value + 1);
@@ -67,7 +87,9 @@ export function ProjectsPanel({ organization, request, header, enabled, refreshV
   const date = (value: string | null) => value ? new Date(value).toLocaleString(i18n.language, { hour12: false }) : '—';
   return <PageLayout className="projects-page" title={<HomeLink navigate={navigate} />} navigation={header}>
     <div className="project-heading"><h2>{t("projectUi.projects")}</h2><div className="controls">
-      <RouteLink className="button-link" route={{ kind: 'local', organizationId: organization?.id }} navigate={navigate}>{t("projectUi.localWorkspace")}</RouteLink>
+      {localScopeReady
+        ? <RouteLink className="button-link" route={{ kind: 'local', organizationId: localOrganizationId }} navigate={navigate}>{t("projectUi.localWorkspace")}</RouteLink>
+        : <button disabled>{t("projectUi.localWorkspace")}</button>}
       {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>{t("projectUi.newProject")}</button>}
     </div></div>
     {organization ? <>

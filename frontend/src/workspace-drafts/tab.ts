@@ -19,7 +19,7 @@ async function claimDraftTab(): Promise<string> {
 
 function tryClaim(id: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    void navigator.locks.request(lockPrefix + id, { ifAvailable: true }, lock => {
+    void navigator.locks.request(lockPrefix + id, { ifAvailable: true, mode: 'exclusive' }, lock => {
       resolve(Boolean(lock));
       if (lock) return new Promise<void>(() => {});
     }).catch(reject);
@@ -28,13 +28,11 @@ function tryClaim(id: string): Promise<boolean> {
 
 export async function activeDraftTabs(): Promise<Set<string>> {
   const { held } = await navigator.locks.query();
-  return new Set(held?.flatMap(lock => lock.name?.startsWith(lockPrefix) ? [lock.name.slice(lockPrefix.length)] : []));
+  return new Set(held?.flatMap(({ mode, name }) =>
+    mode === 'exclusive' && name?.startsWith(lockPrefix) ? [name.slice(lockPrefix.length)] : []));
 }
 
-/** Recheck ownership at the moment another tab's draft is moved or deleted. */
-export function withInactiveDraftTab<T>(id: string, action: () => Promise<T>): Promise<T> {
-  return navigator.locks.request(lockPrefix + id, { ifAvailable: true }, lock => {
-    if (!lock) throw new Error('Another tab is using this draft');
-    return action();
-  });
+/** Candidate operations share access. IndexedDB serializes changes to the record. */
+export function withInactiveDraftTab<T>(id: string, action: () => Promise<T>): Promise<T | null> {
+  return navigator.locks.request(lockPrefix + id, { ifAvailable: true, mode: 'shared' }, lock => lock ? action() : null);
 }

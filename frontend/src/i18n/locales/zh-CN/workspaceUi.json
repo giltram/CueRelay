@@ -150,5 +150,6 @@
   "draftExport": "导出草稿 ASS",
   "draftDiscard": "放弃草稿",
   "draftShow": "查看本地草稿",
-  "draftActionFailed": "无法完成草稿操作。请重新打开工作区后再试。"
+  "draftActionFailed": "无法完成草稿操作。请重新打开工作区后再试。",
+  "draftUnavailable": "此草稿已不可用。"
 }

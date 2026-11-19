@@ -6,9 +6,13 @@
 
 路由进入项目时调用既有 projects-api.get，序号与 effect 清理隔离已过期响应。重返同组织同项目只更新归档状态，不替换内存文档或保存 revision；新标签页/刷新没有保留实例，加载服务器快照；media 按当前账号、组织、项目和媒体基准尝试恢复本机句柄，重新完整校验，失败则手动选片。轮询/焦点检查也只观察状态，不悄悄接受远端 revision；撤权/不存在时禁止继续编辑并保留导出。显式 reload 在 App 的导出/取消/明确放弃流程后读取新快照并更换挂载代号。
 
+同一账号/项目的路由读取、显式 reload 和后台状态观察共用 request-state/ReadOrder。成功状态及明确 permission_denied/not_found 按数据版本排序，暂时失败只影响反馈；旧成功不能解除较新拒绝产生的只读，较新成功检查仍能恢复访问。clear/adoptCreated、本地实例替换或会话禁用使旧状态上下文失效。后台观察的旧反馈和 request_superseded 静默丢弃；初次路由读取若被身份确认取代，则重新读取当前资源，避免停在加载状态。显式 reload 被较新状态取代时返回 false，App 保留原草稿，不将旧快照视为已完成替换。集成回归见 `npm run test:resource-response-races`，覆盖真实片源验证、403/404、轮询/重返/重载乱序与保留的编辑节点。
+
+App 以登录会话启用工作区加载，请求由项目接口校验访问权限。个人设置独立加载，工作台先使用当前账号已知设置或默认值，设置更新通过 props 应用到原实例。
+
 浏览个人设置、同组织设置或列表时不 clear，不卸载 EditorWorkbench；隐藏时由既有 visible 契约暂停播放和快捷键。新标签页列表不改变本页路由或 visible，不主动暂停视频。只有跨项目/本地工作区/组织/账号的已确认替换和显式重载才能替换实例。App 按挂载实例传入账号、组织和项目范围供工作台保护本机草稿。草稿存储由 [workspace-drafts](../workspace-drafts/README.md) 管理。本机媒体句柄依旧独立于字幕与历史。
 
-依赖方向：App → app-workspace → project-data/contracts/navigation 的路由类型及 media 的 SelectedVideo/InitialVideo 类型；workspace-ui 不依赖 app-workspace。单元路由检查及 projects/navigation/main-audio-integration 浏览器测试覆盖集成边界。
+依赖方向：App → app-workspace → project-data/contracts/request-state/navigation 的路由类型及 media 的 SelectedVideo/InitialVideo 类型；workspace-ui 不依赖 app-workspace。request-state 是无外部依赖的读取顺序策略。单元路由检查及 projects/navigation/main-audio-integration 浏览器测试覆盖集成边界。
 
 `split` 与 save 使用同一个 account request、显式 revision、updateSummary 与归档错误处理，经 projects-api.split 调用后端。只返回结果给 EditorWorkbench，由后者成功后替换自己的 document/savedRevision。请求期间编辑器冻结本次快照；失败继续保留当前内容。没有轮询采用远端文档或第二份字幕 store。项目拆分本身会保存完整工作快照（含当前时间草稿），详见 docs/editing-operations.md。
 

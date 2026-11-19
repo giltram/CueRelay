@@ -31,7 +31,7 @@ import { isLineAction } from './line-actions';
 import { useLineCommands } from './use-line-commands';
 import type { PasteField } from '../project-data/ass-api';
 import { PasteOverDialog } from './PasteOverDialog';
-import { initializeDocument } from './cue-defaults';
+import { DEFAULT_CUE_DURATION_MS, initializeDocument } from './cue-defaults';
 import { AudioTimeline } from './audio-timeline/AudioTimeline';
 import type { AudioDisplayMode } from '../media/audio/analysis-types';
 import { useAudioAudition } from '../media/audio/use-audio-audition';
@@ -81,7 +81,10 @@ interface Props {
 
 export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload, draftScope, onCheckDraftRevision }: Props) {
   useLocale();
-  const edits = useEditHistory({ document: project?.document ?? null, selectedId: null, startText: '0:00:00.00', endText: '0:00:02.00' }, diagnosticOwner);
+  const edits = useEditHistory({
+    document: project?.document ?? null, selectedId: null, startText: formatTime(0),
+    endText: formatTime(DEFAULT_CUE_DURATION_MS), unselectedEndMs: DEFAULT_CUE_DURATION_MS,
+  }, diagnosticOwner);
   const { document, selectedId, startText, endText } = edits.state;
   const selected = document?.cues.find(cue => cue.id === selectedId);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -103,12 +106,15 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const localBaseline = useRef<AssDocument>(null);
   const [checkedRevision, setCheckedRevision] = useState<number | null>(null);
   const isProject = Boolean(project);
+  const timingDraft = useMemo(() => document && unappliedTiming(edits.state, selected), [document, edits.state, selected]);
+  const pendingTiming = timingDraft !== null;
+  const documentChanged = document !== (isProject ? savedDocument : localBaseline.current);
+  const unsaved = documentChanged || pendingTiming;
   const draftContent = useMemo<DraftContent | null>(() => {
-    if (!draftScope || !document) return null;
-    const timing = unappliedTiming(edits.state, selected);
-    if (!timing && document === (isProject ? savedDocument : localBaseline.current)) return null;
-    return { document, timing, baseRevision: isProject ? savedRevision : null };
-  }, [draftScope, document, edits.state, isProject, savedDocument, savedRevision, selected]);
+    if (!draftScope || !document || !unsaved) return null;
+    return { document, timing: timingDraft, baseRevision: isProject ? savedRevision : null,
+      localTimingOnly: !isProject && !documentChanged ? true : undefined };
+  }, [draftScope, document, isProject, documentChanged, unsaved, savedRevision, timingDraft]);
   const draft = useWorkspaceDraft(draftScope, draftContent);
   const [mediaVerified, setMediaVerified] = useState(false);
   const [saveMessage, setSaveMessage] = useMessageState('');
@@ -150,7 +156,6 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     editor: textEditor, enabled: canEdit && glossaryEnabled && !busy && Boolean(selected), isComposing: () => composing.current,
     onEdit: text => updateCue({ text }) });
   const [qcReveal, setQcReveal] = useState<{ id: string; request: number } | null>(null);
-  const pendingTiming = Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms)));
   function closeQc() { qc.close(); workbench.current?.focus({ preventScroll: true }); }
   function selectQcCue(cue: Cue) {
     selectCueFromTable(cue);
@@ -164,7 +169,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const statusReader = useRef<() => import('../diagnostics/schema').WorkspaceStatus>(() => { throw new Error('not_ready'); });
   statusReader.current = () => ({
     projectId: project?.id ?? null, visible,
-    unsaved: project ? document !== savedDocument || Boolean(selected && (startText !== formatTime(selected.start_ms) || endText !== formatTime(selected.end_ms))) : hasEdits || hasImportedDocument,
+    unsaved,
     revision: project ? savedRevision : null, editable: canEdit,
     video: { loaded: Boolean(mediaFile), verified: mediaVerified, readyState: video?.readyState ?? null, networkState: video?.networkState ?? null,
       duration: video && Number.isFinite(video.duration) ? video.duration : null, width: video?.videoWidth || null, height: video?.videoHeight || null, errorCode: video?.error?.code ?? null },
@@ -224,36 +229,51 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     if (draftContent || readOnly) return;
     draftAction(async () => {
       if (project) {
+        await accessDraft(record, 'read');
         const latest = await onCheckDraftRevision?.();
         if (typeof latest !== 'number') return;
         setCheckedRevision(latest);
         if (latest !== savedRevision || latest !== record.baseRevision) return;
       }
-      if (!await resolveDraft(record, true)) return;
-      const restored = savedDocument && sameSnapshotValue(savedDocument, record.document) ? savedDocument : record.document;
-      const cue = record.timing?.cueId === null ? undefined
-        : restored.cues.find(cue => cue.id === record.timing?.cueId) ?? restored.cues[0];
+      const candidate = await accessDraft(record, 'restore');
+      const { document, timing } = candidate;
+      const restored = savedDocument && sameSnapshotValue(savedDocument, document) ? savedDocument : document;
+      const cue = timing?.cueId === null ? undefined
+        : restored.cues.find(cue => cue.id === timing?.cueId) ?? restored.cues[0];
       const state = withSelection({ ...edits.current(), document: restored }, cue);
-      if (record.timing) {
-        // A saved zero-duration input on an empty project can be an edit of
-        // the initial proposed duration. Keep that draft dirty after recovery.
-        if (!cue && record.timing.endText === state.endText) state.selectedIds = undefined;
-        state.startText = record.timing.startText;
-        state.endText = record.timing.endText;
+      if (timing) {
+        if (timing.cueId === null) {
+          // Older drafts omit the baseline. Infer it from the snapshot and
+          // preserve a recorded edit if its values happen to match that guess.
+          let legacyEndMs = restored === savedDocument ? DEFAULT_CUE_DURATION_MS : 0;
+          if (timing.startText === state.startText && timing.endText === formatTime(legacyEndMs)) {
+            legacyEndMs = legacyEndMs === 0 ? DEFAULT_CUE_DURATION_MS : 0;
+          }
+          state.unselectedEndMs = timing.unselectedEndMs ?? legacyEndMs;
+        }
+        state.startText = timing.startText;
+        state.endText = timing.endText;
+      }
+      if (!project) {
+        if (candidate.localTimingOnly) localBaseline.current = restored;
+        setHasImportedDocument(true);
       }
       edits.baseline(state);
-      if (!project) setHasImportedDocument(true);
       cancelAudition();
     });
   }
 
-  async function resolveDraft(record: WorkspaceDraft, restore: boolean) {
-    try { return await draft.resolveCandidate(record, restore); }
-    catch { throw new MessageError(msg('workspaceUi.draftActionFailed')); }
+  async function accessDraft(record: WorkspaceDraft, action: 'read' | 'restore' | 'discard') {
+    const candidate = await draft.accessCandidate(record, action).catch(() => {
+      throw new MessageError(msg('workspaceUi.draftActionFailed'));
+    });
+    if (!candidate) throw new MessageError(msg('workspaceUi.draftUnavailable'));
+    return candidate;
   }
 
   function withSelection(state: EditState, cue?: Cue): EditState {
-    return { ...state, selectedId: cue?.id ?? null, selectedIds: cue ? [cue.id] : [], selectionAnchorId: cue?.id ?? null, startText: formatTime(cue?.start_ms ?? 0), endText: formatTime(cue?.end_ms ?? 0) };
+    return { ...state, selectedId: cue?.id ?? null, selectedIds: cue ? [cue.id] : [], selectionAnchorId: cue?.id ?? null,
+      startText: formatTime(cue?.start_ms ?? 0), endText: formatTime(cue?.end_ms ?? 0), unselectedEndMs: 0 };
   }
 
   function selectCue(cue: Cue) {
@@ -598,8 +618,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       <WorkspaceDraftNotice status={draft.status} candidates={draft.candidates} revision={project ? savedRevision : null}
         revisionChanged={checkedRevision !== null && checkedRevision !== savedRevision}
         canRestore={!draftContent && !readOnly} disabled={busy || shortcutsPaused || Boolean(pendingImport || stylesOpen || pasteOver)}
-        onRestore={restoreDraft} onExport={record => draftAction(() => exportSnapshot(record.document))}
-        onDiscard={record => draftAction(async () => { await resolveDraft(record, false); })} />
+        onRestore={restoreDraft} onExport={record => draftAction(async () => {
+          const candidate = await accessDraft(record, 'read');
+          await exportSnapshot(candidate.document);
+        })}
+        onDiscard={record => draftAction(async () => { await accessDraft(record, 'discard'); })} />
       {busy && <HeaderNotice>{t("workspaceUi.converting")}</HeaderNotice>}
       {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
         ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")

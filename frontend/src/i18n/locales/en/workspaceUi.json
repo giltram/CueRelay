@@ -152,5 +152,6 @@
   "draftExport": "Export draft ASS",
   "draftDiscard": "Discard draft",
   "draftShow": "View local drafts",
-  "draftActionFailed": "Could not complete the draft action. Reopen the workspace and try again."
+  "draftActionFailed": "Could not complete the draft action. Reopen the workspace and try again.",
+  "draftUnavailable": "This draft is no longer available."
 }
