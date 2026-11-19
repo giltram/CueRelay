@@ -239,6 +239,10 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .account-dialog::backdrop { background: rgb(23 35 31 / 35%); }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .account-dialog > .controls { margin: 12px 0; }
+.account-dialog:has(.time-shift-form) { width: min(420px, calc(100vw - 24px)); }
+.time-shift-form { display: grid; gap: 12px; }
+.time-shift-form p { margin-block: 0; }
+.time-shift-form .hint { margin-top: 4px; }
 .shortcut-row { display: flex; align-items: end; gap: 8px; }
 .shortcut-row label { flex: 1; }
 @media (max-width: 900px) {

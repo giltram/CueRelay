@@ -24,6 +24,8 @@ Mouse timing and boundary dragging snap to another subtitle boundary, the opposi
 
 **Commit before selecting another line:** Selecting a grid row loads its applied times and replaces unapplied time inputs. Jump to selected line also uses the applied start. A valid time draft can appear in the preview without being committed or saved.
 
+**Shift subtitle times.** Click Shift times above the subtitle grid. Selected lines is the default scope. To shift the whole document, choose All subtitles. Enter an offset in milliseconds. For example, `+500` delays the lines by half a second and `-500` moves them half a second earlier. Use a multiple of 10 milliseconds. The start and end times move together and each line keeps its duration. If any target time falls outside 0:00:00.00 to 9:59:59.99, the shift is rejected. Apply any time draft or restore the original start and end times first. You can undo or redo the entire shift in one step. In a project, click Save project to persist the change.
+
 Use Personal settings → Audio display to choose Spectrum or Waveform. Save and return to the workspace to apply it. Clicking the waveform or ruler seeks the video; spectrum clicks set boundaries. If Set subtitle boundaries with mouse clicks is disabled, left-clicking the spectrum also seeks; dragging boundaries still adjusts timing.
 
 ## Aegisub quick reference {#aegisub}

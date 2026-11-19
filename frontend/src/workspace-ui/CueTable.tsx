@@ -27,13 +27,15 @@ interface Props {
   hasVideo: boolean;
   shortcutOverrides: ShortcutOverrides;
   searchEnabled: boolean;
+  timeShiftEnabled: boolean;
+  onTimeShift: () => void;
   workspace: RefObject<HTMLElement | null>;
   qc?: { open: boolean; label: string; panel: ReactNode; onToggle: () => void; onClose: () => void };
   glossary?: { open: boolean; panel: ReactNode; onToggle: () => void; onClose: () => void };
   revealCueId?: { id: string; request: number } | null;
 }
 
-export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, workspace, qc, glossary, revealCueId }: Props) {
+export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, onSelect, onContextSelect, onAction, editable, hasVideo, shortcutOverrides, searchEnabled, timeShiftEnabled, onTimeShift, workspace, qc, glossary, revealCueId }: Props) {
   useLocale();
   const [menu, setMenu] = useState<{ x: number; y: number; cueId: string; keyboard: boolean } | null>(null);
   useEffect(() => { if (!searchEnabled || (menu && !cues.some(cue => cue.id === menu.cueId))) setMenu(null); }, [searchEnabled, cues, menu]);
@@ -91,7 +93,12 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
     </table>;
   return <section className="cue-list" data-qc-open={qc?.open || glossary?.open || undefined}>
     <div className="section-heading"><h2><span>{t("workspaceUi.cueCount", { count: cues.length })}</span></h2>
-      <div className="cue-list-actions"><span title={t("workspaceUi.ctrlCmdClickToSelectMultipleLinesShift")}>{t("workspaceUi.sortedByTime")}</span><button data-cue-search aria-label={t("workspaceUi.findSubtitles")} aria-expanded={search.open} aria-pressed={search.open}
+      <div className="cue-list-actions"><span title={t("workspaceUi.ctrlCmdClickToSelectMultipleLinesShift")}>{t("workspaceUi.sortedByTime")}</span>
+        <button type="button" data-time-shift aria-haspopup="dialog" disabled={!timeShiftEnabled} onClick={event => {
+          event.currentTarget.focus({ preventScroll: true });
+          onTimeShift();
+        }}>{t('workspaceUi.timeShift')}</button>
+        <button data-cue-search aria-label={t("workspaceUi.findSubtitles")} aria-expanded={search.open} aria-pressed={search.open}
         disabled={!searchEnabled} onClick={search.toggle}>{t("workspaceUi.find")}</button>
         {qc && <button data-cue-qc aria-label={t("workspaceUi.subtitleQualityCheck")} aria-expanded={qc.open} aria-pressed={qc.open}
           disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}

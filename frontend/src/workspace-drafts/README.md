@@ -9,4 +9,6 @@ IndexedDB 中的草稿只供恢复编辑。当前字幕仍由 `workspace-ui/use-
 
 依赖为 `{main, App, workspace-ui} → workspace-drafts → contracts/subtitles + 浏览器 API`。main 在账号或项目请求前认领标签页 ID。工作台 `use-workspace-draft` 负责 React 生命周期和读取候选，`WorkspaceDraftNotice` 负责双语状态及操作。项目恢复前由 app-workspace 重新读取服务器 revision，工作台同时检查草稿和当前保存基准。冲突草稿继续可导出，选用已加载版本仅收起入口。退出组织成功并清除工作区后，App 先尝试删除明确放弃的活跃记录，再刷新个人设置和组织列表。删除失败时仍刷新，并保留本机操作错误。
 
+批量时间平移的已应用时间随现有字幕 DTO 保存和恢复。恢复沿用草稿的既有历史基线规则，项目确认显式保存后清理对应的本机副本。回归见 `frontend/regression/time-shift.spec.mjs`。
+
 浏览器清理站点数据、存储权限、配额和异常退出会影响可恢复范围。崩溃前尚未完成的事务可能丢失。草稿目前保留到明确放弃或确认提交，不进行基于时间的自动清理。ASS 导出下载不会清除草稿。回归入口见 `autosave.test.ts` 和 `frontend/regression/workspace-drafts.spec.mjs`。

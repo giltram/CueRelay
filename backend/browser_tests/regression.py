@@ -88,6 +88,12 @@ class WorkspaceRegressionTests(LiveServerTestCase):
     def test_english_language_preserves_editor_state(self):
         self.run_browser('english language preserves editor state')
 
+    def test_workspace_time_shift_project(self):
+        self.run_browser('workspace time shift project')
+
+    def test_workspace_time_shift_local(self):
+        self.run_browser('workspace time shift local')
+
     def test_workspace_draft_local(self):
         self.run_browser('workspace draft local')
 

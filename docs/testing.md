@@ -87,6 +87,7 @@ docker compose -f compose.test.yml down
 | 组织默认术语与项目fork | projects.test_glossary / test_glossary_migration、regression/workspace.spec.mjs 的 organization glossary fork stays isolated | 组织唯一默认、默认只读、完整快照/新ID、双向隔离、迁移保留、字幕revision不变 |
 | ASS 语义和保留字段 | `ass_format/test_compatibility.py`、`test_follow_up.py`、`http_api/test_ass_compatibility.py`、`projects/test_ass_compatibility.py`、`test:ass-compatibility` | 手写期望、HTTP/DB 往返、独立 libass 字形及模型样式身份 |
 | 字幕创建、拆分、撤销/重做 | 既有 `commit-timing.test.ts`、`edit-history.test.ts`、`line-edits.test.ts`、`ass_format/test_splitting.py`、`projects/test_splitting.py`；新增 `regression/workspace.spec.mjs` 第一例 | 纯转换和真实浏览器→HTTP→DB；原子步骤、选行、UUID、最新 revision |
+| 字幕批量时间平移 | `subtitle-model/time-shift.test.ts`、`regression/time-shift.spec.mjs`（`WorkspaceRegressionTests.test_workspace_time_shift_project` / `test_workspace_time_shift_local`） | 选中/全文、原子校验、零时长、重排选择、撤销/重做、未应用时间草稿、QC/预览、显式保存和本机恢复；中文项目及英文窄屏键盘/IME |
 | 保存后刷新恢复 | 既有 `projects/test_ass_compatibility.py`；新增第一例 | 整文档持久化、刷新读取、刷新后建立新撤销历史 |
 | 组织列表和退出落点 | `regression/workspace-drafts.spec.mjs`、`test:context-refresh` / `test:resource-response-races`（HTTP 夹具）、`request-state/read-order.test.ts`、`account-ui/api.test.ts` | 组织/项目持续重叠读取、503 不遮蔽成功撤权、首页/显式组织本地草稿范围与恢复、设置失败时工作区可用、退出后落点与重试、账号切换不等待设置清理旧草稿、迟到认证失败静默、轮询/重返/重载的旧状态不解除较新只读、列表请求收尾与保守分页校正 |
 | 本机草稿 | `workspace-drafts/autosave.test.ts`、`regression/workspace-drafts.spec.mjs` | 本地/项目刷新恢复、未选行时间和空项目出点基准、QC 与诊断状态、真实 IndexedDB 事务、revision 冲突及并发导出、跨标签页失效、账号隔离、退出组织后的权限与清理失败 |

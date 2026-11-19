@@ -22,6 +22,8 @@ Planning Review 已结束，已确认默认见 [产品决策](product.md) 与 [D
 
 ## 当前可运行入口
 
+2026-11-19 批量时间平移：`workspace-ui → subtitle-model/time-shift → {timing, contracts}`。字幕表入口按现有 cue ID 选择或明确作用于全文，纯转换统一校验 ASS 时间并保留事件顺序。EditorWorkbench 用现有未应用时间草稿规则保护输入，一次历史编辑同步应用文档和活动行的时间输入。项目保存、QC、ASS Track 更新及 IndexedDB 恢复沿用原文档生命周期。契约与回归见 [工作区模块](../frontend/src/workspace-ui/README.md#批量时间平移)。
+
 2026-11-15 工作区批量行样式：EditorWorkbench 的样式下拉框消费完整多选 ID，沿用 Cmd/Ctrl/Shift 选取规则；line-styles.ts 仅依赖 contracts，提供共同样式投影（混合为空）及不可变批量分配。一次历史编辑保留选择、活动行、锚点和原始时间草稿，无变化不增加历史步骤；仍显式保存项目。契约与测试见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕行样式)。
 
 2026-11-15 工作台保存接纳远端样式：contracts/projects 显式声明当前/已保存文档、revision、历史样式引用的内存输入及实际保存结果；app-workspace → project-data/project-document-save 在明确冲突且远端 cues/source 未变时，用最新定义与本地 cues 安全重试一次。所有历史样式引用必须仍有效，成功后 workspace-ui/history-styles 统一更新当前/past/future 定义，保留文档共享、字幕编辑、草稿、多选与媒体实例，撤销不回退远端样式。subtitle-model/style-snapshot 提供向下共享的纯转换；不新增后端协议/迁移或反向依赖，不在后台接纳版本。真实字幕竞争、删除历史所需样式或未知失败均保留旧状态。详见 [工作区契约](../frontend/src/workspace-ui/README.md#保存与生命周期) 和 [实施记录](plans/workspace-style-save.md)。

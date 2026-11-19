@@ -31,6 +31,7 @@ import { isLineAction } from './line-actions';
 import { useLineCommands } from './use-line-commands';
 import type { PasteField } from '../project-data/ass-api';
 import { PasteOverDialog } from './PasteOverDialog';
+import { TimeShiftDialog, type TimeShiftScope } from './TimeShiftDialog';
 import { DEFAULT_CUE_DURATION_MS, initializeDocument } from './cue-defaults';
 import { AudioTimeline } from './audio-timeline/AudioTimeline';
 import type { AudioDisplayMode } from '../media/audio/analysis-types';
@@ -49,6 +50,13 @@ import { WorkspaceDraftNotice } from './WorkspaceDraftNotice';
 import type { DraftContent, WorkspaceDraft } from '../workspace-drafts/model';
 import { useWorkspaceDraft, unappliedTiming } from './use-workspace-draft';
 import { sameSnapshotValue } from '../subtitle-model/snapshot-equality';
+import { shiftCueTimes } from '../subtitle-model/time-shift';
+
+const timeShiftErrors = {
+  'invalid-offset': 'workspaceUi.timeShiftInvalidOffset',
+  'out-of-range': 'workspaceUi.timeShiftOutOfRange',
+  'invalid-interval': 'workspaceUi.timeShiftInvalidInterval',
+} as const;
 
 export interface WorkbenchHandle {
   hasContent: () => boolean;
@@ -100,6 +108,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }, []);
   const [busy, setBusy] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [timeShiftOpen, setTimeShiftOpen] = useState(false);
   const [hasImportedDocument, setHasImportedDocument] = useState(false);
   const [savedRevision, setSavedRevision] = useState(project?.revision ?? 0);
   const [savedDocument, setSavedDocument] = useState(project?.document);
@@ -130,9 +139,12 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const styleSelectId = useId();
   const transforming = useRef(false);
   const lineCommands = useLineCommands({ current: edits.current, apply: applyLineEdit, overwrite: overwriteLineFields,
-    active: visible && !shortcutsPaused && !pendingImport && !stylesOpen, editable: canEdit,
+    active: visible && !shortcutsPaused && !pendingImport && !stylesOpen && !timeShiftOpen, editable: canEdit,
     pending: transforming, onBusy: setBusy, file: mediaFile, video, duration });
   const pasteOver = lineCommands.over;
+  const controlsAvailable = visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver;
+  const controlsEnabled = controlsAvailable && !timeShiftOpen;
+  const canOpenTimeShift = controlsAvailable && canEdit && Boolean(document?.cues.length);
   const restoreTextCursor = useRef<number | null>(null);
   useEffect(() => {
     if (busy || restoreTextCursor.current === null || !textEditor.current) return;
@@ -142,13 +154,14 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     textEditor.current.setSelectionRange(cursor, cursor);
   }, [busy, selectedId]);
   useEffect(() => { if (!visible) { video?.pause(); cancelAudition(); setStylesOpen(false); lineCommands.close(); } }, [visible, video]);
+  useEffect(() => { if (!canOpenTimeShift) setTimeShiftOpen(false); }, [canOpenTimeShift]);
   useEffect(() => {
-    if (!visible || shortcutsPaused || busy || stylesOpen || pasteOver || pendingImport) edits.finish();
-  }, [visible, shortcutsPaused, busy, stylesOpen, pasteOver, pendingImport]);
+    if (!controlsEnabled) edits.finish();
+  }, [controlsEnabled]);
   const selectedIds = selectedLineIds(edits.state);
   const selectedStyleId = document ? selectedLineStyle(document, selectedIds) : '';
   // Inspection/export operates on the retained document, even after session expiry.
-  const qcEnabled = visible && !pendingImport && !stylesOpen && !pasteOver;
+  const qcEnabled = visible && !pendingImport && !stylesOpen && !pasteOver && !timeShiftOpen;
   const glossaryEnabled = qcEnabled && !shortcutsPaused;
   const qc = useSubtitleQc(document, project?.media.duration_ms ?? (duration > 0 ? duration : null), qcEnabled);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
@@ -289,7 +302,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   function selectCueFromTable(cue: Cue, modifiers: SelectionModifiers = {}) {
-    if (transforming.current || pasteOver || !visible || shortcutsPaused || busy || pendingImport || stylesOpen) return;
+    if (transforming.current || !controlsEnabled) return;
     run(() => {
       const state = edits.current();
       const selection = lineSelection(state, cue.id, orderCues(state.document?.cues ?? []).map(item => item.id), modifiers);
@@ -339,6 +352,25 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     if (document === state.document) return;
     edits.edit({ ...state, document });
     setHasEdits(true);
+  }
+
+  function applyTimeShift(scope: TimeShiftScope, offsetMs: number) {
+    if (!timeShiftOpen || !canOpenTimeShift || transforming.current) return;
+    const state = edits.current();
+    if (!state.document) return;
+    const active = state.document.cues.find(cue => cue.id === state.selectedId);
+    if (unappliedTiming(state, active)) return msg('workspaceUi.timeShiftPendingTiming');
+    const targets = scope === 'all' ? 'all' : new Set(selectedLineIds(state));
+    const result = shiftCueTimes(state.document, targets, offsetMs);
+    if ('reason' in result) return msg(timeShiftErrors[result.reason]);
+    if (result.document !== state.document) {
+      const shifted = result.document.cues.find(cue => cue.id === state.selectedId);
+      edits.edit({ ...state, document: result.document, ...(shifted && shifted !== active
+        ? { startText: formatTime(shifted.start_ms), endText: formatTime(shifted.end_ms) } : {}) });
+      setHasEdits(true);
+      cancelAudition();
+    }
+    setTimeShiftOpen(false);
   }
 
   function commitAndAdvance() {
@@ -452,8 +484,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const keydown = (event: KeyboardEvent) => {
       if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-workspace-drafts]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
-      const blocked = busy || transforming.current || pendingImport || stylesOpen || pasteOver || shortcutsPaused || !visible;
-      if (candidate && blocked) noteIgnored('editor', stylesOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
+      const blocked = !controlsEnabled || transforming.current;
+      if (candidate && blocked) noteIgnored('editor', stylesOpen || timeShiftOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
       if (blocked) return;
       if (canEdit && selected && !window.document.fullscreenElement
         && handleSubtitleFocusShortcut(event, composing.current, workbench.current, textEditor.current, textFocusBinding)) return;
@@ -588,7 +620,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-workspace-drafts]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-workspace-drafts], [data-time-shift]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -617,7 +649,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       }>
       <WorkspaceDraftNotice status={draft.status} candidates={draft.candidates} revision={project ? savedRevision : null}
         revisionChanged={checkedRevision !== null && checkedRevision !== savedRevision}
-        canRestore={!draftContent && !readOnly} disabled={busy || shortcutsPaused || Boolean(pendingImport || stylesOpen || pasteOver)}
+        canRestore={!draftContent && !readOnly} disabled={!controlsEnabled}
         onRestore={restoreDraft} onExport={record => draftAction(async () => {
           const candidate = await accessDraft(record, 'read');
           await exportSnapshot(candidate.document);
@@ -649,7 +681,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           selectedIds={selectedIds} onContextSelect={selectCueForContext}
           onAction={action => run(action === 'delete-row' ? deleteSelectedCue : () => lineCommands.run(action))}
           editable={canEdit} hasVideo={Boolean(video && mediaFile && duration)} shortcutOverrides={shortcutOverrides}
-          workspace={workbench} searchEnabled={visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver}
+          workspace={workbench} searchEnabled={controlsEnabled}
+          timeShiftEnabled={canOpenTimeShift} onTimeShift={() => setTimeShiftOpen(true)}
           revealCueId={qcReveal}
           glossary={project && styleRequest && mediaOwnerId !== undefined ? { open: glossaryOpen,
             onToggle: () => { qc.close(); setGlossaryOpen(value => !value); }, onClose: () => setGlossaryOpen(false),
@@ -682,11 +715,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       } editor={<>
           <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
-            onBoundaryChange={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver && document ? (point, time) => {
+            onBoundaryChange={canEdit && controlsEnabled && document ? (point, time) => {
               edits.edit({ ...edits.current(), [point === 'start' ? 'startText' : 'endText']: formatTime(time) });
               changeAudioBoundary(point, time);
             } : undefined}
-            onBoundaryGesture={canEdit && visible && !shortcutsPaused && !busy && !pendingImport && !stylesOpen && !pasteOver && document ? () => {
+            onBoundaryGesture={canEdit && controlsEnabled && document ? () => {
               const gesture = edits.beginGesture();
               return {
                 change: (point, time) => { gesture.change(state => ({ ...state, [point === 'start' ? 'startText' : 'endText']: formatTime(time) })); changeAudioBoundary(point, time); },
@@ -724,6 +757,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       </>} />
 
       {pasteOver && <PasteOverDialog busy={busy} error={error} onClose={() => lineCommands.close()} onApply={fields => run(() => lineCommands.applyOver(fields))} />}
+      {timeShiftOpen && canOpenTimeShift && <TimeShiftDialog selectedCount={selectedIds.length} totalCount={document?.cues.length ?? 0}
+        pendingTiming={pendingTiming} onClose={() => setTimeShiftOpen(false)} onApply={applyTimeShift} />}
       {!project && stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
         persisted={false} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
         onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
