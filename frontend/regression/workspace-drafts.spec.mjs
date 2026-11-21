@@ -46,11 +46,9 @@ async function openLeaveConfirmation(page) {
 }
 
 async function diagnosticUnsaved(page) {
-  await openPersonalSettings(page);
-  const report = JSON.parse(await download(page, '导出诊断信息'));
-  await page.goBack();
-  await expect(start(page)).toBeVisible();
-  return report.environment.workspace.unsaved;
+  // Dirty workspaces now confirm before opening settings. Read the public
+  // diagnostic projection in place; export UI has its own browser coverage.
+  return page.evaluate(async () => (await import('/src/diagnostics/index.ts')).workspaceStatus().unsaved);
 }
 
 async function openDraftOffer(context) {
@@ -90,7 +88,7 @@ async function manualSave(page) {
 
 test('workspace draft local import, export, reload and discard', async ({ page, context }) => {
   await login(page, '/workspace/local');
-  const importAss = page.getByLabel('导入基础 ASS', { exact: true });
+  const importAss = page.getByLabel('导入 ASS / SRT 字幕', { exact: true });
   await expect(importAss).toBeEnabled();
   await importAss.setInputFiles(fixtures.subtitles);
   await expect(button(page, '选择第 2 行')).toBeVisible();
@@ -322,19 +320,14 @@ test('workspace draft keeps unselected project timing across refresh', async ({ 
   const qcPanel = page.getByRole('complementary', { name: '字幕质量检查' });
   const pendingTiming = qcPanel.getByText(/存在未提交的时间输入/);
   await expect.soft(pendingTiming).toBeVisible();
-  await openPersonalSettings(page);
-  const pendingReport = JSON.parse(await download(page, '导出诊断信息'));
-  expect.soft(pendingReport.environment.workspace.unsaved).toBe(true);
-  await page.goBack();
+  expect.soft(await diagnosticUnsaved(page)).toBe(true);
   await expect(page.getByRole('main').filter({ has: start(page) })).toBeVisible();
 
   await start(page).fill('0:00:00.00');
   await expect.poll(() => records(page)).toHaveLength(0);
   await expect(qcPanel).toBeVisible();
   await expect(pendingTiming).toHaveCount(0);
-  await openPersonalSettings(page);
-  const cleanReport = JSON.parse(await download(page, '导出诊断信息'));
-  expect(cleanReport.environment.workspace.unsaved).toBe(false);
+  expect(await diagnosticUnsaved(page)).toBe(false);
 });
 
 test('workspace draft keeps the timing baseline through empty project recovery', async ({ page }) => {
@@ -387,11 +380,13 @@ test('workspace draft keeps the timing baseline through empty project recovery',
   await expect(end(page)).toHaveValue('0:00:00.00');
 });
 
-test('workspace draft discard follows the result of leaving the organization', async ({ page }) => {
+test('saved workspace leaves the organization without losing the project on failure', async ({ page }) => {
   await login(page);
   await verifyVideo(page);
   await text(page).fill('退出时明确放弃的字幕');
   await expect(status(page)).toBeVisible();
+  await manualSave(page);
+  await expect.poll(() => records(page)).toHaveLength(0);
   const before = await records(page);
   await openLeaveConfirmation(page);
 
@@ -400,6 +395,7 @@ test('workspace draft discard follows the result of leaving the organization', a
   await button(page, '明确放弃并继续').click();
   await expect(page.getByRole('dialog').getByRole('status')).toBeVisible();
   expect(await records(page)).toEqual(before);
+  expect((await serverProject(page)).document.cues[0].text).toBe('退出时明确放弃的字幕');
 
   await page.route('**/api/me/settings', route => route.fulfill({ status: 503 }));
   const left = page.waitForResponse(response => response.url().endsWith('/leave') && response.request().method() === 'POST');
@@ -426,7 +422,7 @@ test('workspace draft dev can manage after leaving with settings unavailable', a
   await expect(button(page, '新建项目')).toBeEnabled();
 });
 
-test('workspace draft leave refreshes after local deletion fails', async ({ page }) => {
+test('workspace discard reaches home and reports local deletion failure', async ({ page }) => {
   await page.addInitScript(() => {
     const remove = IDBObjectStore.prototype.delete;
     IDBObjectStore.prototype.delete = function (...args) {
@@ -439,19 +435,15 @@ test('workspace draft leave refreshes after local deletion fails', async ({ page
   await verifyVideo(page);
   await text(page).fill('删除事务失败时仍在磁盘的草稿');
   await expect(status(page)).toBeVisible();
-  await openLeaveConfirmation(page);
+  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '离开工作区', exact: true })).toBeVisible();
   const before = await records(page);
   await page.evaluate(() => { window.failDraftDeletes = true; });
-  const contextReads = new Set();
-  page.on('response', response => {
-    const { pathname } = new URL(response.url());
-    if (response.ok() && ['/api/organizations', '/api/me/settings'].includes(pathname)) contextReads.add(pathname);
-  });
   await button(page, '明确放弃并继续').click();
   await expect(page.getByRole('alert').filter({ hasText: '无法完成草稿操作' })).toBeVisible();
-  await expect.poll(() => contextReads.size).toBe(2);
-  await expect(page.getByRole('option', { name: /^仍可访问的组织/ })).toHaveCount(1);
-  await expect(page.getByRole('option', { name: /^回归测试组织/ })).toHaveCount(0);
+  await expect(page).toHaveURL(new URL('/', page.url()).href);
+  await expect(button(page, '新建项目')).toBeEnabled();
+  await expect(page.locator('video')).toHaveCount(0);
   expect(await records(page)).toEqual(before);
 });
 

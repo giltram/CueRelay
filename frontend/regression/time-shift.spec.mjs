@@ -110,7 +110,7 @@ test.describe('English local workspace', () => {
       'Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,Early',
       'Dialogue: 0,0:00:00.50,0:00:00.50,Default,,0000,0000,0000,,Point',
     ].join('\n') + '\n';
-    const importAss = page.getByLabel('Import basic ASS', { exact: true });
+    const importAss = page.getByLabel('Import ASS / SRT subtitles', { exact: true });
     await expect(importAss).toBeEnabled();
     await importAss.setInputFiles({ name: 'shift.ass', mimeType: 'text/plain', buffer: Buffer.from(source) });
     await expect(times(page)).toHaveText(originalTimes);

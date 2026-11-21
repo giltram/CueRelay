@@ -149,7 +149,7 @@ test.describe('English narrow workspace', () => {
     await openWorkspace(page, '/workspace/local', true);
     const header = (await readFile(fixtures.subtitles, 'utf8')).split('Dialogue:')[0];
     const event = (start, end, body) => `Dialogue: 0,0:00:0${start}.00,0:00:0${end}.00,Default,Speaker,0010,0020,0030,,${body}\n`;
-    await page.getByLabel('Import basic ASS', { exact: true }).setInputFiles({
+    await page.getByLabel('Import ASS / SRT subtitles', { exact: true }).setInputFiles({
       name: 'replace.ass', mimeType: 'text/plain', buffer: Buffer.from(header + event(0, 1, 'ababa ABA') + event(2, 3, 'ABA')),
     });
     await expect(rows(page)).toHaveCount(2);
@@ -231,10 +231,12 @@ test.describe('English narrow workspace', () => {
     const interrupted = await hidden.requested;
     const canceled = page.waitForEvent('requestfailed', request => request === interrupted);
     await sameTab(page.getByRole('link', { name: 'Settings', exact: true }));
-    await expect(workspace(page)).toBeHidden();
+    const leave = page.getByRole('dialog', { name: 'Leave workspace', exact: true });
+    await expect(leave).toBeVisible();
+    await expect(workspace(page)).toBeVisible();
     await canceled;
     await hidden.resume();
-    await page.goBack();
+    await leave.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(replacement).toHaveValue('later');
     await expect(text(page)).toHaveText(['live ABA', 'ABA']);
     await expect(start).toHaveValue('0:');

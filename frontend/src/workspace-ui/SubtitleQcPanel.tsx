@@ -26,6 +26,7 @@ interface Props {
   onSelect: (cue: Cue) => void;
   onClose: () => void;
   onExport: () => void;
+  exportFormat?: 'ass' | 'srt';
 }
 
 export function SubtitleQcPanel(props: Props) {
@@ -47,11 +48,12 @@ export function SubtitleQcPanel(props: Props) {
       <button disabled={disabled || checking} onClick={props.onRun}>{t("workspaceUi.checkAgain")}</button>
       {props.phase === 'export' && <button className="primary"
         disabled={disabled || checking || stale || !hasResult || issues.some(issue => issue.severity === 'error')}
-        onClick={props.onExport}>{t("workspaceUi.continueExportingAss")}</button>}</div>
+        onClick={props.onExport}>{t(props.exportFormat === 'srt' ? 'srt.continueExport' : 'workspaceUi.continueExportingAss')}</button>}</div>
     <div className="qc-status" role="status" aria-live="polite">
       {checking ? t("workspaceUi.checking") : stale ? t("workspaceUi.subtitlesChangedRunTheCheckAgain") : hasResult ? qcSummary(issues) : t("workspaceUi.notCheckedYet")}
     </div>
     <div className="qc-issues">
+      {props.phase === 'export' && props.exportFormat === 'srt' && <p className="qc-note">{t('srt.exportLimitations')}</p>}
       {props.pendingTiming && <p className="qc-note">{t("workspaceUi.thereAreUnappliedTimeInputsChecksAndExport")}</p>}
       {!stale && props.formatError && <p className="qc-note" role="alert">{props.formatError}</p>}
       {currentIssues.map(issue => {

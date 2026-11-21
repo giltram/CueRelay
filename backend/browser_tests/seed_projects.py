@@ -11,10 +11,11 @@ if not (database == 'cuerelay_projects_browser' or re.fullmatch(r'cuerelay_navig
 if User.objects.exists():
     raise RuntimeError('Refusing to overwrite existing accounts')
 password = os.environ['BROWSER_TEST_PASSWORD']
-a = User.objects.create_user('project-organizer', password=password)
-b = User.objects.create_user('project-member', password=password)
-dev = User.objects.create_superuser('project-dev', password=password)
-User.objects.create_user('project-empty', password=password)
+# Project flows start after onboarding. The handbook has its own browser suite.
+a = User.objects.create_user('project-organizer', password=password, handbook_seen=True)
+b = User.objects.create_user('project-member', password=password, handbook_seen=True)
+dev = User.objects.create_superuser('project-dev', password=password, handbook_seen=True)
+User.objects.create_user('project-empty', password=password, handbook_seen=True)
 org = create_organization('项目测试 A', a.pk)
 other = create_organization('项目测试 B', b.pk)
 add_member(dev, org.pk, b.username)

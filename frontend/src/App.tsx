@@ -6,7 +6,7 @@ import { useMessageState, useLocale } from './i18n/react';
 import { PageLayout, HeaderNotice } from './page-ui/PageLayout';
 import { diagnostics, provideAccountStatus } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EditorWorkbench, type WorkbenchHandle } from './workspace-ui/EditorWorkbench';
+import { EditorWorkbench, type WorkbenchHandle, type WorkbenchLeaveState } from './workspace-ui/EditorWorkbench';
 import { ApiError, createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
 import { Modal } from './page-ui/Modal';
@@ -21,13 +21,14 @@ import { HomeLink } from './navigation/HomeLink';
 import { RouteStatus } from './navigation/RouteStatus';
 import { routeOrganization, routePath, type Route } from './navigation/routes';
 import { useWorkspace } from './app-workspace/use-workspace';
+import { workspaceNavigation } from './app-workspace/navigation-transition';
 import './style-ui/style-management.css';
 import { OrganizationGlossary } from './glossary-ui/OrganizationGlossary';
 import { OrganizationStyleLibrary } from './style-ui/OrganizationStyleLibrary';
 import { draftScope } from './workspace-drafts/model';
 import { ReadOrder } from './request-state/read-order';
 
-type TransitionAction = () => Promise<void | false>;
+type TransitionAction = (discard: boolean) => Promise<void | false>;
 interface Transition { label: MessageValue; action: TransitionAction; afterSuccess?: () => Promise<void> }
 interface OrganizationSnapshot {
   list: Organization[];
@@ -62,6 +63,7 @@ export default function App() {
   const [contextErrors, setContextErrors] = useState<Partial<Record<ContextResource | 'session', MessageValue>>>({});
   const [busy, setBusy] = useState(false);
   const workbench = useRef<WorkbenchHandle>(null);
+  const [workbenchLeaveState, setWorkbenchLeaveState] = useState<WorkbenchLeaveState | null>(null);
   const epoch = useRef(0);
   const latestSessionRead = useRef(0);
   const contextReads = useRef({ organizations: new ReadOrder(), settings: new ReadOrder() });
@@ -213,7 +215,8 @@ export default function App() {
     if (transitionRef.current) return;
     setPanel(null); setMessage('');
     const next = { label, action, afterSuccess: options.afterSuccess };
-    if (options.always || workbench.current?.hasContent()) {
+    const state = workbench.current?.leaveState();
+    if (options.always || state?.unsaved || state?.busy) {
       transitionRef.current = next; setTransition(next);
     } else void execute(next);
   }
@@ -221,26 +224,28 @@ export default function App() {
     if (bypassNavigation.current) { commit(); return; }
     if (transitionRef.current) return;
     const nextOrganization = routeOrganization(next);
-    const changesOrganization = nextOrganization !== undefined && nextOrganization !== organizationId;
-    const changesWorkspace = next.kind === 'project'
-      ? workspace?.project?.id !== next.projectId || workspace.project.organization_id !== next.organizationId
-      : next.kind === 'local' && Boolean(workspace?.project);
-    const replaceWorkspace = changesOrganization || changesWorkspace;
-    const action = async () => {
-      if (replaceWorkspace) workspaceState.clear();
+    const { changesOrganization, replacesWorkspace, leavesWorkspace } = workspaceNavigation(route, next, organizationId, workspace);
+    const action = async (discard = false) => {
+      if (replacesWorkspace || leavesWorkspace && discard) workspaceState.clear();
       if (nextOrganization !== undefined) setOrganizationId(nextOrganization);
       commit();
     };
-    if (replaceWorkspace) requestTransition(changesOrganization ? msg("app.switchOrganization") : next.kind === 'local' ? msg("app.openLocalWorkspace") : msg("app.openAnotherProject"), action);
+    if (replacesWorkspace || leavesWorkspace) requestTransition(changesOrganization ? msg("app.switchOrganization")
+      : next.kind === 'local' ? msg("app.openLocalWorkspace") : next.kind === 'project' ? msg("app.openAnotherProject")
+        : msg('app.leaveWorkspace'), action);
     else void action();
   }
-  async function execute({ action, afterSuccess }: Transition, discard = false) {
+  async function execute({ action, afterSuccess }: Transition, disposition: 'continue' | 'discard' | 'save' = 'continue') {
+    const discard = disposition === 'discard';
     const discardDraft = discard ? workbench.current?.discardDraft : undefined;
     let discardFailed = false;
     let completed = false;
     setBusy(true); setMessage('');
     try {
-      const replaced = await action();
+      if (disposition === 'save' && (!workbench.current?.leaveState().canSave || !await workbench.current.saveProject())) {
+        setMessage(msg('app.unsavedChangesRemain')); return;
+      }
+      const replaced = await action(discard);
       transitionRef.current = null; setTransition(null);
       if (replaced !== false) {
         try { await discardDraft?.(); }
@@ -369,7 +374,7 @@ export default function App() {
         draftScope={draftScope(owner.id, workspace.project?.organization_id ?? workspace.localOrganizationId, workspace.project?.id)}
         onCheckDraftRevision={workspace.project ? workspaceState.checkDraftRevision : undefined}
         readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
-        onSave={workspace.project ? workspaceState.save : undefined}
+        onSave={workspace.project ? workspaceState.save : undefined} onLeaveStateChange={setWorkbenchLeaveState}
         onSplit={workspace.project ? workspaceState.split : undefined}
         styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
         onReload={workspace.project ? () => requestTransition(msg("app.reloadProject"), workspaceState.reload) : undefined}
@@ -383,12 +388,16 @@ export default function App() {
       <LoginForm api={accountApi} onLogin={onLogin} expectedUsername={owner.username} />
     </Modal>}
     {transition && <Modal title={formatMessage(transition.label)}>
-      <p>{t("app.continuingDiscardsLocalSubtitlesUnappliedTimeInputsAnd")}</p>
+      <p>{t(workbenchLeaveState?.unsaved ? 'app.unsavedChangesBeforeLeaving' : 'app.confirmTransition')}</p>
+      {workbenchLeaveState?.pendingTiming && <p>{t('app.applyTimeInputsBeforeLeaving')}</p>}
+      {workbenchLeaveState?.busy && <p role="status">{t('app.waitForWorkspaceOperation')}</p>}
       <p>{t("app.exportingKeepsThisDialogOpenCheckTheDownload")}</p>
       <div className="controls">
-        <button disabled={busy} onClick={() => void exportDraft()}>{t("app.exportAss")}</button>
+        {workspace?.project && user && <button className="primary" disabled={busy || !workbenchLeaveState?.canSave}
+          onClick={() => void execute(transition, 'save')}>{t('app.saveAndLeave')}</button>}
+        <button disabled={busy || workbenchLeaveState?.busy} onClick={() => void exportDraft()}>{t("app.exportAss")}</button>
         <button disabled={busy} onClick={() => { transitionRef.current = null; setTransition(null); setMessage(''); if (!user) setPanel('login'); }}>{t("app.cancel")}</button>
-        <button disabled={busy} onClick={() => void execute(transition, true)}>{t("app.discardAndContinue")}</button>
+        <button disabled={busy || workbenchLeaveState?.busy} onClick={() => void execute(transition, 'discard')}>{t("app.discardAndContinue")}</button>
       </div>
       {message && <p role="status">{message}</p>}
     </Modal>}

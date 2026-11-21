@@ -24,6 +24,7 @@
 @container (max-width: 600px) {
   .cue-list-actions > span { display: none; }
   .cue-list-actions, .cue-list > .section-heading { gap: 8px; }
+  .qc-heading strong { flex-basis: 100%; }
 }
 .qc-heading { flex-wrap: wrap; align-items: center; }
 .qc-heading strong { white-space: normal; overflow-wrap: anywhere; }

@@ -62,11 +62,10 @@ try {
   await page.getByLabel('项目说明', { exact: true }).fill('项目面板集成测试');
   await page.getByLabel('基准视频', { exact: true }).setInputFiles(join(artifacts, 'video.mp4'));
   await shown(page.getByText(/完整校验通过/));
-  await page.getByLabel('初始字幕', { exact: true }).selectOption('import');
-  await page.getByLabel('ASS 文件', { exact: true }).setInputFiles(join(artifacts, 'invalid.ass'));
+  await page.getByLabel('选择 ASS / SRT 文件', { exact: true }).setInputFiles(join(artifacts, 'invalid.ass'));
   await shown(modal('新建项目').getByRole('alert'));
   assert.equal((await api(base)).projects.some(value => value.name === title), false);
-  await page.getByLabel('ASS 文件', { exact: true }).setInputFiles(fixture);
+  await page.getByLabel('更换 ASS / SRT 文件', { exact: true }).setInputFiles(fixture);
   await shown(page.getByText(/字幕预检通过/));
   await modal('新建项目').getByRole('button', { name: '创建并打开', exact: true }).click();
   await hidden(modal('新建项目'));

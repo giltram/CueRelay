@@ -193,12 +193,12 @@ try {
   // Import failure preserves history; successful import establishes a new baseline.
   failImport = true;
   const importFile = { name: 'test.ass', mimeType: 'text/plain', buffer: Buffer.from('fixture') };
-  await page.getByLabel('导入基础 ASS').setInputFiles(importFile);
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(importFile);
   const pending = await draft(); await page.keyboard.press('Control+z'); assert.deepEqual(await draft(), pending);
   await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'fixture import failure' }).waitFor();
   await undo(); assert.notEqual(await end.inputValue(), 'bad');
-  await page.getByLabel('导入基础 ASS').setInputFiles(importFile);
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(importFile);
   await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.cue-list tbody tr').length === 1);
   const importedDraft = await draft(); await undo(); assert.deepEqual(await draft(), importedDraft); assert.equal(await rows.count(), 1);

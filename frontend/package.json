@@ -24,6 +24,7 @@
     "test:boundary-snap": "node browser-tests/boundary-snap.mjs",
     "test:audio-lifecycle": "node browser-tests/audio-lifecycle.mjs",
     "test:navigation": "node browser-tests/navigation.mjs",
+    "test:workspace-navigation": "node browser-tests/workspace-navigation.mjs",
     "test:project-form": "node browser-tests/project-form.mjs",
     "test:project-settings": "node browser-tests/project-settings.mjs",
     "test:cue-table": "node browser-tests/cue-table.mjs",

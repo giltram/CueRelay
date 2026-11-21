@@ -150,7 +150,7 @@ export async function checkCommitTiming(browser, url, videoFile) {
     assert.equal(await rows.count(), 3);
     assert.deepEqual(await times(2), ['0:00:05.10', '0:00:07.10']);
 
-    await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+    await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
     await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();
     await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
     await start.fill('0:00:01.30'); await end.fill('0:00:03.50');
@@ -177,7 +177,7 @@ export async function checkCommitTiming(browser, url, videoFile) {
     await stage.focus();
     await stage.dispatchEvent('compositionstart'); await page.keyboard.press('Control+Delete'); await stage.dispatchEvent('compositionend');
     assert.equal(await rows.count(), 3);
-    await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+    await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
     await page.getByRole('button', { name: '替换当前字幕', exact: true }).waitFor();
     await page.keyboard.press('Control+Delete'); assert.equal(await rows.count(), 3);
     await page.getByRole('button', { name: '取消', exact: true }).click();
@@ -193,7 +193,7 @@ export async function checkCommitTiming(browser, url, videoFile) {
     assert.equal(await page.locator('.audio-cue-interval').count(), 0);
     await page.keyboard.press('Control+Backspace'); assert.equal(await rows.count(), 0);
     const emptySource = await page.evaluate(async () => (await (await fetch('/api/ass/empty')).json()).document.source);
-    await page.getByLabel('导入基础 ASS').setInputFiles({ name: 'empty.ass', mimeType: 'text/plain', buffer: Buffer.from(emptySource) });
+    await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles({ name: 'empty.ass', mimeType: 'text/plain', buffer: Buffer.from(emptySource) });
     await page.waitForFunction(() => document.querySelector('.cue-list tbody tr')?.classList.contains('selected'));
     assert.equal(await rows.count(), 1);
     assert.deepEqual(await times(0), ['0:00:00.00', '0:00:02.00']);

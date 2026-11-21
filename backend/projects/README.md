@@ -2,6 +2,8 @@
 
 拥有组织内项目生命周期及显式保存的 ASS 文档快照。公开入口在 services.py：organization_for、read_project、create_project、update_project、set_archived、save_document。ProjectConflict 表示 revision 冲突或归档只读。HTTP 适配在 ../http_api/project_views.py。
 
+SRT 初始化由上游 `srt_format` 先转换为同一 v2 文档及完整 ASS source，创建仍只接受现有 source 契约；本模块不依赖 SRT parser、不新增格式字段/保存路径。已有项目的 source/styles/script 仍不可由普通字幕保存替换；只读 SRT 导出不触及项目/revision。持久化与拒绝替换回归见 test_srt.py，格式规则见相邻 srt_format/README.md。
+
 依赖：organizations 的 Organization/require_access、accounts 的 User 外键、ass_format 的纯格式入口、Django。底层模块不反向依赖 projects；没有 signals、实时广播或独立权限矩阵。
 
 ## 数据与不变量

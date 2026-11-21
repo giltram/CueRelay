@@ -146,7 +146,7 @@ try {
   assert(Math.abs(await page.locator('video').evaluate(video => video.currentTime) - paused) < 0.02);
   report.playheadDrag = await checkPlayhead(page, bounds);
 
-  await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
   await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await page.getByLabel('字幕入点 0:00:01.20', { exact: true }).waitFor();

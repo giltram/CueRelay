@@ -111,7 +111,7 @@ async function edit(value) {
   await text.fill(value); await response; await ready();
 }
 async function importFile(file) {
-  await page.getByLabel('导入基础 ASS').setInputFiles(file);
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(file);
   const replace = page.getByRole('button', { name: '替换当前字幕' });
   if (await replace.isVisible()) await replace.click();
   await rows.first().waitFor();

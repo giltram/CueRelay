@@ -5,8 +5,11 @@ from http_api import identity_views as identity
 from http_api import project_views as projects
 from http_api import style_views as styles
 from http_api import glossary_views as glossary
+from http_api.srt_views import import_srt, export_srt
 
 urlpatterns = [
+    path('api/srt/import', import_srt),
+    path('api/srt/export', export_srt),
     path('api/organizations/<int:organization_id>/glossary', glossary.organization_glossary),
     path('api/organizations/<int:organization_id>/glossary/<uuid:table_id>/entries/<uuid:entry_id>', glossary.organization_entry),
     path('api/organizations/<int:organization_id>/projects/<int:project_id>/glossary', glossary.project_glossary),

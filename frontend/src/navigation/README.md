@@ -28,13 +28,13 @@ popstate 无法取消：控制器先按 group/index 恢复已提交条目，再�
 
 链接外观使用 styles.css 的主题色；项目名称保持文字链接，导航/操作入口显式加 `.button-link` 复用按钮尺寸、悬停和焦点样式，当前导航通过 aria-current 显示。外观不改变 a 元素的链接语义。
 
-`HomeLink` 统一登录、列表、工作区及错误页的 CueRelay 标题链接，目标固定为 `/`；保留标题字体和颜色。工作区通过 title 插槽接收链接，不直接依赖导航。回首页仅浏览列表，不清空保留实例，同文档的浏览器历史可以继续当前草稿；默认点击项目链接在新标签页加载独立快照；列表已移除「返回工作区」按钮。
+`HomeLink` 统一登录、列表、工作区及错误页的 CueRelay 标题链接，目标固定为 `/`；保留标题字体和颜色。工作区通过 title 插槽接收链接，不直接依赖导航。回首页先由 App 检查未保存改动；无改动或「保存并离开」后隐藏保留实例，同文档历史可恢复；「明确放弃并继续」清空原实例及活跃草稿，之后历史重返从服务器加载；默认点击项目链接在新标签页加载独立快照；列表已移除「返回工作区」按钮。
 
-App 负责资源切换保护和登录后的目标继续，app-workspace 负责加载。禁止让路由 key 决定 EditorWorkbench 的挂载生命周期。单元测试：routes/history-navigation；原生行为与历史保护：browser-tests/navigation.mjs。
+App 负责离开工作区和资源切换保护；同标签页进入首页、列表、设置、手册、错误页和浏览器前进/后退均在 commit 前检查实际未保存状态，取消不提交目标路由。新标签页入口不触发来源页确认。App 也负责登录后的目标继续，app-workspace 负责加载。禁止让路由 key 决定 EditorWorkbench 的挂载生命周期。单元测试：routes/history-navigation；原生行为与历史保护：browser-tests/navigation.mjs。
 
 routeOrganization 统一识别项目、设置和本地工作区的显式组织上下文，因此新开页面不会静默选回默认组织。组织 ID 只表示页面上下文，不给本地工作区增加项目归属。组织选择控件仅存在于 `/` 和项目列表；设置、工作区及错误状态不提供切换器。深链接登录继续原路由。直接输入/同文档历史仍由 App 共用切换保护。
 
-「新建项目」是当前列表页的操作按钮，不是页面导航；经 App 的旧工作区保护后打开 ProjectsPanel / ProjectForm 弹窗，不改 URL、不新增 tab。名称、说明、视频和字幕在同一表单填写；成功后同一文档 adoptCreated 并 push 项目工作区，保证回退回原列表。取消创建只关闭弹窗。旧 `/organizations/:organizationId/projects/new` 地址规范到组织列表，不再拥有创建路由或独立页面。无需 window.open、跨窗口传 File、Storage 或同步机制。默认行为回归在 tab-navigation.mjs；历史/旧稿保护回归使用 link-navigation.sameTab 显式覆盖 target，与默认新标签页测试分开。
+「新建项目」是当前列表页的操作按钮，不是页面导航；经 App 的旧工作区保护后打开 ProjectsPanel / ProjectForm 弹窗，不改 URL、不新增 tab。名称、说明、视频和字幕在同一表单填写；成功后同一文档 adoptCreated 并 push 项目工作区，保证回退回原列表。取消创建只关闭弹窗。旧 `/organizations/:organizationId/projects/new` 地址规范到组织列表，不再拥有创建路由或独立页面。无需 window.open、跨窗口传 File、Storage 或同步机制。默认行为回归在 tab-navigation.mjs；离开确认回归见 `npm run test:workspace-navigation`，使用 link-navigation.sameTab 显式覆盖 target，与默认新标签页测试分开。
 
 项目列表的「项目设置」遵循 RouteLink 默认新标签页；设置页仅保留页头 CueRelay 首页链接，不提供「返回项目列表」。project-settings 只由 project-ui 加载元数据，不进入 app-workspace 的工作区加载分支；同组织同页历史仍保留隐藏工作区，跨组织导航沿用 App 保护。
 

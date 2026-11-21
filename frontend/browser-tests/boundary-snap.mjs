@@ -61,7 +61,7 @@ try {
   await page.goto(process.env.BOUNDARY_SNAP_URL || 'http://127.0.0.1:5173/workspace/local');
   await page.getByLabel('导入本地视频').setInputFiles(file);
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
-  await page.getByLabel('导入基础 ASS').setInputFiles({ name: 'snap.ass', mimeType: 'text/plain', buffer: Buffer.from('fixture') });
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles({ name: 'snap.ass', mimeType: 'text/plain', buffer: Buffer.from('fixture') });
   await page.getByRole('button', { name: '选择第 2 行', exact: true }).click();
   await page.locator('video').evaluate(video => { video.currentTime = 4.5; });
   await page.waitForFunction(() => document.querySelector('video').currentTime === 4.5);

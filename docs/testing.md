@@ -25,7 +25,7 @@ Linux 浏览器系统库可用 `cd frontend && npx playwright install --with-dep
 ```sh
 .venv/bin/python backend/manage.py check --settings=application.test_settings
 .venv/bin/python backend/manage.py makemigrations --check --dry-run --settings=application.test_settings
-.venv/bin/python backend/manage.py test accounts ass_format http_api organizations projects diagnostics --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test accounts ass_format srt_format http_api organizations projects diagnostics --settings=application.test_settings --noinput -v 2
 .venv/bin/python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
@@ -81,6 +81,14 @@ docker compose -f compose.test.yml down
 ```
 
 ## 覆盖索引
+
+SRT 格式/HTTP/持久化回归为 `srt_format.tests`、`http_api.test_srt`、`projects.test_srt`，精度、编码、标签和损失契约见 `backend/srt_format/README.md`。真实 Chromium 流程通过以下隔离数据库命令运行，不写开发数据库：
+
+```sh
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_srt_local browser_tests.regression.WorkspaceRegressionTests.test_srt_project browser_tests.regression.WorkspaceRegressionTests.test_srt_english_narrow --settings=application.test_settings --noinput -v 2
+```
+
+覆盖失败导入保留历史/多选/原始时间及本机恢复、成功替换新基线、SRT/ASS 文件名和内容、ASS 备份不受格式选择影响、项目初始化/显式保存/重载、英文 360px/键盘/IME/真实清 Cookie 后无会话导出。成功截图写入 `frontend/test-results/srt-*/`，不自动批准快照。新增语言 JSON 后若 Vitest 的磁盘转换缓存未发现文件，可先 `cd frontend && node node_modules/vitest/vitest.mjs --clearCache`，再正常运行；检查全新资源时也可用 `npm run test -- --run --no-fsModuleCache`。本次实际结果见 [SRT 实施记录](plans/srt.md)。
 
 | 风险 | 复用 / 新增测试 | 断言层次 |
 | --- | --- | --- |

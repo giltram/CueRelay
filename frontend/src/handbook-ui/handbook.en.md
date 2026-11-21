@@ -101,11 +101,19 @@ Ordinary insertion creates empty text with the current style and a default durat
 
 The clipboard uses ASS Dialogue text and can interoperate with Aegisub within CueRelay's ASS subset. Each non-empty plain-text line becomes a 0–3 second subtitle using the current style; unknown clipboard styles also use the current style. Paste inserts before the active line. Paste Lines Over defaults to text, with Start, End and Style available as fields. Multiple selections are matched in document order; a single selection overwrites from the active line down. Extra clipboard lines are ignored. Inputs keep native text Cut/Copy/Paste. Edits can be undone; Copy does not add a history step.
 
-## Styles and ASS import {#styles}
+## Styles and subtitle files {#styles}
 
 The Style selector applies the chosen style to all selected lines. Mixed styles are shown when the selected lines differ. Batch assignment is one Undo/Redo step and preserves unapplied time inputs. Project changes still require Save project.
 
-**Supported subset:** Import accepts UTF-8 ASS with an optional BOM, up to 1MiB and 5000 events. Standard styles, Unicode text, commas, line breaks, whitespace escapes and bold/italic/underline/strikeout tags are supported. Export preserves supported content and format semantics, without promising byte-for-byte identity.
+**Supported subset:** Initial subtitles in new projects and the local workspace's Import ASS / SRT accept basic ASS or SRT in UTF-8 with an optional BOM, up to 1MiB and 5000 events. Other encodings are not guessed. Existing projects still cannot replace their subtitle file. ASS supports standard styles, Unicode text, commas, line breaks, whitespace escapes and bold/italic/underline/strikeout tags. Export preserves supported content and format semantics, without promising byte-for-byte identity.
+
+**Importing SRT:** Each block has a number, a `HH:MM:SS,mmm --> HH:MM:SS,mmm` timing line, and single-line or multiline text. Separate blocks with empty lines. LF/CRLF and no final blank line are supported. Duplicate or nonconsecutive numbers, overlaps, out-of-order events, empty text and zero duration are allowed. Empty files follow the existing empty-document behavior. Broken blocks report a location and are never skipped. Imported subtitles use the same editor, history, drafts and saving, with new-document default styles and script settings. Project creation can still explicitly import organization templates.
+
+SRT boundaries round to the nearest 10ms, ties upward: `00:00:01,234` becomes `00:00:01,230`, and `00:00:01,235` becomes `00:00:01,240`. Each boundary moves by at most 5ms. Very short cues may become zero duration and are not lengthened. Original times must already be ordered and no greater than `09:59:59,990`.
+
+Properly paired, attribute-free `b/i/u/s` tags keep basic formatting. Explicit semicolon-terminated entities decode once: `&amp;` means `&`, and `&lt;b&gt;` means literal `<b>`. Unknown or broken tags, literal braces and literal backslashes cannot currently be represented losslessly. They reject the entire file instead of being removed or interpreted as ASS commands. Keep the original and a separate compatible copy.
+
+**Exporting SRT:** Select Export SRT, review the format limitations and any issues in the existing QC panel, then Continue exporting SRT. The download includes unsaved text and applied times. It does not apply time drafts, save the project or change its ASS document. Events stay in document order with continuous numbering, three-digit milliseconds, UTF-8 and LF. Empty text, zero duration and b/i/u/s are retained; fonts, colors, positioning, layers, comments and script metadata are omitted. ASS soft breaks become line breaks and nonbreaking spaces are preserved. Leading, trailing or consecutive text breaks and standalone timing-like text lines are rejected explicitly; use ASS to keep them. Leave-page and local-draft backups always remain ASS.
 
 **When import is rejected:** Drawings, animation, karaoke, local font/color/position overrides, attachments and unsupported fields or tags reject the whole import. Keep the original; save a separate compatible copy in Aegisub. Do not overwrite your typeset original to make it importable. Text cursor splitting is stricter: lines with ASS tags or backslash escapes (including line breaks) cannot currently be split.
 

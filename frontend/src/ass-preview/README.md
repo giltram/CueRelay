@@ -22,7 +22,7 @@ File/video 身份与开关控制会话生命周期；输入字幕只更新 Track
 
 ## 字体与兼容性
 
-内置 Noto Sans SC Regular（约 8.3MB，SIL OFL 1.1）从应用同源加载，详情见 [fonts](fonts/README.md)。字体先显式检查下载结果，再作为字节传给 JASSUB；不静默继续无字体渲染。`queryFonts:false`，不扫描/上传系统字体、不请求 Google Fonts 或 CDN。未提供的字体由内置字体回退；UI 始终提示字体替代差异。只有一个 Regular 字重，粗体/斜体由引擎合成；繁体/日文/罕见字符和特殊符号未保证完整覆盖。本次不实现字体管理。
+内置 Noto Sans SC Regular（约 8.3MB，SIL OFL 1.1）从应用同源加载，详情见 [fonts](fonts/README.md)。字体先显式检查下载结果，再作为字节传给 JASSUB；不静默继续无字体渲染。`queryFonts:false`，不扫描/上传系统字体、不请求 Google Fonts 或 CDN。未提供的字体由内置字体回退；工作区顶栏仅显示加载、错误或无效时间草稿提示，正常预览时隐藏状态提示，不常驻字体替代说明。只有一个 Regular 字重，粗体/斜体由引擎合成；繁体/日文/罕见字符和特殊符号未保证完整覆盖。本次不实现字体管理。
 
 Vite 使用安装包的实际路径 `dist/worker/worker.js?worker&url`、`dist/wasm/*.wasm?url`，不照抄 README 的旧 dist 路径。所有资源打包到 assets。需要 Worker、WASM、OffscreenCanvas 和可用的画布；保留现有 COOP/COEP/CSP，缺少跨源隔离时 JASSUB 使用单线程。生产服务需正确返回 JavaScript、`application/wasm` 与 OTF MIME；资源 404 不得返回 SPA HTML。
 

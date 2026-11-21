@@ -12,7 +12,7 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     await page.waitForFunction(() => !document.querySelector('.file-actions button.primary').disabled);
     await page.getByLabel('导入本地视频').setInputFiles(videoFile);
     await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
-    await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+    await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
     const rows = page.locator('.cue-list tbody tr');
     const stage = page.locator('.audio-stage');
     const end = page.getByRole('textbox', { name: '出点', exact: true });

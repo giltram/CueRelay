@@ -20,9 +20,15 @@
   "leaveThisOrganization": "Leave this organization",
   "reloadProject": "Reload project",
   "internalAccountsAreCreatedByTheSiteAdministrator": "Internal accounts are created by the site administrator.",
-  "continuingDiscardsLocalSubtitlesUnappliedTimeInputsAnd": "Continuing discards local subtitles, unapplied time inputs and video. Export includes applied subtitles. Cancel and apply any time inputs you want to keep before exporting.",
   "exportingKeepsThisDialogOpenCheckTheDownload": "Exporting keeps this dialog open. Check the download before discarding.",
   "exportAss": "Export ASS",
   "cancel": "Cancel",
-  "discardAndContinue": "Discard and continue"
+  "discardAndContinue": "Discard and continue",
+  "leaveWorkspace": "Leave workspace",
+  "unsavedChangesBeforeLeaving": "This workspace has unsaved changes. Save before leaving or explicitly discard them. Saved projects will not be deleted.",
+  "confirmTransition": "Continue with this action? Saved projects will not be deleted.",
+  "applyTimeInputsBeforeLeaving": "Some time inputs have not been applied. Saving and exporting do not include them. Cancel and apply any inputs you want to keep, or discard them to continue.",
+  "waitForWorkspaceOperation": "A workspace operation is in progress. Wait for it to finish before continuing.",
+  "saveAndLeave": "Save and leave",
+  "unsavedChangesRemain": "The workspace still has unsaved changes. Cancel, check your edits and try again."
 }

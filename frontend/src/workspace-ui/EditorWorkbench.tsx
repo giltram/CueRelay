@@ -16,7 +16,8 @@ import '../style-ui/style-management.css';
 import { videoStorageKey, type InitialVideo } from '../media/video-file-access';
 import { LocalVideoPlayer } from '../media/LocalVideoPlayer';
 import { auditionRange, formatTime, isFullscreenPlaybackShortcut, parseTime, seekVideo, snapTime, type AuditionMode } from '../media/playback';
-import { downloadFile, exportAss, importAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
+import { downloadFile, exportAss, loadEmptyDocument, splitAss } from '../project-data/ass-api';
+import { exportSrt, importSubtitleFile } from '../project-data/subtitle-api';
 import { CueTable } from './CueTable';
 import { TimePointControl } from './TimePointControl';
 import { ResizableWorkbench } from './ResizableWorkbench';
@@ -48,7 +49,8 @@ import { useTermInsertion } from './use-term-insertion';
 import { SubtitleQcPanel } from './SubtitleQcPanel';
 import { WorkspaceDraftNotice } from './WorkspaceDraftNotice';
 import type { DraftContent, WorkspaceDraft } from '../workspace-drafts/model';
-import { useWorkspaceDraft, unappliedTiming } from './use-workspace-draft';
+import { useWorkspaceDraft } from './use-workspace-draft';
+import { unappliedTiming, workspaceChanges } from './workspace-changes';
 import { sameSnapshotValue } from '../subtitle-model/snapshot-equality';
 import { shiftCueTimes } from '../subtitle-model/time-shift';
 import { replaceCueText, type ReplaceCueRequest, type ReplaceFailure, type ReplaceFeedback } from './cue-replacement';
@@ -67,8 +69,15 @@ const replaceErrors = {
   'document-too-large': 'server.assTextMustNotExceed1Mib',
 } as const satisfies Record<ReplaceFailure, string>;
 
+export interface WorkbenchLeaveState {
+  unsaved: boolean;
+  pendingTiming: boolean;
+  canSave: boolean;
+  busy: boolean;
+}
 export interface WorkbenchHandle {
-  hasContent: () => boolean;
+  leaveState: () => WorkbenchLeaveState;
+  saveProject: () => Promise<boolean>;
   exportDraft: () => Promise<void>;
   discardDraft: () => Promise<void>;
 }
@@ -94,9 +103,10 @@ interface Props {
   onReload?: () => void;
   draftScope?: string;
   onCheckDraftRevision?: () => Promise<number | null>;
+  onLeaveStateChange?: (state: WorkbenchLeaveState | null) => void;
 }
 
-export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload, draftScope, onCheckDraftRevision }: Props) {
+export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload, draftScope, onCheckDraftRevision, onLeaveStateChange }: Props) {
   useLocale();
   const edits = useEditHistory({
     document: project?.document ?? null, selectedId: null, startText: formatTime(0),
@@ -124,10 +134,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const localBaseline = useRef<AssDocument>(null);
   const [checkedRevision, setCheckedRevision] = useState<number | null>(null);
   const isProject = Boolean(project);
-  const timingDraft = useMemo(() => document && unappliedTiming(edits.state, selected), [document, edits.state, selected]);
+  const { documentChanged, timingDraft, unsaved } = useMemo(
+    () => workspaceChanges(edits.state, isProject ? savedDocument : localBaseline.current),
+    [edits.state, isProject, savedDocument]);
   const pendingTiming = timingDraft !== null;
-  const documentChanged = document !== (isProject ? savedDocument : localBaseline.current);
-  const unsaved = documentChanged || pendingTiming;
   const draftContent = useMemo<DraftContent | null>(() => {
     if (!draftScope || !document || !unsaved) return null;
     return { document, timing: timingDraft, baseRevision: isProject ? savedRevision : null,
@@ -141,6 +151,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const onVerifiedChange = useCallback((value: boolean) => setMediaVerified(value), []);
   const [hasEdits, setHasEdits] = useState(false);
   const [pendingImport, setPendingImport] = useState<File | null>(null);
+  const [srtImported, setSrtImported] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'ass' | 'srt'>('ass');
   const composing = useRef(false);
   const workbench = useRef<HTMLElement>(null);
   const textEditor = useRef<HTMLTextAreaElement>(null);
@@ -220,7 +232,14 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     return () => { active = false; };
   }, []);
 
-  const hasProtectedContent = Boolean(busy || pendingImport || mediaFile || project || hasImportedDocument || hasEdits);
+  const leaveState = useMemo<WorkbenchLeaveState>(() => ({
+    unsaved, pendingTiming,
+    canSave: Boolean(project && onSave && canEdit && documentChanged && !pendingTiming && !busy && !pendingImport),
+    busy: Boolean(busy || pendingImport),
+  }), [unsaved, pendingTiming, project, onSave, canEdit, documentChanged, busy, pendingImport]);
+  useEffect(() => { onLeaveStateChange?.(leaveState); }, [onLeaveStateChange, leaveState]);
+  useEffect(() => () => onLeaveStateChange?.(null), [onLeaveStateChange]);
+  const hasProtectedContent = leaveState.unsaved || leaveState.busy;
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
@@ -570,10 +589,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     diagnostics.record('editor', 'import', 'start');
     setBusy(true); setPendingImport(null); setError('');
     try {
-      const imported = await importAss(file);
+      const imported = await importSubtitleFile(file);
       const initialized = initializeDocument(imported, () => `new-${crypto.randomUUID()}`);
       diagnostics.record('editor', 'import', 'success', { count: imported.cues.length }, origin.scope, origin.context);
       setHasImportedDocument(true);
+      setSrtImported(/\.srt$/i.test(file.name));
       setHasEdits(false);
       edits.baseline(withSelection({ ...edits.current(), document: initialized }, !imported.cues.length ? initialized.cues[0] : undefined));
       cancelAudition();
@@ -585,7 +605,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   }
 
   async function saveProject() {
-    if (!document || !savedDocument || !onSave || !canEdit) return;
+    if (!document || !savedDocument || !onSave || !canEdit || busy) return false;
     diagnostics.record('editor', 'save', 'start', { revision: savedRevision });
     setBusy(true); setSaveMessage('');
     edits.finish();
@@ -602,6 +622,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       setCheckedRevision(null);
       diagnostics.record('editor', 'save', 'success', { revision: result.project.revision });
       setSaveMessage(msg("workspaceUi.projectSavedUnappliedTimeInputsAreNotIncluded"));
+      const current = edits.current();
+      return !workspaceChanges(current, saved).unsaved;
     } finally { setBusy(false); }
   }
 
@@ -627,20 +649,25 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const source = await exportAss(snapshot);
     downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name));
   }
-  async function downloadDraft() {
+  async function downloadDraft(format: 'ass' | 'srt' = 'ass') {
     setBusy(true);
-    try { await exportDraft(); }
+    try {
+      if (format === 'srt' && document) {
+        const source = await exportSrt(document);
+        downloadFile(new Blob([source], { type: 'text/plain;charset=utf-8' }), subtitleExportFilename(project?.name, new Date(), 'srt'));
+      } else await exportDraft();
+    }
     finally { setBusy(false); }
   }
-  async function exportWithQc() {
+  async function exportWithQc(format: 'ass' | 'srt' = 'ass') {
+    setExportFormat(format);
     const report = await qc.run('export');
     if (!report) return;
-    if (report.issues.length || report.formatError) { setGlossaryOpen(false); qc.show(); }
+    if (format === 'srt' || report.issues.length || report.formatError) { setGlossaryOpen(false); qc.show(); }
     else await downloadDraft();
   }
-  const hasContent = () => hasProtectedContent;
   useImperativeHandle(ref, () => ({
-    hasContent, exportDraft,
+    leaveState: () => leaveState, saveProject, exportDraft,
     async discardDraft() {
       try { await draft.discard(); }
       catch { throw new MessageError(msg('workspaceUi.draftActionFailed')); }
@@ -663,11 +690,11 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           {project && <>
             <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? t("workspaceUi.archivedState") : t("workspaceUi.unavailableState") : ''}</span>
             <button onClick={onReload} disabled={busy}>{t("workspaceUi.reloadProject")}</button>
-            {!readOnly && <button className="primary" disabled={busy || !canEdit || document === savedDocument} onClick={() => run(saveProject)}>{t("workspaceUi.saveProject")}</button>}
+            {!readOnly && <button className="primary" disabled={busy || !canEdit || !documentChanged} onClick={() => run(async () => { await saveProject(); })}>{t("workspaceUi.saveProject")}</button>}
           </>}
           {!project && <button disabled={busy || !document || Boolean(pendingImport)} onClick={() => { video?.pause(); cancelAudition(); setStylesOpen(true); }}>{t("workspaceUi.manageStyles")}</button>}
           {!project && <label className="file-picker">
-            {t("workspaceUi.importAss")}<input aria-label={t("workspaceUi.importBasicAss")} title={t("workspaceUi.importBasicAss")} type="file" accept=".ass" disabled={busy || !document} onChange={event => {
+            {t("workspaceUi.importAss")}<input aria-label={t("workspaceUi.importBasicAss")} title={t("workspaceUi.importBasicAss")} type="file" accept=".ass,.srt" disabled={busy || !document} onChange={event => {
               const file = event.target.files?.[0];
               if (file) {
                 if (document?.cues.length && (hasEdits || hasImportedDocument)) setPendingImport(file);
@@ -676,7 +703,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               event.target.value = '';
             }} />
           </label>}
-          <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(exportWithQc)}>{t("workspaceUi.exportAss")}</button>
+          <button className="primary" disabled={busy || !document || qc.checking} onClick={() => run(() => exportWithQc())}>{t("workspaceUi.exportAss")}</button>
+          <button disabled={busy || !document || qc.checking} onClick={() => run(() => exportWithQc('srt'))}>{t('srt.export')}</button>
         </div>
       }>
       <WorkspaceDraftNotice status={draft.status} candidates={draft.candidates} revision={project ? savedRevision : null}
@@ -688,9 +716,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
         })}
         onDiscard={record => draftAction(async () => { await accessDraft(record, 'discard'); })} />
       {busy && <HeaderNotice>{t("workspaceUi.converting")}</HeaderNotice>}
+      {srtImported && <HeaderNotice role="status">{t('srt.importNotice')}</HeaderNotice>}
       {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
         ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")
-        : saveMessage || (document === savedDocument ? t("workspaceUi.subtitlesSaved") : t("workspaceUi.thereAreUnsavedSubtitleChangesClickSaveProject"))}</HeaderNotice>}
+        : saveMessage || (!documentChanged ? t("workspaceUi.subtitlesSaved") : t("workspaceUi.thereAreUnsavedSubtitleChangesClickSaveProject"))}</HeaderNotice>}
       {saveMessage && (!project || !mediaVerified || readOnly) && <HeaderNotice>{saveMessage}</HeaderNotice>}
       {pendingImport && (
         <div role="alert" className="confirm">
@@ -704,9 +733,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
       {outsideDuration && <HeaderNotice className="header-warning">{t("workspaceUi.someSubtitlesExtendBeyondTheVideoCheckThe")}</HeaderNotice>}
 
-      {subtitles.active && <HeaderNotice className="ass-preview-status" data-phase={subtitles.status.phase}>
+      {subtitles.active && <HeaderNotice className="ass-preview-status" data-phase={subtitles.status.phase}
+        hidden={subtitles.status.phase === 'ready' && !preview.warning}>
         {subtitles.status.phase === 'loading' ? t("workspaceUi.loadingAssSubtitles") : subtitles.status.phase === 'error'
-          ? subtitles.status.message : formatMessage(preview.warning) || t("workspaceUi.previewUsesTheBundledNotoSansScWhen")}
+          ? subtitles.status.message : formatMessage(preview.warning)}
       </HeaderNotice>}
       <ResizableWorkbench subtitles={
         <CueTable cues={document?.cues || []} styles={document?.styles || []} selectedId={selectedId} currentTime={currentTime}
@@ -731,8 +761,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             panel: <SubtitleQcPanel cues={document?.cues ?? []} issues={qc.report?.issues ?? []}
               phase={qc.report?.phase ?? 'editing'} hasResult={Boolean(qc.report)} checking={qc.checking} stale={qc.stale}
               formatError={formatMessage(qc.report?.formatError)} pendingTiming={pendingTiming} disabled={!qcEnabled || busy}
+              exportFormat={exportFormat}
               onRun={() => { void qc.run(); }} onSelect={selectQcCue} onClose={closeQc}
-              onExport={() => { if (qc.report && !qc.stale && qc.report.phase === 'export') run(downloadDraft); }} /> }}
+              onExport={() => { if (qc.report && !qc.stale && qc.report.phase === 'export') run(() => downloadDraft(exportFormat)); }} /> }}
           onSelect={selectCueFromTable} />
       } media={
           <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}
@@ -785,7 +816,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               </div>
               <div className="subtitle-input">
                 <label htmlFor={textEditorId}>{t("workspaceUi.subtitleText")}</label>
-                <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label={t("workspaceUi.subtitleTextInput")} title={t("workspaceUi.valueSwitchesBetweenSubtitleInputAndTimingFocus", { v0: textFocusBinding })} rows={2} disabled={!selected} value={selected?.text || ''}
+                <textarea id={textEditorId} key={`text:${edits.epoch}:${selectedId}`} ref={textEditor} aria-label={t("workspaceUi.subtitleTextInput")} rows={2} disabled={!selected} value={selected?.text || ''}
                   onSelect={termInsertion.remember} onBlur={termInsertion.remember}
                   placeholder={t("workspaceUi.chooseStartAndEndTimesAndCommitOr")} onChange={event => run(() => updateCue({ text: event.target.value.replace(/\r?\n/g, '\\N') }, `text:${selectedId}`, ['historyUndo', 'historyRedo'].includes((event.nativeEvent as InputEvent).inputType)))} />
               </div>

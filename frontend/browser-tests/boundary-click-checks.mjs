@@ -87,7 +87,7 @@ export async function checkBoundaryClicks(page, selected = false) {
     await stage.dispatchEvent('wheel', { deltaY: (view.start - panned.start) / (panned.end - panned.start) * rect.width, deltaX: 0, deltaMode: 0 });
 
     // A pending replacement disables timing edits through the same callback gate.
-    await page.getByLabel('导入基础 ASS').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
+    await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles(resolve('../backend/ass_format/fixtures/basic.ass'));
     await page.getByRole('button', { name: '替换当前字幕', exact: true }).waitFor();
     await click(2.1); await click(2.6, 'right');
     assert.equal(await start.inputValue(), '0:00:01.80'); assert.equal(await end.inputValue(), '0:00:02.80');

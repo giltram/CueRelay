@@ -2,6 +2,12 @@
 
 EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-edit-history.ts` 唯一拥有本实例的可编辑状态，`edit-history.ts` 是无 React / DOM 依赖的不可变历史转换。依赖方向：EditorWorkbench → use-edit-history → edit-history → contracts；音频组件只报告操作与生命周期，不读取历史。
 
+## SRT 文件
+
+本地原导入控件接受 `.ass,.srt`，经 project-data/subtitle-api 使用同一文档、初始化、替换确认与历史基线；失败保留正文、原始时间、选择、撤销栈与本机草稿。SRT 默认样式/10ms 舍入和不能无损表示的文字边界见 [格式契约](../../../backend/srt_format/README.md)。项目工作区继续不提供文件替换。
+
+「导出 SRT」与 ASS 共用 QC，导出流程仅额外记录本次 QC 的输出格式；SRT 在同一面板一次说明格式损失并继续下载。两种普通导出均只使用已应用的内存 document，不提交时间草稿/保存/改变样式。文件名函数接受可选格式，默认仍 ASS。`WorkbenchHandle.exportDraft`、恢复副本的 exportSnapshot 永远走 ASS，不受本次 SRT 选择影响。会话失效时同样可检查/导出保留稿。真实隔离回归见 `frontend/regression/srt.spec.mjs`。
+
 ## 字幕 QC
 
 字幕列表「查找」旁的 QC 按钮按需开关，不新增永久侧栏。下方区域可用宽度至少 1061px 时，原字幕表在左、QC 在右，QC 为 30% 且限制 320–480px，左侧至少约 740px；以容器查询判断，与上方视频的 900px 断点独立。更窄时仅在同一区域临时切换，关闭恢复原表。QC 只使用原字幕区高度；短窗口将继续导出和重新检查放在同一标题行，消息/问题内部滚动。窄容器隐藏非交互的「按时间排列」说明，保留查找和 QC。
@@ -34,7 +40,7 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 问题点击复用 selectCueFromTable：选中现有 ID、取消试听、暂停视频并定位已应用入点，同时只滚动字幕表自身。无视频也可选行，超片长继续沿用原定位错误；同一行重选保留时间草稿，换行沿用原草稿处理。QC 不另建字幕编辑器、播放器或历史状态。面板按钮保留原生键盘行为并隔离打轴按键；面板内 Esc 或再次点击 QC 关闭。Ctrl/Cmd+F 在窄屏先显示原表格，再在渲染后聚焦原查找框；列宽、查找、选择及表格实例均保留。
 
-普通「导出 ASS」先执行 export 阶段检查，无问题直接下载，有问题在同一 QC 面板查看并继续导出。仅 error 禁用继续按钮，均对应原格式无效条件；warning/info 可继续。检查服务失败显示未完成，仍允许原导出器作最终校验。QC/导出只依赖保留文档及工作区可见性、导入/样式/粘贴面板状态，不受账号会话或编辑快捷键暂停限制；术语查询/插入仍保持原账号门禁。`WorkbenchHandle.exportDraft` 保持直接备份下载，离开/重载保护弹窗不被二次 QC 流程劫持。所有下载仍复用唯一序列化器与文件名规则。会话失效后的普通导出/警告继续/格式错误阻止见 `browser-tests/workspace-review-regressions.mjs`。
+普通「导出 ASS」先执行 export 阶段检查，无问题直接下载，有问题在同一 QC 面板查看并继续导出。仅 error 禁用继续按钮，均对应原格式无效条件；warning/info 可继续。检查服务失败显示未完成，仍允许原导出器作最终校验。QC/导出只依赖保留文档及工作区可见性、导入/样式/粘贴面板状态，不受账号会话或编辑快捷键暂停限制；术语查询/插入仍保持原账号门禁。`WorkbenchHandle.exportDraft` 保持直接备份下载，离开/重载保护弹窗不被二次 QC 流程劫持。每种格式仅由对应后端序列化器输出，文件名规则共用。会话失效后的普通导出/警告继续/格式错误阻止见 `browser-tests/workspace-review-regressions.mjs`。
 
 依赖：`EditorWorkbench → {use-subtitle-qc, SubtitleQcPanel, CueTable}`，`use-subtitle-qc → {subtitle-qc, project-data/ass-api}`，`subtitle-qc → {contracts, subtitle-model}`。纯规则和阈值见 [subtitle-qc](../subtitle-qc/README.md)；没有新保存模型、偏好、实时协作或运行时依赖。
 
@@ -60,13 +66,19 @@ EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-ed
 
 手动保存不清空历史；savedRevision / savedDocument 独立更新，撤销后仍按最新 revision 手动保存。时间草稿仍需提交才进入保存快照。
 
+`workspace-changes.ts` 唯一投影文档变化和未应用时间输入，导航保护、本机草稿、QC 和诊断共用结果。文档按快照内容比较，手动改回原值或撤销到保存版本均为已保存；本地工作区对比初始化的空白基准。加载项目、视频或历史步骤存在本身不表示未保存。
+
+`WorkbenchHandle.leaveState` 及 `onLeaveStateChange` 只提供 unsaved/pendingTiming/canSave/busy 读模型给 App，不交出字幕所有权。离开工作区的当前标签页导航在 commit 前检查此状态：取消保留页面/输入/媒体；「保存并离开」复用原保存接口，保存失败或仍有未保存内容时不跳转；「明确放弃并继续」销毁原实例并清理活跃 IndexedDB 草稿。已保存实例可以隐藏保留，后续新建项目不再提示旧稿。进行中的工作区操作禁止保存/放弃；未应用时间禁止「保存并离开」，提示取消后应用或明确放弃。普通「保存项目」仍只保存已应用文档。刷新/关闭的 beforeunload 也只保护实际未保存内容及进行中操作。新标签页链接不影响来源实例。
+
+纯规则回归见 `workspace-changes.test.ts`、`app-workspace/navigation-transition.test.ts`；真实 App/历史/保存/媒体回归见 `npm run test:workspace-navigation`。
+
 工作台通过 contracts/projects.ProjectSaveRequest 显式传递当前 document、已保存 baseDocument/revision 和历史所需样式 ID 给 onSave；app-workspace/project-data 返回实际保存的 document 与摘要。明确 project_conflict 后，只有服务器 cues 与 baseDocument 完全相同、source 不变、本地样式/脚本仍等于基准、当前与全部 past/future 引用的 style_id 仍存在，才把最新定义与本地 cues 组合重试一次。远端字幕编辑（包括仅分配样式）、样式删除影响历史、未知网络结果或第二次竞争保留原文档、草稿、历史和 revision；不自动选择替代样式。拆分接口仍沿用原有冲突保护，不自动重试。
 
 只有保存成功后，use-edit-history.adoptStyles 调用 history-styles.adoptHistoryStyles 将权威 source/styles/script 映射到当前及撤销/重做的每个文档。按原文档引用缓存转换，保留共享引用与保存按钮基准，不增加历史步骤、不清空重做分支，不改变 cues、选择或时间字符串。epoch 更新使旧原生输入栈失效；媒体/视窗/实例不重建。historyStyleIds 包括已删除/已撤销的行，防止将来撤销恢复悬空样式引用。本地工作区样式编辑保持原有可撤销语义，不走此流程。
 
 项目拆分成功立即保存完整快照，并独立更新 revision/保存基准；本地一步历史可恢复拆分前完整编辑状态。撤销不发送请求，下一次手动保存才更新服务器；失败不修改内容、草稿或历史。本地拆分无持久化。
 
-普通导出和离开前的备份导出统一调用 `exportDraft`，文件名由 `export-filename.ts` 生成：`项目名称_YYYY-MM-DD_HH-mm-ss.ass`，使用下载时的浏览器本地时间（精确到秒）。名称替换文件系统非法字符并限制为 80 个字符；本地工作区使用 `cuerelay` 前缀。只导出当前已应用的文档，不提交时间草稿或保存项目。
+普通 ASS 导出和离开前的备份导出统一调用 `exportDraft`，文件名由 `export-filename.ts` 生成：`项目名称_YYYY-MM-DD_HH-mm-ss.ass`，使用下载时的浏览器本地时间（精确到秒）。名称替换文件系统非法字符并限制为 80 个字符；本地工作区使用 `cuerelay` 前缀。只导出当前已应用的文档，不提交时间草稿或保存项目。
 
 成功导入建立新基线、清除旧历史；失败保留。实例隐藏/恢复保留历史；显式重载、切项目/组织/账号和销毁由 app-workspace/App 的原有 clear/挂载 generation 生命周期创建新历史。确认恢复本机草稿也建立新历史基线。
 

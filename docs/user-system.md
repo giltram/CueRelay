@@ -79,7 +79,7 @@ shared/timing-shortcuts.json 是默认动作、名称、绑定的唯一权威来
 
 ## 编辑保护
 
-App 拥有账号/组织上下文，EditorWorkbench 暴露 hasContent/exportDraft。首次会话检查完成前不挂载编辑器；曾登录后的会话失效只改变账号提示，保留组件实例、字幕、未应用时间、选中行、本地 File/Object URL 与 video。每 30 秒、窗口重新聚焦/可见时重新检查会话；受保护请求返回 authentication_required/account_changed 也触发原位重新登录。一般权限或 CSRF 错误不会被误当成会话过期。
+App 拥有账号/组织上下文，EditorWorkbench 暴露 leaveState/saveProject/exportDraft/discardDraft；App 在同标签页离开工作区或替换资源前检查未保存文档/时间输入，保存成功才继续，明确放弃才清除原实例及活跃草稿。首次会话检查完成前不挂载编辑器；曾登录后的会话失效只改变账号提示，保留组件实例、字幕、未应用时间、选中行、本地 File/Object URL 与 video。每 30 秒、窗口重新聚焦/可见时重新检查会话；受保护请求返回 authentication_required/account_changed 也触发原位重新登录。一般权限或 CSRF 错误不会被误当成会话过期。
 
 同账号重新登录和普通会话刷新不改变编辑器 key。只有用户明确放弃后切换组织/账号，或退出并再次进入，才创建新工作区。有字幕、导入标记、时间输入、本地视频、转换中或待确认导入即要求处理；保护弹窗提供导出、取消、明确放弃。导出只含已应用字幕，弹窗明确提示先取消并应用需要保留的时间输入。导出不自动放弃，失败也保持当前稿件。
 

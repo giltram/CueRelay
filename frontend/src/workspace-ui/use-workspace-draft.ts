@@ -1,20 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DraftAutosave, type DraftStatus } from '../workspace-drafts/autosave';
-import type { DraftContent, TimingDraft, WorkspaceDraft } from '../workspace-drafts/model';
+import type { DraftContent, WorkspaceDraft } from '../workspace-drafts/model';
 import { openDraftStore, type DraftStore } from '../workspace-drafts/store';
 import { activeDraftTabs, draftTab, withInactiveDraftTab } from '../workspace-drafts/tab';
-import { formatTime } from '../media/playback';
-import type { EditState } from './edit-history';
-import type { Cue } from '../contracts/subtitles';
-
-export function unappliedTiming(state: EditState, cue?: Cue): TimingDraft | null {
-  const unselectedEndMs = state.unselectedEndMs ?? 0;
-  const start = formatTime(cue?.start_ms ?? 0);
-  const end = formatTime(cue?.end_ms ?? unselectedEndMs);
-  if (state.startText === start && state.endText === end) return null;
-  return { cueId: state.selectedId, startText: state.startText, endText: state.endText,
-    ...(cue ? {} : { unselectedEndMs }) };
-}
 
 interface Session { store: DraftStore; tabId: string; autosave: DraftAutosave; mounted: boolean }
 

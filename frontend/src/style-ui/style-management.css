@@ -25,6 +25,7 @@
 .style-sample-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 240px; background: #17231f; overflow: hidden; }
 .style-sample-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .style-script { margin-block: 12px; }
+.style-import > .controls { align-items: flex-end; }
 .style-template-list, .style-cue-list { max-height: 260px; overflow: auto; margin-block: 12px; }
 .style-template-option { padding: 8px 0; border-bottom: 1px solid var(--border); }
 .style-template-option > .style-field-grid { margin-top: 8px; }

@@ -1,6 +1,8 @@
 # 项目面板
 
-ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、管理入口）；ProjectForm 负责名称/说明、媒体/ASS 初始化及可选版本化组织模板/脚本设置；ProjectSettingsPage 负责独立设置页的加载、名称/说明编辑、项目样式管理和冲突后的显式版本刷新。App 拥有当前组织和切换保护，app-workspace 拥有单个保留工作区，面板不读取 EditorWorkbench 内部状态。
+初始字幕选择现在接受 ASS / SRT。SRT 经 `project-data/subtitle-api → /api/srt/import` 转为含完整 ASS source 的 v2 文档，使用新文档既有 Default/脚本默认值；选中后的脚本设置、显式组织模板导入仍沿原初始化规则。创建继续提交 ASS source，不增格式字段/第二份模型；已有项目仍不允许文件替换。编码、舍入和标签限制见 [SRT 格式契约](../../../backend/srt_format/README.md)，实际创建/保存/重载回归见 regression/srt.spec.mjs。
+
+ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、管理入口）；ProjectForm 负责名称/说明、媒体/字幕初始化及可选版本化组织模板/脚本设置；ProjectSettingsPage 负责独立设置页的加载、名称/说明编辑、项目样式管理和冲突后的显式版本刷新。App 拥有当前组织和切换保护，app-workspace 拥有单个保留工作区，面板不读取 EditorWorkbench 内部状态。
 
 公开输入是 Organization、localOrganizationId、localScopeReady、contracts/http.JsonRequest、navigate、创建前保护/创建成功和生命周期回调。localOrganizationId 由 App 的路由/选择 ID 提供，已知显式组织时本地工作区链接不等待 Organization 返回；默认组织尚未确定时，localScopeReady=false 使同一入口禁用，成功确定组织或确认没有组织后才开放，避免入口范围随首次加载变化而找不到旧稿。项目 API 仍只使用已解析的 Organization。项目名称、项目设置、本地工作区使用 navigation.RouteLink 的真实 href；路径解析/生成不属于面板。所有 HTTP 契约封装在 project-data/projects-api.ts，DTO 在 contracts/projects.ts。media/media-manifest.ts 只负责本地媒体元数据与 Worker 完整 SHA-256，不依赖 UI/账号。
 
@@ -10,9 +12,9 @@ App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显�
 
 数据接纳与页码校正分开：旧成功结果可以补齐当前页数据并记录有效末页，但较新检查仍在途时不能自动回退。最新成功确认越界可立即校正；所有请求收尾后按最后接纳的有效总数校正，较新 503 等暂时失败不使该总数失效。明确权限/资源拒绝清除总数及行数据。同查询发起读取/重试和自动校正页码不清除现有错误，只有可接纳的成功反馈才清除，保留较新失败而不让旧成功抹掉提示。切换组织/可用性/状态/搜索清除旧查询反馈，用户手动翻页与重选当前状态标签引起的页码重置统一经 changePage 清除旧页错误；两者与自动校正区分，避免新查询仍显示旧错误和重试按钮。上述边界的回归见 `npm run test:resource-response-races` 的 completion/pagination/settled/isolation/reselect/search 组。
 
-同文档历史浏览列表保持 EditorWorkbench 挂载，但隐藏并暂停其播放和全局快捷键；默认新开列表不改变来源工作区；同文档历史重新进入同一项目恢复当前快照；默认链接新开标签页并加载独立服务器快照，切项目/组织/账号或重新加载先走导出/取消/明确放弃。App 的同账号会话刷新不会替换文档或接纳新的保存 revision。
+同文档离开工作区前检查未保存改动；无改动或保存成功后浏览列表保持 EditorWorkbench 挂载，但隐藏并暂停其播放和全局快捷键；明确放弃则清除原实例和活跃草稿；默认新开列表不改变来源工作区；同文档历史重新进入同一项目恢复当前快照；默认链接新开标签页并加载独立服务器快照，离开工作区、切项目/组织/账号或重新加载按实际未保存状态提供保存并离开、导出备份、取消或明确放弃。App 的同账号会话刷新不会替换文档或接纳新的保存 revision。
 
-归档只读；保存冲突保留字幕和时间草稿，重新加载需要明确放弃。项目保存仅包含已应用字幕，不含未应用时间、File 或视频；没有自动保存。文件完整匹配后才允许修改字幕。项目工作区不提供替换原始 ASS 导入；独立样式管理面板通过具名接口修改结构化样式/脚本，保留原始模板锚点。
+归档只读；保存冲突保留字幕和时间草稿，重新加载需要明确放弃。项目保存仅包含已应用字幕，不含未应用时间、File 或视频；没有自动保存。文件完整匹配后才允许修改字幕。项目工作区不提供替换原始字幕文件导入；独立样式管理面板通过具名接口修改结构化样式/脚本，保留原始模板锚点。
 
 验证：media/file-hash.test.ts、frontend/browser-tests/projects.mjs。浏览器播种脚本 backend/browser_tests/seed_projects.py 只接受新建的 cuerelay_projects_browser 数据库。
 
@@ -24,7 +26,9 @@ App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显�
 
 项目列表页头右上角「设置」导航由 App 注入，设置页归 account-ui。列表不提供「返回工作区」；仅同文档浏览器历史恢复保留实例；默认点击项目入口使用独立新标签页。
 
-文件选择取消：原生 input[type=file] 的 cancel 会冒泡，Modal 仅处理 target=currentTarget 的弹窗自身取消；视频/ASS 选择器取消不关闭弹窗，不清除名称、说明或之前校验成功的文件。空文件 change 也直接忽略。视频校验、ASS 预检完成前禁止创建；失败保留表单以便重试。浏览器复现/回归：project-form.mjs；旧创建地址兼容测试在 navigation/routes.test.ts。
+初始字幕是基准视频下方的可选文件项。选中后显示文件名并可更换或移除。字幕预检失败时须更换或移除该文件才可创建。更换以新文件为样式和脚本设置的基准，移除恢复空文档的基准。视频与已选字幕均通过校验后，「创建并打开」提交已验证的 ASS 源文本（SRT 已转换），留空时提交 `source: null`。
+
+原生 input[type=file] 的 cancel 会冒泡，Modal 仅处理 target=currentTarget 的弹窗自身取消。取消文件选择和空文件 change 均保留表单及当前文件。回归见 `npm run test:project-form`，旧创建地址兼容测试在 navigation/routes.test.ts。
 
 项目列表所有成员均有「项目设置」入口；管理员另有「归档项目」或「恢复项目」，无折叠菜单或打开按钮；点击项目名称进入工作区。「项目设置」默认新开 `/organizations/:organizationId/projects/:projectId/settings`。设置页自行调用 project-data 获取目标详情，不挂载或接纳字幕工作区；只允许 can_manage 且未归档的项目修改名称/说明。所有成员可管理活动项目样式，归档时仅查看，无需选择视频。设置页组合 style-ui/ProjectStyleManager，以 subtitle-model/cue-order 提供已保存字幕的显示顺序，不依赖 workspace-ui 内部实现。
 

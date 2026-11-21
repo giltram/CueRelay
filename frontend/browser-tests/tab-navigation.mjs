@@ -140,17 +140,22 @@ try {
   await creation.locator('video').evaluate(video => video.pause());
   const beforeHome = context.pages().length;
   await creation.getByRole('link', { name: 'CueRelay', exact: true }).click();
+  const guard = creation.getByRole('dialog', { name: '离开工作区', exact: true });
+  await guard.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(new URL(creation.url()).pathname, projectPath);
+  assert.equal(await creation.getByLabel('字幕中文文本').inputValue(), snapshot.text);
+  assert(await creation.locator('video').evaluate(video => video === window.__tabVideo));
+  // Apply the pending time explicitly before saving and leaving.
+  await creation.locator('.audio-stage').focus(); await creation.keyboard.press('KeyG');
+  await creation.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  await creation.getByRole('link', { name: 'CueRelay', exact: true }).click();
+  await guard.getByRole('button', { name: '保存并离开', exact: true }).click();
   await creation.waitForURL(new URL('/', baseURL).href);
   assert.equal(context.pages().length, beforeHome);
-  await creation.getByLabel('当前组织', { exact: true }).selectOption(String(other.id));
-  const guard = creation.getByRole('dialog', { name: '切换组织', exact: true });
-  await guard.getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(creation.url()).pathname, '/');
-  assert.equal(await creation.getByLabel('当前组织', { exact: true }).inputValue(), String(org.id));
   await creation.goBack(); await creation.locator('video').waitFor();
   assert.equal(await creation.getByLabel('字幕中文文本').inputValue(), snapshot.text);
   assert(await creation.locator('video').evaluate(video => video === window.__tabVideo));
-  record('CueRelay 继续原 tab 返回首页；组织只能在列表切换，取消保护后 URL/组织/原工作区一致');
+  record('CueRelay 在原 tab 离开前确认；取消保留页面/输入/视频，应用时间并保存后回首页，历史恢复已保存实例');
 
   const errorPage = await context.newPage();
   await errorPage.goto(`${listPath}/999999999/workspace`);

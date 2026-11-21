@@ -17,6 +17,7 @@ import type projectData from './locales/en/projectData.json';
 import type projectUi from './locales/en/projectUi.json';
 import type server from './locales/en/server.json';
 import type shortcuts from './locales/en/shortcuts.json';
+import type srt from './locales/en/srt.json';
 import type styleUi from './locales/en/styleUi.json';
 import type subtitleModel from './locales/en/subtitleModel.json';
 import type subtitleQc from './locales/en/subtitleQc.json';
@@ -40,6 +41,7 @@ export interface TranslationResources {
   projectUi: typeof projectUi;
   server: typeof server;
   shortcuts: typeof shortcuts;
+  srt: typeof srt;
   styleUi: typeof styleUi;
   subtitleModel: typeof subtitleModel;
   subtitleQc: typeof subtitleQc;

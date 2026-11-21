@@ -20,9 +20,15 @@
   "leaveThisOrganization": "退出此组织",
   "reloadProject": "重新加载项目",
   "internalAccountsAreCreatedByTheSiteAdministrator": "内部账号由站点管理员创建。",
-  "continuingDiscardsLocalSubtitlesUnappliedTimeInputsAnd": "继续将放弃当前本地字幕、尚未应用的时间输入和视频。导出包含已应用的字幕；请取消后应用需要保留的时间输入，再导出。",
   "exportingKeepsThisDialogOpenCheckTheDownload": "导出后仍会停留在此处，确认下载后再明确放弃。",
   "exportAss": "导出 ASS",
   "cancel": "取消",
-  "discardAndContinue": "明确放弃并继续"
+  "discardAndContinue": "明确放弃并继续",
+  "leaveWorkspace": "离开工作区",
+  "unsavedChangesBeforeLeaving": "当前工作区有未保存的改动。请保存后离开，或明确放弃这些改动；已保存的项目不会被删除。",
+  "confirmTransition": "确认继续此操作？已保存的项目不会被删除。",
+  "applyTimeInputsBeforeLeaving": "还有尚未应用的时间输入，保存和导出都不会包含它们。请取消并应用需要保留的输入，或明确放弃后继续。",
+  "waitForWorkspaceOperation": "正在处理工作区操作，请等待完成后再继续。",
+  "saveAndLeave": "保存并离开",
+  "unsavedChangesRemain": "工作区仍有未保存的改动，请取消并检查后重试。"
 }

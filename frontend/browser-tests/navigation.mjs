@@ -81,8 +81,7 @@ try {
   await page.getByLabel('项目名称', { exact: true }).fill(title);
   await page.getByLabel('基准视频', { exact: true }).setInputFiles(videoFile);
   await page.getByText(/完整校验通过/).waitFor();
-  await page.getByLabel('初始字幕', { exact: true }).selectOption('import');
-  await page.getByLabel('ASS 文件', { exact: true }).setInputFiles(assFixture);
+  await page.getByLabel('选择 ASS / SRT 文件', { exact: true }).setInputFiles(assFixture);
   await page.getByText(/字幕预检通过/).waitFor();
   await modal('新建项目').getByRole('button', { name: '创建并打开', exact: true }).click();
   await page.waitForURL(/\/projects\/\d+\/workspace$/);
@@ -93,6 +92,10 @@ try {
   await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await workspace(page).fill('导航未保存字幕');
   await page.getByLabel('入点', { exact: true }).fill('0:00:00.30');
+  await page.locator('.audio-stage').focus(); await page.keyboard.press('KeyG');
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  await page.getByRole('button', { name: '保存项目', exact: true }).click();
+  await page.getByText('项目已保存。尚未应用的时间输入不包含在本次保存中。', { exact: true }).waitFor();
   await setAudioMode(page, 'waveform');
   await page.locator('video').evaluate(video => { video.currentTime = 1.25; });
   await page.waitForFunction(() => Math.abs(document.querySelector('video').currentTime - 1.25) < 0.01);
@@ -120,7 +123,7 @@ try {
   assert.equal(new URL(page.url()).pathname, projectPath);
   assert.deepEqual(await draftSnapshot(), snapshot);
   assert.equal(await page.locator('video').evaluate(video => video.currentTime), 1.25);
-  record('设置为独立个人/组织 URL；浏览设置不要求放弃，隐藏工作区暂停快捷键，回退保留节点/视频/字幕/时间草稿');
+  record('设置为独立个人/组织 URL；已保存工作区浏览设置不要求放弃，隐藏工作区暂停快捷键，回退保留节点/视频/字幕/时间草稿');
 
   const home = page.getByRole('link', { name: 'CueRelay', exact: true });
   assert.equal(await home.getAttribute('href'), '/');
@@ -129,7 +132,7 @@ try {
   assert.equal(await modal('打开其他项目').count(), 0);
   await page.goBack(); await page.waitForURL('**' + projectPath); await workspace(page).waitFor();
   assert.deepEqual(await draftSnapshot(), snapshot);
-  record('点击 CueRelay 返回并保持 / 首页，浏览器回退恢复原工作区和未保存草稿');
+  record('点击 CueRelay 返回并保持 / 首页，浏览器回退恢复已保存工作区和媒体');
 
   await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
   assert.equal(await page.getByRole('link', { name: '返回工作区', exact: true }).count(), 0);
@@ -178,7 +181,8 @@ try {
   await listTab.getByLabel('导入本地视频').setInputFiles(videoFile);
   await listTab.getByRole('button', { name: '选择第 1 行', exact: true }).click();
   await listTab.waitForFunction(() => !document.querySelector('textarea').disabled);
-  assert.notEqual(await workspace(listTab).inputValue(), snapshot.text);
+  assert.equal(await workspace(listTab).inputValue(), snapshot.text);
+  await workspace(listTab).fill('新标签页独立修改');
   assert.deepEqual(await draftSnapshot(), snapshot);
   await middleTab.close(); await modifierTab.close(); await listTab.close();
   record('项目链接支持中键/Cmd 或 Ctrl/普通点击；刷新保持指定 URL，新标签页独立选片校验');
@@ -242,66 +246,39 @@ try {
   await settingsContext.close();
   record('设置直达登录/刷新保持显式组织；新标签页独立、member 无管理入口、无权/不存在有提示，个人/组织设置窄屏无横向溢出');
 
-  // Establish two different project history entries, then guard a pop traversal.
-  await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
-  const second = (await api(listPath, 'POST', { name: title + ' 第二', description: '', media: detail.media, source: null })).project;
-  await page.getByLabel('搜索项目', { exact: true }).fill(second.name);
-  const secondLink = page.getByRole('link', { name: second.name, exact: true });
-  await sameTab(secondLink); await modal('打开其他项目').waitFor();
-  assert.equal(new URL(page.url()).pathname, listPath);
-  await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, listPath);
-  await page.getByLabel('搜索项目', { exact: true }).fill(title);
-  await sameTab(page.getByRole('link', { name: title, exact: true }));
-  await workspace(page).waitFor(); assert.deepEqual(await draftSnapshot(), snapshot);
-  assert.equal(await page.getByLabel('当前组织', { exact: true }).count(), 0);
-  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
-  await page.getByLabel('当前组织', { exact: true }).selectOption(String(otherOrg.id));
-  await modal('切换组织').waitFor();
-  await modal('切换组织').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, '/');
-  assert.equal(await page.getByLabel('当前组织', { exact: true }).inputValue(), String(org.id));
-  await page.goBack(); await workspace(page).waitFor();
-  await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
-  await page.waitForURL('**' + listPath);
+  // Dirty navigation now confirms while the editor is still visible.
+  await page.goBack(); await page.waitForURL('**' + listPath);
+  const second = (await api(listPath, 'POST', { name: title + ' 第二', description: '', media: detail.media, source: detail.document.source })).project;
   await page.getByLabel('搜索项目', { exact: true }).fill(second.name);
   await sameTab(page.getByRole('link', { name: second.name, exact: true }));
-  await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   const secondPath = `${listPath}/${second.id}/workspace`;
   await page.waitForURL('**' + secondPath); await workspace(page).waitFor();
-  await page.goBack(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
-  // The earlier A entry is before this list; returning to A replaces retained B.
-  await page.goBack();
-  await modal('打开其他项目').waitFor();
-  assert.equal(new URL(page.url()).pathname, listPath);
-  await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, listPath);
-  await page.goBack(); await modal('打开其他项目').waitFor();
-  await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
-  await page.waitForURL('**' + projectPath); await workspace(page).waitFor();
-  await page.goForward(); await page.waitForURL('**' + listPath); await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
-  await page.goForward(); await modal('打开其他项目').waitFor();
-  await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, listPath);
-  await page.goForward(); await modal('打开其他项目').waitFor();
-  await modal('打开其他项目').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
-  await page.waitForURL('**' + secondPath); await workspace(page).waitFor();
-  await page.evaluate(() => history.go(-2));
-  await modal('打开其他项目').waitFor();
-  assert.equal(new URL(page.url()).pathname, secondPath);
-  await modal('打开其他项目').getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(page.url()).pathname, secondPath);
-  record('取消项目/组织链接及受保护回退后，URL、组织与保留的工作区一致');
-
+  await page.getByLabel('导入本地视频').setInputFiles(videoFile);
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  await workspace(page).fill('离开前的未保存字幕');
   const protectedPath = page.url();
-  await page.getByRole('link', { name: '项目列表', exact: true }).evaluate(link => { link.target = '_self'; link.click(); });
-  await page.getByRole('heading', { name: '项目', exact: true }).waitFor();
+  await sameTab(page.getByRole('link', { name: '设置', exact: true }));
+  await modal('离开工作区').waitFor();
+  assert.equal(page.url(), protectedPath);
+  assert(await workspace(page).isVisible());
+  await modal('离开工作区').getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(await workspace(page).inputValue(), '离开前的未保存字幕');
+  await page.goBack(); await modal('离开工作区').waitFor();
+  assert.equal(page.url(), protectedPath);
+  await modal('离开工作区').getByRole('button', { name: '取消', exact: true }).click();
+  await page.goBack(); await modal('离开工作区').waitFor();
+  await modal('离开工作区').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
+  await page.waitForURL('**' + listPath);
+  await page.goForward(); await page.waitForURL('**' + secondPath);
+  await page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
+  assert.notEqual(await workspace(page).inputValue(), '离开前的未保存字幕');
+  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
+  await page.waitForURL(new URL('/', baseURL).href);
   await page.getByRole('button', { name: '新建项目', exact: true }).click();
-  await modal('新建项目').waitFor();
-  assert.equal(await page.getByLabel('项目名称', { exact: true }).count(), 0);
+  await page.getByLabel('项目名称', { exact: true }).waitFor();
   await modal('新建项目').getByRole('button', { name: '取消', exact: true }).click();
-  await sameTab(page.getByRole('link', { name: second.name, exact: true }));
-  await workspace(page).waitFor(); assert.equal(page.url(), protectedPath);
+  record('离开前取消设置/后退保留原页面和字幕；明确放弃后历史重返服务器快照，后续新建直接打开表单');
+
   // Isolate the native cancelled-navigation probe from history traversal tests.
   const reloadContext = await browser.newContext({ locale: 'zh-CN', baseURL, storageState: await context.storageState() });
   const reloadPage = await reloadContext.newPage();
@@ -320,7 +297,7 @@ try {
   assert.equal(await reloadPage.locator('video').evaluate(video => video.src), beforeReload);
   reloadPage.removeAllListeners('dialog'); reloadPage.on('dialog', dialog => dialog.accept());
   await reloadPage.goto('about:blank'); await reloadContext.close();
-  record('创建前可取消旧工作区替换；实际刷新触发 beforeunload，取消刷新保留当前页面');
+  record('已保存内容不产生新建保护；未保存内容刷新触发 beforeunload，取消刷新保留当前页面');
 
   // Create archive/permission fixtures using the real server's authorization.
   const dev = await browser.newContext({ locale: 'zh-CN', baseURL });
@@ -397,17 +374,19 @@ try {
   await login(local, 'project-empty'); await modal('重新登录', local).waitFor({ state: 'hidden' });
   assert(await local.locator('video').evaluate(video => video === window.__localSessionVideo));
   await sameTab(local.getByRole('link', { name: '设置', exact: true }));
+  await modal('离开工作区', local).getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(new URL(local.url()).pathname, '/workspace/local');
+  assert.equal(await local.getByLabel('字幕中文文本').inputValue(), '本地会话保护草稿');
+  await sameTab(local.getByRole('link', { name: '设置', exact: true }));
+  await modal('离开工作区', local).getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await local.getByRole('heading', { name: '个人设置', exact: true }).waitFor();
   assert.equal(await local.getByRole('link', { name: '组织设置', exact: true }).count(), 0);
   await local.getByText('暂无可用组织。请联系管理员添加成员后使用组织设置。', { exact: true }).waitFor();
-  await local.getByRole('button', { name: '退出账号', exact: true }).click();
-  await modal('退出账号', local).getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(new URL(local.url()).pathname, '/settings');
   await local.goBack(); await workspace(local).waitFor();
   assert.equal(new URL(local.url()).pathname, '/workspace/local');
-  assert.equal(await local.getByLabel('字幕中文文本').inputValue(), '本地会话保护草稿');
+  assert.equal(await local.getByLabel('字幕中文文本').inputValue(), '');
   await localContext.close();
-  record('无组织本地入口明确；同账号恢复、取消跨账号切换/退出均保留本地草稿与 video');
+  record('无组织本地入口明确；同账号恢复及取消跨账号切换/离开保留本地草稿；明确放弃后设置和历史恢复正常');
 
   // These requests prove the development/preview fallback does not swallow API/Admin.
   for (const path of [projectPath, listPath, '/workspace/local', '/settings', `/organizations/${org.id}/settings/organization`]) {

@@ -4,6 +4,10 @@
 
 现有功能套件入口见 `package.json` 的 `test:*`，要求已安装 Chrome、FFmpeg、Node 和仓库 `.venv`。`ass-codec.mjs` 调用后端纯 codec 创建合法夹具，不访问数据库。脚本分别使用各自的 URL 环境变量，默认地址请查看对应文件。
 
+## 工作区离开确认
+
+启动 `npm run dev -- --port 5241 --strictPort` 后运行 `npm run test:workspace-navigation`（`WORKSPACE_NAVIGATION_URL` 可覆盖）。使用 Chromium、真实 Python ASS codec、合成视频和 IndexedDB，项目 HTTP 使用可控保存夹具，不写业务数据库。覆盖已保存/改回原值不提示、回首页后直接新建、离开前取消保留输入与节点、保存延迟/失败/重试、未应用时间及导出备份、明确放弃与历史重返、浏览器前进/后退、新标签页隔离、空白本地工作区/非法时间输入及英文交互。
+
 ## 会话上下文刷新
 
 启动 `npm run dev -- --port 5173 --strictPort` 后运行 `npm run test:context-refresh`（`CONTEXT_REFRESH_URL` 可覆盖地址）。使用 Chromium、纯 Python codec、可控延迟 HTTP 和真实 IndexedDB，不写应用数据库。九组覆盖显式组织页的早开本地草稿范围与恢复（`local`）、持续重叠组织读取与旧权限隔离（`overlapping`）、退出后慢设置不阻塞列表（`leave`）、按资源清理错误（`retry`）、首页默认组织未知/首次失败/成功后相同入口恢复及无组织入口（`home`）、较新 503 不遮蔽成功撤权（`revocation`）、首次项目列表持续刷新与权限拒绝（`projects`）、账号切换后慢设置不阻塞明确放弃的草稿清理（`account`）、成功会话确认后迟到 401 静默且当前 401 正常登录保护（`authentication`）。可用括号内参数单独运行。

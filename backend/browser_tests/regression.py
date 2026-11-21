@@ -71,6 +71,15 @@ class WorkspaceRegressionTests(LiveServerTestCase):
     def test_save_refresh_history(self):
         self.run_browser('save refresh and history')
 
+    def test_srt_local(self):
+        self.run_browser('srt local import failure')
+
+    def test_srt_project(self):
+        self.run_browser('srt project creation')
+
+    def test_srt_english_narrow(self):
+        self.run_browser('srt english narrow')
+
     def test_conflict_preserves_local_edits(self):
         self.run_browser('conflict preserves local edits')
 

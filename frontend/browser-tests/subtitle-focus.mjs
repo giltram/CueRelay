@@ -290,7 +290,7 @@ try {
   assert.equal(await dispatchTab(main), false);
   await dialog.getByRole('button', { name: '关闭', exact: true }).click();
 
-  await page.getByLabel('导入基础 ASS').setInputFiles({ name: 'replacement.ass', mimeType: 'text/plain', buffer: Buffer.from('[Script Info]') });
+  await page.getByLabel('导入 ASS / SRT 字幕').setInputFiles({ name: 'replacement.ass', mimeType: 'text/plain', buffer: Buffer.from('[Script Info]') });
   await page.getByRole('button', { name: '替换当前字幕', exact: true }).waitFor();
   await main.focus(); assert.equal(await dispatchTab(main), false); assert(await focused(main));
   await page.getByRole('button', { name: '替换当前字幕', exact: true }).click();

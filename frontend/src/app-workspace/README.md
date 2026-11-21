@@ -12,9 +12,9 @@ clear/adoptCreated、本地实例替换或会话禁用使旧状态上下文失�
 
 App 以登录会话启用工作区加载，请求由项目接口校验访问权限。个人设置独立加载，工作台先使用当前账号已知设置或默认值，设置更新通过 props 应用到原实例。
 
-浏览个人设置、同组织设置或列表时不 clear，不卸载 EditorWorkbench；隐藏时由既有 visible 契约暂停播放和快捷键。新标签页列表不改变本页路由或 visible，不主动暂停视频。只有跨项目/本地工作区/组织/账号的已确认替换和显式重载才能替换实例。App 按挂载实例传入账号、组织和项目范围供工作台保护本机草稿。草稿存储由 [workspace-drafts](../workspace-drafts/README.md) 管理。本机媒体句柄依旧独立于字幕与历史。
+离开工作区进入个人设置、同组织设置或列表前，App 根据 WorkbenchHandle.leaveState 检查实际未保存改动及进行中操作；取消则留在原路由。无改动或保存成功后不 clear，不卸载 EditorWorkbench；明确放弃则 clear 并删除原活跃草稿；隐藏时由既有 visible 契约暂停播放和快捷键。新标签页列表不改变本页路由或 visible，不主动暂停视频。跨项目/本地工作区/组织/账号的已确认替换、显式重载及离开前明确放弃会替换或清空实例。App 按挂载实例传入账号、组织和项目范围供工作台保护本机草稿。草稿存储由 [workspace-drafts](../workspace-drafts/README.md) 管理。本机媒体句柄依旧独立于字幕与历史。
 
-依赖方向：App → app-workspace → project-data/contracts/request-state/navigation 的路由类型及 media 的 SelectedVideo/InitialVideo 类型；workspace-ui 不依赖 app-workspace。request-state 是无外部依赖的读取顺序策略。单元路由检查及 projects/navigation/main-audio-integration 浏览器测试覆盖集成边界。
+`navigation-transition.ts` 提供离开/替换工作区的纯导航决策，不读取编辑状态或操作 History API；App 组合此结果与工作台只读离开状态。依赖方向：App → app-workspace → project-data/contracts/request-state/navigation 的路由类型及 media 的 SelectedVideo/InitialVideo 类型；workspace-ui 不依赖 app-workspace。request-state 是无外部依赖的读取顺序策略。单元路由检查及 projects/navigation/main-audio-integration 浏览器测试覆盖集成边界。
 
 `split` 与 save 使用同一个 account request、显式 revision、updateSummary 与归档错误处理，经 projects-api.split 调用后端。只返回结果给 EditorWorkbench，由后者成功后替换自己的 document/savedRevision。请求期间编辑器冻结本次快照；失败继续保留当前内容。没有轮询采用远端文档或第二份字幕 store。项目拆分本身会保存完整工作快照（含当前时间草稿），详见 docs/editing-operations.md。
 

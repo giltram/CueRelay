@@ -170,7 +170,7 @@ test.describe('English narrow workspace', () => {
     const source = `${header}Dialogue: 2,0:00:03.00,0:00:04.00,Emphasis,Actor,0010,0020,0030,,Late\n`
       + 'Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0000,0000,0000,,Early\n'
       + 'Dialogue: 0,0:00:02.00,0:00:02.00,Default,,0000,0000,0000,,Separate\n';
-    await page.getByLabel('Import basic ASS', { exact: true }).setInputFiles({ name: 'merge.ass', mimeType: 'text/plain', buffer: Buffer.from(source) });
+    await page.getByLabel('Import ASS / SRT subtitles', { exact: true }).setInputFiles({ name: 'merge.ass', mimeType: 'text/plain', buffer: Buffer.from(source) });
     await expect(rows(page)).toHaveCount(3);
     const originalIds = await ids(rows(page));
     const [earlyId, separateId, lateId] = originalIds;
@@ -230,9 +230,11 @@ test.describe('English narrow workspace', () => {
     const request = await paused.promise;
     const canceled = page.waitForEvent('requestfailed', candidate => candidate === request);
     await sameTab(page.getByRole('link', { name: 'Settings', exact: true }));
-    await expect(workspace(page)).toBeHidden();
+    const leave = page.getByRole('dialog', { name: 'Leave workspace', exact: true });
+    await expect(leave).toBeVisible();
+    await expect(workspace(page)).toBeVisible();
     try { await canceled; } finally { release.resolve(); }
-    await page.goBack();
+    await leave.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect.poll(() => ids(rows(page))).toEqual(originalIds);
     await expect.poll(() => ids(selectedRows(page))).toEqual([earlyId, lateId]);
 

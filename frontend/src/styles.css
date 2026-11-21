@@ -271,6 +271,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .project-table td { vertical-align: top; }
 .project-name { border: 0; padding: 0; min-height: 24px; background: transparent; font-weight: 600; white-space: normal; text-align: left; justify-content: start; }
 .project-description { color: var(--text-muted); max-width: 560px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.project-form-subtitle-file { color: var(--text-muted); overflow-wrap: anywhere; }
 .project-pagination { color: var(--text-muted); font-size: 13px; }
 .workspace-project-name { font-size: 13px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {

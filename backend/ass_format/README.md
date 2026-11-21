@@ -4,6 +4,8 @@
 
 ## 公共接口
 
+相邻 `srt_format` 使用本模块公共 `empty_document/parse_ass/serialize_ass` 及 `MAX_BYTES/MAX_CUES/MAX_TIME`，把 SRT 转成同一文档或从已验证文档导出；SRT 规则不进入 ASS codec，本模块没有反向依赖。参见 [SRT 子集](../srt_format/README.md)。
+
 - `parse_ass(source: str) -> document`：完整预检，并复用序列化器检查未编辑快照的规范化输出（包括大小预算）；成功返回的文档可直接导出。失败抛 `AssError`，`issue` 含 code/message 和可获得的源行号。调用者负责 UTF-8 字节解码。
 - `serialize_ass(document: dict) -> str`：校验完整快照，输出 UTF-8 可编码的 ASS 文本。再次预检输出，失败不产出部分文档。
 - `empty_document() -> document`：空文档与基础默认样式，客户端不自行生成 ASS。
