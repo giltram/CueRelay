@@ -83,6 +83,28 @@ class WorkspaceRegressionTests(LiveServerTestCase):
     def test_conflict_preserves_local_edits(self):
         self.run_browser('conflict preserves local edits')
 
+    def test_revocation_preserves_local_edits(self):
+        membership = self.project.organization.memberships.get(user=self.member)
+        self.fixtures['membershipPath'] = (
+            f'/api/organizations/{self.project.organization_id}/members/{membership.pk}')
+        before = (self.project.document, self.project.revision, self.project.media,
+                  self.project.updated_at, self.project.updated_by_id)
+        self.run_browser('workspace revocation preserves local edits and backup')
+        self.project.refresh_from_db()
+        self.assertEqual((self.project.document, self.project.revision, self.project.media,
+                          self.project.updated_at, self.project.updated_by_id), before)
+        self.assertFalse(self.project.organization.memberships.filter(user=self.member).exists())
+
+    def test_lost_save_response_preserves_draft(self):
+        self.fixtures.update(committedText='响应丢失前已提交', recoveredText='明确重载后继续保存')
+        expected = {**self.project.document, 'cues': [
+            {**self.project.document['cues'][0], 'text': self.fixtures['recoveredText']}]}
+        self.run_browser('workspace lost save response preserves draft and recovers explicitly')
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.revision, 3)
+        self.assertEqual(self.project.document, expected)
+        self.assertEqual(self.project.updated_by_id, self.member.pk)
+
     def test_project_styles_refresh_and_retry(self):
         self.run_browser('project styles refresh and retry')
 

@@ -2,6 +2,8 @@
 
 从仓库根目录运行本页命令。测试不需要 `.env`、生产密钥、开发账号或开发数据库。环境要求同根目录 README：Python 3.11、Node 26、npm、FFmpeg；数据库可用 Docker Compose 启动专用 PostgreSQL 16。真实代理回归另需 Nginx。
 
+按已实现功能区分真库 E2E、浏览器 fixture、单元/集成与人工边界的索引见 [测试覆盖矩阵](testing-coverage.md)。统一回归现有 35 场景；下文历史 33 场景的首轮失败、诊断与修复验收保留原记录。
+
 ## 全新克隆准备
 
 ```sh
@@ -182,6 +184,47 @@ npx playwright show-trace test-results/<scenario>/<test-directory>/trace.zip
 docker compose -f compose.test.yml down
 ```
 
+## 数据保护回归（2026-11-22）
+
+新增 `frontend/regression/data-protection.spec.mjs` 两例，既有 33 场景的代码和行为不变，各新增 Django 入口准确选择一个场景：
+
+```sh
+.venv/bin/python backend/manage.py test \
+  browser_tests.regression.WorkspaceRegressionTests.test_revocation_preserves_local_edits \
+  browser_tests.regression.WorkspaceRegressionTests.test_lost_save_response_preserves_draft \
+  --settings=application.test_settings --noinput -v 2
+```
+
+- 撤权：member 已验证片源、修改正文及非法时间后，独立 organizer 会话通过真实成员 DELETE 撤权；focus 触发真实项目 GET 403。原编辑节点、正文、原始时间及完整 IndexedDB 副本保持，编辑/保存/快捷键写入受保护，仍可在现有重载保护弹窗下载完整 ASS 并取消。浏览器无项目 mutation，独立 organizer HTTP 和 Django ORM 确认项目快照/revision/更新时间未变、成员关系已删除。
+- 丢响应：route.fetch 真提交 PUT 后核对 200/revision2及独立 HTTP 快照，再 route.abort；前端显示结果未知，保留 revision1 的原副本和非法时间，无自动重试。之后新增的本机正文用旧 revision 手动保存得到真实409，仍可完整备份/取消；明确重载接纳已提交版本后使用 revision2 保存成功到3，最终 HTTP/ORM 快照一致。所有 PUT 精确为 revision `[1,1,2]`，没有新增恢复 UI 或重试机制。
+- ASS 备份只含已应用文档；非法时间继续保留于输入和本机草稿，保护弹窗沿用“保存和导出都不会包含它们”的说明。下载比较完整文件，包括原脚本/样式/事件元数据及手写 Dialogue 期望。
+
+定向验证已通过 2/2（Django `Ran 2 tests in 15.173s`，命令墙钟15.842秒），两例各自独立冷缓存、真实 Chromium，0失败/错误/跳过/重试；证据 `/private/tmp/cuerelay-data-protection-targeted-k3fbc9cq/`，编排 `/private/tmp/cuerelay-data-protection-run-20261122.py --suite targeted`。loopback PostgreSQL 端口57059，Django 创建并销毁独有测试库；结束仅余 postgres/template0/template1，stop=0/status=3/无PID。沙箱预备尝试 `/private/tmp/cuerelay-data-protection-targeted-9_wb6219` 在绑定端口时被拒绝，未启动集群或Django，不计入场景结果。
+
+**新增两例后的完整独立验收：35/35通过。** 实际编排命令为：
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python /private/tmp/cuerelay-data-protection-run-20261122.py --suite full
+```
+
+该编排调用 Django 完整 `browser_tests.regression --settings=application.test_settings --noinput -v 2`，仅通过临时启动配置分离冷缓存、日志与trace输出；原场景、夹具、断言、`retries: 0` 和仓库 optimizeDeps 不变。Vite 公开 createServer/build 使用 `envFile: false`，不读取 `.env`。
+
+| 本次结果 | 通过 | 失败 | 错误 | 跳过 |
+| --- | ---: | ---: | ---: | ---: |
+| Playwright 场景 | 35 | 0 | 0 | 0 |
+| Django 入口（含最终 ORM 断言） | 35 | 0 | 0 | 0 |
+
+Django 实际为 `Ran 35 tests in 245.582s / OK`，命令墙钟246.259秒，退出码0。35个入口和预期场景逐项一致，每例仅一次 `Running 1 test using 1 worker / 1 passed`，无自动重试；35份全新Vite缓存均在首次启动前不存在，使用仓库include且没有full-reload。两例新增场景在本轮再次通过。代码文件运行前后及当前SHA-256一致，默认Vite缓存哈希未变；运行中仅更正文档对定向Django/墙钟耗时的区分，未改代码。此前33场景历史记录不作为本轮替代证据。
+
+完整证据 `/private/tmp/cuerelay-data-protection-full-wxx0fhoa/` 包含 [逐项CSV](/private/tmp/cuerelay-data-protection-full-wxx0fhoa/scenario-results.csv)、[汇总](/private/tmp/cuerelay-data-protection-full-wxx0fhoa/verified-summary.json)、[完整日志](/private/tmp/cuerelay-data-protection-full-wxx0fhoa/django.log)、`metadata.json`、`selection.log`、每场景的Playwright日志/trace/Vite事件及 `artifact-sha256.json`（172项）。前置选择检查通过：35入口/35场景一一对应，Django unittest 9.385秒（命令墙钟9.450秒）。全新PostgreSQL只监听loopback59136，Django创建并销毁 `test_cuerelay_46617`；清理后仅余postgres/template0/template1，pg_ctl stop=0/status=3/无postmaster PID。不使用keepdb、不访问开发/生产库、不启用Actions。
+
+轻量及静态检查证据在 `/private/tmp/cuerelay-data-protection-checks-20261122/`：
+
+- 相关Vitest四文件36/36通过（140ms）：`project-document-save`、`workspace-drafts/autosave`、`workspace-changes`、`diagnostics/http`。通过 `unit.mjs` 的公开 startVitest API 禁用env文件读取；没有新增镜像实现的单测。
+- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s scripts -p 'test_*.py' -v`：6/6通过，10.058秒，包括实际Playwright发现检查。
+- `npm --prefix frontend run typecheck`、`npm --prefix frontend run i18n:check`、新增JS语法、Python内存compile及 `git diff --check` 均通过。Vite公开build API加载原配置构建通过（2.42秒），保留原许可与手册插件，日志仍有既有大chunk提示以及envFile参数弃用提示。
+- 无产品代码修改，无新增业务模块导入或依赖方向；只新增隔离测试文件/入口和文档。独立只读代码、矩阵及完整证据最终复核均通过，无必须修复问题，报告 `/private/tmp/cuerelay-data-protection-review-20261122.md`；已核对35份冷缓存运行、代码哈希、172项归档证据哈希、静态/构建日志和数据库清理，本次提交归档。
+
 ## 覆盖索引
 
 SRT 格式/HTTP/持久化回归为 `srt_format.tests`、`http_api.test_srt`、`projects.test_srt`，精度、编码、标签和损失契约见 `backend/srt_format/README.md`。真实 Chromium 流程通过以下隔离数据库命令运行，不写开发数据库：
@@ -217,7 +260,7 @@ SRT 格式/HTTP/持久化回归为 `srt_format.tests`、`http_api.test_srt`、`p
 
 实现使用 Django 官方 [LiveServerTestCase](https://docs.djangoproject.com/en/5.2/topics/testing/tools/#liveservertestcase)、Playwright 的 [webServer](https://playwright.dev/docs/test-webserver) 与 GitHub 的 [PostgreSQL service](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers) 机制。产品依赖方向和公开接口没有改变。
 
-本轮不覆盖 Firefox/Safari、真实片源/多声道长媒体、浏览器撤权全链路、完整网络故障矩阵或未来实时协作。后续优先加入撤权后的备份、提交成功但响应丢失，再按风险整理旧浏览器脚本；不用扩大 E2E 数量替代轻量规则测试。
+本轮不覆盖 Firefox/Safari、真实片源/多声道长媒体、完整网络故障矩阵或未来实时协作。新增两例已覆盖编辑中成员删除及 document PUT 提交后丢响应；拆分/样式等其他写入丢响应仍主要由下层测试保护。其余缺口见覆盖矩阵，按风险整理旧浏览器脚本，不用扩大 E2E 数量替代轻量规则测试。
 
 ## 术语表
 
