@@ -140,7 +140,7 @@ class WorkspaceRegressionTests(LiveServerTestCase):
         self.run_browser('workspace merge local')
 
     def test_workspace_draft_local(self):
-        self.run_browser('workspace draft local')
+        self.run_browser('workspace draft local import, export, reload and discard')
 
     def test_workspace_draft_project(self):
         self.run_browser('workspace draft project')
@@ -161,7 +161,7 @@ class WorkspaceRegressionTests(LiveServerTestCase):
         self.run_browser('workspace draft keeps the timing baseline')
 
     def test_workspace_draft_leave(self):
-        self.run_browser('workspace draft discard follows the result of leaving')
+        self.run_browser('saved workspace leaves the organization without losing the project on failure')
 
     def test_workspace_draft_stale_offers(self):
         self.run_browser('workspace draft removes stale offers')
@@ -172,9 +172,8 @@ class WorkspaceRegressionTests(LiveServerTestCase):
         self.run_browser('workspace draft dev can manage after leaving')
 
     def test_workspace_draft_leave_delete_failure(self):
-        organization = create_organization('仍可访问的组织', self.organizer.pk)
-        add_member(self.organizer, organization.pk, self.member.username)
-        self.run_browser('workspace draft leave refreshes after local deletion fails')
+        """The historical entry now covers discarding to home, without leaving an organization."""
+        self.run_browser('workspace discard reaches home and reports local deletion failure')
 
     def test_workspace_draft_concurrent_exports(self):
         self.run_browser('workspace draft concurrent exports keep both offers')

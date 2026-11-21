@@ -27,6 +27,8 @@ export default defineConfig({
       });
     },
   }],
+  // Worker-only imports are discovered after selection; prebundle them to avoid a dev page reload.
+  optimizeDeps: { include: ['@noble/hashes/sha2.js', 'fft.js'] },
   html: { cspNonce: nonce },
   server: {
     port: 5173,

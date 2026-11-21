@@ -104,6 +104,8 @@ delete-row 已纳入个人快捷键设置，默认 Ctrl / Cmd + Delete（也接�
 
 运行和全部验证命令见 [README](../README.md)。当前已有账号/组织数据库、迁移和 Session 认证；已有项目快照存储，尚无 WebSocket 或实时协作。
 
+真实数据库浏览器回归由 `backend/browser_tests/regression.py` 拥有隔离数据库与播种，`frontend/regression` 拥有 Playwright 场景；`scripts/test_regression_selection.py` 仅通过用例发现检查两端入口一一对应，不导入业务模块或启动服务。运行约定见 [测试说明](testing.md)。
+
 - `backend/manage.py`、`application/{settings,urls,asgi}.py`：Django/DRF 组合根，PostgreSQL 与环境配置，默认受保护接口；`application/admin.py` 显式注册 dev 专用 Admin，`identity_admin.py` 协调账号停用与组织约束。
 - `accounts`：AbstractUser（username 同时用于登录和显示）、PersonalSettings、本人密码/设置服务；AccountBackend + LoginAttempt 以 PostgreSQL 行锁共享账号登录限制，统一密码验证器设置 15–1024 字符。见 [局部契约](../backend/accounts/README.md) 与 [安全/部署契约](account-security.md)。不依赖 organizations 或 HTTP。
 - `organizations`：Organization、OrganizationMembership、固定角色鉴权、成员写入与事务约束，见 [局部契约](../backend/organizations/README.md)。依赖 accounts 的公开 User 身份及 ass_format 的纯样式校验；目标用户锁在组织锁之前，多组织按 id 锁定，维护至少一名活动 organizer。

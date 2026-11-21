@@ -442,7 +442,7 @@ test('workspace discard reaches home and reports local deletion failure', async 
   await button(page, '明确放弃并继续').click();
   await expect(page.getByRole('alert').filter({ hasText: '无法完成草稿操作' })).toBeVisible();
   await expect(page).toHaveURL(new URL('/', page.url()).href);
-  await expect(button(page, '新建项目')).toBeEnabled();
+  await expect(page.getByRole('link', { name: '回归测试项目', exact: true })).toBeVisible();
   await expect(page.locator('video')).toHaveCount(0);
   expect(await records(page)).toEqual(before);
 });
