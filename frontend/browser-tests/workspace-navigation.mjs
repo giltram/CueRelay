@@ -134,9 +134,11 @@ async function timingAndDiscard() {
     await expect(page.getByLabel('入点', { exact: true })).toHaveValue('0:00:00.10');
     // Download is a backup and must not silently apply timing or leave the page.
     await home(page).click();
-    const downloaded = page.waitForEvent('download');
-    await button(page, '导出 ASS').click();
-    assert.match(readFileSync(await (await downloaded).path(), 'utf8'), /saved document, pending timing/);
+    const [downloaded] = await Promise.all([
+      page.waitForEvent('download'),
+      guard(page).getByRole('button', { name: '导出 ASS', exact: true }).click(),
+    ]);
+    assert.match(readFileSync(await downloaded.path(), 'utf8'), /saved document, pending timing/);
     await expect(guard(page)).toBeVisible(); await expect(page).toHaveURL(origin + projectPath);
     await button(page, '明确放弃并继续').click();
     await expect(page).toHaveURL(origin + '/');

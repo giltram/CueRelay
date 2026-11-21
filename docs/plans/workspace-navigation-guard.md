@@ -18,3 +18,14 @@
 - 本次未能执行浏览器交互：沙箱禁止 Vite 监听 loopback 端口（EPERM），Chromium 启动被环境终止（SIGTRAP）。新增和调整的浏览器场景尚待可运行环境验证，不视为通过。旧专项脚本中依赖隐藏未保存工作区的场景需随新交互调整；当前已调整主要导航/标签页及真实后端的草稿、合并、替换场景。
 
 运行浏览器回归：先在 `frontend/` 启动 `npm run dev -- --port 5241 --strictPort`，再运行 `npm run test:workspace-navigation`。无需业务数据库。
+
+## Review 复核与修复（2026-11-21）
+
+针对 `fd564c3..e0f2f39` review 的两项 P2，实际重跑原脚本，确认离页备份下载等待在清理时出现未处理拒绝，以及查找脚本等待未保存工作区隐藏超时。先将下载等待和点击交给同一 `Promise.all` 后，进一步明确复现「导出 ASS」匹配工具栏及离页弹窗两个按钮的 strict mode violation。
+
+- `workspace-navigation.mjs` 将备份点击限定在离页弹窗，下载等待和点击同步注册错误处理，避免清理错误掩盖点击失败。
+- `subtitle-search.mjs` 改为断言未保存本地工作区的离页确认和取消，核对路由、原查找节点、输入、结果、字幕、选择、时间和媒体不变；隐藏/历史恢复移到未验证片源及归档项目的干净快照，核对原节点、输入、当前命中及选中行保留，同时继续验证其他页面不拦截浏览器查找。
+
+修复后实际执行：`npm run test:workspace-navigation` 五组全部通过；`SUBTITLE_SEARCH_URL=http://127.0.0.1:5241 npm run test:subtitle-search` 全部通过，无页面异常或意外 HTTP 请求；`npm run typecheck`、两个修改脚本的 `node --check` 和 `git diff --check` 通过。首次沙箱运行受端口监听/浏览器启动限制，获取执行权限后完成以上浏览器验证，补齐前述未运行场景。
+
+本次仅修改专项测试和说明，不改变产品离页保护、导出逻辑、模块依赖或持久化契约。HTTP 为可控夹具；未重跑真实 PostgreSQL 端到端、后端测试、全量 Vitest 或生产构建。

@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
+import { expect } from 'playwright/test';
 import { uiDocument } from './ass-codec.mjs';
 import { unavailableAssPreview } from './ass-preview-fixture.mjs';
 import { sameTab } from './link-navigation.mjs';
@@ -254,12 +255,19 @@ try {
   assert.equal(await input.count(), 0);
   await dialog.getByRole('button', { name: '关闭', exact: true }).click();
   await main.focus(); await page.keyboard.press('Control+f'); await query('hello');
+  const beforeLeave = await snapshot(), beforeLeaveStatus = await status.textContent();
+  const searchField = await input.elementHandle(), localUrl = page.url();
   await sameTab(page.getByRole('link', { name: '项目列表', exact: true }));
-  await main.waitFor({ state: 'hidden' });
-  assert.equal(await dispatchKey(page.locator('main').filter({ hasNot: page.locator('.cue-list') }), { key: 'f', code: 'KeyF', ctrlKey: true }), false);
-  await page.goBack(); await main.waitFor({ state: 'visible' });
-  assert.equal(await input.inputValue(), 'hello');
-  checks.push('style modal and other page leave browser find untouched; retained workspace keeps only its own search state');
+  const leaveDialog = page.getByRole('dialog', { name: '离开工作区', exact: true });
+  await expect(leaveDialog).toBeVisible();
+  await expect(main).toBeVisible(); await expect(page).toHaveURL(localUrl);
+  await leaveDialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(leaveDialog).toBeHidden(); await expect(page).toHaveURL(localUrl);
+  await expect(input).toHaveValue('hello');
+  assert.equal(await status.textContent(), beforeLeaveStatus);
+  assert.deepEqual(await snapshot(), beforeLeave);
+  assert(await searchField.evaluate(el => el === document.querySelector('[aria-label="查找字幕文本"]')));
+  checks.push('style modal leaves browser find untouched; dirty local navigation prompts and cancel preserves search instance, subtitles, selection, timing and media');
 
   for (const id of [1, 2]) {
     const view = await context.newPage();
@@ -284,9 +292,23 @@ try {
     assert.equal(await view.getByRole('alert').count(), 0);
     assert(await view.getByLabel('字幕中文文本').isDisabled());
     if (id === 1) assert(await save.isDisabled());
+    // Searching a saved snapshot stays clean and permits retained-instance navigation.
+    const projectUrl = view.url(), retainedField = await field.elementHandle();
+    const retainedStatus = await view.locator('.cue-search-status').textContent();
+    await sameTab(view.getByRole('link', { name: '项目列表', exact: true }));
+    await expect(view).toHaveURL(new URL('/organizations/1/projects', projectUrl).href);
+    await expect(viewMain).toBeHidden();
+    await expect(view.getByRole('dialog', { name: '离开工作区', exact: true })).toHaveCount(0);
+    assert.equal(await dispatchKey(view.locator('main').filter({ hasNot: view.locator('.cue-list') }), { key: 'f', code: 'KeyF', ctrlKey: true }), false);
+    await view.goBack(); await expect(viewMain).toBeVisible(); await expect(view).toHaveURL(projectUrl);
+    await expect(field).toHaveValue('hello');
+    assert.equal(await view.locator('.cue-search-status').textContent(), retainedStatus);
+    assert.equal(await view.locator('.row-number[aria-pressed="true"]').textContent(), initialRow);
+    assert(await retainedField.evaluate(el => el === document.querySelector('[aria-label="查找字幕文本"]')));
     await view.close();
   }
   checks.push('unverified and archived read-only projects search/select without media; no selected row starts at first/last result; save stays clean');
+  checks.push('clean projects hide without a leave prompt; other pages keep browser find; history restores the same search field, query, match and selected row');
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
   await input.focus(); await page.keyboard.press('Enter');
   await page.screenshot({ path: join(artifacts, 'subtitle-search.png'), fullPage: true });

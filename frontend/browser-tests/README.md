@@ -8,6 +8,10 @@
 
 启动 `npm run dev -- --port 5241 --strictPort` 后运行 `npm run test:workspace-navigation`（`WORKSPACE_NAVIGATION_URL` 可覆盖）。使用 Chromium、真实 Python ASS codec、合成视频和 IndexedDB，项目 HTTP 使用可控保存夹具，不写业务数据库。覆盖已保存/改回原值不提示、回首页后直接新建、离开前取消保留输入与节点、保存延迟/失败/重试、未应用时间及导出备份、明确放弃与历史重返、浏览器前进/后退、新标签页隔离、空白本地工作区/非法时间输入及英文交互。
 
+## 字幕查找
+
+同一 Vite 服务运行 `SUBTITLE_SEARCH_URL=http://127.0.0.1:5241 npm run test:subtitle-search`。使用 Chrome、纯 Python ASS codec、合成视频和隔离 HTTP 夹具，不写业务数据库。除查找、IME、媒体定位、编辑与撤销外，验证未保存本地工作区离开前提示、取消保留原查找节点及字幕/时间/媒体；在未验证片源和归档项目的干净快照上验证无提示隐藏、其他页面不拦截浏览器查找，以及历史返回恢复原查找节点、输入、当前命中和选中行。明确放弃会销毁实例，不用于验证保留状态。
+
 ## 会话上下文刷新
 
 启动 `npm run dev -- --port 5173 --strictPort` 后运行 `npm run test:context-refresh`（`CONTEXT_REFRESH_URL` 可覆盖地址）。使用 Chromium、纯 Python codec、可控延迟 HTTP 和真实 IndexedDB，不写应用数据库。九组覆盖显式组织页的早开本地草稿范围与恢复（`local`）、持续重叠组织读取与旧权限隔离（`overlapping`）、退出后慢设置不阻塞列表（`leave`）、按资源清理错误（`retry`）、首页默认组织未知/首次失败/成功后相同入口恢复及无组织入口（`home`）、较新 503 不遮蔽成功撤权（`revocation`）、首次项目列表持续刷新与权限拒绝（`projects`）、账号切换后慢设置不阻塞明确放弃的草稿清理（`account`）、成功会话确认后迟到 401 静默且当前 401 正常登录保护（`authentication`）。可用括号内参数单独运行。
