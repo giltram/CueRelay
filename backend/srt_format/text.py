@@ -7,6 +7,7 @@ from html import escape
 from html.entities import html5
 import re
 
+from ass_format import text_tokens
 from .errors import SrtError
 
 TAGS = 'bius'
@@ -14,7 +15,6 @@ STYLE_FIELDS = ('Bold', 'Italic', 'Underline', 'StrikeOut')
 MARKUP = re.compile(r'<(/?)([bius])>', re.IGNORECASE)
 TAG_LIKE = re.compile(r'</?[a-zA-Z!/?]')
 ENTITY = re.compile(r'&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]+);', re.IGNORECASE)
-ASS_TOKEN = re.compile(r'\{((?:\\[bius][01])+)\}|\\([Nnh])')
 
 
 def to_ass(text, block):
@@ -85,7 +85,8 @@ def from_ass(text, fields):
 Caller must validate the entire ASS document first. Only known tokens are
 consumed; ordinary angle brackets and ampersands are escaped exactly once.
 """
-    state = {tag: fields[field] != '0' for tag, field in zip(TAGS, STYLE_FIELDS)}
+    initial = {tag: fields[field] != '0' for tag, field in zip(TAGS, STYLE_FIELDS)}
+    state = dict(initial)
     active, output, plain = [], [], []
 
     def fragment(value):
@@ -100,15 +101,16 @@ consumed; ordinary angle brackets and ampersands are escaped exactly once.
             active = wanted
         output.append(escape(value, quote=False))
 
-    cursor = 0
-    for match in ASS_TOKEN.finditer(text):
-        fragment(text[cursor:match.start()])
-        if match[1] is not None:
-            for tag, enabled in re.findall(r'\\([bius])([01])', match[1]):
-                state[tag] = enabled == '1'
-        else:
-            fragment('\u00a0' if match[2] == 'h' else '\n')
-        cursor = match.end()
-    fragment(text[cursor:])
+    for name, parameter in text_tokens(text):
+        if name == 'text':
+            fragment(parameter)
+        elif name in TAGS:
+            state[name] = parameter == '1'
+        elif name == 'r':
+            state = dict(initial)
+        elif name in ('N', 'n', 'h'):
+            fragment('\u00a0' if name == 'h' else '\n')
+        # Color/alpha and line positioning are explicitly omitted by SRT's
+        # existing loss contract. Transparent text becomes visible text.
     output.extend(f'</{tag}>' for tag in reversed(active))
     return ''.join(output), ''.join(plain)

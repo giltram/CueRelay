@@ -22,5 +22,5 @@
   "importNotice": "SRT was converted to the shared subtitle document with new-document default styles. Times round to the nearest 10ms (ties upward, at most 5ms per boundary). Very short cues may become zero duration.",
   "export": "Export SRT",
   "continueExport": "Continue exporting SRT",
-  "exportLimitations": "SRT preserves event order and basic b/i/u/s formatting. ASS fonts, colors, positioning, layers, comments and script metadata are omitted. Soft breaks become line breaks; nonbreaking spaces are preserved. Only applied in-memory subtitles are exported; the project is not saved."
+  "exportLimitations": "SRT preserves event order and basic b/i/u/s formatting. ASS fonts, colors, transparency, positioning, layers, comments and script metadata are omitted. Soft breaks become line breaks; nonbreaking spaces are preserved. Only applied in-memory subtitles are exported; the project is not saved. Transparent text becomes visible."
 }

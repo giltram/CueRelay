@@ -118,6 +118,22 @@ class WorkspaceRegressionTests(RegressionFixture):
     def test_srt_local(self):
         self.run_browser('srt local import failure')
 
+    def test_ass_static_local(self):
+        self.fixtures['staticSubtitles'] = str(ROOT / 'backend/ass_format/fixtures/static-editing.ass')
+        self.run_browser('ass static local import replacement merge and draft recovery')
+
+    def test_ass_static_project(self):
+        source = (ROOT / 'backend/ass_format/fixtures/static-editing.ass').read_text()
+        project = create_project(self.organizer, self.project.organization_id, name='静态标签回归',
+                                 description='', source=source, media=self.project.media)
+        self.fixtures.update(projectPath=f'/api/organizations/{project.organization_id}/projects/{project.pk}',
+                             workspacePath=f'/organizations/{project.organization_id}/projects/{project.pk}/workspace')
+        self.run_browser('ass static project preview save reload and format exports')
+        project.refresh_from_db()
+        self.assertEqual(project.revision, 2)
+        self.assertEqual(project.document['source'], source)
+        self.assertEqual(project.document['cues'][0]['text'], r'{\an7\pos(30,30)\c&H0000FF&\alpha&H80&\b1}修改{\r}乙')
+
     def test_account_lifecycle(self):
         self.run_browser('account login password session and logout lifecycle')
         self.member.refresh_from_db()

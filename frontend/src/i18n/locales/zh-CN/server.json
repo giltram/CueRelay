@@ -182,5 +182,7 @@
   "theTemplateListDoesNotAcceptQueryParameters": "模板列表不接受查询参数。",
   "invalidLanguagePreference": "不支持此语言偏好。",
   "serviceUnavailable": "服务暂时不可用，请导出诊断信息并重试。",
-  "proxyBodyTooLarge": "请求体不能超过 3MiB"
+  "proxyBodyTooLarge": "请求体不能超过 3MiB",
+  "invalidAssOverride": "ASS 标签不受支持或参数无效：\\{{tag}}",
+  "duplicateAssLineOverride": "每条字幕最多一个 \\{{tag}} 标签，重置不能清除整行定位。"
 }

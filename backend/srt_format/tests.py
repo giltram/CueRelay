@@ -16,6 +16,20 @@ def semantics(document):
 
 
 class SrtTests(unittest.TestCase):
+    def test_static_ass_loss_and_reset_use_effective_basic_style_without_leaking_tags(self):
+        document = parse_srt(block('x'))
+        document['styles'][0]['fields'].update(Bold='-1', Italic='-1')
+        document['cues'][0]['text'] = r'{\an7\pos(20,30)\c&HFF&\alpha&HFF&\b0}透明{\r}恢复{\i0\1c\1a}尾'
+        before = deepcopy(document)
+        output = serialize_srt(document)
+        self.assertEqual(output, block('<i>透明</i><b><i>恢复</i></b><b>尾</b>') + '\n\n')
+        self.assertEqual(document, before)
+        self.assertNotIn('\\', output)
+        self.assertEqual(serialize_srt(parse_srt(output)), output)
+        document['cues'][0]['text'] = r'{\an7\pos(20,30)\r}\N文字'
+        with self.assertRaises(SrtError):
+            serialize_srt(document)
+
     def test_utf8_bom_lf_crlf_multiline_and_no_final_separator(self):
         for bom in ('', '\ufeff'):
             for newline in ('\n', '\r\n'):

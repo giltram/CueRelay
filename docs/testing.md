@@ -368,3 +368,7 @@ npm install --prefix /private/tmp/cuerelay-webkit-driver playwright@1.60.0 --ign
 - 原生/GPU内存释放、长时间压力、真实配额/磁盘耗尽、进程崩溃最后一批数据，以及未列入有限网络矩阵的故障组合。已有media-memory命令保留，未冒用合成片或清理调用次数证明无泄漏。
 
 未提交、未推送，GitHub Actions继续暂停；无新增产品功能、诊断接口或产品支持承诺。
+
+## 常用 ASS 静态标签回归（2026-11-22）
+
+新增 `browser_tests.regression.WorkspaceRegressionTests.test_ass_static_local` / `test_ass_static_project`，对应 `frontend/regression/ass-static.spec.mjs` 两个场景，已通过真实转换/持久化/预览服务检查。`ass_format.test_text`、原兼容语料与 `npm run test:ass-compatibility` 验证颜色/alpha、an/pos、r 的语义和实际 WASM 渲染。结果、命令、首轮失败修正及测试入口既有限制见 [实施记录](plans/ass-static-compatibility.md)。

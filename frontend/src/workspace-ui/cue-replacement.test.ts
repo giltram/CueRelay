@@ -17,6 +17,14 @@ function replace(document: AssDocument, query: string, replacement: string, targ
   return replaceCueText(document, { query, replacement, target });
 }
 
+it('preserves static override bytes and reset boundaries when replacing across tags', () => {
+  const before = makeDocument('{\\an7\\pos(20,30)\\c&HFF&\\alpha&H80&}甲{\\1a&H00&}乙{\\r}丙');
+  const result = replace(before, '甲乙', '新');
+  expect(result).toEqual({ count: 1, document: { ...before, cues: [{ ...before.cues[0],
+    text: '{\\an7\\pos(20,30)\\c&HFF&\\alpha&H80&}新{\\1a&H00&}{\\r}丙' }] } });
+  expect(replace(before, 'FF', '00')).toEqual({ document: before, count: 0 });
+});
+
 it('edits only the current occurrence including an overlapping candidate', () => {
   const before = makeDocument('ababa aba', 'ABA');
   const result = replace(before, 'ABA', 'X', { cueId: 'new-0', source: 'ababa aba', start: 2 });

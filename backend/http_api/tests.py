@@ -87,7 +87,7 @@ class ConversionContractTests(SimpleTestCase):
         document["cues"] = [{"id": "new-test", "start_ms": 10, "end_ms": 0, "text": "倒序", "style_id": document["styles"][0]["id"]}]
         result = self.client.post("/api/ass/export", {"document": document}, content_type="application/json")
         self.assertEqual(result.status_code, 422)
-        document["cues"][0].update(end_ms=100, text=r"{\pos(1,2)}不支持")
+        document["cues"][0].update(end_ms=100, text=r"{\move(1,2)}不支持")
         result = self.client.post("/api/ass/export", {"document": document}, content_type="application/json")
         self.assertEqual(result.status_code, 422)
 

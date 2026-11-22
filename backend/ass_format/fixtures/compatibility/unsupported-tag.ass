@@ -19,7 +19,7 @@ Style: 强调,Local Test Font,3e1,&H0000FFFF,&H000000FF,&H00000000,&H80000000,-1
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 ; event anchor
 Dialogue: 2,0:00:02.01,0:00:04.99,Default,译者,0011,0022,0033,,  中文, "引号" (括号) [方括号] <>& / é é 😀𠮷\N硬换行\n软换行\h空格
-Comment: 0,0:00:00.00,0:00:00.10,强调,备注,0001,0002,0003,,{\pos(1,2)}保留,comment{\u0}
+Comment: 0,0:00:00.00,0:00:00.10,强调,备注,0001,0002,0003,,{\move(1,2)}保留,comment{\u0}
 Dialogue: 2,0:00:01.23,0:00:03.45,强调,,0000,0000,0000,,{\b1\i1\u1\s1}同层重叠{\s0\u0\i0\b0}
 Dialogue: 0,0:00:00.00,0:00:00.01,Default,,0000,0000,0000,,
 Dialogue: 0,9:59:59.98,9:59:59.99,Default,,0000,0000,0000,,末尾

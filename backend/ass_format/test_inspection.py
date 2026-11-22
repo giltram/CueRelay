@@ -18,7 +18,7 @@ class InspectionTests(unittest.TestCase):
             parse_ass(serialize_ass(document))
 
     def test_collects_export_failures_for_every_row_and_maps_ids(self):
-        document = self.document(text=r'{\pos(1,2)}不支持')
+        document = self.document(text=r'{\move(1,2)}不支持')
         document['cues'].append({**document['cues'][0], 'id': 'new-two', 'text': '可以', 'end_ms': 0})
         issues = inspect_document(document)
         self.assertEqual([(i['cue_id'], i['type']) for i in issues], [('new-one', 'unsupported-ass'), ('new-two', 'invalid-time')])

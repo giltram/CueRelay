@@ -9,6 +9,13 @@ const document = (...cues: Cue[]): AssDocument => ({ schema_version: 2, source: 
 const types = (doc: AssDocument) => checkSubtitles(doc).map(issue => issue.type);
 
 describe('subtitle QC', () => {
+  it('counts transparent text while ignoring static override parameters', () => {
+    const text = '{\\an7\\pos(20,30)\\c&HFF&\\alpha&HFF&}甲乙{\\r}丙丁';
+    expect(visibleSubtitleText(text)).toBe('甲乙丙丁');
+    expect(subtitleCharacterCount(text)).toBe(4);
+    expect(types(document(cue({ text })))).toEqual([]);
+    expect(types(document(cue({ text: '{\\an7\\pos(20,30)\\alpha&HFF&\\r}' })))).toEqual(['empty-text']);
+  });
   it('has no false positives for normal subtitles, supported formatting, or an empty project', () => {
     expect(checkSubtitles(document())).toEqual([]);
     expect(checkSubtitles(document(cue(), cue({ id: 'new-two', start_ms: 3200, end_ms: 5200, text: '{\\i1}第二条{\\i0}\\NHello' })), { videoDurationMs: 6000 })).toEqual([]);

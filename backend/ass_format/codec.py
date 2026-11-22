@@ -12,6 +12,7 @@ import warnings
 from dataclasses import dataclass
 from uuid import uuid4
 from .errors import AssError, fail as _fail
+from .text import text_tokens
 from .styles import STYLE_FIELDS, MAX_STYLES, validate_values as _style, validate_script, validate_styles
 
 import pysubs2
@@ -22,31 +23,7 @@ MAX_TIME = 35_999_990  # ASS workbench supports 0:00:00.00 through 9:59:59.99.
 EVENT_FIELDS = "Layer Start End Style Name MarginL MarginR MarginV Effect Text".split()
 CUE_FIELDS = {'Layer', 'Name', 'MarginL', 'MarginR', 'MarginV'}
 TIME = re.compile(r"([0-9]):([0-5][0-9]):([0-5][0-9])\.([0-9]{2})")
-TAG_BLOCK = re.compile(r"(?:\\[bius][01])+")
 ASCII_WHITESPACE = " \t"  # ASS syntax must not inherit Python's Unicode whitespace rules.
-
-
-def _text(value, line=None):
-    if not isinstance(value, str) or len(value) > 16_384:
-        _fail(localized('server.subtitleTextMustBeAStringOfAtMost', '字幕文本须为不超过 16384 字符的字符串', {}), line)
-    cursor = 0
-    while cursor < len(value):
-        char = value[cursor]
-        if ord(char) < 32 or char in "\u0085\u2028\u2029":
-            _fail(localized('server.subtitleTextMustNotContainControlCharactersUseN', '字幕不能包含控制字符；换行请使用 \\N', {}), line)
-        if char == "{":
-            end = value.find("}", cursor)
-            if end < 0 or not TAG_BLOCK.fullmatch(value[cursor + 1:end]):
-                _fail(localized('server.onlyB01I01U01AndS0', '仅支持 \\b0/1、\\i0/1、\\u0/1、\\s0/1 标签；其他标签或花括号须保护性拒绝', {}), line)
-            cursor = end + 1
-        elif char == "}":
-            _fail(localized('server.unmatchedAssBraces', 'ASS 花括号未配对', {}), line)
-        elif char == "\\":
-            if cursor + 1 >= len(value) or value[cursor + 1] not in "Nnh":
-                _fail(localized('server.textOnlySupportsNNAndHEscapes', '文本仅支持 \\N、\\n、\\h 转义', {}), line)
-            cursor += 2
-        else:
-            cursor += 1
 
 
 def _time(value, line):
@@ -197,7 +174,7 @@ def _inspect(source):
                     _fail(localized('server.nonEmptyEffectCannotBeImportedForEditing', '非空 Effect 不支持可编辑导入', {}), line)
                 start, end = _time(values["Start"], line), _time(values["End"], line)
                 _interval(start, end, line)
-                _text(values["Text"], line)
+                text_tokens(values["Text"], line)
                 # libass skips leading ASCII whitespace, but trailing whitespace
                 # causes lookup failure and a silent Default fallback. Trimming
                 # both ends would change rendering on export (even if a test
@@ -282,7 +259,7 @@ def _cue_record(cue, layout, by_id, seen):
         _fail(localized('server.subtitleIdsMustBeUniqueAndAtMost100', '字幕 ID 须唯一且不超过 100 字符', {}))
     seen.add(cue_id)
     _interval(cue["start_ms"], cue["end_ms"])
-    _text(cue["text"])
+    text_tokens(cue["text"])
     if not isinstance(cue["style_id"], str) or cue["style_id"] not in by_id:
         _fail(localized('server.theSubtitleReferencesAMissingStyle', '字幕引用了不存在的样式', {}), category='missing-style')
     source_id = cue.get("source_id", cue_id)

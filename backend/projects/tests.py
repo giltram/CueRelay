@@ -150,7 +150,7 @@ class ProjectContractTests(TestCase):
         forged = deepcopy(self.project.document)
         forged['source'] = forged['source'].replace('Title: CueRelay', 'Title: Forged')
         self.assertEqual(self.send(f'/{self.project.pk}/document', {'revision': 1, 'document': forged}, 'PUT').status_code, 400)
-        bad = with_cue(self.project.document, r'{\pos(1,2)}bad')
+        bad = with_cue(self.project.document, r'{\move(1,2)}bad')
         self.assertEqual(self.send(f'/{self.project.pk}/document', {'revision': 1, 'document': bad}, 'PUT').status_code, 422)
         invalid = with_cue(self.project.document)
         invalid['cues'][0]['start_ms'] = 2000

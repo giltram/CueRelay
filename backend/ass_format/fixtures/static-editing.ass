@@ -1,0 +1,20 @@
+[Script Info]
+; Synthetic fixture authored for CueRelay; no third-party subtitles.
+Title: 中文基础验证
+ScriptType: v4.00+
+PlayResX: 640
+PlayResY: 360
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Local Test Font,28,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,20,20,20,1
+Style: Emphasis,Local Test Font,30,&H0000FFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,0,8,20,20,20,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+; Keep this anchor before the first event.
+Dialogue: 2,0:00:00.00,0:00:02.00,Default,译者,0010,0020,0030,,{\an7\pos(30,30)\c&H0000FF&\alpha&H80&\b1}甲{\r}乙
+Dialogue: 1,0:00:02.00,0:00:04.00,Default,,0000,0000,0000,,{\c&H00FF00&}丙

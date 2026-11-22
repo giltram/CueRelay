@@ -182,5 +182,7 @@
   "theTemplateListDoesNotAcceptQueryParameters": "The template list does not accept query parameters.",
   "invalidLanguagePreference": "Unsupported language preference.",
   "serviceUnavailable": "The service is temporarily unavailable. Export diagnostics and try again.",
-  "proxyBodyTooLarge": "Request body must not exceed 3MiB"
+  "proxyBodyTooLarge": "Request body must not exceed 3MiB",
+  "invalidAssOverride": "Unsupported ASS tag or invalid parameter: \\{{tag}}",
+  "duplicateAssLineOverride": "Each cue may contain only one \\{{tag}} tag. Reset does not clear line positioning."
 }

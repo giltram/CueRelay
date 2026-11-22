@@ -8,7 +8,7 @@ class QcContractTests(SimpleTestCase):
         document = empty_document()
         self.assertEqual(client.post('/api/ass/inspect', {'document': document}, content_type='application/json').json(), {'issues': []})
         document['cues'] = [{'id': 'new-one', 'start_ms': 0, 'end_ms': 1000,
-                             'text': r'{\pos(1,2)}错误', 'style_id': document['styles'][0]['id']}]
+                             'text': r'{\move(1,2)}错误', 'style_id': document['styles'][0]['id']}]
         response = client.post('/api/ass/inspect', {'document': document}, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['issues'][0]['cue_id'], 'new-one')

@@ -26,7 +26,7 @@ File/video 身份与开关控制会话生命周期；输入字幕只更新 Track
 
 Vite 使用安装包的实际路径 `dist/worker/worker.js?worker&url`、`dist/wasm/*.wasm?url`，不照抄 README 的旧 dist 路径。所有资源打包到 assets。需要 Worker、WASM、OffscreenCanvas 和可用的画布；保留现有 COOP/COEP/CSP，缺少跨源隔离时 JASSUB 使用单线程。生产服务需正确返回 JavaScript、`application/wasm` 与 OTF MIME；资源 404 不得返回 SPA HTML。
 
-当前编辑器仅允许 b/i/u/s 布尔标签与 N/n/h 转义；Style 字体/字号/颜色/描边/阴影/对齐/边距可按原模板渲染。`\pos` 等尚未进入原有导入契约，仍被保护性拒绝；不因引擎支持而绕过正式导出校验。ASS 服务不可用或文本暂时无效时显示预览错误；字幕草稿仍保留，视频继续工作。
+正文接受 b/i/u/s、N/n/h 与首批静态颜色/alpha、an/pos、裸 r；词法、范围及重复定位拒绝规则由 [ass_format](../../../backend/ass_format/README.md#常用静态正文标签2026-11-22) 独占。字体/字号/边框/阴影的局部 override、具名 r、动画/绘图等仍拒绝。Style 字体及几何属性继续按原样式渲染，字体替代规则不变。预览继续通过正式 export 校验，服务不可用或文本暂时无效时显示错误；字幕草稿保留，视频继续工作。
 
 目前没有自动保存或 WS/协作事件应用；具名 Project Style 写接口已实现，提交后正常替换现有文档触发预览。不新增预览专用轮询。其他成员修改经现有显式项目重载接受后自动渲染，新实时同步入口应同样只替换现有文档。
 

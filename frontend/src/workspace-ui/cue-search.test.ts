@@ -7,6 +7,13 @@ const cue = (id: string, start_ms: number, text = '命中', end_ms = start_ms + 
 const marked = (source: string, query: string) => matchCueText(source, query).ranges.map(range => source.slice(range.start, range.end));
 
 describe('literal subtitle search', () => {
+  it('projects static tags without treating colors, coordinates or resets as searchable text', () => {
+    const source = '{\\an7\\pos(-10.5, +20)\\c&Hff&\\alpha&H80&}甲{\\1c\\1a\\r}乙';
+    expect(marked(source, '甲乙')).toEqual(['甲', '乙']);
+    for (const query of ['ff', '20', 'r', 'alpha']) expect(marked(source, query)).toEqual([]);
+    expect(marked('{\\rOther}甲', 'Other')).toEqual(['Other']);
+    expect(marked('{\\c&H}甲', '&H')).toEqual(['&H']);
+  });
   it('finds Chinese, English case variants, literal metacharacters and every occurrence per row', () => {
     expect(marked('中文中文 abc ABC aBc .* [a]', '中文')).toEqual(['中文中文']);
     expect(marked('中文中文 abc ABC aBc .* [a]', 'AbC')).toEqual(['abc', 'ABC', 'aBc']);
@@ -28,7 +35,7 @@ describe('literal subtitle search', () => {
     expect(source).toBe(before);
     expect(marked('{\\u1}a{\\s1}b{\\s0\\u0}', 'ab')).toEqual(['a', 'b']);
     // Invalid/incomplete drafts are literal; search never rewrites or validates them.
-    expect(marked('{\\pos(1,2)}x {\\b', 'pos')).toEqual(['pos']);
+    expect(marked('{\\move(1,2)}x {\\b', 'move')).toEqual(['move']);
     expect(marked('{\\b', '{\\b')).toEqual(['{\\b']);
     expect(marked('a  b', 'a b')).toEqual([]);
     expect(marked('a\\Nb', 'a\\Nb')).toEqual([]); // Query is ordinary visible text.

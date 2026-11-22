@@ -50,7 +50,7 @@ async function expiredExport() {
     await continued;
     assert.equal(state.exports, 2);
     // Format errors remain blocking; session expiry never bypasses ASS validation.
-    await text.fill('{\\pos(1,2)}invalid');
+    await text.fill('{\\move(1,2)}invalid');
     await button.click();
     await expect(panel.locator('[data-qc-type="unsupported-ass"]')).toBeVisible();
     await expect(panel.getByRole('button', { name: '继续导出 ASS', exact: true })).toBeDisabled();

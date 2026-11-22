@@ -2,7 +2,7 @@
 
 纯格式模块，无 Django、ORM、文件、网络或浏览器依赖。公开接口为 `parse_srt(source: str) -> v2 document`、`serialize_srt(document: dict) -> str`、`SrtError.issue`。依赖向下为 `srt_format → {ass_format 公共接口, message_contracts, stdlib}`，ASS 模块不依赖 SRT。没有新库、持久字段或编辑器。
 
-`blocks.py` 拥有块结构、原始毫秒时间及源位置；`text.py` 拥有内联标签/实体与 ASS 子集的双向转换；`codec.py` 组合默认文档、时间量化及全结果验证。`errors.py` 提供 code/reason/params 和可用的物理 `line`、一基 `block`（不是文件内序号）。纯格式回归在 `tests.py`，HTTP 在 `http_api/test_srt.py`，持久化在 `projects/test_srt.py`，实际浏览器在 `frontend/regression/srt.spec.mjs`。
+`blocks.py` 拥有块结构、原始毫秒时间及源位置；`text.py` 拥有内联标签/实体转换，ASS 导出消费 `ass_format.text_tokens` 的已验证正文 token，不再独立识别 ASS 文法；`codec.py` 组合默认文档、时间量化及全结果验证。`errors.py` 提供 code/reason/params 和可用的物理 `line`、一基 `block`（不是文件内序号）。纯格式回归在 `tests.py`，HTTP 在 `http_api/test_srt.py`，持久化在 `projects/test_srt.py`，实际浏览器在 `frontend/regression/srt.spec.mjs`。
 
 ## 实际支持子集
 
@@ -31,7 +31,7 @@ SRT 没有统一严格标准，下列是 CueRelay 的明确产品边界，不是
 
 先复用 `serialize_ass` 验证统一文档有效性，再只读输出 `document.cues` 的原事件顺序，连续编号 1…N，时间固定两位小时/三位毫秒，LF、每块末尾空行、UTF-8 无 BOM。保留空正文、零时长；空文档输出空字符串。ASS Comment、脚本元数据及字体/颜色/字号/位置/边距/图层等不进入 SRT；原 ASS 文档完全不变，仍可保存/导出。
 
-逐字符/已知 token 转换 ASS 正文，结合行样式的初始 b/i/u/s 与正文 override 生成有效、规范嵌套的标签。普通 `<`/`>`/`&` 编码为实体，绝不粗暴删除花括号；不向 SRT 泄漏 ASS 指令。`\N` 与软换行 `\n` 均变物理换行（后者失去 WrapStyle 条件语义），`\h` 变 U+00A0。回读 NBSP 成普通 Unicode 不换行空格，标签边界也可规范化；只保证此支持子集的文字/基础格式语义，不能宣称 ASS token 或文件字节无损。
+逐字符/已知 token 转换 ASS 正文，结合行样式的初始 b/i/u/s 与正文 override 生成有效、规范嵌套的标签。普通 `<`/`>`/`&` 编码为实体，绝不粗暴删除花括号；不向 SRT 泄漏 ASS 指令。新增静态颜色/alpha、an/pos 被明确省略；透明文字导出后变为可见文字，QC 导出提示明确说明。裸 r 恢复当前行样式的 b/i/u/s 初始值，不沿用重置前的状态。`\N` 与软换行 `\n` 均变物理换行（后者失去 WrapStyle 条件语义），`\h` 变 U+00A0。回读 NBSP 成普通 Unicode 不换行空格，标签边界也可规范化；只保证此支持子集的文字/基础格式语义，不能宣称 ASS token 或文件字节无损。
 
 可见正文有首尾或连续换行时，SRT 分块不能无歧义保留，定位到导出块报错，建议使用 ASS；不 trim/压缩换行。时间轴形状的独立正文行同样拒绝。字幕后续编辑扩大文件或实体编码膨胀可触及 SRT 输出预算。
 

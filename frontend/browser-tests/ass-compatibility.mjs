@@ -180,6 +180,46 @@ try {
   assert.deepEqual(distinct.events.map(event => distinct.styles[event.Style].Name), ['foo', 'Foo']);
   roundtrip(caseDistinct);
 
+  // Static overrides: compare actual glyph masks/colors/positions against
+  // authored equivalent instructions, rather than only comparing codec output.
+  const header = basic.split('Dialogue:')[0].replace(',1,2,0,2,', ',1,2,3,2,');
+  const body = (text, style = 'Default') => header + `Dialogue: 0,0:00:01.00,0:00:03.00,${style},,0,0,0,,${text}\n`;
+  const images = (text, style) => { track(body(text, style)); return render(2); };
+  const equivalent = (left, right, style) => {
+    const actual = images(left, style);
+    assert.ok(actual.length > 0, left);
+    assert.deepEqual(actual, images(right, style), `${left}: effective glyphs/color/position`);
+    track(roundtrip(body(left, style)));
+    assert.deepEqual(render(2), actual, `${left}: ASS roundtrip render`);
+  };
+  equivalent('{\\c&H0000FF&}Test', '{\\1c&H0000FF&}Test');
+  equivalent('{\\c&HFF&\\c&H00FF00&}Test', '{\\c&H00FF00&}Test');
+  equivalent('{\\2c&H123456&}Test', 'Test'); // no karaoke
+  equivalent('{\\2a&HFF&}Test', '{\\2a&HFF&}Test'); // engine may change mask composition
+  equivalent('{\\c&HFF&\\c}Test', 'Test');
+  equivalent('{\\alpha&HFF&\\alpha}Test', 'Test');
+  equivalent('{\\1c&HFF&\\1c\\1a&H80&\\1a}Test', 'Test');
+  for (const component of [2, 3, 4]) {
+    equivalent(`{\\${component}c&H123456&\\${component}c}Test`, 'Test');
+    equivalent(`{\\${component}a&H80&\\${component}a}Test`, 'Test');
+  }
+  equivalent('{\\alpha&H80&\\1a&H00&}Test', '{\\1a&H00&\\2a&H80&\\3a&H80&\\4a&H80&}Test');
+  equivalent('{\\an7\\pos(100,80)\\c&HFF&\\alpha&H80&\\b1\\i1\\u1\\s1}A{\\r}B',
+    '{\\an7\\pos(100,80)\\c&HFF&\\alpha&H80&\\b1\\i1\\u1\\s1}A{\\c\\alpha\\b0\\i0\\u0\\s0}B');
+  equivalent('{\\an7\\pos(100.5,80)\\r}Test', '{\\an7\\pos(100.5,80)}Test');
+  equivalent('{\\c&HFF&\\alpha&H80&\\b0}A{\\r}B',
+    '{\\c&HFF&\\alpha&H80&\\b0}A{\\c\\alpha\\b1}B', 'Emphasis');
+  assert.deepEqual(images('{\\1a&H00&\\alpha&HFF&}Test'), []);
+  assert.ok(images('{\\alpha&HFF&\\1a&H00&}Test').length > 0);
+  const plainImages = images('Test');
+  for (const tag of ['c&H0000FF&', '3c&H00FF00&', '4c&HFF0000&', 'alpha&H80&', '3a&H80&', '4a&HFF&']) {
+    assert.notDeepEqual(images(`{\\${tag}}Test`), plainImages, `${tag}: must affect visible pixels`);
+  }
+  const positioned = images('{\\an7\\pos(100,80)}Test');
+  assert.deepEqual(images('{\\an7\\pos(120,110)}Test'), positioned.map(tile => ({ ...tile, x: tile.x + 20, y: tile.y + 30 })));
+  assert.ok(Math.min(...images('{\\an7}Test').map(tile => tile.y)) < Math.min(...images('Test').map(tile => tile.y)));
+  for (const text of ['{\\an7\\r\\an2}Test', '{\\pos(1,2)\\r\\pos(3,4)}Test', '{\\rDefault}Test']) rejects(body(text));
+
   const root = new URL('../../backend/ass_format/fixtures/compatibility/', import.meta.url);
   const expected = JSON.parse(readFileSync(new URL('expected.json', root), 'utf8'));
   for (const [filename, semantics] of Object.entries(expected.valid)) {
@@ -196,7 +236,7 @@ try {
     assert.deepEqual(after, before, `${filename}: engine styles/hidden event fields/order`);
     assert.deepEqual(render(2.5), images, `${filename}: actual glyph images`);
   }
-  console.log('ASS compatibility: F1–F4/R1–R3 evidence, ASCII padding/numbers, model/engine style identity and 4 corpus glyph-image roundtrips passed');
+  console.log('ASS compatibility: audit evidence, static colors/alpha/alignment/position/reset rendering and 5 corpus glyph-image roundtrips passed');
 } finally {
   renderer.quitLibrary();
   renderer.delete();

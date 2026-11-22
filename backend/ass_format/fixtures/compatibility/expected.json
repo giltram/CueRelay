@@ -331,6 +331,105 @@
         "Timer: 100.0000",
         "Custom Key: retained, opaque"
       ]
+    },
+    "static-overrides.ass": {
+      "script": {
+        "play_res_x": 640,
+        "play_res_y": 360,
+        "scaled_border_and_shadow": true
+      },
+      "styles": {
+        "Default": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "28",
+          "PrimaryColour": "&H00FFFFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "0",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "100",
+          "ScaleY": "100",
+          "Spacing": "0",
+          "Angle": "0",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "2",
+          "MarginL": "20",
+          "MarginR": "20",
+          "MarginV": "20",
+          "Encoding": "1"
+        },
+        "强调": {
+          "Fontname": "Local Test Font",
+          "Fontsize": "3e1",
+          "PrimaryColour": "&H0000FFFF",
+          "SecondaryColour": "&H000000FF",
+          "OutlineColour": "&H00000000",
+          "BackColour": "&H80000000",
+          "Bold": "-1",
+          "Italic": "0",
+          "Underline": "0",
+          "StrikeOut": "0",
+          "ScaleX": "+100",
+          "ScaleY": "100.",
+          "Spacing": ".5",
+          "Angle": "-0.5",
+          "BorderStyle": "1",
+          "Outline": "2",
+          "Shadow": "0",
+          "Alignment": "8",
+          "MarginL": "10",
+          "MarginR": "20",
+          "MarginV": "30",
+          "Encoding": "1"
+        }
+      },
+      "cues": [
+        {
+          "start_ms": 2010,
+          "end_ms": 4990,
+          "text": "{\\an7\\pos(100.5, 80)\\c&H0000FF&\\alpha&H80&\\b1}甲{\\1a&H00&}乙{\\r}丙",
+          "style": "Default"
+        },
+        {
+          "start_ms": 1230,
+          "end_ms": 3450,
+          "text": "{\\1c&H00FF00&\\2c&H123456&\\3c&HFF0000&\\4c&HFFFFFF&\\1a&H10&\\2a&H20\\3a&H30&\\4a&H40&}强调{\\c\\alpha\\i1}尾{\\r}",
+          "style": "强调"
+        },
+        {
+          "start_ms": 0,
+          "end_ms": 10,
+          "text": "{\\an5\\pos(-32768,+32768)\\alpha&HFF&}隐藏",
+          "style": "Default"
+        },
+        {
+          "start_ms": 35999980,
+          "end_ms": 35999990,
+          "text": "{\\c&Hff&\\c&HFFFFFF&\\r}末尾",
+          "style": "Default"
+        }
+      ],
+      "events": [
+        "Dialogue: 2,0:00:02.01,0:00:04.99,Default,译者,0011,0022,0033,,{\\an7\\pos(100.5, 80)\\c&H0000FF&\\alpha&H80&\\b1}甲{\\1a&H00&}乙{\\r}丙",
+        "Comment: 0,0:00:00.00,0:00:00.10,强调,备注,0001,0002,0003,,{\\c&HFF&\\alpha&H80&\\r}保留,comment",
+        "Dialogue: 2,0:00:01.23,0:00:03.45,强调,,0000,0000,0000,,{\\1c&H00FF00&\\2c&H123456&\\3c&HFF0000&\\4c&HFFFFFF&\\1a&H10&\\2a&H20\\3a&H30&\\4a&H40&}强调{\\c\\alpha\\i1}尾{\\r}",
+        "Dialogue: 0,0:00:00.00,0:00:00.01,Default,,0000,0000,0000,,{\\an5\\pos(-32768,+32768)\\alpha&HFF&}隐藏",
+        "Dialogue: 0,9:59:59.98,9:59:59.99,Default,,0000,0000,0000,,{\\c&Hff&\\c&HFFFFFF&\\r}末尾"
+      ],
+      "preserved_lines": [
+        "Title: 兼容性自制样本",
+        "WrapStyle: 0",
+        "YCbCr Matrix: TV.709",
+        "Timer: 100.0000",
+        "Custom Key: retained, opaque",
+        "; event anchor",
+        "Video File: https://example.invalid/never-fetch.mp4"
+      ]
     }
   },
   "invalid": {

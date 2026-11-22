@@ -1,5 +1,6 @@
 import type { Cue } from '../contracts/subtitles';
 import { orderCues } from '../subtitle-model/cue-order';
+import { isProjectedAssBlock } from '../subtitle-model/ass-text';
 
 export interface TextRange { start: number; end: number }
 export interface CueMatch {
@@ -21,7 +22,7 @@ export function projectCueText(source: string) {
   for (let start = 0; start < source.length;) {
     if (source[start] === '{') {
       const end = source.indexOf('}', start);
-      if (end !== -1 && /^(?:\\[bius][01])+$/.test(source.slice(start + 1, end))) {
+      if (end !== -1 && isProjectedAssBlock(source.slice(start + 1, end))) {
         start = end + 1;
         continue;
       }

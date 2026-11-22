@@ -14,6 +14,7 @@ describe('subtitle characters per second', () => {
     expect(cps('{\\i1}你，好！{\\i0}\\N世\\n界\\h。')).toBe(2);
     expect(cps(' A B\u3000C\u00a0D?!，。—')).toBe(2);
     expect(cps('{\\b1\\u1}AB{\\b0\\u0}CD')).toBe(2);
+    expect(cps('{\\an7\\pos(20,30)\\c&HFF&\\alpha&HFF&}甲乙{\\r}丙丁')).toBe(2);
   });
 
   it('counts grapheme clusters instead of UTF-16 units', () => {

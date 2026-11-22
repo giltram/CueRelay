@@ -9,6 +9,7 @@
 - `parse_ass(source: str) -> document`：完整预检，并复用序列化器检查未编辑快照的规范化输出（包括大小预算）；成功返回的文档可直接导出。失败抛 `AssError`，`issue` 含 code/message 和可获得的源行号。调用者负责 UTF-8 字节解码。
 - `serialize_ass(document: dict) -> str`：校验完整快照，输出 UTF-8 可编码的 ASS 文本。再次预检输出，失败不产出部分文档。
 - `empty_document() -> document`：空文档与基础默认样式，客户端不自行生成 ASS。
+- `text_tokens(text, line=None) -> list[(name, parameter)]`：`text.py` 独占正文文法，完整验证后返回普通文字（name=`text`）、转义（N/n/h，空参数）和已支持的 override token；参数保留原文。codec 与 SRT 转换共用，不返回部分结果，不建立第二份可写模型。
 - `inspect_document(document) -> issues`：只读复用 `_document_layout` / `_cue_record`，每条字幕返回首个致命错误及可获得的 cue_id；有效行全部通过后复用完整 serialize_ass 检查输出限制。每项包含原 code/message/可选 line 和 type（invalid-time/missing-style/unsupported-ass）。文档级错误没有 cue_id；空列表保证当前快照可序列化。实现位于 inspection.py，不导入 Django、不修改输入；HTTP 薄适配为 POST `/api/ass/inspect`，请求仅含 document，200 返回检查问题，非法请求/超限沿用 400/413。检查不是保存或修复。
 
 `document = {schema_version: 2, source, script, styles, cues}`。`script` 包含 `play_res_x` / `play_res_y` / `scaled_border_and_shadow`；缺失的原始值用 null 保留，不根据视频推断。其他脚本元数据继续由 source 保留。
@@ -43,7 +44,7 @@ pysubs2 1.8.1 的裸序列化会丢分号注释，读取器忽略文件 Format�
 - 其他 Script Info 键（如 Title、Timer、WrapStyle、YCbCr Matrix、自定义元数据）原文保留，**不校验其完整合法性、重复值或解释**。保留不等于已验证这些设置的渲染语义，不宣称任意元数据均兼容。非法值暂不自动修正。
 - Dialogue 可编辑、Comment 保护性保留。二者引用样式都允许引擎正确跳过的前导 ASCII 空格/Tab；尾部空白或非 ASCII 前导空白拒绝。libass 不会去掉引用尾部空白，而会静默回退 Default，故不能用 `.strip()` 规范化并声称保真。缺失引用在收集全部定义后检查，错误含样式名和事件源行号，支持 Styles 位于 Events 之后。
 - `h:mm:ss.cc`、0–35999990ms、10ms 网格且入点不晚于出点；允许零时长、时间重叠、同层重叠及非时间顺序。保留 Layer、Name、MarginL/R/V 与事件顺序，不自行按时间排序。
-- 文本按原始 ASS 字符串保留，支持 Unicode、空正文、首尾空格、逗号/引号/普通括号；仅支持 `\N`、`\n`、`\h` 转义及 `\b0/1`、`\i0/1`、`\u0/1`、`\s0/1` override 组合。其他转义、标签、绘图、动画、卡拉 OK、任意花括号或控制字符在接受前整份拒绝。libass 自身会忽略文件文本末尾 ASCII 空白，DTO/导出仍保留这些字符。
+- 文本按原始 ASS 字符串保留，支持 Unicode、空正文、首尾空格、逗号/引号/普通括号；支持 `\N`、`\n`、`\h` 转义、`\b0/1`、`\i0/1`、`\u0/1`、`\s0/1`，以及下述静态 override。其他转义、标签、绘图、动画、卡拉 OK、任意花括号或控制字符在接受前整份拒绝。libass 自身会忽略文件文本末尾 ASCII 空白，DTO/导出仍保留这些字符。
 - 文件入口严格 UTF-8（可含 BOM），支持 LF/CRLF/CR 及混合换行；非法字节在请求前拒绝。输出统一 LF、补末尾换行，可去掉 BOM。规范化输出超限时即拒绝导入，不先返回不可导出的文档。
 
 HTTP 导入失败返回 422 与 issues，不返回部分文档；项目初始化不会持久化半成品。本地 UI 只在成功后替换文档；导出失败不返回部分 ASS。文件原件仍需保留：这里不提供字节级归档。未来编辑增大文档仍可能触及输出限制。
@@ -61,6 +62,24 @@ HTTP 导入失败返回 422 与 issues，不返回部分文档；项目初始化
 复核回归在 `test_follow_up.py`：结构化键/值的非 ASCII 空白、每个样式字段在标准/重排 Format 中的原始空白、名称/字体尾空白、Default 保留名的全部样式写入口，以及合法 ASCII 空白和普通大小写名称的对照。WASM 同时比较每条 Cue 的模型样式名称/字号/字体与实际引擎引用，避免只凭往返图像相同漏掉身份冲突；受影响事件在 2s 和 3.6s 分别验证。
 
 检查回归：`test_inspection.py` / `http_api/test_qc.py`，验证每行定位、与导出相同的标签/时间/样式规则、输出超限、空轴及 5000 事件。`AssError.category` 仅为纯校验的分类元数据，既有 issue code/导出错误响应不变。
+
+## 常用静态正文标签（2026-11-22）
+
+用户确认首批为颜色/透明度、an、pos 和裸 r。`text.py::text_tokens` 拥有完整词法、数值与整行组合校验；导入、Comment、导出、inspect、剪贴板和 SRT 消费同一规则，不引入 opaque 标签绕过路径。正文原字符串与标签顺序保留，文档 schema/revision/权限不变。
+
+| 标签 | 接受参数与语义 |
+| --- | --- |
+| `\c`、`\1c`…`\4c` | `&H` + 1–6 位 ASCII 十六进制 + `&`，BGR；c=1c，2c 是卡拉 OK 的次色（本批仍拒绝卡拉 OK）。无参数恢复行样式对应颜色，不改 alpha。 |
+| `\alpha`、`\1a`…`\4a` | `&H` + 1–2 位 ASCII 十六进制，可带末尾 `&`。00 不透明、FF 透明；alpha 同时设置四分量，后续分量可覆盖。无参数恢复行样式对应 alpha。 |
+| `\an` | 单个 ASCII 数字 1–9，小键盘对齐；整行最多一次。 |
+| `\pos(x,y)` | 有符号普通 ASCII 十进制，可有小数，参数两侧可含 ASCII 空格/Tab，每坐标绝对值 ≤32768，可在画面外；不接受指数、NaN、Unicode 数字、下划线或多余参数。坐标使用脚本分辨率，an 决定锚点；整行最多一次。 |
+| 裸 `\r` | 恢复当前 cue 所分配样式的文字属性（含 b/i/u/s、颜色和 alpha），不清除整行 an/pos。`\r样式名` 仍拒绝，不增加正文样式引用。 |
+
+标签名及 `&H` 前缀大小写精确，十六进制数字大小写均可。标签必须在完整非空 `{...}` 块中，以反斜线分隔，可与原基础标签组合；不接受块注释、未知内容或参数尾垃圾。颜色/alpha/b/i/u/s 按原顺序生效，后者覆盖前者；r 后仍可继续覆盖。an/pos 的次数跨所有块与 r 统计；libass 会忽略重复定位，本模块明确拒绝，避免不同播放器及合并造成静默位置丢失。既有 16384 字符/行、5000 事件、1MiB 预算继续生效。
+
+不增加字体加载能力或可视化标签控件。局部 fn/fs、bord/shad、具名 r、运动/动画/绘图/卡拉 OK/附件仍拒绝。文本光标拆分继续拒绝含任意标签/转义的行。合并仍原样拼接，颜色/alpha 会延续，r 按幸存首条的行样式恢复；合并后重复 an/pos 由完整导出校验整批拒绝，不删标签或自动选位置。裸 r 不引用其他样式，样式改名/删除和剪贴板沿用 style_id 规则。
+
+前端查找仅作词法投影，隐藏完整且词法可识别的新标签，不拥有参数范围、整行重复或文件合法性判断；正式编辑/替换/合并仍由 serialize_ass 检查。CPS/QC 忽略所有 ASS 块，不根据透明度隐藏文字。SRT 显式丢失颜色/透明度/位置，透明文字变为可见；r 后的 b/i/u/s 正确恢复。实际渲染、编辑和往返记录见 [执行计划](../../docs/plans/ass-static-compatibility.md)。
 
 ## 拆分
 

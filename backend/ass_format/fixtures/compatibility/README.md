@@ -21,7 +21,7 @@ actual codec output. Internal UUIDs and source line IDs are intentionally exclud
   `style-name-trailing-space.ass`, `style-font-trailing-space.ass`, and
   `reserved-default-case.ass`. The NBSP fixtures contain actual U+00A0 characters,
   not visible escape sequences; expected errors and source lines are authored in
-  the manifest. There are now 4 valid and 15 invalid complete files.
+  the manifest. There are now 5 valid and 15 invalid complete files.
 
 `ass_format.test_compatibility` also covers BOM, newline/whitespace variants,
 additional invalid mutations, output-size normalization and style operations.
@@ -30,3 +30,9 @@ safe ASCII controls, Unicode text preservation and reserved-name operations.
 `http_api.test_ass_compatibility` and `projects.test_ass_compatibility` reuse the
 same expectations through actual conversion and project persistence boundaries.
 Frontend file-byte decoding is tested in `project-data/ass-api.test.ts`.
+
+- `static-overrides.ass`: authored combinations of all first-batch color/alpha tags,
+  component/all alpha order, empty-parameter resets, an/pos, bare r, offscreen
+  bounds and a preserved Comment. Manifest expectations derive from authored
+  fixture text, never codec output. `unsupported-tag.ass` now uses movement,
+  because static pos is supported. Rendering oracle covers the same corpus.

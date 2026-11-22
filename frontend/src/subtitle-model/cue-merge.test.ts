@@ -36,6 +36,13 @@ it('preserves whitespace, empty and repeated text, and does not close inline for
   expect(cue).toEqual({ ...point, text: ' {\\b1}same  same  ' });
 });
 
+it('concatenates static overrides and resets verbatim for final backend validation', () => {
+  const a = { ...first, text: '{\\an7\\pos(20,30)\\c&HFF&}甲' };
+  const b = { ...early, text: '{\\alpha&H80&}乙{\\r}丙' };
+  expect(mergeCueLines(documentWith(a, b), [a.id, b.id]).cue.text)
+    .toBe('{\\an7\\pos(20,30)\\c&HFF&}甲 {\\alpha&H80&}乙{\\r}丙');
+});
+
 it('keeps a new survivor’s source anchor and pasted ASS field overrides', () => {
   const metadata = { Layer: '3', Name: 'Actor', MarginL: '0010', MarginR: '0020', MarginV: '0030' };
   const added = { ...first, id: 'new-stable', source_id: first.id, ass_fields: metadata };

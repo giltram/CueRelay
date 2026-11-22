@@ -15,7 +15,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
 const doc = uiDocument();
 doc.cues = Array.from({ length: 32 }, (_, index) => ({ id: `new-${index}`, start_ms: index * 500,
   end_ms: index * 500 + (index === 30 ? 100 : 500), style_id: doc.styles[0].id,
-  text: index === 10 ? '' : index === 20 ? '{\\pos(1,2)}不支持' : index === 29 ? '阅读速度很快'.repeat(5) : `字幕${index}` }));
+  text: index === 10 ? '' : index === 20 ? '{\\move(1,2)}不支持' : index === 29 ? '阅读速度很快'.repeat(5) : `字幕${index}` }));
 let inspectCount = 0, delayNextInspection = false, rejectNextInspection = false;
 let releaseInspection, inspectionStarted;
 const inspectedDocuments = [];
@@ -93,7 +93,7 @@ try {
   checks.push(`desktop: QC ${Math.round(boxes[1].width)}px; table ${Math.round(boxes[0].width)}px; video/audio unchanged`);
 
   await panel.locator('[data-qc-type="unsupported-ass"]').click();
-  assert.equal(await selected(), '21'); assert.equal(await text.inputValue(), '{\\pos(1,2)}不支持');
+  assert.equal(await selected(), '21'); assert.equal(await text.inputValue(), '{\\move(1,2)}不支持');
   assert(Math.abs(await page.locator('video').evaluate(v => v.currentTime) - 10) < .1);
   assert(await page.locator('video').evaluate(v => v.paused));
   assert(await rows.nth(20).evaluate(el => {
