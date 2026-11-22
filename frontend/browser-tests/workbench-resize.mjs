@@ -51,6 +51,7 @@ const near = (actual, expected, description) => assert(Math.abs(actual - expecte
 function statePreserved(before, after) {
   assert.deepEqual([after.text, after.selected, after.rows, after.time, after.paused], [before.text, before.selected, before.rows, before.time, before.paused]);
   assert(after.sameVideo); assert(after.list.height >= 144); assert(after.editor.width >= 479);
+  near(after.media.width, after.frame.width, 'media column fits the video without side whitespace');
   assert(Math.abs(after.frame.width / after.frame.height - 16 / 9) < .01, 'video keeps 16:9'); assert(after.pageFits);
 }
 async function startDrag() {

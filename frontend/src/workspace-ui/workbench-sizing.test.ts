@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { clampMediaWidth, defaultMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbenchHeight } from './workbench-sizing';
 
 describe('workbench resizing constraints', () => {
-  it('reserves default transport width when the video frame is height-limited', () => {
-    expect(defaultMediaWidth(1366, .44, 334)).toBe(400);
+  it('returns height-limited side space to the editor without enlarging the frame', () => {
+    expect(defaultMediaWidth(1366, .44, 334)).toBe(334);
     expect(defaultMediaWidth(950, .38, 421)).toBe(400);
     expect(defaultMediaWidth(1366, .44, 487)).toBe(487);
-    expect(defaultMediaWidth(820, .38, 334)).toBe(340);
+    expect(defaultMediaWidth(820, .38, 334)).toBe(334);
+    expect(defaultMediaWidth(1366, .44, 260)).toBe(260);
     expect(mediaWidthBounds(950, 421).minimum).toBe(300);
   });
   it('keeps both panes usable when the editor is the limiting side', () => {
@@ -26,17 +27,17 @@ describe('workbench resizing constraints', () => {
     expect(requiredWorkbenchHeight(maximum, 122)).toBe(676);
     expect(832 - requiredWorkbenchHeight(maximum, 122) - 12).toBe(144);
   });
-  it('preserves the default frame-to-column gap through small and repeated resizing', () => {
-    const chrome = 154, initialHeight = 342, initialWidth = 400;
-    const gap = initialWidth - (initialHeight - chrome) * 16 / 9;
-    expect(requiredWorkbenchHeight(initialWidth, chrome, gap)).toBeCloseTo(initialHeight);
-    expect(requiredWorkbenchHeight(initialWidth - 1, chrome, gap)).toBeCloseTo(initialHeight - 9 / 16);
-    expect(requiredWorkbenchHeight(initialWidth + 2, chrome, gap)).toBeCloseTo(initialHeight + 2 * 9 / 16);
+  it('keeps the column fitted to the frame through small and repeated resizing', () => {
+    const chrome = 154, initialHeight = 342;
+    const initialWidth = defaultMediaWidth(1366, .44, (initialHeight - chrome) * 16 / 9);
+    expect(requiredWorkbenchHeight(initialWidth, chrome)).toBeCloseTo(initialHeight);
+    expect(requiredWorkbenchHeight(initialWidth - 1, chrome)).toBeCloseTo(initialHeight - 9 / 16);
+    expect(requiredWorkbenchHeight(initialWidth + 2, chrome)).toBeCloseTo(initialHeight + 2 * 9 / 16);
     const maximum = maximumMediaWidth(540, 144, 4, chrome);
-    const bounds = mediaWidthBounds(1366, maximum, gap);
-    expect(bounds.maximum).toBeCloseTo(maximum + gap);
-    expect(requiredWorkbenchHeight(bounds.maximum, chrome, gap)).toBeCloseTo(540 - 144 - 4);
-    expect(mediaWidthBounds(900, maximum, gap).maximum).toBe(420);
+    const bounds = mediaWidthBounds(1366, maximum);
+    expect(bounds.maximum).toBeCloseTo(maximum);
+    expect(requiredWorkbenchHeight(bounds.maximum, chrome)).toBeCloseTo(540 - 144 - 4);
+    expect(mediaWidthBounds(900, maximum).maximum).toBe(420);
   });
   it('shrinks the height budget with the viewport and leaves the editor usable', () => {
     const maximum = maximumMediaWidth(632, 144, 12, 122);
@@ -51,7 +52,7 @@ describe('workbench resizing constraints', () => {
     expect(clampMediaWidth(800 * share, mediaWidthBounds(800, 800))).toBe(320);
   });
   it('keeps bounds ordered when space is temporarily unavailable at a breakpoint', () => {
-    expect(mediaWidthBounds(700, 100)).toEqual({ minimum: 220, maximum: 220 });
+    expect(mediaWidthBounds(700, 100)).toEqual({ minimum: 100, maximum: 100 });
     expect(mediaWidthBounds(0, 0)).toEqual({ minimum: 0, maximum: 0 });
   });
 });

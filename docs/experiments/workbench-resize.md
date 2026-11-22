@@ -22,3 +22,13 @@
 浏览器测试未写开发业务数据库。主回归截图/报告：`/private/var/folders/cb/g5d9zp7j4hscwq5bclqwmj7w0000gn/T/cuerelay-workbench-resize-dJj6fz`；默认布局：`/private/var/folders/cb/g5d9zp7j4hscwq5bclqwmj7w0000gn/T/cuerelay-compact-layout-yiZtPi`。临时目录可能被系统清理，测试脚本可重跑。
 
 Safari/Firefox 未实测；没有本任务范围外需要自动实施的架构调整。
+
+## 2026-11-23 回收画面两侧留白
+
+默认左栏不再为控制区保留超出16:9画面的宽度，回收宽度全部交给右侧频谱和字幕编辑区。400px仅为期望宽度；高度预算不足时可低于通常的300px下限。拖动状态只保留用户请求的比例，移除画面与列宽差额。未增加模块依赖、控件或持久化字段。
+
+真实 Chrome 147.0.7727.101 的 `test:reference-layout` 通过：1440×600时视频仍为348.44×195.98px，左栏由400px收至348.44px，右栏增加51.56px；控制换为两行，字幕表由194px变160px。1440×540仍保留144px字幕表最低高度，此时视频随剩余高度缩小。另覆盖1440×900、1024×768、390×844、参考展开/收起、长文本、中文/英文及连续微小拖动。截图已检查，无额外横向留白或页面溢出。
+
+`npm run typecheck`、`npm run test -- --run src/workspace-ui/workbench-sizing.test.ts`（8项）及 `npm run test:workbench-resize` 通过；后者检查拖动/键盘/复位、断点、最低高度、字幕草稿和媒体实例保留。浏览器使用隔离HTTP夹具，不写业务数据库。本轮未运行全量回归或Safari/Firefox。
+
+证据位于系统临时目录：`cuerelay-reference-layout-KzdJKU`、`cuerelay-workbench-resize-pYkwQy`；可通过上述脚本重跑。

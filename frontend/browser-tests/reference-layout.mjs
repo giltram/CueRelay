@@ -75,7 +75,7 @@ async function geometry() {
     const content = document.querySelector('.reference-content');
     return { upper: box('.workbench'), list: box('.cue-list'), media: box('.media-panel'), frame: box('.video-stage'),
       transport: box('.transport'), clock: box('.time-display'), play: box('.playback-button'), progress: box('.video-progress'), footer: box('.media-footer'), reference: box('[data-reference-subtitles]'), content: box('.reference-content'),
-      editor: box('.cue-editor'), text: box('[aria-label="字幕中文文本"]'),
+      editorColumn: box('.editing-panel'), editor: box('.cue-editor'), text: box('[aria-label="字幕中文文本"]'),
       actions: [...document.querySelectorAll('.transport-actions > button')].map(node => node.getBoundingClientRect().toJSON()),
       fields: [...document.querySelectorAll('.cue-fields input,.cue-fields select')].map(node => node.getBoundingClientRect().toJSON()),
       fitsWidth: document.documentElement.scrollWidth <= innerWidth, fitsHeight: document.documentElement.scrollHeight <= innerHeight,
@@ -92,6 +92,7 @@ function assertLayout(g, desktop = true) {
   assert(Math.abs(g.frame.width / g.frame.height - 16 / 9) < .01, 'video preserves aspect ratio');
   assert(g.sameVideo, 'layout keeps the same media node');
   if (desktop) {
+    assert(Math.abs(g.media.width - g.frame.width) < 1, 'video fills the media column without side whitespace');
     assert(g.fitsHeight, 'desktop remains within viewport');
     assert(g.reference.bottom <= g.media.bottom + 1, 'reference stays inside media column');
     assert(g.reference.right <= g.media.right + 1, 'reference stays inside media width');
@@ -205,12 +206,23 @@ try {
   await replaceReference(reference);
   checks.push('arrival, removal and collapse retain upper/list heights and input focus; no empty reference slot');
 
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 1440, height: 600 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 1440, height: 600 }, { width: 1440, height: 540 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     const g = await geometry(); assertLayout(g, viewport.width > 900);
     if (viewport.width >= 1024) {
       assert(g.clock.top >= g.play.top && g.clock.bottom <= g.play.bottom, 'clock shares the playback row');
-      assert(g.actions.every(action => Math.abs(action.top - g.play.top) < .5), 'default reference and preview actions share the playback row');
+      assert(g.actions.every(action => action.left >= g.media.left && action.right <= g.media.right + 1
+        && action.top >= g.play.top && action.bottom <= g.transport.bottom + 1), 'actions remain inside the narrower transport, wrapping when needed');
+    }
+    if (viewport.width === 1440 && viewport.height === 600) {
+      // Reproduce the previous 400px column to measure where its unused width goes.
+      const oldWidth = await page.addStyleTag({ content: '.workbench { grid-template-columns: 400px 16px minmax(0, 1fr); }' });
+      const before = await geometry(); await oldWidth.evaluate(node => node.remove());
+      const after = await geometry(); assertLayout(after);
+      assert(Math.abs(after.frame.width - before.frame.width) < 1, 'removing whitespace preserves the original video size');
+      assert(Math.abs(after.editorColumn.width - before.editorColumn.width - (before.media.width - before.frame.width)) < 1,
+        'all recovered width goes to the frequency spectrum and subtitle editor');
+      checks.push('height-limited video keeps its size while all side whitespace goes to the editor; controls wrap within the narrower column');
     }
     await text.fill('翻译时参考字幕与输入框需要同时可见');
     await page.getByRole('textbox', { name: '入点', exact: true }).fill('0:00:00.00');
@@ -231,8 +243,7 @@ try {
     await replaceReference(reference); assertLayout(await geometry(), viewport.width > 900);
     checks.push({ viewport, video: g.frame, reference: g.reference, referenceTextHeight: g.content.height, subtitleHeight: g.list.height });
   }
-  // The default 400px media column can be wider than the height-limited frame.
-  // Starting a resize must preserve that difference, including on later gestures.
+  // The media column fits the frame; repeated small gestures must not cause jumps.
   for (const viewport of [{ width: 1440, height: 600 }, { width: 1024, height: 768 }]) {
     await page.setViewportSize(viewport);
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, 5]]) {
@@ -252,7 +263,7 @@ try {
     const beforeKey = await geometry();
     await separator.focus(); await page.keyboard.press('ArrowRight');
     const afterKey = await geometry(); assertLayout(afterKey);
-    assert(afterKey.frame.width <= beforeKey.frame.width + 17, 'first keyboard resize also preserves the frame-to-column difference');
+    assert(afterKey.frame.width <= beforeKey.frame.width + 17, 'first keyboard resize changes only the requested frame width');
   }
   checks.push('short reference layouts keep first/repeated 1px, vertical and keyboard resizing continuous');
   await page.setViewportSize({ width: 1440, height: 900 });
