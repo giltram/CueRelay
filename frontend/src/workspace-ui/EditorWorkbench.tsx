@@ -325,12 +325,6 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     edits.navigate(current.selectedId === cue.id ? current : withSelection(current, cue)); cancelAudition();
   }
 
-  function locate(cue: Cue) {
-    if (!video) throw new MessageError(describe("workspaceUi.selectAVideoFirst", "请先选择视频"));
-    selectCue(cue); video.pause(); seekVideo(video, cue.start_ms);
-    setCurrentTime(video.currentTime * 1000);
-  }
-
   function selectCueFromTable(cue: Cue, modifiers: SelectionModifiers = {}) {
     if (transforming.current || !controlsEnabled) return;
     run(() => {
@@ -816,8 +810,6 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
                     {document?.styles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
                   </select>
                 </div>
-                <button disabled={!selected} onClick={() => run(() => selected && locate(selected))}>{t("workspaceUi.jumpToSelectedLine")}</button>
-                <button className="text-button" disabled={!selected} onClick={() => run(deleteSelectedCue)}>{t("workspaceUi.deleteSelectedLine")}</button>
               </div>
               <div className="subtitle-input">
                 <label htmlFor={textEditorId}>{t("workspaceUi.subtitleText")}</label>

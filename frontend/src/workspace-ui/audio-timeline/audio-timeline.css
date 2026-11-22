@@ -34,7 +34,6 @@
 .audio-boundary.end > .boundary-cap { right: 5px; }
 .audio-message { position: absolute; inset: 24px 8px 4px; display: flex; justify-content: center; align-items: center; text-align: center; background: #08080c; pointer-events: none; overflow: auto; }
 .audio-message.audio-error { color: #ff9d9d; font-size: 12px; }
-.audio-footer { display: flex; justify-content: space-between; flex-wrap: wrap; flex-shrink: 0; gap: 0 8px; padding: 2px 8px; border-top: 1px solid #27344c; font: 10px ui-monospace, monospace; }
 .audio-playhead, .audio-boundary { position: absolute; top: 22px; bottom: 0; width: 1px; pointer-events: none; }
 .audio-playhead { width: 12px; margin-left: -6px; pointer-events: auto; cursor: ew-resize; z-index: 1; }
 .audio-playhead::after { content: ''; position: absolute; inset: 0 auto 0 6px; width: 1px; background: #ff6b78; }

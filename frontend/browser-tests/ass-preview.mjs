@@ -179,10 +179,10 @@ try {
   await page.locator('main').focus(); await page.keyboard.press('KeyG');
   assert.equal(await rows.count(), 3);
   await edit('新建字幕'); await seek(8.5); await eventually(p => p.yellow > 100);
-  await page.getByRole('button', { name: '删除选中行' }).click();
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   await eventually(p => p.yellow === 0 && p.white === 0);
   while (await rows.count()) {
-    await rows.first().click(); await page.getByRole('button', { name: '删除选中行' }).click();
+    await rows.first().click(); await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   }
   await eventually(p => p.yellow === 0 && p.white === 0);
 

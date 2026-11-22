@@ -165,7 +165,7 @@ try {
   assert.deepEqual(await savedTimes(), ['0:00:02.00', '0:00:03.00']);
 
   await page.getByRole('button', { name: '选择第 2 行', exact: true }).click();
-  await page.getByRole('button', { name: '删除选中行', exact: true }).click();
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   assert.equal(await rows.count(), 1);
   // Unconfigured Enter remains a normal ASS line break; a configured Enter
   // consumes exactly one split and must not also submit/advance the cue.

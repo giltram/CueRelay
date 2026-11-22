@@ -87,7 +87,7 @@ test('editing playhead split trim insert delete and multi styles persist', async
   await menu(page, rows(page).first(), '在当前行后插入字幕'); await expect(rows(page)).toHaveCount(4);
   await expect(page.getByRole('textbox', { name: '入点', exact: true })).toHaveValue('0:00:00.80');
   await expect(page.getByRole('textbox', { name: '出点', exact: true })).toHaveValue('0:00:00.80');
-  await button(page, '删除选中行').click(); await expect(rows(page)).toHaveCount(3);
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete'); await expect(rows(page)).toHaveCount(3);
   await button(page, '选择第 1 行').click(); await button(page, '选择第 3 行').click({ modifiers: ['ControlOrMeta'] });
   const selectedIds = await rows(page).and(page.locator('[aria-selected="true"]')).evaluateAll(elements => elements.map(row => row.dataset.cueId));
   await page.getByRole('textbox', { name: '入点', exact: true }).fill('0:');

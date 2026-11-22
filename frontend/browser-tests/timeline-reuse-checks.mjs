@@ -15,6 +15,7 @@ export async function observeTimelineReuse(page) {
 }
 
 export async function checkTimelineReuse(page) {
+  assert.equal(await page.locator('.audio-footer').count(), 0);
   const ready = () => page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.state === 'ready');
   const wheel = () => page.locator('.audio-stage').evaluate(el => el.dispatchEvent(new WheelEvent('wheel', {
     deltaY: 1, bubbles: true, cancelable: true, clientX: el.getBoundingClientRect().left + 100,
@@ -48,9 +49,13 @@ export async function checkTimelineReuse(page) {
   assert.equal(await page.evaluate(() => window.__timelineReuse.frames), hiddenStart);
   await page.goBack(); await page.locator('main.editor-workbench').waitFor({ state: 'visible' });
   await page.locator('video').evaluate(video => { video.currentTime = 12.34; });
-  await page.waitForFunction(() => !document.querySelector('video').seeking
-    && document.querySelector('.audio-footer > span > span').textContent === '0:00:12.34'
-    && !document.querySelector('.audio-playhead').hidden);
+  await page.waitForFunction(() => {
+    const timeline = document.querySelector('.audio-timeline');
+    const playhead = document.querySelector('.audio-playhead');
+    const start = Number(timeline.dataset.start), end = Number(timeline.dataset.end);
+    return !document.querySelector('video').seeking && !playhead.hidden
+      && Math.abs(parseFloat(playhead.style.left) - (12.34 - start) / (end - start) * 100) < 0.01;
+  });
   await page.locator('video').evaluate(video => { video.currentTime = 0; });
   await page.waitForFunction(() => !document.querySelector('video').seeking);
   await ready();

@@ -343,7 +343,7 @@ test('workspace draft keeps the timing baseline through empty project recovery',
   });
   await login(page);
   await verifyVideo(page);
-  await button(page, '删除选中行').click();
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   await expect(end(page)).toHaveValue('0:00:00.00');
   await end(page).fill('0:00:01.00');
   await expect(status(page)).toBeVisible();

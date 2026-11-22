@@ -184,16 +184,11 @@ try {
     await page.keyboard.press('Tab'); assert(await focused(main));
   }
   await start.focus(); await page.keyboard.press('Tab'); assert(await focused(end));
-  // The compact editor places style and row actions before the subtitle input.
+  // The compact editor moves directly from style to subtitle input.
   await page.keyboard.press('Tab'); assert(await focused(page.getByLabel('字幕样式')));
-  const locate = page.getByRole('button', { name: '定位选中行', exact: true });
-  const remove = page.getByRole('button', { name: '删除选中行', exact: true });
-  await page.keyboard.press('Tab'); assert(await focused(locate));
-  await page.keyboard.press('Tab'); assert(await focused(remove));
+  assert.equal(await page.locator('.cue-fields button').count(), 0);
   await page.keyboard.press('Tab'); assert(await focused(text));
-  await page.keyboard.press('Shift+Tab'); assert(await focused(remove));
-  await locate.focus(); await page.keyboard.press('Tab');
-  assert(await focused(page.getByRole('button', { name: '删除选中行', exact: true })));
+  await page.keyboard.press('Shift+Tab'); assert(await focused(page.getByLabel('字幕样式')));
   for (const selector of ['.video-progress', '.audio-vertical-zoom input', '[role="scrollbar"]', '[role="separator"]']) {
     const controls = page.locator(selector);
     assert(await controls.count() > 0, selector);
@@ -306,7 +301,7 @@ try {
   assert.equal(await dispatchTab(main), false);
   await page.evaluate(() => document.exitFullscreen());
   await page.waitForFunction(() => !document.fullscreenElement);
-  await page.getByRole('button', { name: '删除选中行', exact: true }).click();
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   assert.equal(await rows.count(), 0);
   await main.focus(); assert.equal(await dispatchTab(main), false);
   checks.push('fullscreen and no selected row do not claim Tab');

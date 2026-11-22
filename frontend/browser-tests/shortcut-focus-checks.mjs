@@ -28,7 +28,7 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     assert.equal(await rows.count(), 2);
 
     // A mouse action must return focus to the editor so Space plays the selection.
-    await page.getByRole('button', { name: '定位选中行', exact: true }).click();
+    await page.getByRole('button', { name: '选择第 2 行', exact: true }).click();
     await page.keyboard.press('Space');
     await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
     assert.equal(await page.locator('.audio-timeline').getAttribute('data-mode'), 'spectrum');
@@ -38,8 +38,8 @@ export async function checkShortcutFocus(browser, url, videoFile) {
     });
 
     // Tab-navigation still focuses buttons; Enter/Space keep native activation.
-    await page.getByRole('button', { name: '定位选中行', exact: true }).focus();
-    assert.equal(await page.evaluate(() => document.activeElement.textContent), '定位选中行');
+    await page.getByRole('button', { name: '选择第 2 行', exact: true }).focus();
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), '选择第 2 行');
     await page.keyboard.press('Enter');
     assert.equal(await selected(2), 'true');
     assert.equal(await activeTag(), 'BUTTON');

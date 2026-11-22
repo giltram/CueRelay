@@ -3,7 +3,6 @@ import { useLocale } from "../../i18n/react";
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { AuditionState } from '../../media/audio/audition-controller';
 import { useAudioAnalysis } from '../../media/audio/use-audio-analysis';
-import { formatTime } from '../../media/playback';
 import { drawAudio } from './draw-audio';
 import { AUDIO_RULER_HEIGHT } from './draw-ruler';
 import { clampViewport, revealInterval, timeAtX, xAtTime, wheelViewport, type AudioViewport } from './viewport';
@@ -51,7 +50,6 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
   const view = clampViewport(viewport, seconds);
   const analysis = useAudioAnalysis(file, view.start, view.start + view.span, mode);
   const panel = useRef<HTMLElement>(null);
-  const timeDisplay = useRef<HTMLSpanElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const playhead = useRef<HTMLDivElement>(null);
@@ -110,8 +108,6 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
       if (!visible || document.hidden) return;
       const audioTime = audioPosition.current?.() ?? null;
       const current = audioTime === null ? video.currentTime : audioTime / 1000;
-      const clock = formatTime(current * 1000);
-      if (timeDisplay.current && timeDisplay.current.textContent !== clock) timeDisplay.current.textContent = clock;
       if (panel.current) {
         if (audioTime === null) {
           if (panel.current.dataset.auditionTime !== undefined) delete panel.current.dataset.auditionTime;
@@ -255,6 +251,7 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
       {analysis.status === 'empty' && <p className="audio-message">{t("workspaceUi.importALocalVideoToDisplayAudio")}</p>}
       {analysis.status === 'opening' && <p className="audio-message" role="status">{t("workspaceUi.readingLocalAudioTrack")}</p>}
       {analysis.status === 'error' && <p className="audio-message audio-error" role="status">{formatMessage(analysis.message)}</p>}
+      {audition?.message && <p className={`audio-message${audition.phase === 'error' ? ' audio-error' : ''}`} role="status">{formatMessage(audition.message)}</p>}
     </div>
     <label className="audio-vertical-zoom" title={t("workspaceUi.verticalZoomValueMoveUpToAmplifyDouble", { v0: verticalZoom.toFixed(2) })}>
       <input type="range" aria-label={t("workspaceUi.verticalZoom")} aria-orientation="vertical" min="0.5" max="4" step="0.01"
@@ -268,9 +265,5 @@ export function AudioTimeline({ visible = true, file, video, duration, currentTi
       follow.current = false;
       setViewport(clampViewport({ ...view, start }, seconds));
     }} />
-    <div className="audio-footer">
-      <span><span ref={timeDisplay}>{formatTime(auditionTime ?? currentTime)}</span>{selection && t("workspaceUi.startValueEndValue", { v0: formatTime(selection.start), v1: formatTime(selection.end) })}</span>
-      <span aria-live="polite">{formatMessage(audition?.message) || (analysis.status === 'loading' ? t("workspaceUi.analyzing") : t("workspaceUi.scrollToPanShiftScrollToZoom"))}</span>
-    </div>
   </section>;
 }

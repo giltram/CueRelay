@@ -185,7 +185,7 @@ try {
   await text.fill('removed'); assert.equal(await status.textContent(), '无匹配');
   await main.focus(); await page.keyboard.press('Control+z'); assert.equal(await status.textContent(), '0 / 1 处 · 1 行');
   await input.focus(); await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: '删除选中行', exact: true }).click();
+  await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Control+Delete');
   assert.equal(await rows.count(), 31); assert.equal(await status.textContent(), '无匹配');
   await main.focus(); await page.keyboard.press('Control+z');
   assert.equal(await rows.count(), 32); assert.equal(await status.textContent(), '0 / 1 处 · 1 行');

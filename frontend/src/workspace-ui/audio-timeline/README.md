@@ -6,7 +6,7 @@
 
 右侧保留 18px 给 Vertical Zoom 原生竖直滑块；移除常驻文字和倍率，悬停提示当前倍率。向上增强、向下减弱，双击滑块恢复默认；方向键、Home / End 可操作。`AudioTimeline` 独立持有 `verticalZoom`（默认 1.0，范围 0.5–4.0，步长 0.01），仅在组件卸载时重置；切 mode、File 或水平视窗不重置。它不进入 Worker 请求、账号偏好、字幕 DTO、video 音量或播放状态。
 
-画布下方、原状态栏上方是 10px 高的横向滚动条，与画布等宽。`AudioScrollbar` 接收同一个 AudioViewport、秒时长及 onScroll 回调，不存储另一份视窗；滑块长度按可见时长占比计算，最小 24px，短视频全部可见或未加载媒体时填满并禁用。拖动使用 pointer capture，可点击轨道定位，方向键移动视窗的 10%、PageUp / PageDown 移动一屏、Home / End 到两端。滚动只平移视窗并暂停自动跟随，不定位视频或修改字幕，播放头拖动时继续冻结视窗。缩放、滚轮、字幕选择和播放跟随通过原视窗同步滚动条。真实浏览器回归位于 `browser-tests/audio-scrollbar-checks.mjs`，由 vertical-zoom 脚本调用。
+画布下方是 10px 高的横向滚动条，与画布等宽。底部不再显示播放时间、入出点信息或滚轮操作提示，也不保留状态栏占位；省出的高度由画布使用。`AudioScrollbar` 接收同一个 AudioViewport、秒时长及 onScroll 回调，不存储另一份视窗；滑块长度按可见时长占比计算，最小 24px，短视频全部可见或未加载媒体时填满并禁用。拖动使用 pointer capture，可点击轨道定位，方向键移动视窗的 10%、PageUp / PageDown 移动一屏、Home / End 到两端。滚动只平移视窗并暂停自动跟随，不定位视频或修改字幕，播放头拖动时继续冻结视窗。缩放、滚轮、字幕选择和播放跟随通过原视窗同步滚动条。真实浏览器回归位于 `browser-tests/audio-scrollbar-checks.mjs`，由 vertical-zoom 脚本调用。
 
 Spectrum 将 Worker 已有 -80..0dBFS 对应的归一化能量 `e` 映射为 `e ** (1 / verticalZoom)`，再查原 normal / inactive / active 色表。1.0 保持原图；增大提亮弱信号，减小压暗弱信号，零能量与满量程端点不动，避免整段高亮截断。频率采样、时间坐标及颜色方案保持，低于原 -80dBFS 分析阈值的信号不能通过显示缩放恢复。Waveform 只将峰值显示幅度乘以同一个值并限定在波形区域内，不修改峰值缓存或音频。
 
@@ -65,7 +65,7 @@ Canvas 采用 getBoundingClientRect 的小数 CSS 尺寸，与 DOM 覆盖线一�
 
 ## 深色频谱与波形
 
-频谱显示线性 0..Nyquist（48kHz 音轨显示至 24kHz），上限 / 下限文字来自实际 SpectrumTile，不再硬编码 8kHz / 80Hz。固定 -80..0dBFS 色阶在区间外使弱能量接近黑色，强能量依次为蓝、青与白；区间内使用不同 HSL 色表，静音背景有意显示为紫色调，强信号偏青绿 / 浅色，当前行更亮。不做逐帧自动归一化或降噪，不掩盖真实谐波。波形使用同样的区间背景与浅蓝峰值，播放头为亮红，入出点为橙 / 紫；footer / 状态提示限定在 `.audio-timeline` 内使用深色，没有改变全站主题和布局。
+频谱显示线性 0..Nyquist（48kHz 音轨显示至 24kHz），上限 / 下限文字来自实际 SpectrumTile，不再硬编码 8kHz / 80Hz。固定 -80..0dBFS 色阶在区间外使弱能量接近黑色，强能量依次为蓝、青与白；区间内使用不同 HSL 色表，静音背景有意显示为紫色调，强信号偏青绿 / 浅色，当前行更亮。不做逐帧自动归一化或降噪，不掩盖真实谐波。波形使用同样的区间背景与浅蓝峰值，播放头为亮红，入出点为橙 / 紫；状态提示限定在 `.audio-timeline` 内使用深色，没有改变全站主题和布局。
 
 计算与显示选择的证据、兼容范围见 [频谱调查](../../../../docs/experiments/spectrum-display.md)。数值测试为 `media/audio/spectrum.test.ts`；颜色、频率方向、窄频带保留与上下采样见 `spectrum-pixels.test.ts`。浏览器回归使用带静音的 1kHz / 3kHz / 12kHz 合成 MP4；图中横向线条是已知正弦信号，不代表真实语音观感验收。
 
@@ -77,7 +77,7 @@ Canvas 采用 getBoundingClientRect 的小数 CSS 尺寸，与 DOM 覆盖线一�
 
 ## 试听与视频时间的边界
 
-普通工作区 Space / S 和 Q / W / E / D 经原个人快捷键映射调用 media/audio 的独立试听控制器。开始时只暂停视频，不跳到选区；视频进度条 / ASS 始终读静止的 video，音频播放头 / footer 读控制器。组件仅通过 getAuditionPosition 读取音频时钟；preparing / error 显示在既有 footer，不自行创建声音或修改视频。频谱滚动 / 缩放请求仍只取消分析，不中断试听。主动拖动播放头 / 点击标尺定位仍走 onSeek，工作区先取消声音，再定位视频。普通播放及全屏 Space 继续使用 video。范围算法、焦点 / IME、个人配置及字幕草稿契约保持。
+普通工作区 Space / S 和 Q / W / E / D 经原个人快捷键映射调用 media/audio 的独立试听控制器。开始时只暂停视频，不跳到选区；视频进度条 / ASS 始终读静止的 video，音频播放头读控制器。组件仅通过 getAuditionPosition 读取音频时钟；preparing / error 复用画布内的状态提示，不自行创建声音或修改视频。频谱滚动 / 缩放请求仍只取消分析，不中断试听。主动拖动播放头 / 点击标尺定位仍走 onSeek，工作区先取消声音，再定位视频。普通播放及全屏 Space 继续使用 video。范围算法、焦点 / IME、个人配置及字幕草稿契约保持。
 
 选区试听（Space / S 或个人覆盖键）准备和播放期间，右键点击、出点拖动及边界方向键通过 EditorWorkbench 显式更新控制器出点，按视频时长截断；缩短 / 延长都保留音频时钟，新出点已经被播放头越过则立即停止。时间草稿和手势历史仍由工作区唯一拥有，时间轴不保存播放范围。改入点、手输时间和固定 500ms 试听期间的边界修改仍取消试听；完成后改出点不自动播放。真实输出、右键和拖动回归位于 `browser-tests/audio-audition.mjs`。
 
