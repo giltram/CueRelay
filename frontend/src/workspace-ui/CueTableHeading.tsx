@@ -5,8 +5,8 @@ import { CueColumnResizeHandle } from './CueColumnResizeHandle';
 import { cueColumns, cueRowNumberWidth, type CueColumn, type CueColumnWidths } from './cue-column-widths';
 
 /** Persistent heading: shares widths and horizontal scrolling with the native table below. */
-export function CueTableHeading({ count, widths, scroll, actions, onResize, onMinimumWidth }: {
-  count: number; widths: CueColumnWidths; scroll: RefObject<HTMLDivElement | null>; actions: ReactNode;
+export function CueTableHeading({ widths, scroll, actions, onResize, onMinimumWidth }: {
+  widths: CueColumnWidths; scroll: RefObject<HTMLDivElement | null>; actions: ReactNode;
   onResize: (column: CueColumn, width: number) => void; onMinimumWidth: (width: number) => void;
 }) {
   useLocale();
@@ -58,7 +58,7 @@ export function CueTableHeading({ count, widths, scroll, actions, onResize, onMi
           <CueColumnResizeHandle column={column} width={widths[column.id]} onResize={width => onResize(column, width)} />
         </div>)}
         <div className="cue-heading-cell cue-text-heading">
-          <span ref={title}><span aria-hidden="true">{t('workspaceUi.subtitleText')}</span><span className="count" title={t('workspaceUi.sortedByTime')}>{t('workspaceUi.cueCount', { count })}</span></span>
+          <span ref={title} aria-hidden="true">{t('workspaceUi.subtitleText')}</span>
           <div ref={buttons}>{actions}</div>
         </div>
       </div>

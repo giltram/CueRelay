@@ -38,7 +38,8 @@ try {
   assert.deepEqual(await page.locator('.cue-list th').allTextContents(), ['行', '入', '出', 'CPS', '样式', '字幕文本']);
   assert.equal(await page.locator('.cue-list > .section-heading').count(), 0);
   assert.equal((await page.locator('.cue-table-heading').boundingBox()).height, 32);
-  assert.equal(await page.locator('.cue-table-heading .count').textContent(), '字幕 1 行');
+  assert.equal(await page.locator('.cue-table-heading .count').count(), 0);
+  assert.equal(await page.locator('.cue-text-heading > span').textContent(), '字幕文本');
   const headingCells = await page.locator('.cue-heading-cell').all();
   for (let index = 0; index < headingCells.length; index++) {
     const heading = await headingCells[index].boundingBox(), cell = await rows.first().locator('td').nth(index).boundingBox();

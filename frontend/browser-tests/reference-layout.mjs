@@ -74,7 +74,7 @@ async function geometry() {
     const box = selector => document.querySelector(selector)?.getBoundingClientRect().toJSON();
     const content = document.querySelector('.reference-content');
     return { upper: box('.workbench'), list: box('.cue-list'), media: box('.media-panel'), frame: box('.video-stage'),
-      transport: box('.transport'), progress: box('.video-progress'), footer: box('.media-footer'), reference: box('[data-reference-subtitles]'), content: box('.reference-content'),
+      transport: box('.transport'), clock: box('.time-display'), play: box('.playback-button'), progress: box('.video-progress'), footer: box('.media-footer'), reference: box('[data-reference-subtitles]'), content: box('.reference-content'),
       editor: box('.cue-editor'), text: box('[aria-label="字幕中文文本"]'),
       actions: [...document.querySelectorAll('.transport-actions > button')].map(node => node.getBoundingClientRect().toJSON()),
       fields: [...document.querySelectorAll('.cue-fields input,.cue-fields select')].map(node => node.getBoundingClientRect().toJSON()),
@@ -134,14 +134,35 @@ try {
   assert.equal(withoutHeader.upper.height, withHeader.upper.height);
   assert.equal(withoutHeader.list.height, withHeader.list.height);
   const toggle = page.locator('.reference-toggle');
+  const previewToggle = page.getByRole('button', { name: '显示预览字幕', exact: true });
+  const buttonStyle = button => button.evaluate(node => {
+    const style = getComputedStyle(node);
+    return [style.color, style.backgroundColor, style.borderColor];
+  });
+  const settleButtonStyles = () => page.locator('.transport-actions').evaluate(node =>
+    Promise.all(node.getAnimations({ subtree: true }).map(animation => animation.finished)));
+  await page.mouse.move(0, 0);
+  await settleButtonStyles();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(await buttonStyle(toggle), await buttonStyle(previewToggle), 'expanded reference shares the enabled preview style');
   await toggle.focus(); await page.keyboard.press('Space'); await settle();
   assert(await panel.evaluate(node => node.hidden), 'keyboard activation collapses reference');
   assert.notEqual(await page.locator('.audio-timeline').getAttribute('data-audition-phase'), 'playing', 'reference toggle does not start an audition');
+  await previewToggle.click(); await page.mouse.move(0, 0);
+  await settleButtonStyles();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(await previewToggle.getAttribute('aria-pressed'), 'false');
+  assert.deepEqual(await buttonStyle(toggle), await buttonStyle(previewToggle), 'collapsed reference shares the disabled preview style');
+  await toggle.focus();
   await page.keyboard.press('Space'); await settle();
   assert(await toggle.evaluate(node => node === document.activeElement), 'keyboard activation preserves toggle focus');
+  await previewToggle.click(); await page.mouse.move(0, 0);
+  await settleButtonStyles();
+  assert.equal(await previewToggle.getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(await buttonStyle(toggle), await buttonStyle(previewToggle), 'expanding reference restores the enabled preview style');
   checks.push('import is centered until verification; compact clock and renamed reference/preview actions remain usable; reference toggle exposes its panel relationship and isolates keyboard playback');
   const previousControlGap = await page.addStyleTag({ content: `
-    .workbench { --video-controls-reserve: 96px; }
+    .workbench { --video-controls-reserve: 92px; }
     .transport { margin-top: 8px; }
     .media-panel:has(.media-footer) { --media-footer-space: 80px; }
   ` });
@@ -158,16 +179,16 @@ try {
   assert(referenceGap <= 4.5, 'short references do not add space above their border');
   checks.push('reference-to-controls gap matches the 4px timing-to-text input gap');
   const previousSpacing = await page.addStyleTag({ content: `
-    .workbench { padding-bottom: 12px; --video-controls-space: 96px !important;
+    .workbench { padding-top: 12px; padding-bottom: 12px; --video-controls-space: 96px !important;
       flex-basis: max(var(--default-workbench-height), var(--requested-workbench-height, 0px)); }
     .media-panel:has(.media-footer) { --media-footer-space: 80px; }
   ` });
   const beforeCompact = await geometry(); await previousSpacing.evaluate(node => node.remove());
   const compact = await geometry();
   assert(Math.abs(compact.list.height - beforeCompact.list.height - 48) < 1, 'unused controls reserve and bottom padding go to subtitle list');
-  assert(Math.abs(compact.frame.width - beforeCompact.frame.width) < 1, 'removing the bottom gap preserves the wider default video');
+  assert(Math.abs(compact.frame.height - beforeCompact.frame.height - 8) < 1, 'tighter top and progress spacing gives the video another 8px of height');
   assert(Math.abs(compact.reference.bottom - compact.text.bottom) < .5, 'reference and editor share the same bottom inset');
-  checks.push('removing the bottom gap gives another 48px to the subtitle list while preserving default video width');
+  checks.push('compact layout gives 48px to the subtitle list; tighter top and progress spacing gives the video another 8px of height');
   assert.equal(await panel.locator('[data-reference-current]').count(), 2);
   await text.focus(); await page.getByRole('button', { name: '收起参考字幕', exact: true }).click();
   assert(await text.evaluate(node => node === document.activeElement), 'collapse preserves translation focus');
@@ -187,6 +208,10 @@ try {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1440, height: 600 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     const g = await geometry(); assertLayout(g, viewport.width > 900);
+    if (viewport.width >= 1024) {
+      assert(g.clock.top >= g.play.top && g.clock.bottom <= g.play.bottom, 'clock shares the playback row');
+      assert(g.actions.every(action => Math.abs(action.top - g.play.top) < .5), 'default reference and preview actions share the playback row');
+    }
     await text.fill('翻译时参考字幕与输入框需要同时可见');
     await page.getByRole('textbox', { name: '入点', exact: true }).fill('0:00:00.00');
     await page.getByRole('textbox', { name: '出点', exact: true }).fill('0:00:00.10');
@@ -206,7 +231,32 @@ try {
     await replaceReference(reference); assertLayout(await geometry(), viewport.width > 900);
     checks.push({ viewport, video: g.frame, reference: g.reference, referenceTextHeight: g.content.height, subtitleHeight: g.list.height });
   }
+  // The default 400px media column can be wider than the height-limited frame.
+  // Starting a resize must preserve that difference, including on later gestures.
+  for (const viewport of [{ width: 1440, height: 600 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, 5]]) {
+      await separator.dblclick({ position: { x: 8, y: 40 } });
+      for (let gesture = 0; gesture < 2; gesture++) {
+        const previous = await geometry(), box = await separator.boundingBox();
+        const x = box.x + 8, y = box.y + 40;
+        await page.mouse.move(x, y); await page.mouse.down();
+        await page.mouse.move(x + dx, y + dy); await page.mouse.up();
+        const after = await geometry(); assertLayout(after);
+        assert(Math.abs(after.frame.width - previous.frame.width) <= Math.abs(dx) + 1, 'small drag cannot enlarge the frame to fill the media column');
+        assert(Math.abs(after.upper.height - previous.upper.height) <= Math.abs(dx) * 9 / 16 + 1, 'small drag transfers only its own height delta');
+        if (dx <= 0) assert(after.frame.width <= previous.frame.width + .5, 'leftward or vertical drag cannot enlarge the video');
+      }
+    }
+    await separator.dblclick({ position: { x: 8, y: 40 } });
+    const beforeKey = await geometry();
+    await separator.focus(); await page.keyboard.press('ArrowRight');
+    const afterKey = await geometry(); assertLayout(afterKey);
+    assert(afterKey.frame.width <= beforeKey.frame.width + 17, 'first keyboard resize also preserves the frame-to-column difference');
+  }
+  checks.push('short reference layouts keep first/repeated 1px, vertical and keyboard resizing continuous');
   await page.setViewportSize({ width: 1440, height: 900 });
+  await separator.dblclick({ position: { x: 8, y: 40 } }); await settle();
   const start = await separator.boundingBox();
   await page.mouse.move(start.x + 8, start.y + 40); await page.mouse.down();
   await page.mouse.move(3000, start.y + 40, { steps: 10 }); await page.mouse.up();

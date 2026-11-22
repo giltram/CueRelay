@@ -103,6 +103,10 @@ try {
   await page.mouse.up(); await page.setViewportSize({ width: 1440, height: 900 }); await settle();
   assert.equal((await snapshot()).resizing, false); assert((await snapshot()).sameVideo);
   assert.equal(await page.getByRole('textbox', { name: '入点', exact: true }).inputValue(), '0:00:00.03');
+  // Leaving with dirty input now requires explicit discard, which destroys the instance.
+  // Restore the fixture before checking clean same-document hide/history retention.
+  await text.fill(documentFixture.cues[0].text);
+  await page.getByRole('textbox', { name: '入点', exact: true }).fill('0:00:00.00');
   await separator.focus(); await page.keyboard.press('End'); await settle();
   const beforeHide = await snapshot();
   await page.getByRole('link', { name: 'CueRelay', exact: true }).click();

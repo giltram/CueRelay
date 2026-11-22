@@ -3,7 +3,7 @@ import { t, msg, formatMessage } from "../i18n";
 import { useLocale } from "../i18n/react";
 import { diagnostics } from '../diagnostics';
 import { HeaderNotice } from '../page-ui/PageLayout';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { MediaManifest } from '../contracts/projects';
 import { VideoFilePicker } from './VideoFilePicker';
 import { useVideoSource } from './use-video-source';
@@ -92,6 +92,7 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
     </div>
     <input className="video-progress" type="range" aria-label={t("media.videoPosition")}
       min={0} max={duration || 1} step="any" value={Math.min(currentTime, duration)}
+      style={{ '--video-progress': `${duration ? Math.max(0, Math.min(1, currentTime / duration)) * 100 : 0}%` } as CSSProperties}
       aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
       disabled={!duration} onChange={event => onSeek(event.currentTarget.valueAsNumber)} />
     <div className="transport" role="group" aria-label={t("media.videoImportAndPlaybackControls")}>

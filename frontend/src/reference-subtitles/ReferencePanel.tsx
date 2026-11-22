@@ -53,7 +53,7 @@ export function ReferencePanel({ id, collapsed, cues, selected, video, currentTi
 /** Composed into the media action row by the workspace; media has no reference dependency. */
 export function ReferenceToggle({ collapsed, panelId, onToggle }: { collapsed: boolean; panelId: string; onToggle: () => void }) {
   useLocale();
-  return <button type="button" className="text-button reference-toggle" data-reference-toggle
+  return <button type="button" className="reference-toggle" data-reference-toggle
     aria-expanded={!collapsed} aria-controls={panelId}
     onMouseDown={event => event.preventDefault()} onClick={onToggle}>
     {t(collapsed ? 'reference.expand' : 'reference.collapse')}

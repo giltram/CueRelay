@@ -110,7 +110,7 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
       </tbody>
     </table>;
   return <section className="cue-list" data-qc-open={qc?.open || glossary?.open || undefined}>
-    <CueTableHeading count={cues.length} widths={widths} scroll={scroll} actions={actions} onMinimumWidth={setHeadingMinimumWidth}
+    <CueTableHeading widths={widths} scroll={scroll} actions={actions} onMinimumWidth={setHeadingMinimumWidth}
       onResize={(column, width) => setWidths(previous => ({ ...previous, [column.id]: clampCueColumnWidth(column, width) }))} />
     <div className="cue-list-body"><div className="cue-table-pane" ref={pane}>
     {search.open && <CueSearchBar search={search} enabled={searchEnabled} editable={editable} />}

@@ -1,5 +1,7 @@
 # 音频时间轴
 
+滑块外观：右侧调整与视频进度共用全局 CSS 尺寸变量 `--slider-thumb-size`（12px 圆形把手）和 `--slider-track-size`（4px 轨道），配色适应各自底色。底部横向滚动条保持总高 10px，仅将把手上下留白从 2px 减至 1px，加粗 2px，不占用额外画布空间。
+
 `AudioTimeline` 只接收 File、既有 video、视频毫秒时间 / 时长、只读试听状态 / 位置 getter、只读 cues、字幕草稿与动作回调，不持有字幕文档或历史副本，不自行播放声音。
 
 显示模式是受控 mode 属性，由 App 的账号设置经 EditorWorkbench 传入，默认 Spectrum；选择和显式保存入口位于个人设置的「音频显示」，工作区不提供切换器。mode 更新只改变分析/绘制请求，不重置坐标、File、video 或已有 PCM；本组件不请求账号设置或持久化偏好。音频区域不再有标题 / 模式 / 缩放 / 当前工具栏，原高度全部给画布。普通滚轮（纵向或横向）平移，Shift+滚轮缩放；wheelViewport 统一指针锚点、边界约束与 deltaMode 单位。

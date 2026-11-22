@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import { useLocale } from "../i18n/react";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { clampMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbenchHeight } from './workbench-sizing';
+import { clampMediaWidth, defaultMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbenchHeight } from './workbench-sizing';
 
 interface Props {
   media: ReactNode;
@@ -33,7 +33,7 @@ export function ResizableWorkbench({ media, mediaFooter, editor, subtitles }: Pr
   const hasMediaFooter = Boolean(mediaFooter);
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
   const [geometry, setGeometry] = useState<Geometry | null>(null);
-  const [requestedShare, setRequestedShare] = useState<number | null>(null);
+  const [requestedSize, setRequestedSize] = useState<{ share: number; videoWidthGap: number } | null>(null);
   const [resizing, setResizing] = useState(false);
   const mediaId = useId();
   const editorId = useId();
@@ -87,19 +87,23 @@ export function ResizableWorkbench({ media, mediaFooter, editor, subtitles }: Pr
     return () => observer.disconnect();
   }, [hasMediaFooter]);
 
-  const bounds = geometry ? mediaWidthBounds(geometry.width, geometry.maximumVideoWidth) : null;
+  const defaultWidth = geometry
+    ? defaultMediaWidth(geometry.width, geometry.defaultShare, geometry.currentVideoWidth) : 0;
+  // The default column reserves room for controls even when the frame is height-limited.
+  // Retain that difference after resizing, rather than suddenly expanding the frame to fill it.
+  const videoWidthGap = requestedSize?.videoWidthGap ?? Math.max(0, defaultWidth - (geometry?.currentVideoWidth ?? 0));
+  const bounds = geometry ? mediaWidthBounds(geometry.width, geometry.maximumVideoWidth, videoWidthGap) : null;
   const mediaWidth = geometry && bounds
-    ? clampMediaWidth(geometry.width * (requestedShare ?? geometry.defaultShare), requestedShare === null
-      ? mediaWidthBounds(geometry.width, geometry.currentVideoWidth) : bounds) : 0;
+    ? requestedSize === null ? defaultWidth : clampMediaWidth(geometry.width * requestedSize.share, bounds) : 0;
   const percent = (width: number) => geometry?.width ? Math.round(width / geometry.width * 100) : 0;
   const style = geometry?.width
     ? { '--media-share': mediaWidth / geometry.width,
       '--video-controls-space': geometry.controlsHeight + 'px',
-      '--requested-workbench-height': requestedShare === null ? undefined : requiredWorkbenchHeight(mediaWidth, geometry.videoChromeHeight + geometry.verticalFrame) + 'px',
+      '--requested-workbench-height': requestedSize === null ? undefined : requiredWorkbenchHeight(mediaWidth, geometry.videoChromeHeight + geometry.verticalFrame, videoWidthGap) + 'px',
     } as CSSProperties : undefined;
 
   function updateWidth(width: number) {
-    if (geometry?.width && bounds) setRequestedShare(clampMediaWidth(width, bounds) / geometry.width);
+    if (geometry?.width && bounds) setRequestedSize({ share: clampMediaWidth(width, bounds) / geometry.width, videoWidthGap });
   }
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
@@ -148,7 +152,7 @@ export function ResizableWorkbench({ media, mediaFooter, editor, subtitles }: Pr
         aria-valuenow={percent(mediaWidth)} aria-valuetext={t("workspaceUi.videoAreaWidthValuePixelsUpperAreaHeight", { v0: Math.round(mediaWidth), v1: Math.round(geometry?.height ?? 0) })}
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}
         onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={adjustWithKeyboard}
-        onDoubleClick={() => setRequestedShare(null)} />
+        onDoubleClick={() => setRequestedSize(null)} />
       <div className="editing-panel" id={editorId}>{editor}</div>
     </div>
     <div className="workbench-subtitles" ref={subtitlePane} id={subtitleId}>{subtitles}</div>
