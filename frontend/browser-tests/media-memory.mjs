@@ -88,7 +88,7 @@ try {
     await page.locator('main.editor-workbench').waitFor({ state: 'hidden' });
     await page.waitForTimeout(1000);
     await page.goBack(); await page.locator('main.editor-workbench').waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: '显示字幕', exact: true }).click();
+    await page.getByRole('button', { name: '显示预览字幕', exact: true }).click();
     await page.locator('.ass-preview-canvas').waitFor({ state: 'detached' });
     await page.waitForFunction(() => window.__mediaLife.created - window.__mediaLife.terminated === 1);
     const resources = await page.evaluate(() => ({ ...window.__mediaLife,

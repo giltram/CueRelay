@@ -141,9 +141,9 @@ EditorWorkbench 使用 page-ui 的 PageLayout / HeaderNotice：44px 顶栏容纳
 
 ## 分隔栏联动预览高度
 
-`ResizableWorkbench` 组合 media / editor / subtitles 三个展示插槽，拥有上下区域和左右分栏的唯一尺寸状态；不访问字幕或视频内部状态。默认仍用紧凑布局。显式向右拖动分隔栏超过当前视频高度限制时，以 16:9 反推上方所需高度，把字幕列表空间转给预览；左拖缩回，双击恢复默认宽高，键盘沿用方向键 / Shift / Home / End。右侧编辑区最低 480px，字幕区最低 144px（CSS --subtitle-min-height 唯一声明），达到任一边界停止增大。
+`ResizableWorkbench` 组合 media / 可选 mediaFooter / editor / subtitles 展示插槽，拥有上下区域和左右分栏的唯一尺寸状态；不访问字幕或视频内部状态。默认仍用紧凑布局，视频列默认比例为44%（901–1100px窗口为38%），参考区紧凑间距将上方及展开参考的预算同时减少32px，保留略宽的16:9画面并把高度交给字幕表，仍受字幕区最低高度限制。显式向右拖动分隔栏超过当前视频高度限制时，以 16:9 反推上方所需高度，把字幕列表空间转给预览；左拖缩回，双击恢复默认宽高，键盘沿用方向键 / Shift / Home / End。右侧编辑区最低 480px，字幕区最低 144px（CSS --subtitle-min-height 唯一声明），达到任一边界停止增大。
 
-ResizeObserver 观察布局容器、上方区域和字幕容器，读取实际可用高度、边框、控件预算及 CSS 最低高度；不能把当前上方高度再当成整个布局的高度预算，否则会锁住继续放大。只保存用户请求的宽度比例，额外高度由该宽度派生；反向拖动无需第二份高度状态。窗口缩小重新约束，窄屏隐藏分隔栏并释放进行中的 Pointer Capture，恢复桌面保留比例。实例保留/替换语义不变，无账号或 Storage 偏好。
+ResizeObserver 观察布局容器、上方区域、字幕容器及公开布局节点 video-stage / transport，读取实际可用高度、边框、控件预算及 CSS 最低高度；可选 mediaFooter 也由 ResizeObserver 观察，参考区展开/收起的最低高度与间隔同时计入视频及拖动预算；视频控制区按 transport 底边与 video-stage 底边的距离实测，隐藏/全屏时保留现有预算。CSS 将未使用的90px初始控制预算及12px底部内边距交还字幕表，视频宽度不随这部分收紧而改变；不能把当前上方高度再当成整个布局的高度预算，否则会锁住继续放大。只保存用户请求的宽度比例，额外高度由该宽度派生；反向拖动无需第二份高度状态。窗口缩小重新约束，窄屏隐藏分隔栏并释放进行中的 Pointer Capture，恢复桌面保留比例。实例保留/替换语义不变，无账号或 Storage 偏好。
 
 `workbench-sizing.ts` 是纯尺寸公式入口；`workbench-sizing.test.ts` 验证高度预算及宽度边界。`npm run test:workbench-resize` 用实际工作区、真实 Chrome/MP4 与隔离 HTTP 检查拖动增高、最低高度、窗口缩小、双击/键盘、断点释放和媒体/字幕草稿不变。
 
@@ -191,4 +191,4 @@ CueContextMenu 鼠标打开时聚焦容器、不预选操作，键盘打开时�
 
 ## 只读项目参考
 
-EditorWorkbench在cue-editor、正式输入上方组合reference-subtitles/ReferencePanel，仅传项目参考、当前已应用选中cue区间、原video/currentTime、试听playing与getPosition及visible。无参考或无当前读取权限时不渲染；与canEdit无关，可在未选片/只读状态查看。面板自身处理匹配/时钟订阅和滚动，不反向读取工作区内部、不进入历史/QC/导出/草稿/预览。键盘/点击捕获显式跳过data-reference-subtitles，原生选文复制和面板收起不会执行打轴命令或夺走输入焦点。规则/测试在相邻reference-subtitles/README.md。
+EditorWorkbench通过ResizableWorkbench的可选mediaFooter在左列视频及播放控制下方组合reference-subtitles/ReferencePanel，仅传项目参考、当前已应用选中cue区间、原video/currentTime、试听playing与getPosition及visible。无参考或无当前读取权限时不渲染；与canEdit无关，可在未选片/只读状态查看。面板自身处理匹配/时钟订阅和滚动，不反向读取工作区内部、不进入历史/QC/导出/草稿/预览。收起状态由EditorWorkbench拥有，ReferenceToggle经LocalVideoPlayer.additionalActions与显示/隐藏预览字幕同一行，视频导入在画面中央并于验证成功后消失，以aria-controls关联受控ReferencePanel，移除参考时重置收起；参考正文不再有独立标题行，省出的22px用于显示参考。键盘/点击捕获显式跳过data-reference-subtitles和data-reference-toggle，原生选文复制和面板收起不会执行打轴命令或夺走输入焦点。参考区利用本列剩余高度，正文内部滚动；下边距为4px，与右侧字幕文本框下边距一致；展开/收起含间隔分别预留86px/0px，不改变默认上方区高度，空间不足时缩小16:9画面。窄屏顺序为视频/控制→内容高度参考区（最大120px，收起时自然高度）→音频/编辑→字幕表。media不依赖参考业务。规则/测试在相邻reference-subtitles/README.md，实验与实际验证见docs/plans/reference-below-video.md。

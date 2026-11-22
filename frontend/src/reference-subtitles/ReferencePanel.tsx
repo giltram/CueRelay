@@ -6,12 +6,12 @@ import { matchReference, orderReference, referenceContext, type Interval } from 
 import './reference.css';
 
 /** Only this leaf samples media; it never writes to a video, editor, or audition session. */
-export function ReferencePanel({ cues, selected, video, currentTime, auditionPlaying, getAuditionPosition, visible }: {
+export function ReferencePanel({ id, collapsed, cues, selected, video, currentTime, auditionPlaying, getAuditionPosition, visible }: {
+  id: string; collapsed: boolean;
   cues: readonly ReferenceCue[]; selected?: Interval; video: HTMLVideoElement | null; currentTime: number;
   auditionPlaying: boolean; getAuditionPosition: () => number | null; visible: boolean;
 }) {
   useLocale();
-  const [collapsed, setCollapsed] = useState(false);
   const [, tick] = useState(0);
   const content = useRef<HTMLDivElement>(null);
   const ordered = useMemo(() => orderReference(cues), [cues]);
@@ -40,11 +40,7 @@ export function ReferencePanel({ cues, selected, video, currentTime, auditionPla
     if (scroll && current) scroll.scrollTop += current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 24;
   }, [key, collapsed, cues]);
   const text = (cue: ReferenceCue) => cue.text || t('reference.empty');
-  return <section className="reference-panel" data-reference-subtitles aria-label={t('reference.title')}>
-    <button type="button" className="text-button reference-toggle" aria-expanded={!collapsed}
-      onMouseDown={event => event.preventDefault()} onClick={() => setCollapsed(value => !value)}>
-      {t('reference.title')} · {collapsed ? t('reference.expand') : t('reference.collapse')}
-    </button>
+  return <section id={id} hidden={collapsed} className="reference-panel" data-reference-subtitles aria-label={t('reference.title')}>
     {!collapsed && <div className="reference-content" ref={content} tabIndex={0}>
       {result.before && <p className="reference-context" data-reference-before>{text(result.before)}</p>}
       {result.matches.length ? result.matches.map(cue => <p className="reference-current" data-reference-current key={cue.sourceIndex}>{text(cue)}</p>)
@@ -52,4 +48,14 @@ export function ReferencePanel({ cues, selected, video, currentTime, auditionPla
       {result.after && <p className="reference-context" data-reference-after>{text(result.after)}</p>}
     </div>}
   </section>;
+}
+
+/** Composed into the media action row by the workspace; media has no reference dependency. */
+export function ReferenceToggle({ collapsed, panelId, onToggle }: { collapsed: boolean; panelId: string; onToggle: () => void }) {
+  useLocale();
+  return <button type="button" className="text-button reference-toggle" data-reference-toggle
+    aria-expanded={!collapsed} aria-controls={panelId}
+    onMouseDown={event => event.preventDefault()} onClick={onToggle}>
+    {t(collapsed ? 'reference.expand' : 'reference.collapse')}
+  </button>;
 }

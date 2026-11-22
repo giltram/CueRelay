@@ -393,3 +393,7 @@ npm --prefix frontend run test -- --run --exclude 'platform-tests/**'
 `projects.test_reference` / `projects.test_reference_migration` / `srt_format.test_reference` 验证独立参考CAS、创建原子性、可配置edit_project、组织/身份/CSRF/归档、并发字幕保存和旧项目迁移。`frontend/src/reference-subtitles/matching.test.ts` 验证时间/零段/多匹配/上下文与媒体上下文优先级，文件读取复用subtitle-api.test.ts。
 
 统一Chromium新增显式 `test_reference_settings` / `test_reference_creation` / `test_reference_isolation`（reference-subtitles.spec.mjs），发现选择校验仍一一对应，当前共60场。本轮实际运行的后端222（221通过/1项Nginx跳过）、前端554与6场浏览器、失败历史/证据/迁移复现及人工边界见 [实施记录](plans/project-reference-subtitles.md)。不把发现数写作完整回归通过数。
+
+### 视频下方参考字幕布局实验
+
+已有前端服务运行时执行 `cd frontend && npm run test:reference-layout`；可通过 `REFERENCE_LAYOUT_URL` 指定地址。此项使用真实 Chrome/合成 MP4 与隔离 HTTP 夹具验证桌面、短窗口、窄桌面、窄屏及拖动后的布局；业务行为仍由三条 `WorkspaceRegressionTests.test_reference_*` 真库场景验证。本次结果、截图与旧 compact/resize 测试的基准失败见 [实验记录](plans/reference-below-video.md)。

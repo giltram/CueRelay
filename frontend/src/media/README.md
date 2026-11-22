@@ -12,7 +12,7 @@
 - `media-manifest.ts` / `file-hash*.ts`：新建项目检查可播放首帧和合法时长，再以 Worker 分块计算完整 SHA-256；打开已有项目核对大小和完整摘要。播放器 loadedmetadata 继续检查合法时长后才通知 verified。新建同页的 InitialVideo 已完成完整校验，允许复用该次摘要；刷新后的句柄必须重新取 File/算完整摘要，不相信文件名、修改时间或旧摘要。
 - `LocalVideoPlayer.tsx`：video 节点、Object URL 创建/释放、元数据/播放错误、进度条与全屏 UI；通过 onFile 发布同一个接受的 File。只有播放器元数据通过后才记住句柄。校验失败不解锁编辑，不改变字幕或服务器基准。
 
-工作区通过 `playbackControls` 提供播放和时钟，通过 `subtitleToggle` 提供字幕开关。播放器将字幕开关与导入视频排在一起，空间不足时两者一起换行。
+工作区通过 `playbackControls` 提供播放和时钟，通过 `subtitleToggle` 提供字幕开关。播放控制行仅显示上层注入的额外动作和预览字幕开关；时间字号为13px（较窄列为12px），总时长为11px。导入视频入口位于 video-stage 中央，沿用同一 VideoFilePicker 和校验流程；metadata 校验成功进入 locked 后移除按钮及文件 input，校验取消/失败仍保留重试入口，已经固定后的播放错误不解除固定状态。
 
 ## 恢复行为与边界
 
@@ -33,3 +33,9 @@ App 将当前已登录且仍有项目访问权的账号 ID 传入工作区；工
 ## 中英文展示边界（2026-11-15）
 
 onError 与资源钩子的 notice 使用 contracts/messages.MessageValue；LocalVideoPlayer 在展示时解析。纯校验/解码/哈希不读取语言，Worker 通过 errorMessage 传递可结构化克隆的 descriptor。语言订阅不进入 File、句柄、Object URL 或 Worker 的生命周期依赖；验证数值与媒体基准不变。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。
+
+## 展示组合边界
+
+视频下方的项目参考字幕由上层 EditorWorkbench → ResizableWorkbench.mediaFooter 组合。LocalVideoPlayer 通过通用可选 additionalActions 插槽在预览字幕开关旁展示上层注入的动作；不读取动作业务状态。播放器只拥有 video/进度/播放控制；不导入 reference-subtitles 或读取参考状态。CSS 在媒体列预留 footer 的展开/收起空间，必要时缩小16:9画面，媒体节点和生命周期保持不变。
+
+播放器的 `.video-stage` / `.transport` 是工作区使用的公开布局测量节点：ResizableWorkbench 只读取两者边界和尺寸变化，计算进度/播放控制的实际高度，不读取媒体业务状态。隐藏或全屏导致无法测量正常布局时沿用当前预算。

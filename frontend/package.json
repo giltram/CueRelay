@@ -40,6 +40,7 @@
     "test:subtitle-qc": "node browser-tests/subtitle-qc.mjs",
     "test:compact-layout": "node browser-tests/compact-layout.mjs",
     "test:workbench-resize": "node browser-tests/workbench-resize.mjs",
+    "test:reference-layout": "node browser-tests/reference-layout.mjs",
     "build": "npm run i18n:check && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:editing-operations": "node browser-tests/editing-operations.mjs",

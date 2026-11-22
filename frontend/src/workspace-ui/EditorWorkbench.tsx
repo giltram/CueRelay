@@ -1,4 +1,4 @@
-import { ReferencePanel } from '../reference-subtitles/ReferencePanel';
+import { ReferencePanel, ReferenceToggle } from '../reference-subtitles/ReferencePanel';
 import { type MessageValue, describe, MessageError } from '../contracts/messages';
 import { formatMessage, msg, t } from '../i18n';
 import { useMessageState, useLocale } from '../i18n/react';
@@ -119,6 +119,10 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const referencePanelId = useId();
+  const referenceCues = mediaOwnerId !== undefined ? project?.reference?.cues : null;
+  const [referenceCollapsed, setReferenceCollapsed] = useState(false);
+  useEffect(() => { if (!referenceCues) setReferenceCollapsed(false); }, [referenceCues]);
   const [duration, setDuration] = useState(0);
   const audioAudition = useAudioAudition(mediaFile, video, visible);
   const cancelAudition = audioAudition.stop;
@@ -529,7 +533,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-reference-subtitles], [data-workspace-drafts]')) return;
+      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-reference-subtitles], [data-reference-toggle], [data-workspace-drafts]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
       const blocked = !controlsEnabled || transforming.current;
       if (candidate && blocked) noteIgnored('editor', stylesOpen || timeShiftOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
@@ -675,7 +679,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-reference-subtitles], [data-workspace-drafts], [data-time-shift]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-reference-subtitles], [data-reference-toggle], [data-workspace-drafts], [data-time-shift]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -765,6 +769,8 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}
             enabled={visible && (!project || mediaOwnerId !== undefined)} expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
+            additionalActions={referenceCues ? <ReferenceToggle collapsed={referenceCollapsed} panelId={referencePanelId}
+              onToggle={() => setReferenceCollapsed(value => !value)} /> : undefined}
             playbackControls={<>
               <button className="playback-button" aria-label={t("workspaceUi.playPause")}
                 disabled={!duration} onClick={() => run(togglePlayback)}>
@@ -776,7 +782,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             </>}
             subtitleToggle={<button type="button" aria-label={t("workspaceUi.showSubtitles")} aria-pressed={subtitles.enabled}
               onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? t("workspaceUi.hideSubtitles") : t("workspaceUi.showSubtitles")}</button>} />
-      } editor={<>
+      } mediaFooter={referenceCues ? <ReferencePanel id={referencePanelId} collapsed={referenceCollapsed} cues={referenceCues} selected={selected}
+          video={video} currentTime={currentTime} auditionPlaying={audioAudition.state.phase === 'playing'}
+          getAuditionPosition={audioAudition.getPosition} visible={visible} /> : undefined} editor={<>
           <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
             onBoundaryChange={canEdit && controlsEnabled && document ? (point, time) => {
@@ -792,9 +800,6 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             } : undefined}
             onSeek={seekPlayback} />
           <section className="cue-editor" aria-label={t("workspaceUi.subtitleEditing")}>
-            {project?.reference?.cues && mediaOwnerId !== undefined && <ReferencePanel cues={project.reference.cues} selected={selected}
-              video={video} currentTime={currentTime} auditionPlaying={audioAudition.state.phase === 'playing'}
-              getAuditionPosition={audioAudition.getPosition} visible={visible} />}
             <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">{t("workspaceUi.subtitleEditing")}</legend>
               <div className="cue-fields">

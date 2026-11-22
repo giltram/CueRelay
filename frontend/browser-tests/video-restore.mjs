@@ -95,7 +95,7 @@ const text = page.getByLabel('字幕中文文本');
 const open = (projectId = 1, organizationId = 1) => page.goto(`${baseURL}/organizations/${organizationId}/projects/${projectId}/workspace`);
 const selectRow = () => page.getByRole('button', { name: '选择第 1 行', exact: true }).click();
 const ready = async () => {
-  await page.waitForFunction(() => document.querySelector('video')?.readyState >= 1 && document.querySelector('.file-picker')?.disabled);
+  await page.waitForFunction(() => document.querySelector('video')?.readyState >= 1 && !document.querySelector('.video-stage .file-picker'));
   await selectRow(); assert(await text.isEnabled());
 };
 const empty = async () => {

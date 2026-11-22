@@ -87,8 +87,8 @@ try {
   await picker.focus(); await page.keyboard.press('Enter');
   await (await chosen).setFiles(video);
   await page.waitForFunction(() => document.querySelector('video')?.readyState >= 2);
-  assert(await page.getByLabel('导入本地视频').isDisabled()); // Fixed-source protection remains.
-  assert(await picker.isDisabled());
+  assert.equal(await page.getByLabel('导入本地视频').count(), 0); // Verified sources have no replacement control.
+  assert.equal(await picker.count(), 0);
   assert.equal(await page.getByText('视频仅在本机播放，不会上传。', { exact: true }).count(), 0);
 
   const style = await rows.first().locator('.style-cell').boundingBox();

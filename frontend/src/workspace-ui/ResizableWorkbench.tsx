@@ -5,6 +5,7 @@ import { clampMediaWidth, maximumMediaWidth, mediaWidthBounds, requiredWorkbench
 
 interface Props {
   media: ReactNode;
+  mediaFooter?: ReactNode;
   editor: ReactNode;
   subtitles: ReactNode;
 }
@@ -17,16 +18,19 @@ interface Geometry {
   currentVideoWidth: number;
   verticalFrame: number;
   controlsHeight: number;
+  videoChromeHeight: number;
   height: number;
 }
 
 /** Layout state stays here; resizing never changes media or subtitle state. */
-export function ResizableWorkbench({ media, editor, subtitles }: Props) {
+export function ResizableWorkbench({ media, mediaFooter, editor, subtitles }: Props) {
   useLocale();
   const container = useRef<HTMLDivElement>(null);
   const subtitlePane = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const divider = useRef<HTMLDivElement>(null);
+  const footer = useRef<HTMLDivElement>(null);
+  const hasMediaFooter = Boolean(mediaFooter);
   const drag = useRef<{ pointerId: number; offset: number } | null>(null);
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const [requestedShare, setRequestedShare] = useState<number | null>(null);
@@ -42,7 +46,14 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
       const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
       const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
       const dividerWidth = parseFloat(style.getPropertyValue('--divider-width'));
-      const controlsHeight = parseFloat(style.getPropertyValue('--video-controls-space'));
+      // CSS owns the footer minimum, including its gap; remaining height stays in the footer.
+      const footerSpace = parseFloat(getComputedStyle(element.querySelector('.media-panel')!).getPropertyValue('--media-footer-space'));
+      const frame = element.querySelector('.video-stage')?.getBoundingClientRect();
+      const transport = element.querySelector('.transport')?.getBoundingClientRect();
+      // Measure layout chrome, never media state. The fallback also covers hidden/fullscreen frames.
+      const measuredControls = frame?.height && transport ? transport.bottom - frame.bottom : 0;
+      const controlsHeight = measuredControls > 0 ? measuredControls : parseFloat(style.getPropertyValue('--video-controls-space'));
+      const videoChromeHeight = controlsHeight + footerSpace;
       const box = element.getBoundingClientRect();
       const verticalFrame = verticalPadding + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
       const layoutStyle = getComputedStyle(container.current!);
@@ -52,9 +63,9 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
         width: Math.max(0, element.clientWidth - horizontalPadding - dividerWidth),
         defaultShare: parseFloat(style.getPropertyValue('--default-media-share')),
         maximumVideoWidth: maximumMediaWidth(container.current!.clientHeight, subtitleMinimum,
-          parseFloat(layoutStyle.rowGap), verticalFrame + controlsHeight),
-        currentVideoWidth: Math.max(0, box.height - verticalFrame - controlsHeight) * 16 / 9,
-        verticalFrame, controlsHeight, height: box.height,
+          parseFloat(layoutStyle.rowGap), verticalFrame + videoChromeHeight),
+        currentVideoWidth: Math.max(0, box.height - verticalFrame - videoChromeHeight) * 16 / 9,
+        verticalFrame, controlsHeight, videoChromeHeight, height: box.height,
       });
       // A breakpoint change during a drag must release capture as well.
       if (drag.current && getComputedStyle(divider.current!).display === 'none') {
@@ -68,8 +79,13 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
     observer.observe(element);
     observer.observe(container.current!);
     observer.observe(subtitlePane.current!);
+    if (footer.current) observer.observe(footer.current);
+    for (const selector of ['.video-stage', '.transport']) {
+      const child = element.querySelector(selector);
+      if (child) observer.observe(child);
+    }
     return () => observer.disconnect();
-  }, []);
+  }, [hasMediaFooter]);
 
   const bounds = geometry ? mediaWidthBounds(geometry.width, geometry.maximumVideoWidth) : null;
   const mediaWidth = geometry && bounds
@@ -78,7 +94,8 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
   const percent = (width: number) => geometry?.width ? Math.round(width / geometry.width * 100) : 0;
   const style = geometry?.width
     ? { '--media-share': mediaWidth / geometry.width,
-      '--requested-workbench-height': requestedShare === null ? undefined : requiredWorkbenchHeight(mediaWidth, geometry.controlsHeight + geometry.verticalFrame) + 'px',
+      '--video-controls-space': geometry.controlsHeight + 'px',
+      '--requested-workbench-height': requestedShare === null ? undefined : requiredWorkbenchHeight(mediaWidth, geometry.videoChromeHeight + geometry.verticalFrame) + 'px',
     } as CSSProperties : undefined;
 
   function updateWidth(width: number) {
@@ -122,7 +139,9 @@ export function ResizableWorkbench({ media, editor, subtitles }: Props) {
 
   return <div className="workbench-layout" ref={container}>
     <div ref={root} className="workbench" style={style} data-resizing={resizing || undefined}>
-      <div className="media-panel" id={mediaId}>{media}</div>
+      <div className="media-panel" id={mediaId}>{media}
+        {mediaFooter && <div className="media-footer" ref={footer}>{mediaFooter}</div>}
+      </div>
       <div ref={divider} className="workbench-divider" role="separator" tabIndex={0}
         aria-label={t("workspaceUi.resizeVideoArea")} aria-orientation="vertical" aria-controls={`${mediaId} ${editorId} ${subtitleId}`}
         aria-valuemin={bounds ? percent(bounds.minimum) : 0} aria-valuemax={bounds ? percent(bounds.maximum) : 100}

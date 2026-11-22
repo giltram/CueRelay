@@ -253,7 +253,7 @@ try {
   await eventually(p => p.white > 200 && p.yellow > 200); await pixels('05-fullscreen');
   await page.evaluate(() => document.exitFullscreen());
 
-  const toggle = page.getByRole('button', { name: '显示字幕', exact: true });
+  const toggle = page.getByRole('button', { name: '显示预览字幕', exact: true });
   await toggle.click(); await eventually(p => p.white === 0 && p.yellow === 0);
   await toggle.click(); await ready(); await eventually(p => p.white > 200 && p.yellow > 200);
   await page.waitForTimeout(350);

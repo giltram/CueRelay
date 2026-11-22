@@ -57,8 +57,8 @@ test('media bounded 180 second six channel seek preview audition and cleanup', a
   const canvas = page.locator('.ass-preview-canvas');
   const visible = await canvas.screenshot({ path: info.outputPath('subtitle-visible.png') });
   expect(visible.equals(emptyFrame)).toBe(false);
-  await button(page, '显示字幕').click(); await expect(canvas).toHaveCount(0);
-  await button(page, '显示字幕').click();
+  await button(page, '显示预览字幕').click(); await expect(canvas).toHaveCount(0);
+  await button(page, '显示预览字幕').click();
   await expect(page.locator('.ass-preview-status')).toHaveAttribute('data-phase', 'ready');
   const restored = await canvas.screenshot(); expect(restored).toEqual(visible);
   await page.locator('main.editor-workbench').focus(); await page.keyboard.press('Space');
@@ -74,7 +74,7 @@ test('media bounded 180 second six channel seek preview audition and cleanup', a
   await expect.poll(() => page.evaluate(() => window.__media.closed)).toBe(audition.contexts);
   // Re-enter retained instance, then explicitly discard/unmount via the home link.
   await page.goBack(); await expect(page.locator('main.editor-workbench')).toBeVisible();
-  await button(page, '显示字幕').click(); await expect(canvas).toHaveCount(0);
+  await button(page, '显示预览字幕').click(); await expect(canvas).toHaveCount(0);
   // Navigating to another project/local workspace destroys the retained instance.
   await sameTab(page.getByRole('link', { name: 'CueRelay', exact: true }));
   await sameTab(page.getByRole('link', { name: '本地工作区', exact: true }));

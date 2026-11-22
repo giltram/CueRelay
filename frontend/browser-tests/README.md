@@ -91,3 +91,5 @@ layout-checks.mjs 只检查页面边界、指定 surface 和关键按钮的裁�
 旧专项已同步现有契约：稳定style_id对应选项名称、role=alert、导入保留视窗后的显式Home、精确状态等待、显式选行可定位视频、时间戳下载及下载正文、同页导航与明确放弃未保存稿后清理；没有放宽预期时间/像素/PCM/清理断言或添加固定sleep。真实听感和OS权限仍需人工。
 
 `--suite media --production-app`提供180秒/48kHz/5.1、16MiB文件预算的合成媒体闭环；`--suite platform --browser firefox|webkit`为兼容评估，mac14冻结WebKit的显式兼容驱动/生产选项与原失败记录见 [测试手册](../../docs/testing.md)。全部实际执行统计、失败历史、版本及待人工边界归该手册和 [覆盖矩阵](../../docs/testing-coverage.md)，不在本目录重复维护另一套结论。
+
+参考字幕位于视频下方的布局实验：`npm run test:reference-layout`（默认已运行的 `http://127.0.0.1:5173`，可设 `REFERENCE_LAYOUT_URL`）。真实 Chrome/合成媒体，隔离 HTTP 夹具；覆盖四种窗口、参考有无/收起/长文本/多匹配/无匹配、分栏拖动、编辑和播放可用性。实际验证与既有测试限制见 [实验记录](../../docs/plans/reference-below-video.md)。

@@ -21,6 +21,8 @@ test('project reference settings refresh preserves subtitle draft media selectio
   await expect(page.locator('.ass-preview-status')).toHaveAttribute('data-phase', 'ready');
   const preview = await page.locator('.ass-preview-canvas').elementHandle();
   const videoSize = await page.locator('.video-stage').boundingBox();
+  const upperSize = await page.locator('.workbench').boundingBox();
+  const listSize = await page.locator('.cue-list').boundingBox();
   const settings = await context.newPage();
   await settings.goto(fixtures.workspacePath.replace('/workspace', '/settings'));
   await expect(settings.getByText('尚无参考字幕。', { exact: true })).toBeVisible();
@@ -35,7 +37,14 @@ test('project reference settings refresh preserves subtitle draft media selectio
   await expect(text(page)).toHaveValue('未保存的正式正文');
   expect(await video.evaluate(node => node === document.querySelector('video'))).toBe(true);
   expect(await preview.evaluate(node => node === document.querySelector('.ass-preview-canvas'))).toBe(true);
-  expect(await page.locator('.video-stage').boundingBox()).toEqual(videoSize);
+  // Reference uses the media column; a tight height budget may shrink the video.
+  const referenceVideoSize = await page.locator('.video-stage').boundingBox();
+  expect(referenceVideoSize.width).toBeLessThanOrEqual(videoSize.width);
+  expect(referenceVideoSize.width / referenceVideoSize.height).toBeCloseTo(16 / 9, 2);
+  expect(await page.locator('.workbench').boundingBox()).toEqual(upperSize);
+  expect(await page.locator('.cue-list').boundingBox()).toEqual(listSize);
+  await expect(page.locator('.media-panel [data-reference-subtitles]')).toHaveCount(1);
+  await expect(page.locator('.cue-editor [data-reference-subtitles]')).toHaveCount(0);
   expect(await rows(page).first().getAttribute('data-cue-id')).toBe(selectedId);
   await expect(panel(page).locator('script')).toHaveCount(0);
   // A real DOM selection can be copied with normal browser shortcuts.
@@ -47,10 +56,10 @@ test('project reference settings refresh preserves subtitle draft media selectio
   await page.keyboard.press('Meta+c');
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('参考甲 <script>');
   await text(page).focus();
-  await button(panel(page), '参考字幕 · 收起').click();
+  await button(page, '收起参考字幕').click();
   await expect(text(page)).toBeFocused();
   await expect(panel(page).locator('.reference-content')).toHaveCount(0);
-  await button(panel(page), '参考字幕 · 展开').click();
+  await button(page, '展开参考字幕').click();
   // Set playback at a known point through the actual video clock.
   await page.locator('video').evaluate(video => { video.currentTime = 3.15; return video.play(); });
   await expect(panel(page).locator('[data-reference-current]')).toHaveText(['后文']);
@@ -97,14 +106,20 @@ test('project reference settings refresh preserves subtitle draft media selectio
   await page.evaluate(() => window.dispatchEvent(new Event('focus'))); expect((await observed).status()).toBe(200);
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   expect(await panel(page).locator('.reference-content').evaluate(node => node.scrollTop)).toBe(80);
-  // Stable reference height; existing divider still resizes the same video node.
-  const height = await panel(page).evaluate(node => node.getBoundingClientRect().height);
+  // Reference adapts to its column; existing divider keeps the same video node.
   await page.getByRole('separator', { name: '调整视频区域大小', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
   expect(await video.evaluate(node => node === document.querySelector('video'))).toBe(true);
   await page.setViewportSize({ width: 1100, height: 620 });
   await expect(panel(page)).toBeVisible();
-  expect(await panel(page).evaluate(node => node.getBoundingClientRect().height)).toBe(height);
+  expect(await panel(page).evaluate(node => {
+    const reference = node.getBoundingClientRect(), media = node.closest('.media-panel').getBoundingClientRect();
+    const transport = document.querySelector('.transport').getBoundingClientRect();
+    const editor = document.querySelector('.cue-editor').getBoundingClientRect();
+    const input = document.querySelector('.subtitle-input textarea').getBoundingClientRect();
+    return reference.top >= transport.bottom && reference.bottom <= media.bottom + 1
+      && input.top >= editor.top && input.bottom <= editor.bottom + 1;
+  })).toBe(true);
   await page.setViewportSize({ width: 700, height: 700 });
   await text(page).scrollIntoViewIfNeeded(); await expect(text(page)).toBeEditable();
   await page.screenshot({ path: test.info().outputPath('reference-narrow.png') });

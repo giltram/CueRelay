@@ -21,6 +21,7 @@ interface Props {
   onSeek: (milliseconds: number) => void;
   playbackControls: ReactNode;
   subtitleToggle: ReactNode;
+  additionalActions?: ReactNode;
   expectedMedia?: MediaManifest;
   initialMedia?: InitialVideo;
   persistenceKey?: string;
@@ -28,7 +29,7 @@ interface Props {
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, playbackControls, subtitleToggle, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, playbackControls, subtitleToggle, additionalActions, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
   useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -75,7 +76,11 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
             ? t("media.playbackOfTheFixedSourceStoppedPossiblyDue")
             : t("media.theBrowserCannotPlayThisFileUnsupportedContainer"));
         }} />
-      {!file && <div className="video-placeholder">{t("media.importLocalVideo")}<span>{t("media.videoStaysOnYourDevice")}</span></div>}
+      {!locked && <div className="video-placeholder">
+        <VideoFilePicker label={t("media.importLocalVideo")} disabled={checking || !enabled} remember={Boolean(persistenceKey)}
+          onSelect={value => void source.choose(value)} onError={onError}>{t("media.importVideo")}</VideoFilePicker>
+        <span>{t("media.videoStaysOnYourDevice")}</span>
+      </div>}
       {file && <button type="button" className="video-fullscreen" aria-label={t("media.toggleVideoFullscreen")} aria-pressed={fullscreen}
         title={fullscreen ? t("media.exitFullscreen") : t("media.enterFullscreen")} onClick={() => {
         if (!stage.current?.requestFullscreen) { onError(msg("media.thisBrowserCannotEnterFullscreen")); return; }
@@ -95,10 +100,8 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
       {source.notice && <HeaderNotice>{formatMessage(source.notice)}{source.needsAuthorization &&
         <button disabled={checking || !enabled} onClick={source.authorize}>{t("media.authorizeVideoAgain")}</button>}</HeaderNotice>}
       <div className="transport-actions">
+        {additionalActions}
         {subtitleToggle}
-        <VideoFilePicker label={t("media.importLocalVideo")} disabled={locked || checking || !enabled} remember={Boolean(persistenceKey)}
-          onSelect={value => void source.choose(value)} onError={onError} title={locked
-            ? t("media.sourceFixedValueExportSubtitlesAndRefreshBefore", { v0: file?.name }) : undefined}>{t("media.importVideo")}</VideoFilePicker>
       </div>
     </div>
   </section>;

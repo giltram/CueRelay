@@ -105,23 +105,22 @@ try {
     await expect(transport).toBeVisible();
     for (const width of [1120, 1000, 390]) {
       await page.setViewportSize({ width, height: 680 });
-      const { sameRow, followsClock, fits } = await transport.evaluate(async element => {
+      const { centered, fits } = await transport.evaluate(async element => {
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const bounds = element.getBoundingClientRect();
         const subtitles = element.querySelector('button[aria-pressed]').getBoundingClientRect();
-        const picker = element.querySelector('.file-picker').getBoundingClientRect();
-        const clock = element.querySelector('.time-display').getBoundingClientRect();
-        const center = rect => rect.top + rect.height / 2;
+        const stage = document.querySelector('.video-stage').getBoundingClientRect();
+        const picker = document.querySelector('.video-stage .file-picker').getBoundingClientRect();
         return {
-          sameRow: Math.abs(center(subtitles) - center(picker)) < 1,
-          followsClock: Math.abs(center(subtitles) - center(clock)) < 1,
-          fits: subtitles.left >= bounds.left && subtitles.right <= picker.left && picker.right <= bounds.right + 1,
+          centered: Math.abs(picker.left + picker.width / 2 - stage.left - stage.width / 2) < 1
+            && Math.abs(picker.top + picker.height / 2 - stage.top - stage.height / 2) < 1,
+          fits: subtitles.left >= bounds.left && subtitles.right <= bounds.right + 1
+            && picker.left >= stage.left && picker.right <= stage.right,
         };
       });
-      assert(sameRow && fits, `${language}-${width}: video actions must fit side by side`);
-      if (language === 'en' && width === 1120) assert(followsClock, 'English video actions must fit on the clock row');
+      assert(centered && fits, `${language}-${width}: centered import and preview control fit their areas`);
     }
-    reports.push(`${language}: video actions stay together on desktop and mobile`);
+    reports.push(`${language}: import is centered in video and preview controls fit desktop/mobile`);
     assert.deepEqual(errors, [], `${language} browser errors`);
     await context.close();
   }

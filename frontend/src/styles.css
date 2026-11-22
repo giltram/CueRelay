@@ -84,17 +84,19 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .workbench-layout { --subtitle-min-height: 144px; --audio-height-gain: 58px; display: flex; flex: 1; flex-direction: column; gap: 4px; min-height: 0; }
 .workbench-subtitles { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: var(--subtitle-min-height); }
 .workbench {
-  --default-media-share: .42;
+  --default-media-share: .44;
   --media-share: var(--default-media-share);
   --divider-width: 16px;
-  --video-controls-space: 96px;
+  --video-controls-reserve: 90px;
+  --video-controls-space: var(--video-controls-reserve);
+  --default-workbench-height: calc(clamp(348px, calc(54dvh - 52px), 508px) + var(--audio-height-gain) - 16px);
   display: grid;
   grid-template-columns: minmax(0, calc((100% - var(--divider-width)) * var(--media-share))) var(--divider-width) minmax(0, 1fr);
-  /* Give the compact toolbar and header/pane gaps' saved height to the audio area. */
-  flex: 0 1 max(calc(clamp(348px, calc(54dvh - 52px), 508px) + var(--audio-height-gain)), var(--requested-workbench-height, 0px));
+  /* Return unused control reserve and bottom padding to the list without shrinking the frame. */
+  flex: 0 1 max(calc(var(--default-workbench-height) - 12px - var(--video-controls-reserve) + var(--video-controls-space)), var(--requested-workbench-height, 0px));
   min-height: 0;
   gap: 0;
-  padding: 12px;
+  padding: 12px 12px 0;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -107,10 +109,16 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .workbench[data-resizing] { cursor: col-resize; user-select: none; }
 .workbench[data-resizing] > :not(.workbench-divider) { pointer-events: none; }
 .media-panel, .editing-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.media-panel { container-type: size; }
+.media-panel { --media-footer-space: 0px; container-type: size; }
+/* Reserve the reference viewport, border and 4px gaps above and below. */
+.media-panel:has(.media-footer) { --media-footer-space: 86px; }
+.media-panel:has(.media-footer .reference-panel[hidden]) { --media-footer-space: 0px; }
+.media-footer { display: flex; flex-direction: column; flex: 1; min-height: calc(var(--media-footer-space) - 8px); margin: 4px 0; }
+.media-panel:has(.media-footer) > .player-section { flex: none; }
+.media-footer:has(.reference-panel[hidden]) { display: none; }
 .player-section { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 /* Reserve space for the progress slider and the transport, including wrapped actions. */
-.video-stage { position: relative; flex: none; align-self: center; width: min(100%, calc((100cqh - var(--video-controls-space)) * 16 / 9)); aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
+.video-stage { position: relative; flex: none; align-self: center; width: min(100%, max(0px, calc((100cqh - var(--video-controls-space) - var(--media-footer-space)) * 16 / 9))); aspect-ratio: 16 / 9; background: #17231f; border-radius: 4px; overflow: hidden; isolation: isolate; }
 .video-stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ass-preview-canvas { position: absolute; pointer-events: none; }
 .video-fullscreen { position: absolute; top: 8px; right: 8px; z-index: 1; width: 28px; height: 28px; min-height: 28px; padding: 5px; border-radius: 4px; }
@@ -118,14 +126,15 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .video-stage:fullscreen { width: 100%; height: 100%; border-radius: 0; background: black; }
 input.video-progress { flex: none; height: 20px; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0; background: transparent; accent-color: var(--accent); cursor: pointer; }
 .video-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; color: #cbd9cc; pointer-events: none; }
-.video-placeholder span { font-size: 12px; color: #92a095; }
+.video-placeholder .file-picker { pointer-events: auto; }
+.video-placeholder span { position: absolute; top: calc(50% + 24px); left: 0; right: 0; text-align: center; font-size: 12px; color: #92a095; }
 .hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.transport { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 6px 4px; margin-top: 8px; }
+.transport { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 6px 4px; margin-top: 2px; }
 .transport-actions { display: flex; align-items: center; gap: 4px; max-width: 100%; margin-left: auto; }
 .transport-actions > button { min-height: 28px; padding: 2px 6px; font-size: 12px; }
 .playback-button { width: 28px; min-height: 28px; padding: 4px; }
-.time-display { font: 14px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.time-display span { font-size: 12px; color: var(--text-muted); }
+.time-display { font: 13px ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time-display span { font-size: 11px; color: var(--text-muted); word-spacing: -3px; }
 summary { cursor: pointer; font-size: 13px; }
 .editing-panel { gap: 8px; }
 .audio-panel { display: flex; flex: 1 0 72px; flex-direction: column; justify-content: center; align-items: center; position: relative; padding: 32px 12px 12px; border: 1px solid var(--border); background: var(--subtle); color: var(--text-muted); }
@@ -211,7 +220,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 1100px) and (min-width: 901px) {
-  .workbench { --default-media-share: .36; }
+  .workbench { --default-media-share: .38; }
 }
 
 @media (max-width: 900px) {
@@ -221,6 +230,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
   .workbench { flex: none; grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .workbench-divider { display: none; }
   .media-panel { display: contents; container-type: normal; }
+  .media-footer { height: auto; max-height: 120px; min-height: 0; margin-top: 0; }
   .player-section { position: sticky; top: 0; z-index: 2; padding-bottom: 8px; background: var(--surface); }
   .video-stage { width: min(100%, calc(min(28svh, 224px) * 16 / 9)); }
   .audio-panel { flex: none; min-height: 124px; }
@@ -236,7 +246,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 
 @media (max-width: 600px) {
   main { padding: 0 12px 12px; }
-  .workbench { padding: 12px; }
+  .workbench { padding: 12px 12px 0; }
   .time-point input { font-size: 16px; }
   .time-display { font-size: 12px; }
   .time-display span { font-size: 11px; }
