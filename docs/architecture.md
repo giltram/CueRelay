@@ -362,3 +362,7 @@ EditorWorkbench/媒体层通过显式事件和只读状态 getter 接入；编�
 2026-11-13（调整2026-11-12首版）：glossary拥有组织唯一默认表、词条及fork快照；projects拥有可空关联、独立关联版本、有效表解析和包含归档的使用计数。`projects/glossary_services → glossary/services → organizations/accounts`，无反向私有ORM或signals。项目默认只读组织表；成员明确fork当前组织词条后，自由维护副本，复制后的新旧词条无区别，不再同步/回写。组织默认只在「设置→组织设置」维护；App通过organizationGlossary插槽组合公开UI，account-ui只做布局。organizer/dev可切回默认，旧表/词条不合并删除；既有显式关联迁移保留。
 
 前端 `{App,workspace-ui,project-ui} → glossary-ui → glossary-data/contracts`，复用表单、分页和冲突草稿；工作区与QC共用侧栏。术语/fork只更新独立资源及关联列，不touch字幕revision/document/保存基准，插入才进入正常字幕历史。打开/返回/明确刷新时获取最新数据，无多人实时同步。迁移 glossary.0002 / projects.0004、锁序/权限/归档/接口见 [当前术语契约](glossary.md)、[后端模块](../backend/glossary/README.md) 和 [本轮验证](experiments/organization-glossary.md)。
+
+## 可重复的浏览器验收编排（2026-11-22）
+
+`backend/browser_tests/regression_fixture.py` 统一拥有测试库守卫、真实账号/项目和8秒合成媒体；`regression.py` 仍显式逐一选择统一Chromium场景，`platforms.py` 组合相同夹具提供独立平台/媒体/生产专项，不继承整套统一测试。`scripts/run_isolated_regression.py → {一次性PostgreSQL, Django测试入口, scripts/browser-regression}` 提供逐场空Vite缓存、envFile:false、独立证据、真实日志及服务清理；默认统一入口与产品模块依赖不变。辅助入口与故障场景通过真实公开HTTP/服务向下验证，不添加产品诊断接口。Firefox/WebKit仍属兼容性评估，不扩大产品支持范围；命令、资源预算与手工边界见 [测试手册](testing.md) 和 [本轮计划](plans/e2e-aux-media-failures-2026-11-22.md)。

@@ -3,7 +3,7 @@ import { openLocalWorkspace } from './local-workspace.mjs';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { checkRuler, observeRuler } from './ruler-checks.mjs';
@@ -19,7 +19,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi
   'aevalsrc=0.125*sin(2*PI*1000*t)+0.06*sin(2*PI*3000*t)+0.03*sin(2*PI*12000*t):s=48000:d=45',
   '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '35', '-pix_fmt', 'yuv420p',
   '-af', "volume='if(lt(mod(t,4),2),1,0)':eval=frame,pan=stereo|c0=c0|c1=-1*c0", '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', file]);
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ channel: process.env.BROWSER_TEST_CHANNEL === 'bundled' ? undefined : 'chrome', headless: true });
 const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 const errors = [];
@@ -227,7 +227,10 @@ try {
   assert.equal(await page.getByRole('button', { name: '选择第 2 行', exact: true }).getAttribute('aria-pressed'), 'true');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出 ASS', exact: true }).click();
-  assert.equal((await download).suggestedFilename(), 'cuerelay.ass');
+  const exported = await download;
+  assert.equal(await exported.failure(), null);
+  assert.match(exported.suggestedFilename(), /^cuerelay_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.ass$/);
+  assert(readFileSync(await exported.path(), 'utf8').includes(',,音频回归测试'));
   await page.setViewportSize({ width: 800, height: 900 });
   await setAudioMode(page, 'waveform');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');

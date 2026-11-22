@@ -1,3 +1,4 @@
+import { sameTab } from './link-navigation.mjs';
 // Actual Web Audio render-thread PCM, MP4/WebCodecs and workbench lifecycle checks.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -16,7 +17,7 @@ execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i
   '-af', 'pan=stereo|c0=c0|c1=-1*c0', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', file]);
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-c:v', 'copy', '-an', silent]);
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-c:v', 'copy', '-c:a', 'alac', unsupported]);
-const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ channel: process.env.BROWSER_TEST_CHANNEL === 'bundled' ? undefined : 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage(), errors = [], unexpected = [];
 page.on('pageerror', error => errors.push(String(error)));
@@ -292,7 +293,8 @@ try {
   assert.equal(await page.locator('.cue-list tbody').innerText(), snapshot);
   assert.equal(await start.inputValue(), '0:00:00.00'); assert.equal(await end.inputValue(), '0:00:15.00');
   await audition('KeyR');
-  await page.getByRole('link', { name: 'CueRelay', exact: true }).click();
+  await sameTab(page.getByRole('link', { name: 'CueRelay', exact: true }));
+  await page.getByRole('dialog').getByRole('button', { name: '明确放弃并继续', exact: true }).click();
   await page.waitForFunction(() => window.__audio.contexts.every(c => c.state === 'closed'));
   assert(await page.evaluate(() => window.__audio.nodes.every(n => !n.connected)));
   report.workbench = true;

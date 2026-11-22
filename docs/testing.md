@@ -2,7 +2,7 @@
 
 从仓库根目录运行本页命令。测试不需要 `.env`、生产密钥、开发账号或开发数据库。环境要求同根目录 README：Python 3.11、Node 26、npm、FFmpeg；数据库可用 Docker Compose 启动专用 PostgreSQL 16。真实代理回归另需 Nginx。
 
-按已实现功能区分真库 E2E、浏览器 fixture、单元/集成与人工边界的索引见 [测试覆盖矩阵](testing-coverage.md)。统一回归现有 35 场景；下文历史 33 场景的首轮失败、诊断与修复验收保留原记录。
+按已实现功能区分真库 E2E、浏览器 fixture、单元/集成与人工边界的索引见 [测试覆盖矩阵](testing-coverage.md)。统一回归现有 52 场景（此前45 + 本轮7）；本轮记录见文末，历史 33/35 场景的首轮失败、诊断与修复验收保留原记录。
 
 ## 全新克隆准备
 
@@ -271,3 +271,100 @@ SRT 格式/HTTP/持久化回归为 `srt_format.tests`、`http_api.test_srt`、`p
 ## 中英文与布局
 
 国际化资源检查、语义复数、占位符、类型生成、三语言 Playwright 布局/截图及工作区状态保护的命令与验收边界见 [国际化维护手册](internationalization.md#local-commands)。既有独立浏览器脚本和真实 E2E 明确使用 zh-CN；`WorkspaceRegressionTests.test_english_language_preserves_editor_state` 覆盖英文切换、真实设置持久化及保存/刷新。首次截图仅作待审证据，不自动成为正确基线。CI 决策不变。
+
+## 账号、项目与编辑样式回归（2026-11-22）
+
+本轮先核对35个实际入口及公开契约，再新增10条场景；[执行计划](plans/e2e-account-project-editing-2026-11-22.md) 记录已有覆盖、补齐范围与验收断言。新场景按账号设置、项目管理、编辑操作、样式拆成四个spec，helpers只共享浏览器操作/真实HTTP断言；Django入口继续显式一一对应，并核对最终ORM。既有35条场景及产品代码未改，无新功能、依赖或公共契约变化。
+
+- 账号与设置：真实登录失败/成功/刷新/退出、改密失败保留/成功清空、旧会话与旧密码失效/新密码可登录；真实5次失败冷却、正确密码仍429、Retry-After与UI秒数一致及输入保留，ORM确认锁定不续期。快捷键、焦点切换、鼠标边界、音频模式保存/刷新/恢复默认/换号隔离；仅两次未送达PATCH的abort故障注入，失败不落库，成功走真实后端。语言复用已有英文场景，未重复新增。
+- 项目管理：无字幕/ASS创建及真实400失败保留（SRT复用原场景）、两组织/状态/搜索/跨页准确行与总数、元数据保存刷新→归档只读→恢复后member显式保存，最终revision5。member不能修改元数据/归档；无视频/错误视频不可编辑，正确完整哈希解锁。
+- 编辑与样式：实际Chromium剪贴板复制/剪切/粘贴/字段覆盖失败保留→显式保存刷新，保留时间/ID/隐藏ASS字段；空文本播放头拆分真实保存一次、裁剪、插入/删除、非连续多选行样式显式保存刷新。组织模板CRUD/重名失败保留/member403；项目双模板复制导入失败原子性、批量仅改选定字段、复制/分配/重命名/未使用删除/已引用禁止删除，模板修改删除不影响项目副本，刷新/ASS/ORM引用完整。
+
+首轮定向8通过/2失败（Django77.044s，墙钟77.822s），第二轮9通过/1失败（79.179s/79.849s）。新测试分别误用了身份URL、网络错误文案及退出后登录落点；已按仓库公开契约修正，没有发现产品缺陷，也没有放宽业务断言。失败证据完整保留在 `/private/tmp/cuerelay-account-project-editing-targeted-z45zny_4/` 和 `...-b5a6bl11/`，无自动重试。预备沙箱绑定被拒发生在启动服务前，目录 `...-cmjrrv5o/`；真实运行随后经执行权限机制完成。
+
+最终定向10/10通过，Django70.646s、墙钟71.368s；失败/错误/跳过/重试均0，10个入口各选中1例。证据 `/private/tmp/cuerelay-account-project-editing-targeted-iovqe499/` 含django.log、逐项CSV、verified-summary.json、每场trace/Vite事件及72项artifact哈希。每场独立空缓存、无新增依赖/full-reload，运行前后源码与默认Vite缓存哈希一致。
+
+本次使用 `/private/tmp/cuerelay-account-project-editing-run-20261122.py`（各运行目录中归档为orchestrator.py）实际执行 `--suite targeted`、`--suite backend`、`--suite full`。runner仅改变外部进程配置/证据路径，保留原入口/夹具/断言/超时/retries:0；公开Vite createServer加载仓库配置，envFile:false、每场新的绝对cacheDir，原optimizeDeps完全不覆盖，记录冷启动/listening/hot-send。标准统一入口仍是本文上方的 `manage.py test browser_tests.regression`。
+
+完整统一套件45/45通过（既有35 + 新增10），Django319.782s、命令墙钟320.594s；Playwright和Django失败/错误/跳过/重试均0。运行前单独的45入口选择检查通过（12.946s）；逐项核对每个Django入口只运行一个预期场景。全新loopback61260集群创建并销毁test_cuerelay_71243，45次Vite启动各使用启动前不存在的缓存，无运行中新增依赖/full-reload，源码及默认Vite缓存运行前后哈希一致。证据 [verified-summary.json](/private/tmp/cuerelay-account-project-editing-full-l10laaqj/verified-summary.json)、[逐项CSV](/private/tmp/cuerelay-account-project-editing-full-l10laaqj/scenario-results.csv)、[django.log](/private/tmp/cuerelay-account-project-editing-full-l10laaqj/django.log)；同目录含完整trace、Vite事件、配置/源码快照、清理元数据及217项artifact哈希。全部为本轮新运行，未借用旧35/35记录。
+
+相关后端145/145通过，Django15.790s（墙钟16.440s），错误/失败/跳过0；包括 accounts、http_api.test_identity/test_i18n/test_clipboard、organizations、projects、ass_format.test_clipboard/test_splitting/test_styles，独立集群证据 `/private/tmp/cuerelay-account-project-editing-backend-nti3_cr5/`。前端10文件132/132（263ms）、scripts6/6（13.308s，含45入口选择）、typecheck、i18n:check、全部regression JS/Python语法、diff检查及Vite生产构建（2.644s，保留既有chunk提示）通过，证据 `/private/tmp/cuerelay-account-project-editing-checks-20261122/`。Vitest通过公开startVitest传入envFile:false及独立cacheDir，构建使用build({envFile:false})；未跳过许可/手册插件。
+
+所有数据库运行均另建本机一次性PostgreSQL集群，未读取.env、未使用keepdb或开发/生产数据库；Django销毁测试库后清单仅postgres/template0/template1，自建集群stop=0、status=3且无postmaster.pid。最终只读复核确认旧方法AST/旧spec字节一致、重要写入含服务器刷新/revision和ORM断言、无成功业务替身/固定sleep/skip/新增测试重试；产品依赖未改，新测试依赖spec→helpers→Playwright无环。复核证据见checks目录review文件。不提交、不推送，Actions继续暂停。
+
+人工边界：context授权的浏览器剪贴板不代表外部应用/OS权限；setInputFiles不代表系统picker取消/持久文件句柄授权；合成MP4不代表真实片源/多声道长媒体、设备听感、字体观感或跨浏览器。冷却到期/滑动窗口/并发留在后端验证，UI无倒计时禁用契约；模板scale/脚本及完整字段/快捷键组合继续由既有下层/fixture保护，不声明全部组合覆盖。其他网络丢响应写入、系统权限与真实制作验收见覆盖矩阵。
+
+### 2026-11-22 辅助入口、媒体平台与故障场景
+
+本轮计划和有限故障矩阵见 [执行计划](plans/e2e-aux-media-failures-2026-11-22.md)。在此前45场景基础上新增7条：首次手册本人确认/账号隔离、真实密码错误→个人设置诊断JSON→隔离后端日志关联、split/styles服务端已提交丢响应、断网/传输超时/503、真实session失效与成员撤权后的恢复。成功写入均经真实HTTP/PostgreSQL；丢响应先route.fetch确认200并独立GET，再abort，仅失败可fulfill。未知结果不接纳新基准、不自动重放，正文/时间/选择/IndexedDB或样式表单保持；明确重载/重新打开/登录/重新授权后继续显式保存，最终ORM核实。
+
+可重复的隔离运行入口（`--pg-bin` 指向本机安装的PostgreSQL bin，不指向数据目录）：
+
+```sh
+.venv/bin/python scripts/run_isolated_regression.py --suite targeted --pg-bin /absolute/postgres/bin
+.venv/bin/python scripts/run_isolated_regression.py --suite backend --pg-bin /absolute/postgres/bin
+.venv/bin/python -m unittest scripts.test_regression_selection -v
+.venv/bin/python scripts/run_isolated_regression.py --suite full --pg-bin /absolute/postgres/bin
+.venv/bin/python scripts/run_isolated_regression.py --suite media --production-app --pg-bin /absolute/postgres/bin
+.venv/bin/python scripts/run_isolated_regression.py --suite specialists --pg-bin /absolute/postgres/bin
+node frontend/node_modules/playwright/cli.js install firefox webkit
+.venv/bin/python scripts/run_isolated_regression.py --suite platform --browser firefox --pg-bin /absolute/postgres/bin
+.venv/bin/python scripts/run_isolated_regression.py --suite platform --browser webkit --pg-bin /absolute/postgres/bin
+.venv/bin/python scripts/run_isolated_regression.py --suite production --pg-bin /absolute/postgres/bin
+```
+
+每次另建loopback临时集群并由Django创建/销毁测试库；浏览器服务5199专供该次串行验收、strictPort且拒绝接管已有服务，PostgreSQL端口动态分配。证据写新建 `/private/tmp/cuerelay-aux-media-failures-*`，含源码快照、逐场空Vite缓存、JSON/list报告、全部trace与清理元数据；不加载.env/普通PG配置、不keepdb、不覆盖先前失败。统一入口仍只运行Chromium；独立platform/media/production/specialists不计入统一52条。生产专项需先用Vite公开build({envFile:false})构建；原手册/许可插件不能关闭。
+
+media规格：180秒黑色H264视频320×180/10fps，AAC 48kHz/5.1六声道各固定正弦、384kbps；ffprobe核对实际规格，文件上限16MiB，生成超时60秒、场景超时180秒。完整哈希、真实分析Worker、150.5→5→175→150.5秒seek、32MiB分析缓存、JASSUB实际字幕画面变化/开关恢复、150–155秒独立试听多窗PCM（每消息≤4MiB）、隐藏/恢复/卸载清理全部在正式项目页执行；视频/音频字节不上传；字幕快照仅走既有codec。Object URL revoke、Worker terminate、AudioContext close与排程/PCM计数不是设备听感、原生内存释放或无泄漏证明，也不是任意媒体/真实长片覆盖。
+
+specialists复用video-restore、audio-timeline、audio-audition三个维护中的脚本，单独记录各脚本退出与日志，不把内部检查点当统一场景计数。前两者用隔离身份/项目fixture或专用真库登录；音频/预览计算仍真实。wrapper显式传入一次性账号和`BROWSER_TEST_CHANNEL=bundled`使用配套Chromium；三个脚本原默认仍为系统Chrome。OPFS句柄、IndexedDB和哈希真实；OS picker/权限决定仍是fixture。
+
+macOS14冻结WebKit与仓库Playwright1.62.1可能在建页时出现`PushAPIEnabled`协议错误；不可把此失败记为应用通过。可在新临时目录安装独立Playwright1.60.0，通过以下显式兼容评估入口运行**同一应用流程函数/断言**，不修改仓库依赖或驱动、不移除COEP：
+
+```sh
+npm install --prefix /private/tmp/cuerelay-webkit-driver playwright@1.60.0 --ignore-scripts --no-audit --no-fund
+.venv/bin/python scripts/run_isolated_regression.py --suite platform --browser webkit --production-app \
+  --webkit-driver /private/tmp/cuerelay-webkit-driver/node_modules/playwright --pg-bin /absolute/postgres/bin
+```
+
+1.60的mac14-arm64清单同样指定冻结revision2251，初始化不发送该新增设置，依据[上游浏览器清单](https://github.com/microsoft/playwright/blob/v1.60.0/packages/playwright-core/browsers.json)和[驱动源码](https://github.com/microsoft/playwright/blob/v1.60.0/packages/playwright-core/src/server/webkit/wkPage.ts)。单独记录开发模式COEP/Worker结果、生产结果和驱动版本；WebKit结果不等于真实Safari验收，不扩大既有“Firefox/Safari评估后决定支持范围”的产品契约。
+
+本轮最终执行统计如下；上面的历史45/45不计本轮结果。
+
+#### 本轮最终实测结果
+
+以下均为本轮新执行；失败、错误、跳过及自动测试重试在这些最终成功运行中均为0。先前失败尝试另记，未借用历史45/45。环境：macOS14.8.5 arm64、Python3.11.8、Node26.4.0、PostgreSQL16.2、FFmpeg9.0.2、仓库Playwright1.62.1；Chromium151.0.7922.34、Firefox153.0，冻结WebKit26.4另用隔离Playwright1.60.0驱动。
+
+| 实际运行 | 通过 / 实际执行 | Django耗时 / 命令墙钟 | 证据目录（均在 `/private/tmp/`） |
+| --- | ---: | --- | --- |
+| 最终新增定向 | 7/7 | 46.496s / 47.100s | `cuerelay-aux-media-failures-targeted-chromium-u7rt59cd` |
+| 完整统一Chromium | **52/52** | **376.299s / 377.076s** | `cuerelay-aux-media-failures-full-chromium-wk6yxrud` |
+| 受影响后端 | 131/131 | 16.672s / 17.327s | `cuerelay-aux-media-failures-backend-chromium-55j4mtxx` |
+| 生产180秒/5.1合成媒体 | 1/1 | 15.559s / 16.169s | `cuerelay-aux-media-failures-media-chromium-m4ex86bo` |
+| 既有专项合跑 | **3/3脚本**（1个wrapper，不计入52） | 69.366s / 69.949s | `cuerelay-aux-media-failures-specialists-chromium-ovbg5c78` |
+| Firefox代表应用流程 | 1/1 | 10.516s / 11.188s | `cuerelay-aux-media-failures-platform-firefox-5i0vno4k` |
+| WebKit生产代表流程，隔离兼容驱动 | 1/1 | 4.141s / 4.834s | `cuerelay-aux-media-failures-platform-webkit-mjgic8j0` |
+| 生产手册/许可/源码下载 | 1/1 | 2.379s / 3.001s | `cuerelay-aux-media-failures-production-chromium-sptckr6q` |
+
+完整52项逐个准确运行一例，每场空Vite缓存，未发现运行中新增依赖或full-reload；运行前后源码及默认Vite缓存哈希相同。[完整核验摘要](/private/tmp/cuerelay-aux-media-failures-full-chromium-wk6yxrud/verified-summary.json)、[逐项CSV](/private/tmp/cuerelay-aux-media-failures-full-chromium-wk6yxrud/scenario-results.csv)、[Django日志](/private/tmp/cuerelay-aux-media-failures-full-chromium-wk6yxrud/django.log)与同目录52份Playwright JSON/list/trace、Vite事件、源码快照及清理元数据相互对应。每个数据库运行均销毁测试库，仅剩postgres/template0/template1，stop=0/status=3/无postmaster.pid；所有自建服务均已收尾。
+
+前端27文件223/223（718ms）、scripts6/6（最终19.062s，含52入口选择）、typecheck、i18n:check、Python/JS语法、diff检查及envFile:false生产构建（2.60s，保留既有chunk提示）均实际通过。检查证据在 `/private/tmp/cuerelay-aux-media-failures-checks-20261122/`。最终只读复核确认原45个测试方法AST、原setUp/setUpClass（已移入共享fixture）、上一聊天4个spec及helpers字节均保留；产品源码、公开接口和模块依赖未变，没有新增固定sleep、skip或测试自动重试。此前45场景的217项历史artifact哈希亦复核一致，仅作为保留证据，不计本轮通过。
+
+生产媒体实测：180.000秒、8,739,168字节、H264320×180、AAC48kHz/6声道5.1；五秒试听实际3条PCM消息，最大2,304,000字节、236次节点排程。卸载观察到5/5 Worker terminate、1/1 AudioContext close完成、1/1 Object URL revoke；这些是有限生命周期/调用证据，不代表原生内存审计或设备听感。媒体字节不上传，字幕快照仍仅走既有codec。最终专项各自实耗8.830s（video-restore）、16.575s（audio-timeline）、39.855s（audio-audition），各有独立日志/原脚本临时artifact路径。可用 `--suite specialists --specialist audio-timeline` 显式只运行一个命名脚本，结果按实际1个脚本计，不是skip。
+
+两浏览器代表流均真实登录、导入并播放合成视频、音频分析Worker ready、显式保存→刷新持久化、个人设置打开手册；实际capability记录均为AAC/Web Locks可用、showOpenFilePicker不可用，输入文件回退流程可用。未覆盖两浏览器的完整52套件或全部JASSUB/试听组合。当前仓库1.62.1+mac14冻结WebKit的默认建页仍阻塞，隔离兼容驱动的开发流也有COEP Worker加载失败；生产bundle的同一流程/断言通过。没有修改驱动源码、安全头或产品支持范围，WebKit不等于实际Safari。
+
+#### 失败历史与手工边界
+
+定向首两轮各5/6（诊断测试旧role选择器、登录导航等待错误），修正后6/6，追加真实撤权恢复后7/7；完整52/52是其后的新运行。WebKit前两次未通过分别是默认驱动建页协议错误与开发COEP Worker错误，分别保存在 `...-platform-webkit-0q6q3qo1`、`...-platform-webkit-jyf6meb8`，没有写作应用通过。
+
+旧专项最初缺少专用登录配置，随后暴露旧错误类选择器、样式名已变成稳定ID、保留的平移视窗、即时读取上一帧DOM、显式选行会定位视频、时间戳下载名，以及新标签页/未保存稿离页保护等测试契约问题。修正交互准备/选择器和精确状态等待，保留时间/几何/正文/清理断言，并加强实际ASS下载内容检查；未修补产品以迁就测试。六次三脚本失败合跑、三次时间轴单独失败及最后单独通过、三脚本全通过的原日志、截图均保留，不作自动retry。临时Shift及坐标探针没有进入最终代码。共13次未通过的测试运行（定向2、WebKit2、专项9）及全部成功运行的实际计数/耗时/清理状态在 [逐次执行索引](/private/tmp/cuerelay-aux-media-failures-checks-20261122/run-history.json)，不是用例发现数。最初沙箱bind拒绝未启动服务；一次长Unix socket路径预备失败的数据库也已自行退出，记录在 `/var/folders/cb/g5d9zp7j4hscwq5bclqwmj7w0000gn/T/cuerelay-aux-media-failures-targeted-chromium-ehtsdi_c/`。
+
+自动化实现和上述实际运行已完成。以下**未验收**，不能由52/52或合成媒体结果推定：
+
+- 真实Safari、Windows及其他浏览器/系统版本；mac14当前默认WebKit驱动/开发模式限制仍在，需匹配的新系统/驱动环境再评估。
+- OS原生文件选择器的取消、持久授权、重启浏览器后授权、站点撤权、外接盘/文件移除；OPFS句柄fixture不替代原生权限验收。
+- 经用户明确提供并允许使用的真实长片/高分辨率/多声道素材、真实设备的扬声器/耳机声道映射、试听听感及最终视觉QC；本轮未读取私人素材。
+- 原生/GPU内存释放、长时间压力、真实配额/磁盘耗尽、进程崩溃最后一批数据，以及未列入有限网络矩阵的故障组合。已有media-memory命令保留，未冒用合成片或清理调用次数证明无泄漏。
+
+未提交、未推送，GitHub Actions继续暂停；无新增产品功能、诊断接口或产品支持承诺。

@@ -1,3 +1,4 @@
+import { expect } from 'playwright/test';
 import { setAudioMode } from './audio-settings.mjs';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
@@ -13,7 +14,7 @@ export async function checkBoundaryClicks(page, selected = false) {
   const stage = page.locator('.audio-stage');
   const rowTimes = () => page.locator('.cue-list tbody tr').first().locator('.time-cell').allTextContents();
   const saved = selected ? await rowTimes() : null;
-  const videoTime = await readTime();
+  let videoTime = await readTime();
   await setAudioMode(page, 'spectrum');
   await page.waitForFunction(() => document.querySelector('.audio-timeline').dataset.state === 'ready');
   await page.evaluate(() => {
@@ -44,6 +45,11 @@ export async function checkBoundaryClicks(page, selected = false) {
     // Both rows already fit: committing/selecting must keep prior context visible.
     assert.deepEqual(await readView(), view);
 
+    // Explicitly selecting the committed row may locate its applied start.
+    // Boundary-only actions below must preserve that newly established video time.
+    await page.waitForFunction(() => !document.querySelector('video').seeking);
+    videoTime = await readTime();
+
     // The old end marker must not intercept the next cue's start-time click.
     await click(2.8);
     assert.equal(await start.inputValue(), '0:00:02.80');
@@ -57,7 +63,7 @@ export async function checkBoundaryClicks(page, selected = false) {
     await page.mouse.down({ button: 'right' });
     await page.mouse.move(area.x + (3.1 - view.start) / (view.end - view.start) * area.width, y, { steps: 8 });
     await page.mouse.up({ button: 'right' });
-    assert.equal(await end.inputValue(), '0:00:03.10');
+    await expect(end).toHaveValue('0:00:03.10');
     assert.equal(await start.inputValue(), '0:00:02.80');
     assert.deepEqual(await readView(), view);
     assert.equal(await readTime(), videoTime);
@@ -68,7 +74,7 @@ export async function checkBoundaryClicks(page, selected = false) {
     await page.mouse.down();
     await page.mouse.move(movedHandle.x + movedHandle.width / 2 - 30, y, { steps: 5 });
     await page.mouse.up();
-    assert.equal(await end.inputValue(), '0:00:03.10');
+    await expect(end).toHaveValue('0:00:03.10');
     assert.equal(await start.inputValue(), '0:00:02.80');
     const afterEndPan = await readView();
     assert(afterEndPan.start > view.start);

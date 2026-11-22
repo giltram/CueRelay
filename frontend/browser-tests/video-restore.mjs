@@ -21,7 +21,7 @@ const project = { id: 1, organization_id: 1, name: 'Video restore', description:
   archived_at: null, archived_by: null, document: uiDocument(),
   media: { sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length, duration_ms: 3000 } };
 project.document.cues = [{ id: 'new-restore', start_ms: 0, end_ms: 2000, style_id: project.document.styles[0].id, text: '恢复验证' }];
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ channel: process.env.BROWSER_TEST_CHANNEL === 'bundled' ? undefined : 'chrome', headless: true });
 const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 const baseURL = process.env.VIDEO_RESTORE_URL || 'http://127.0.0.1:5204';
 const errors = [], unexpected = [], checks = [];

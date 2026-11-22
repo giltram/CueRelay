@@ -83,6 +83,9 @@ export async function checkCommitTiming(browser, url, videoFile) {
     };
     assert.equal(await page.getByRole('button', { name: '创建新行', exact: true }).count(), 0);
     const initialView = await readView();
+    // Import resets editing history while preserving the timeline's prior pan.
+    // Bring the default row into view before asserting its exact marker geometry.
+    await page.getByRole('scrollbar', { name: '音频横向滚动', exact: true }).press('Home');
     await assertBoundary('入点', 0); await assertBoundary('出点', 2);
     await settleDraw();
     const decodedBeforeRecolor = await page.locator('.audio-timeline').getAttribute('data-decoded-segments');
@@ -145,7 +148,7 @@ export async function checkCommitTiming(browser, url, videoFile) {
     assert.equal(await rows.count(), 3);
     assert.equal(await selected(3), 'true');
     assert.equal(await end.inputValue(), '0:00:05.00');
-    assert((await page.locator('.error').textContent()).includes('入点不能晚于出点'));
+    assert((await page.getByRole('alert').textContent()).includes('入点不能晚于出点'));
     await end.fill('0:00:08.00'); await page.keyboard.press('Enter');
     assert.equal(await rows.count(), 3);
     assert.deepEqual(await times(2), ['0:00:05.10', '0:00:07.10']);
@@ -159,14 +162,14 @@ export async function checkCommitTiming(browser, url, videoFile) {
     assert.deepEqual(await times(0), ['0:00:01.30', '0:00:03.50']);
     assert.deepEqual(await times(1), ['0:00:02.50', '0:00:04.00']);
     assert.equal(await selected(2), 'true');
-    assert.equal(await page.getByLabel('字幕样式').inputValue(), 'Emphasis');
+    assert.equal(await page.getByLabel('字幕样式').locator('option:checked').textContent(), 'Emphasis');
     assert((await page.getByLabel('字幕中文文本').inputValue()).includes('重叠字幕'));
 
     await end.fill('0:00:04.80'); await commit('NumpadEnter');
     assert.equal(await rows.count(), 3);
     assert.deepEqual(await times(2), ['0:00:04.80', '0:00:06.80']);
     assert.equal(await selected(3), 'true');
-    assert.equal(await page.getByLabel('字幕样式').inputValue(), 'Emphasis');
+    assert.equal(await page.getByLabel('字幕样式').locator('option:checked').textContent(), 'Emphasis');
     assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '');
     // Native word/line deletion in inputs must not delete the selected subtitle.
     await end.focus(); await page.keyboard.press('Control+Delete');
@@ -198,6 +201,9 @@ export async function checkCommitTiming(browser, url, videoFile) {
     assert.equal(await rows.count(), 1);
     assert.deepEqual(await times(0), ['0:00:00.00', '0:00:02.00']);
     assert.equal(await page.getByLabel('字幕中文文本').inputValue(), '');
+    // Import resets editing history while preserving the timeline's prior pan.
+    // Bring the default row into view before asserting its exact marker geometry.
+    await page.getByRole('scrollbar', { name: '音频横向滚动', exact: true }).press('Home');
     await assertBoundary('入点', 0); await assertBoundary('出点', 2);
     assert.deepEqual(errors, []);
     return { defaultTwoSecondRow: true, emptyImportDefaultRow: true, pristineRefreshWithoutPrompt: true, editedDraftGuarded: true,

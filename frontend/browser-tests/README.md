@@ -83,3 +83,11 @@ MEDIA_FILE='/absolute/path/video.mp4' MEDIA_ASS='/absolute/path/subtitles.ass' \
 layout-checks.mjs 只检查页面边界、指定 surface 和关键按钮的裁剪/实际命中可达性；允许表格/列表/顶栏拥有的内部滚动，不做所有 DOM 的全局溢出判死。截图固定字体、时间戳、动画和合成片源，输出临时 PNG/results.json；第一次输出不自动成为批准基线，人工只需检查新增/改动区域。既有脚本均明确 zh-CN，真实后端回归另有英文场景。命令及新增语言验收见 [国际化维护](../../docs/internationalization.md)。
 
 构建并启动 5239 端口的生产预览后，运行 `I18N_PRODUCTION_URL=http://127.0.0.1:5239 npm run test:i18n-production` 和 `HANDBOOK_URL=http://127.0.0.1:5239 HANDBOOK_PRODUCTION=1 npm run test:handbook`，分别检查英文预编译手册/双语许可页和既有中文手册交互。
+
+## 隔离专项入口（2026-11-22）
+
+从仓库根目录运行 `.venv/bin/python scripts/run_isolated_regression.py --suite specialists --pg-bin /absolute/postgres/bin`，自动建立一次性PostgreSQL、真实后端和envFile:false Vite，串行复用video-restore、audio-timeline、audio-audition三脚本；显式提供一次性登录和`BROWSER_TEST_CHANNEL=bundled`。原npm命令默认仍使用系统Chrome。`--specialist audio-timeline`只选择该命名脚本，结果按实际1项计；不使用skip/自动重试。证据、超时与服务清理均由runner拥有，独立结果不计入统一Chromium52条。
+
+旧专项已同步现有契约：稳定style_id对应选项名称、role=alert、导入保留视窗后的显式Home、精确状态等待、显式选行可定位视频、时间戳下载及下载正文、同页导航与明确放弃未保存稿后清理；没有放宽预期时间/像素/PCM/清理断言或添加固定sleep。真实听感和OS权限仍需人工。
+
+`--suite media --production-app`提供180秒/48kHz/5.1、16MiB文件预算的合成媒体闭环；`--suite platform --browser firefox|webkit`为兼容评估，mac14冻结WebKit的显式兼容驱动/生产选项与原失败记录见 [测试手册](../../docs/testing.md)。全部实际执行统计、失败历史、版本及待人工边界归该手册和 [覆盖矩阵](../../docs/testing-coverage.md)，不在本目录重复维护另一套结论。
