@@ -1,5 +1,10 @@
 # glossary
 
+## 组织member权限（2026-11-22）
+
+组织写入/默认身份具象化检查edit_organization_glossary，fork检查fork_project_glossary，项目词条检查edit_project_glossary。沿用组织锁内重新鉴权；项目编排另按use_organization_glossary检查切回，原归档/默认表只读与独立版本不变。见 [成员权限](../../docs/member-permissions.md)。
+
+
 拥有组织默认/项目术语表数据及 Entry；不拥有项目关联、不依赖 projects/HTTP/ASS。组织默认以 `is_organization_default` 条件唯一约束标识，一组织至多一张，身份不可更换。迁移0002将既有表保留为非默认，不合并旧数据。
 
 公开边界 services.py：organization_table（查询或原子具象默认）、table_summary、list_entries、read_entry、save_organization_entry、fork_organization_table、save_entry。组织表首次成功添加原子建表/写词条，读取不创建空表。fork从当前组织默认完整快照复制三字段，分批500条、新UUID/revision1/操作者时间，无来源、新旧区分或后续同步；空源可fork空项目表。项目归属、只读/归档和引用数由 projects 公开编排服务负责；外部不得访问本模块私有ORM。

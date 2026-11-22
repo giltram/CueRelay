@@ -1,5 +1,8 @@
 # CueRelay 架构入口
 
+2026-11-22 组织权限：organizations拥有固定14项member业务权限、默认覆盖与独立CAS配置；业务服务在原User → Organization锁内按具体操作鉴权。前端在组织设置显式保存，并按有效权限控制独立入口；保留工作区通过原ReadOrder及focus/visibilitychange/30秒观察，只更新能力/归档状态，不替换稿件或媒体。成员/角色管理固定能力保持原样。公共契约、依赖、快照交叉校验与验证入口见 [组织member权限](member-permissions.md)。
+
+
 2026-11-22 常用 ASS 静态标签：用户确认颜色/透明度、an、pos、裸 r。`ass_format/text.py::text_tokens` 独占词法、范围与整行组合校验，codec 和 SRT 共用；SRT 显式省略颜色/透明度/定位，r 恢复基础格式，透明文字变为可见。`workspace-ui/cue-search → subtitle-model/ass-text` 仅投影词法可识别块，不验证文件或数值；预览、替换、合并、剪贴板和保存仍走正式导出规则。an/pos 每行最多一次，合并重复明确拒绝；具名 r 仍拒绝，style_id、source 锚点、事件顺序、revision 与权限不变。依赖为 `srt_format → ass_format → {message_contracts, stdlib, pysubs2}`，无反向依赖；规则见 [格式模块](../backend/ass_format/README.md)，验证见 [实施记录](plans/ass-static-compatibility.md)。
 
 2026-11-21 SRT：相邻纯 `srt_format` 拥有严格块解析、毫秒量化及内联正文转换，向下依赖 `ass_format` 的公开默认文档/完整验证/序列化与资源上限，ASS 不反向依赖 SRT。`http_api/srt_views → srt_format → {ass_format, message_contracts, stdlib}`；前端 `{ProjectForm, EditorWorkbench} → project-data/subtitle-api → 纯格式 HTTP`，无前端第二套 parser。SRT 转为同一 v2 ASS 文档/源锚点，项目初始化及保存/revision/样式权限不变。普通 SRT 导出用现有 QC 面板一次说明损失，离页及草稿备份保持 ASS；没有实时协作或新持久字段。用户已确认最近 10ms、5ms 向上（每边界误差 ≤5ms、允许零时长）及 b/i/u/s 保留，不能无损表达的数据整份拒绝。完整编码/标签/顺序/损失规则、模块接口和测试索引归 [SRT 格式模块](../backend/srt_format/README.md)，实际验证归 [实施记录](plans/srt.md)。

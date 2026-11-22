@@ -6,6 +6,7 @@ import { useMessageState, useLocale } from './i18n/react';
 import { PageLayout, HeaderNotice } from './page-ui/PageLayout';
 import { diagnostics, provideAccountStatus } from './diagnostics';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { permits } from './contracts/permissions';
 import { EditorWorkbench, type WorkbenchHandle, type WorkbenchLeaveState } from './workspace-ui/EditorWorkbench';
 import { ApiError, createAccountApi, createDefaultSettings, type Organization, type Settings, type User } from './account-ui/api';
 import { LoginForm } from './account-ui/LoginForm';
@@ -342,9 +343,9 @@ export default function App() {
         request={api} header={header} enabled={Boolean(user && organizationsReady && !busy && !transition)} navigate={navigate} />}
       {isSettings && <SettingsPage user={user ?? owner} organization={organization}
         organizationGlossary={organization && <OrganizationGlossary key={`glossary:${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
-          enabled={Boolean(user && !busy && !transition && route.kind === 'organization-settings')} />}
+          enabled={Boolean(user && !busy && !transition && route.kind === 'organization-settings')} editable={permits(organization, 'edit_organization_glossary')} />}
         organizationStyles={organization && <OrganizationStyleLibrary key={`${owner.id}:${organization.id}`} request={api} organizationId={organization.id}
-          canManage={organization.can_manage} enabled={Boolean(user && !busy && !transition)} />}
+          canCreate={permits(organization, 'create_style_template')} canEdit={permits(organization, 'edit_style_template')} canDelete={permits(organization, 'delete_style_template')} enabled={Boolean(user && !busy && !transition)} />}
         section={route.kind === 'organization-settings' ? 'organization' : 'personal'} header={header}
         enabled={Boolean(user && !busy && !transition)} ready={route.kind === 'organization-settings' ? organizationsReady : settingsReady}
         request={api} settings={settings} language={language} navigate={navigate} onSettings={acceptSavedSettings}
@@ -373,10 +374,10 @@ export default function App() {
         diagnosticOwner={owner.id} mediaOwnerId={user && !workspaceState.accessDenied ? user.id : undefined} visible={visible} project={workspace.project} initialMedia={workspace.initialMedia}
         draftScope={draftScope(owner.id, workspace.project?.organization_id ?? workspace.localOrganizationId, workspace.project?.id)}
         onCheckDraftRevision={workspace.project ? workspaceState.checkDraftRevision : undefined}
-        readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || !user || workspaceState.accessDenied))}
+        readOnly={Boolean(workspace.project && (workspace.project.status === 'archived' || workspace.project.effective_permissions?.edit_subtitles === false || !user || workspaceState.accessDenied))}
         onSave={workspace.project ? workspaceState.save : undefined} onLeaveStateChange={setWorkbenchLeaveState}
         onSplit={workspace.project ? workspaceState.split : undefined}
-        styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canManageTemplates={organization?.can_manage}
+        styleRequest={user ? api : undefined} styleOrganizationId={organization?.id} canCreateTemplate={Boolean(user && !busy && !transition) && permits(organization, 'create_style_template')} glossaryEditable={Boolean(user && !workspaceState.accessDenied && workspace.project?.status !== 'archived')}
         onReload={workspace.project ? () => requestTransition(msg("app.reloadProject"), workspaceState.reload) : undefined}
         mouseSetsCueBoundary={settings.mouse_sets_cue_boundary} audioMode={settings.audio_display_mode} shortcutOverrides={settings.shortcut_overrides} shortcutsPaused={Boolean(!visible || panel || transition || handbookPromptOpen || !user)} /></div>}
     </> : <PageLayout className="login-shell" title={<HomeLink navigate={navigate} />}>

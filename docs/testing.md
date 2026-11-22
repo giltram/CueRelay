@@ -2,7 +2,7 @@
 
 从仓库根目录运行本页命令。测试不需要 `.env`、生产密钥、开发账号或开发数据库。环境要求同根目录 README：Python 3.11、Node 26、npm、FFmpeg；数据库可用 Docker Compose 启动专用 PostgreSQL 16。真实代理回归另需 Nginx。
 
-按已实现功能区分真库 E2E、浏览器 fixture、单元/集成与人工边界的索引见 [测试覆盖矩阵](testing-coverage.md)。统一回归现有 52 场景（此前45 + 本轮7）；本轮记录见文末，历史 33/35 场景的首轮失败、诊断与修复验收保留原记录。
+按已实现功能区分真库 E2E、浏览器 fixture、单元/集成与人工边界的索引见 [测试覆盖矩阵](testing-coverage.md)。统一回归现有 57 场景（含组织member权限新增3场）；本轮记录见文末，历史 33/35 场景的首轮失败、诊断与修复验收保留原记录。
 
 ## 全新克隆准备
 
@@ -372,3 +372,18 @@ npm install --prefix /private/tmp/cuerelay-webkit-driver playwright@1.60.0 --ign
 ## 常用 ASS 静态标签回归（2026-11-22）
 
 新增 `browser_tests.regression.WorkspaceRegressionTests.test_ass_static_local` / `test_ass_static_project`，对应 `frontend/regression/ass-static.spec.mjs` 两个场景，已通过真实转换/持久化/预览服务检查。`ass_format.test_text`、原兼容语料与 `npm run test:ass-compatibility` 验证颜色/alpha、an/pos、r 的语义和实际 WASM 渲染。结果、命令、首轮失败修正及测试入口既有限制见 [实施记录](plans/ass-static-compatibility.md)。
+
+
+## 组织member可配置权限（2026-11-22）
+
+本轮新增3个统一浏览器入口，当前57场景；选择检查仍要求逐项一一对应。权限契约/范围见 [组织member权限](member-permissions.md)，实施及实际证据见 [实施记录](plans/member-permissions.md)。
+
+```sh
+.venv/bin/python backend/manage.py test organizations.test_permissions organizations.test_permission_migration --settings=application.test_settings --noinput -v 2
+.venv/bin/python backend/manage.py test browser_tests.regression.WorkspaceRegressionTests.test_member_permission_settings browser_tests.regression.WorkspaceRegressionTests.test_member_permission_workspace browser_tests.regression.WorkspaceRegressionTests.test_member_permission_business_controls --settings=application.test_settings --noinput -v 2
+npm --prefix frontend run test -- --run --exclude 'platform-tests/**'
+```
+
+本轮后端246项运行，245通过、1项Nginx代理测试因本机未安装Nginx而skip；549项前端单元、6项脚本检查、7场定向真实Chromium（含新增3场及原项目生命周期/模板/术语/撤权）、类型/i18n/生产构建及ASS引擎兼容检查通过。未跑全部57场浏览器或手工真片源。
+
+既有默认Vitest配置漏排除`platform-tests/**`，直接`npm run test -- --run`会误收集3个需要Django夹具的Playwright文件；本轮未改无关测试配置，使用上述明确排除命令运行全部单元测试。该问题与权限功能分开记录。

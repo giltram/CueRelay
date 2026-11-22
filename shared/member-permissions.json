@@ -1,0 +1,16 @@
+{
+  "create_project": false,
+  "edit_project": false,
+  "archive_project": false,
+  "restore_project": false,
+  "edit_subtitles": true,
+  "manage_project_styles": true,
+  "fork_project_glossary": true,
+  "edit_project_glossary": true,
+  "use_organization_glossary": false,
+  "edit_organization_glossary": true,
+  "create_style_template": false,
+  "edit_style_template": false,
+  "delete_style_template": false,
+  "rename_organization": false
+}

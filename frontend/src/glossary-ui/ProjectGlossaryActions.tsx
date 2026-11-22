@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { associationToken } from '../contracts/glossary';
 import type { GlossaryStore } from '../glossary-data/use-glossary';
 
-/** Project members can fork; reverting an association retains project management rights. */
-export function ProjectGlossaryActions({ store, canManage = false }: { store: GlossaryStore; canManage?: boolean }) {
+/** Forking and reverting the association have independent business permissions. */
+export function ProjectGlossaryActions({ store, canUseOrganizationDefault = false, canFork = true }: { store: GlossaryStore; canUseOrganizationDefault?: boolean; canFork?: boolean }) {
   useLocale();
   const [error, setError] = useMessageState('');
   const mounted = useRef(true);
@@ -22,10 +22,10 @@ export function ProjectGlossaryActions({ store, canManage = false }: { store: Gl
   return <div className="glossary-association" data-glossary>
     {data.uses_organization_default ? <>
       <p className="hint">{t("glossaryUi.theOrganizationGlossaryIsReadOnlyHereCreate")}</p>
-      <div><button disabled={!store.enabled || store.busy || store.loading} onClick={() => void change(true)}>{t("glossaryUi.createProjectCopy")}</button></div>
+      {canFork && <div><button disabled={!store.enabled || store.busy || store.loading} onClick={() => void change(true)}>{t("glossaryUi.createProjectCopy")}</button></div>}
     </> : <>
       <p className="hint">{t("glossaryUi.theseEntriesBelongToTheProjectGlossaryChanges")}</p>
-      {canManage && <div><button disabled={!store.enabled || store.busy || store.loading} onClick={() => void change(false)}>{t("glossaryUi.useOrganizationGlossary")}</button></div>}
+      {canUseOrganizationDefault && <div><button disabled={!store.enabled || store.busy || store.loading} onClick={() => void change(false)}>{t("glossaryUi.useOrganizationGlossary")}</button></div>}
     </>}
     {error && <div role="alert">{error}<button disabled={store.loading || store.busy} onClick={() => void store.refresh()}>{t("glossaryUi.refreshCurrentLink")}</button></div>}
   </div>;

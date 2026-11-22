@@ -6,19 +6,21 @@ from django.db import transaction
 from accounts.models import User
 from ass_format import validate_fields, validate_name, validate_script
 from .models import Organization, OrganizationStyleTemplate as Template
-from .services import require_access
+from .services import require_access, require_permission
 
 
 class TemplateConflict(Exception):
     pass
 
 
-def _organization(actor, organization_id, manage=False, lock=False):
+def _organization(actor, organization_id, permission=None, lock=False):
     if lock:
         User.objects.select_for_update().get(pk=actor.pk)
     query = Organization.objects.select_for_update() if lock else Organization.objects
     org = query.get(pk=organization_id)
-    require_access(actor, org, manage)
+    require_access(actor, org)
+    if permission:
+        require_permission(actor, org, permission)
     return org
 
 
@@ -64,7 +66,7 @@ def _validate(org, name, fields, reference, source_label, exclude=None):
 
 @transaction.atomic
 def create_template(actor, organization_id, *, name, fields, reference, source_label):
-    org = _organization(actor, organization_id, manage=True, lock=True)
+    org = _organization(actor, organization_id, permission='create_style_template', lock=True)
     _validate(org, name, fields, reference, source_label)
     if Template.objects.filter(organization=org).count() >= 1000:
         raise ValidationError(localized('server.anOrganizationCanHaveAtMost1000Templates', '当前组织最多保存 1000 个模板。', {}))
@@ -75,7 +77,7 @@ def create_template(actor, organization_id, *, name, fields, reference, source_l
 
 @transaction.atomic
 def update_template(actor, organization_id, template_id, *, revision, name, fields, reference, source_label):
-    org = _organization(actor, organization_id, manage=True, lock=True)
+    org = _organization(actor, organization_id, permission='edit_style_template', lock=True)
     template = Template.objects.select_for_update().get(pk=template_id, organization=org)
     _revision(template, revision)
     _validate(org, name, fields, reference, source_label, exclude=template.pk)
@@ -88,7 +90,7 @@ def update_template(actor, organization_id, template_id, *, revision, name, fiel
 
 @transaction.atomic
 def delete_template(actor, organization_id, template_id, *, revision):
-    org = _organization(actor, organization_id, manage=True, lock=True)
+    org = _organization(actor, organization_id, permission='delete_style_template', lock=True)
     template = Template.objects.select_for_update().get(pk=template_id, organization=org)
     _revision(template, revision)
     template.delete()  # Snapshot origins are informational UUIDs, never cascading FKs.

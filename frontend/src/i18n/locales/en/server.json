@@ -39,7 +39,7 @@
   "invalidVideoSize": "Invalid video size.",
   "videoDurationMustBeBetween0And10Hours": "Video duration must be between 0 and 10 hours.",
   "revisionMustBeAPositiveInteger": "revision must be a positive integer.",
-  "theProjectIsArchivedAndCanOnlyBeViewed": "The project is archived and can only be viewed or exported. Ask an administrator to restore it before editing. Your local draft has been kept.",
+  "theProjectIsArchivedAndCanOnlyBeViewed": "The project is archived and can only be viewed or exported. Restore it before editing. Your local draft has been kept.",
   "theProjectAssTemplateOrStyleDefinitionsCannotBe": "The project ASS template or style definitions cannot be replaced. Use style operations.",
   "batchImportRequiresANonEmptyTemplateList": "Batch import requires a non-empty template list.",
   "thisEntryChangedElsewhereYourInputsHaveBeenKept": "This entry changed elsewhere. Your inputs have been kept; reload the server entry before editing.",
@@ -184,5 +184,8 @@
   "serviceUnavailable": "The service is temporarily unavailable. Export diagnostics and try again.",
   "proxyBodyTooLarge": "Request body must not exceed 3MiB",
   "invalidAssOverride": "Unsupported ASS tag or invalid parameter: \\{{tag}}",
-  "duplicateAssLineOverride": "Each cue may contain only one \\{{tag}} tag. Reset does not clear line positioning."
+  "duplicateAssLineOverride": "Each cue may contain only one \\{{tag}} tag. Reset does not clear line positioning.",
+  "invalidMemberPermissions": "Submit all 14 permissions as boolean values.",
+  "invalidPermissionsRevision": "The permissions revision must be a positive integer.",
+  "permissionsChanged": "Permissions changed elsewhere. Your choices have been kept. Reload the configuration, review and save again."
 }

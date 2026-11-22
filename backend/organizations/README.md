@@ -1,5 +1,10 @@
 # organizations
 
+## 组织member业务权限
+
+`permissions.py`读取shared/member-permissions.json的14个固定key/默认，`services`公开effective_permissions/require_permission/read_permissions/save_permissions。Organization存JSON覆盖与独立permissions_revision；配置读写仅dev/本组织organizer，普通成员只获自身有效权限。写入按User → Organization锁内重查身份并CAS全量替换。can_manage仍保留身份管理含义，添加/移除/角色管理完全不受配置影响。模板三个写入口分别检查create/edit/delete_style_template，不能用整体manage放行。契约和测试见 [成员权限](../../docs/member-permissions.md)。
+
+
 拥有 Organization、OrganizationMembership 和固定 organizer/member 角色。依赖 accounts 的 User 身份模型、ass_format 的公开纯样式校验及 Django；不依赖 application、HTTP、媒体或格式模块。
 
 公开写入口位于 services.py：create_organization、rename_organization、add_member、change_member；查询鉴权使用 require_access。账号生命周期协调使用公开 lock_user_organizations / ensure_organizer，调用方必须先持有目标 User 锁且处于事务中。
@@ -16,7 +21,7 @@ PostgreSQL 竞争测试：tests.py（多线程独立连接，同时降级/移除
 
 `style_templates.py` 是公开模板边界：list_templates / template_snapshot 返回独立 JSON 快照，create_template / update_template / delete_template 执行写入。OrganizationStyleTemplate 存名称、完整 ASS 属性、参考脚本设置、可编辑来源说明、自身 revision 与创建/更新者时间；同组织名称唯一，最多 1000 个。项目仅保留来源 UUID/revision，没有删除级联或动态继承。
 
-写锁顺序 User → Organization → Template；在组织锁下重查 organizer/dev 权限、模板归属、唯一名称与预期 revision。成员可读，不能写。template_snapshot 供持有组织锁的 projects 创建/导入事务调用；同组织锁覆盖模板编辑/删除，版本不匹配抛 TemplateConflict。无 Admin 写入口和历史事件平行机制。来源说明仅为文字，不读取路径/URL或上传字体。
+写锁顺序 User → Organization → Template；在组织锁下重查对应业务权限、模板归属、唯一名称与预期 revision。所有活动成员可读；member写入受三个独立模板权限控制，默认均禁止。template_snapshot 供持有组织锁的 projects 创建/导入事务调用；同组织锁覆盖模板编辑/删除，版本不匹配抛 TemplateConflict。无 Admin 写入口和历史事件平行机制。来源说明仅为文字，不读取路径/URL或上传字体。
 
 ## 组织默认术语表
 

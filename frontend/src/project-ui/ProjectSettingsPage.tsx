@@ -15,6 +15,7 @@ import { projectApi } from '../project-data/projects-api';
 import { saveProjectStyles } from '../project-data/project-style-save';
 import { GlossarySettings } from '../glossary-ui/GlossarySettings';
 import { ProjectStyleManager } from '../style-ui/ProjectStyleManager';
+import { permits } from '../contracts/permissions';
 import { orderCues } from '../subtitle-model/cue-order';
 
 /** Metadata and styles share one saved project snapshot/CAS, independent of any editor. */
@@ -69,7 +70,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
   }
 
   async function saveMetadata() {
-    if (!project || !enabled || busy || !organization?.can_manage || project.status !== 'active') return;
+    if (!project || !enabled || busy || !permits(organization, 'edit_project') || project.status !== 'active') return;
     if (metadataNeedsReview) {
       setError(msg("projectUi.theProjectNameOrDescriptionChangedElsewhereRefresh"));
       return;
@@ -118,7 +119,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
     <section className="settings-content project-settings-form" aria-label={t("projectUi.projectSettings")}>
       {!organization ? <HeaderNotice role="alert">{t("projectUi.organizationNotFoundOrAccessDenied")}</HeaderNotice>
         : project ? <>
-          {organization.can_manage ? <form className="account-form" onSubmit={event => { event.preventDefault(); void saveMetadata(); }}>
+          {permits(organization, 'edit_project') ? <form className="account-form" onSubmit={event => { event.preventDefault(); void saveMetadata(); }}>
             <h2>{t("projectUi.projectInformation")}</h2>
             {project.status === 'archived' && <HeaderNotice>{t("projectUi.thisProjectIsArchivedRestoreItBeforeChanging")}</HeaderNotice>}
             <fieldset className="account-form" disabled={!enabled || busy || project.status !== 'active'}>
@@ -135,7 +136,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
             <div className="controls"><button disabled={!enabled || busy} onClick={() => void openStyles()}>{t("projectUi.manageProjectStyles")}</button></div>
           </section>
           <GlossarySettings request={request} organizationId={organizationId} projectId={projectId}
-            enabled={enabled} archived={project.status === 'archived'} canManage={organization.can_manage} />
+            enabled={enabled} archived={project.status === 'archived'} canUseOrganizationDefault={permits(organization, 'use_organization_glossary')} canFork={permits(organization, 'fork_project_glossary')} editable={permits(organization, 'edit_project_glossary')} />
           <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>{t("projectUi.refreshProjectVersion")}</button></div>
           {message && <HeaderNotice>{message}</HeaderNotice>}
           {error && <HeaderNotice className="header-error" role="alert">{error}</HeaderNotice>}
@@ -144,7 +145,7 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
         : <HeaderNotice>{t("projectUi.loadingProject")}</HeaderNotice>}
     </section>
     {stylesOpen && project && <ProjectStyleManager document={project.document} cueRows={cueRows} selectedCueId={null}
-      editable={enabled && project.status === 'active'} persisted request={request} organizationId={organizationId}
-      canManageTemplates={organization?.can_manage} projectName={project.name} onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
+      editable={enabled && project.status === 'active' && permits(organization, 'manage_project_styles')} canEditSubtitles={enabled && project.status === 'active' && permits(organization, 'edit_subtitles')} persisted request={request} organizationId={organizationId}
+      canCreateTemplate={enabled && project.status === 'active' && permits(organization, 'create_style_template')} projectName={project.name} onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
   </PageLayout>;
 }

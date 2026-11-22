@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/me/settings', identity.personal_settings),
     path('api/me/handbook', identity.acknowledge_handbook),
     path('api/organizations', identity.organization_list),
+    path('api/organizations/<int:organization_id>/member-permissions', identity.member_permissions),
     path('api/organizations/<int:organization_id>', identity.organization_detail),
     path('api/organizations/<int:organization_id>/members', identity.members),
     path('api/organizations/<int:organization_id>/members/<int:membership_id>', identity.member),

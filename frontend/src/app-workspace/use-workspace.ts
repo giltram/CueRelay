@@ -12,7 +12,7 @@ import { ReadOrder } from '../request-state/read-order';
 
 interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; localOrganizationId?: number; generation: number }
 interface LoadState { key: string; status: 'loading' | 'ready' | 'error'; error?: Error }
-interface StatusContext { key: string; order: ReadOrder; confirmed?: Pick<ProjectSummary, 'revision' | 'status'> }
+interface StatusContext { key: string; order: ReadOrder; confirmed?: Pick<ProjectDetail, 'revision' | 'status' | 'effective_permissions'> }
 interface StatusRead { context: StatusContext; version: number }
 interface RouteAttempt extends StatusRead { recovered: boolean }
 const beginStatusRead = (context: StatusContext): StatusRead => ({ context, version: context.order.start() });
@@ -38,9 +38,9 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     if (statusContext.current?.key !== key) statusContext.current = { key, order: new ReadOrder() };
     return statusContext.current;
   }, [actorId]);
-  const acceptStatusRead = useCallback(({ context, version }: StatusRead, confirmed?: ProjectSummary) => {
+  const acceptStatusRead = useCallback(({ context, version }: StatusRead, confirmed?: ProjectDetail) => {
     if (statusContext.current !== context || !context.order.acceptData(version)) return false;
-    context.confirmed = confirmed ? { revision: confirmed.revision, status: confirmed.status } : undefined;
+    context.confirmed = confirmed ? { revision: confirmed.revision, status: confirmed.status, effective_permissions: confirmed.effective_permissions } : undefined;
     if (context.order.acceptFeedback(version)) setStatusIssue(value => value?.context === context ? null : value);
     return true;
   }, []);
@@ -89,7 +89,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       setWorkspace(value => {
         if (!matches(value, organizationId, projectId)) return { project: detail, generation: ++generation.current };
         if (!acceptStatus) return value;
-        return { ...value!, project: { ...value!.project!, status: detail.status } };
+        return { ...value!, project: { ...value!.project!, status: detail.status, effective_permissions: detail.effective_permissions } };
       });
       statusRead.recovered = true;
       setLoad({ key, status: 'ready' });
@@ -173,6 +173,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     // A later status-only read may confirm this exact snapshot. It must not
     // cancel an explicit reload, but a newer denial/archive/revision still does.
     if (!accepted && (!confirmed || confirmed.revision !== detail.revision || confirmed.status !== detail.status)) return false as const;
+    if (!accepted && confirmed) detail = { ...detail, effective_permissions: confirmed.effective_permissions };
     diagnostics.record('workspace', 'reload', 'success', { revision: detail.revision });
     routeAttempt.current = null;
     setWorkspace({ project: detail, generation: ++generation.current });
@@ -191,7 +192,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       void projectApi(request, project.organization_id).get(project.id).then(latest => {
         if (!active || !acceptStatusRead(statusRead, latest)) return;
         setWorkspace(value => matches(value, latest.organization_id, latest.id)
-          ? { ...value!, project: { ...value!.project!, status: latest.status } } : value);
+          ? { ...value!, project: { ...value!.project!, status: latest.status, effective_permissions: latest.effective_permissions } } : value);
         setAccessDenied(false);
         // Data can still be useful after a newer transient route failure, but
         // recovery requires a check issued during or after that route load.
@@ -207,8 +208,9 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       });
     };
     const timer = window.setInterval(check, 30000);
-    window.addEventListener('focus', check);
-    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); };
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    window.addEventListener('focus', check); document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', onVisible); };
   }, [workspace?.project?.organization_id, workspace?.project?.id, request, enabled, statusFor, acceptStatusRead, denyStatusRead]);
 
   const projectLoad = organizationId !== undefined && projectId !== undefined

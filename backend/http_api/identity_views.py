@@ -149,7 +149,8 @@ def acknowledge_handbook(request):
 
 def organization_data(org, actor):
     role = Membership.objects.filter(organization=org, user=actor).values_list('role', flat=True).first()
-    return {'id': org.pk, 'name': org.name, 'role': role, 'can_manage': actor.is_superuser or role == 'organizer'}
+    return {'id': org.pk, 'name': org.name, 'role': role, 'can_manage': actor.is_superuser or role == 'organizer',
+            'effective_permissions': organizations.effective_permissions(actor, org)}
 
 
 def member_data(member):
@@ -171,7 +172,7 @@ def accessible(request, organization_id, manage=False):
 
 @endpoint(['GET', 'PATCH'])
 def organization_detail(request, organization_id):
-    org = accessible(request, organization_id, request.method == 'PATCH')
+    org = accessible(request, organization_id)
     if request.method == 'PATCH':
         org = organizations.rename_organization(request.user, organization_id, payload(request, ['name'])['name'])
     return {'organization': organization_data(org, request.user)}
@@ -206,3 +207,15 @@ def leave(request, organization_id):
     payload(request, [])
     organizations.change_member(request.user, organization_id, leave=True)
     return {'ok': True}
+
+
+@endpoint(['GET', 'PUT'])
+def member_permissions(request, organization_id):
+    if request.method == 'GET':
+        return organizations.read_permissions(request.user, organization_id)
+    # Authorization precedes parsing, and is rechecked within the write lock.
+    accessible(request, organization_id, True)
+    try:
+        return organizations.save_permissions(request.user, organization_id, **payload(request, ['permissions', 'revision']))
+    except organizations.PermissionConflict as failure:
+        return error('permissions_conflict', failure.args[0], 409)

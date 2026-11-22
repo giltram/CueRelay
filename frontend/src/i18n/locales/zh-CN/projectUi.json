@@ -27,7 +27,7 @@
   "projectInformation": "项目信息",
   "thisProjectIsArchivedRestoreItBeforeChanging": "项目已归档，恢复后才能修改项目设置。",
   "saveChanges": "保存修改",
-  "onlyOrganizationAdministratorsCanChangeTheProjectName": "只有组织管理员可以修改项目名称和说明。",
+  "onlyOrganizationAdministratorsCanChangeTheProjectName": "当前无修改项目名称与说明的权限。",
   "projectStyles": "项目样式",
   "thisProjectIsArchivedStylesAreReadOnly": "项目已归档，样式仅可查看。",
   "manageProjectStyles": "管理项目样式",

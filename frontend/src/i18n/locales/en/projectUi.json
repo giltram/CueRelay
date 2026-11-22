@@ -27,7 +27,7 @@
   "projectInformation": "Project information",
   "thisProjectIsArchivedRestoreItBeforeChanging": "This project is archived. Restore it before changing its settings.",
   "saveChanges": "Save changes",
-  "onlyOrganizationAdministratorsCanChangeTheProjectName": "Only organization administrators can change the project name and description.",
+  "onlyOrganizationAdministratorsCanChangeTheProjectName": "You do not have permission to change the project name or description.",
   "projectStyles": "Project styles",
   "thisProjectIsArchivedStylesAreReadOnly": "This project is archived. Styles are read-only.",
   "manageProjectStyles": "Manage project styles",

@@ -1,3 +1,4 @@
+import { permits } from '../contracts/permissions';
 import { roleName } from '../i18n/shortcuts';
 import { useMessageState, useLocale } from '../i18n/react';
 import { t } from "../i18n";
@@ -31,11 +32,13 @@ export function MembersPanel({ request: api, currentUserId, isDev, organization,
   }
   return <div className="account-form">
     <p>{t("common.accountRole", { organization: organization.name, role: roleName(organization.role) })}</p>
-    {organization.can_manage && <>
+    {permits(organization, 'rename_organization') && <>
       <form className="member-form" onSubmit={event => { event.preventDefault(); void run(() => api(base, 'PATCH', { name })); }}>
         <label>{t("accountUi.organizationName")}<input value={name} maxLength={100} required onChange={event => setName(event.target.value)} /></label>
         <button disabled={busy}>{t("accountUi.saveName")}</button>
       </form>
+    </>}
+    {organization.can_manage && <>
       <form className="member-form" onSubmit={event => { event.preventDefault(); void run(async () => {
         await api(`${base}/members`, 'POST', { username }); setUsername('');
       }); }}>

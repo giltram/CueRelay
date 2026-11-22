@@ -122,7 +122,7 @@ test('project metadata archive restore permissions and video gate persist', asyn
   try {
     const memberPage = await member.newPage();
     await login(memberPage, settingsPath);
-    await expect(memberPage.getByText('只有组织管理员可以修改项目名称和说明。', { exact: true })).toBeVisible();
+    await expect(memberPage.getByText('当前无修改项目名称与说明的权限。', { exact: true })).toBeVisible();
     await expect(memberPage.getByLabel('项目名称', { exact: true })).toHaveCount(0);
     expect((await request(member, fixtures.projectPath, 'PATCH', { name: '越权', description: '', revision: 2 })).status()).toBe(403);
     expect((await request(member, `${fixtures.projectPath}/archive`, 'POST', { revision: 2 })).status()).toBe(403);

@@ -35,6 +35,15 @@ class WorkspaceRegressionTests(RegressionFixture):
             'CUERELAY_REGRESSION_FIXTURES': json.dumps(self.fixtures),
         }, check=True, timeout=240)
 
+    def test_member_permission_settings(self):
+        self.run_browser('member permissions settings CAS and independent grants retain identity boundaries in both languages')
+
+    def test_member_permission_workspace(self):
+        self.run_browser('member subtitle revocation and ordered recovery preserve draft media selection and history with independent glossary writes')
+
+    def test_member_permission_business_controls(self):
+        self.run_browser('member project settings and style templates honor independent business capabilities')
+
     def test_auxiliary_handbook(self):
         User.objects.filter(pk__in=[self.member.pk, self.organizer.pk]).update(handbook_seen=False)
         self.run_browser('auxiliary first handbook acknowledgement persists per real account')

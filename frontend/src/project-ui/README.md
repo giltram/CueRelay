@@ -1,5 +1,10 @@
 # 项目面板
 
+## member权限（2026-11-22）
+
+项目列表创建/归档/恢复、元数据、样式定义、字幕样式分配、术语fork/编辑/切回、模板另存分别消费有效权限。设置页继续可浏览，样式面板按模式独立禁用写入，模板另存可独立授权；成员管理不在本模块。规则见 [成员权限](../../../docs/member-permissions.md)，默认保持原角色行为。
+
+
 初始字幕选择现在接受 ASS / SRT。SRT 经 `project-data/subtitle-api → /api/srt/import` 转为含完整 ASS source 的 v2 文档，使用新文档既有 Default/脚本默认值；选中后的脚本设置、显式组织模板导入仍沿原初始化规则。创建继续提交 ASS source，不增格式字段/第二份模型；已有项目仍不允许文件替换。编码、舍入和标签限制见 [SRT 格式契约](../../../backend/srt_format/README.md)，实际创建/保存/重载回归见 regression/srt.spec.mjs。
 
 ProjectsPanel 负责组织项目列表（进行中/过去、搜索、分页、管理入口）；ProjectForm 负责名称/说明、媒体/字幕初始化及可选版本化组织模板/脚本设置；ProjectSettingsPage 负责独立设置页的加载、名称/说明编辑、项目样式管理和冲突后的显式版本刷新。App 拥有当前组织和切换保护，app-workspace 拥有单个保留工作区，面板不读取 EditorWorkbench 内部状态。
@@ -30,7 +35,7 @@ App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显�
 
 原生 input[type=file] 的 cancel 会冒泡，Modal 仅处理 target=currentTarget 的弹窗自身取消。取消文件选择和空文件 change 均保留表单及当前文件。回归见 `npm run test:project-form`，旧创建地址兼容测试在 navigation/routes.test.ts。
 
-项目列表所有成员均有「项目设置」入口；管理员另有「归档项目」或「恢复项目」，无折叠菜单或打开按钮；点击项目名称进入工作区。「项目设置」默认新开 `/organizations/:organizationId/projects/:projectId/settings`。设置页自行调用 project-data 获取目标详情，不挂载或接纳字幕工作区；只允许 can_manage 且未归档的项目修改名称/说明。所有成员可管理活动项目样式，归档时仅查看，无需选择视频。设置页组合 style-ui/ProjectStyleManager，以 subtitle-model/cue-order 提供已保存字幕的显示顺序，不依赖 workspace-ui 内部实现。
+项目列表所有成员均有「项目设置」入口；管理员另有「归档项目」或「恢复项目」，无折叠菜单或打开按钮；点击项目名称进入工作区。「项目设置」默认新开 `/organizations/:organizationId/projects/:projectId/settings`。设置页自行调用 project-data 获取目标详情，不挂载或接纳字幕工作区；修改名称/说明需edit_project且未归档；管理活动项目样式需manage_project_styles，归档时仅查看，无需选择视频。设置页组合 style-ui/ProjectStyleManager，以 subtitle-model/cue-order 提供已保存字幕的显示顺序，不依赖 workspace-ui 内部实现。
 
 项目设置页不提供「返回项目列表」按钮；页头 CueRelay 首页链接和浏览器历史继续可用。
 

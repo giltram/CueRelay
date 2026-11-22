@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from ass_format import AssError
 from projects import services
 from projects.models import Project
+from organizations.services import effective_permissions
 from organizations.style_templates import TemplateConflict
 from .identity_views import endpoint, error, payload
 
@@ -46,13 +47,13 @@ def project_data(project, detail=False):
 
 @project_endpoint(['GET', 'POST'])
 def project_list(request, organization_id):
-    org, _ = services.organization_for(request.user, organization_id, manage=request.method == 'POST')
+    org, _ = services.organization_for(request.user, organization_id, permission='create_project' if request.method == 'POST' else None)
     if request.method == 'POST':
         data = payload(request, ['name', 'description', 'media', 'source', 'style_imports', 'script'], partial=True)
         if not {'name', 'description', 'media', 'source'} <= set(data):
             raise ValidationError(localized('server.creatingAProjectRequiresNameDescriptionMediaAndSource', '创建项目需要 name、description、media、source。', {}))
         project = services.create_project(request.user, org.pk, **data)
-        return {'project': project_data(project, True)}
+        return {'project': {**project_data(project, True), 'effective_permissions': effective_permissions(request.user, project.organization)}}
     if set(request.GET) - {'status', 'search', 'page'}:
         raise ValidationError(localized('server.unknownListParameter', '未知的列表参数。', {}))
     status = request.GET.get('status', 'active')
@@ -80,7 +81,7 @@ def project_detail(request, organization_id, project_id):
         project = services.update_project(request.user, organization_id, project_id, **data)
     else:
         project, _ = services.read_project(request.user, organization_id, project_id)
-    return {'project': project_data(project, True)}
+    return {'project': {**project_data(project, True), 'effective_permissions': effective_permissions(request.user, project.organization)}}
 
 
 @project_endpoint(['POST'])

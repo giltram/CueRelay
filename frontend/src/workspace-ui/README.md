@@ -1,5 +1,10 @@
 # 工作区编辑状态与历史
 
+## member权限（2026-11-22）
+
+字幕readOnly可由项目effective_permissions.edit_subtitles关闭，不清理编辑历史、选择、草稿或媒体。glossaryEditable单独表示项目可访问且活动，再结合项目fork/edit权限，不依赖字幕readOnly；插入术语仍须字幕可编辑。能力恢复不重建document。参见 [成员权限](../../../docs/member-permissions.md)。
+
+
 EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-edit-history.ts` 唯一拥有本实例的可编辑状态，`edit-history.ts` 是无 React / DOM 依赖的不可变历史转换。依赖方向：EditorWorkbench → use-edit-history → edit-history → contracts；音频组件只报告操作与生命周期，不读取历史。
 
 ## SRT 文件

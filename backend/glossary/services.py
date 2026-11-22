@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 from accounts.models import User
 from organizations.models import Organization
-from organizations.services import require_access
+from organizations.services import require_access, require_permission
 from .models import Glossary, Entry
 
 LIMITS = json.loads((Path(__file__).resolve().parents[2] / 'shared/glossary-limits.json').read_text())
@@ -90,6 +90,7 @@ def save_entry(actor, organization_id, table_id, *, original, translation, note,
     values = entry_values(original, translation, note)
     org = organization_for(actor, organization_id, lock=True)
     table = Glossary.objects.select_for_update().get(pk=table_id, organization=org)
+    require_permission(actor, org, 'edit_organization_glossary' if table.is_organization_default else 'edit_project_glossary')
     entry = None if entry_id is None else Entry.objects.select_for_update().get(pk=entry_id, glossary=table)
     if entry is not None and (type(revision) is not int or revision != entry.revision):
         raise GlossaryConflict()
@@ -113,6 +114,8 @@ def save_entry(actor, organization_id, table_id, *, original, translation, note,
 def organization_table(actor, organization_id, *, create=False):
     """The sole default table is immutable in identity; reads never create rows."""
     org = organization_for(actor, organization_id, lock=create)
+    if create:
+        require_permission(actor, org, 'edit_organization_glossary')
     table = Glossary.objects.filter(organization=org, is_organization_default=True).first()
     if table is None and create:
         table = Glossary.objects.create(organization=org, is_organization_default=True, name='组织术语表', created_by=actor)
@@ -131,7 +134,8 @@ def check_organization_token(table, association_version, glossary_id):
 @transaction.atomic
 def save_organization_entry(actor, organization_id, *, association_version, glossary_id, original, translation, note, entry_id=None, revision=None):
     entry_values(original, translation, note)
-    organization_for(actor, organization_id, lock=True)
+    org = organization_for(actor, organization_id, lock=True)
+    require_permission(actor, org, 'edit_organization_glossary')
     table = organization_table(actor, organization_id)
     check_organization_token(table, association_version, glossary_id)
     if entry_id is not None and table is None:
@@ -145,6 +149,7 @@ def save_organization_entry(actor, organization_id, *, association_version, glos
 def fork_organization_table(actor, organization_id, name):
     """Copy the current organization entries, with new IDs and no live linkage."""
     org = organization_for(actor, organization_id, lock=True)
+    require_permission(actor, org, 'fork_project_glossary')
     source = Glossary.objects.filter(organization=org, is_organization_default=True).first()
     target = Glossary.objects.create(organization=org, name=text(name, 'name'), created_by=actor)
     if source:

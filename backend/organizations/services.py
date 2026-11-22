@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from accounts.models import User
 from .models import Organization, OrganizationMembership as Membership
+from .permissions import DEFAULT_MEMBER_PERMISSIONS, member_permissions, validate_permissions, PermissionConflict
 
 
 def require_access(actor, organization, manage=False):
@@ -44,8 +45,9 @@ def create_organization(name, initial_user_id):
 
 @transaction.atomic
 def rename_organization(actor, organization_id, name):
+    User.objects.select_for_update().get(pk=actor.pk)
     org = Organization.objects.select_for_update().get(pk=organization_id)
-    require_access(actor, org, manage=True)
+    require_permission(actor, org, 'rename_organization')
     org.name = validate_name(name)
     org.save(update_fields=['name'])
     return org
@@ -91,3 +93,41 @@ def lock_user_organizations(user):
     """Upper-level coordinator must already hold the target user's row lock."""
     ids = Membership.objects.filter(user=user).values_list('organization_id', flat=True)
     return list(Organization.objects.select_for_update().filter(pk__in=ids).order_by('pk'))
+
+
+def effective_permissions(actor, organization):
+    role = require_access(actor, organization)
+    actor = User.objects.get(pk=actor.pk)
+    if actor.is_superuser or role == 'organizer':
+        return dict.fromkeys(DEFAULT_MEMBER_PERMISSIONS, True)
+    return member_permissions(organization)
+
+
+def require_permission(actor, organization, permission):
+    if permission not in DEFAULT_MEMBER_PERMISSIONS:
+        raise ValueError('Unknown business permission: ' + permission)
+    if not effective_permissions(actor, organization)[permission]:
+        raise PermissionDenied
+
+
+def read_permissions(actor, organization_id):
+    org = Organization.objects.get(pk=organization_id)
+    require_access(actor, org, manage=True)
+    return {'permissions': member_permissions(org), 'revision': org.permissions_revision}
+
+
+@transaction.atomic
+def save_permissions(actor, organization_id, *, permissions, revision):
+    User.objects.select_for_update().get(pk=actor.pk)
+    org = Organization.objects.select_for_update().get(pk=organization_id)
+    require_access(actor, org, manage=True)
+    permissions = validate_permissions(permissions)
+    if type(revision) is not int or revision < 1:
+        raise ValidationError(localized('server.invalidPermissionsRevision', '权限版本须为正整数。', {}))
+    if revision != org.permissions_revision:
+        raise PermissionConflict(localized('server.permissionsChanged', '权限配置已变化。当前选择已保留，请重新加载配置后检查并保存。', {}))
+    if permissions != member_permissions(org):
+        org.member_permissions = permissions
+        org.permissions_revision += 1
+        org.save(update_fields=['member_permissions', 'permissions_revision'])
+    return {'permissions': member_permissions(org), 'revision': org.permissions_revision}

@@ -2,7 +2,7 @@ import { type MessageValue, describe, MessageError, messageFromWire } from '../c
 import { diagnostics } from '../diagnostics';
 import { diagnosticFetch, responseRequestId } from '../diagnostics/http';
 export interface User { id: number; username: string; is_dev: boolean }
-export interface Organization { id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean }
+export interface Organization { effective_permissions?: import('../contracts/permissions').EffectivePermissions; id: number; name: string; role: 'organizer' | 'member' | null; can_manage: boolean }
 export interface Member { id: number; user_id: number; username: string; role: 'organizer' | 'member'; is_active: boolean }
 export type Overrides = Partial<Record<import('../workspace-ui/timing-shortcuts').TimingShortcut, string[]>>;
 export interface Settings { language_preference?: import('../i18n/registry').LanguagePreference; handbook_seen: boolean; mouse_sets_cue_boundary: boolean; shortcut_overrides: Overrides; audio_display_mode: import('../media/audio/analysis-types').AudioDisplayMode }

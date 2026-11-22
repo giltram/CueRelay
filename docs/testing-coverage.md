@@ -103,3 +103,8 @@
 | Firefox与WebKit代表应用兼容评估，复用同一流程函数 | Firefox153.0 1/1；冻结WebKit26.4生产1/1（隔离1.60驱动），真实AAC分析/视频/保存刷新/手册；两者均无showOpenFilePicker | 仓库1.62+mac14默认WebKit建页仍失败；开发COEP Worker仍失败；真实Safari/Windows和两浏览器完整52套件未验收 |
 
 相关后端131/131、前端223/223、scripts6/6及静态/构建实际通过。最终专项的3个脚本和独立媒体/平台/生产流程**不计入统一52**；wrapper1例也不把脚本内部检查点换算为额外E2E。失败历史有13次未通过测试运行，保留各轮目录/trace/日志，无自动retry或skip；详细数字、命令、版本、资源预算、清理与人工清单见 [测试手册](testing.md#2026-11-22-辅助入口媒体平台与故障场景) 和 [本轮计划](plans/e2e-aux-media-failures-2026-11-22.md)。本轮没有产品源码修复、接口或支持范围变更。
+
+
+## 组织member权限增量（2026-11-22）
+
+[成员权限契约](member-permissions.md)索引14项HTTP默认/拒绝/独立授权矩阵、dev/organizer固定能力、配置/成员身份边界、组织隔离、严格key/boolean/CAS、实际迁移、混合文档快照以及PostgreSQL锁等待两个先后顺序。浏览器新增3场覆盖中英文配置冲突、权限变化保留稿件/历史/媒体和独立模板/术语入口，仍通过统一入口选择检查。运行结果/未覆盖边界见 [实施记录](plans/member-permissions.md)。

@@ -1,5 +1,10 @@
 # 账号界面
 
+## 组织member权限（2026-11-22）
+
+SettingsPage仅对can_manage组合MemberPermissionsPanel，按账号/组织挂载；14项分组复选框、明确保存、全量CAS、冲突保留选择，明确重新加载才替换草稿。MembersPanel名称表单使用rename_organization，添加/移除/角色控制仍用can_manage。Organization.effective_permissions只表示当前操作者能力；共享contracts/permissions读取固定默认，不能提升身份权限。资源/API见 [权限契约](../../../docs/member-permissions.md)。
+
+
 首次使用提示：App 仅在设置已加载且服务端明确返回 `handbook_seen: false` 时组合 HandbookPrompt；未登录、会话/切换保护弹窗中或正在阅读手册时不弹。提示只包含打开手册（默认新标签页）和稍后阅读，Escape 等同稍后阅读。App 立即关闭并按账号保存本页已关闭状态，异步 POST `/me/handbook`，只有相同账号代次的成功响应才更新设置；失败仅报告到页头，本页不重复打扰、下次进入可再提示。提示期间暂停工作区快捷键，不重建编辑器。PersonalSettings 页在密码表单前保留「使用手册」入口，带组织上下文；手册本身由独立 handbook-ui 拥有。createDefaultSettings 的 handbook_seen=true 只是未加载时的保守占位，实际提示以服务端状态为准；不使用 Storage 或诊断存储记录已读。
 
 App 编排会话、组织上下文、登录/保护弹窗及工作区所有权。App 显式创建并传递 account-ui/api.ts 客户端实例；实例负责同源 Session 请求、当前 CSRF Cookie、结构化错误、账号一致性头和旧上下文响应过滤，通过显式回调通知会话失效，不使用模块级账号全局状态。LoginForm、MembersPanel、PersonalPanel 只通过公开 HTTP 契约操作数据，不访问 EditorWorkbench 内部状态。

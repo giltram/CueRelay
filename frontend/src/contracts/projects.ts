@@ -7,7 +7,7 @@ export interface ProjectSummary {
   updated_by: { username: string };
   archived_at: string | null; archived_by: { username: string } | null;
 }
-export interface ProjectDetail extends ProjectSummary { media: MediaManifest; document: AssDocument }
+export interface ProjectDetail extends ProjectSummary { effective_permissions?: import('./permissions').EffectivePermissions; media: MediaManifest; document: AssDocument }
 export interface ProjectPage { projects: ProjectSummary[]; total: number; page: number; has_more: boolean }
 
 /** In-memory workspace contract; baseline/history references never enter HTTP. */

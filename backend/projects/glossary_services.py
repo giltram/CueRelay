@@ -12,8 +12,8 @@ from .models import Project
 from .services import organization_for, require_active
 
 
-def context_project(actor, organization_id, project_id, *, write=False, manage=False):
-    org, _ = organization_for(actor, organization_id, manage=manage, lock=write)
+def context_project(actor, organization_id, project_id, *, write=False, permission=None):
+    org, _ = organization_for(actor, organization_id, permission=permission, lock=write)
     project = (Project.objects.select_for_update() if write else Project.objects).get(pk=project_id, organization=org)
     if write:
         require_active(project)
@@ -86,9 +86,8 @@ def read_entry(actor, organization_id, project_id, table_id, entry_id):
 def change_association(actor, organization_id, project_id, *, association_version, glossary_id, fork=False, use_organization_default=False):
     if type(fork) is not bool or type(use_organization_default) is not bool or fork == use_organization_default:
         raise ValidationError(localized('server.chooseCreateProjectCopyOrUseOrganizationGlossary', '请选择创建项目副本或使用组织术语表。', {}))
-    # Creating a private copy is an entry-maintenance action, available to members.
-    # Switching an existing project's association back retains management permissions.
-    project = context_project(actor, organization_id, project_id, write=True, manage=use_organization_default)
+    # Forking and reverting have separate capabilities; neither grants identity authority.
+    project = context_project(actor, organization_id, project_id, write=True, permission='use_organization_glossary' if use_organization_default else 'fork_project_glossary')
     table = effective_table(actor, project)
     check_association(project, association_version, glossary_id, table)
     if fork:
@@ -106,7 +105,7 @@ def change_association(actor, organization_id, project_id, *, association_versio
 @transaction.atomic
 def save_entry(actor, organization_id, project_id, *, association_version, glossary_id, original, translation, note, entry_id=None, revision=None):
     glossary.entry_values(original, translation, note)
-    project = context_project(actor, organization_id, project_id, write=True)
+    project = context_project(actor, organization_id, project_id, write=True, permission='edit_project_glossary')
     table = effective_table(actor, project)
     check_association(project, association_version, glossary_id, table)
     if project.glossary_id is None or table['is_organization_default']:

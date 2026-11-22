@@ -1,6 +1,6 @@
 # 用户、组织和个人设置
 
-状态：2026-10-23 已实现固定权限方案 A。账号切片后已接入 [项目面板和手动快照保存](projects.md)。登录或切换组织本身不代表本地稿件已保存或归属某项目；组织样式库、实时协作、编辑锁和恢复机制仍未实现。
+状态：2026-11-22 已在原 organizer/member 身份之上实现 [组织member业务权限](member-permissions.md)。默认保持固定方案A行为。账号切片后已接入 [项目面板和手动快照保存](projects.md)。登录或切换组织本身不代表本地稿件已保存或归属某项目；组织样式库和本机草稿恢复已实现；实时协作与编辑锁未实现。
 
 ## 身份与权限
 
@@ -9,13 +9,13 @@
 | 实体 | 字段与约束 |
 | --- | --- |
 | accounts.User | AbstractUser；username 同时用于登录和显示，邮箱可空；Django 密码摘要与验证器；停用代替删除 |
-| Organization | id、name（1–100 字符）、created_at |
+| Organization | id、name（1–100 字符）、created_at、member_permissions JSON覆盖、permissions_revision（独立CAS，初始1） |
 | OrganizationMembership | organization、user 外键，role、joined_at；组织/用户联合唯一；数据库检查 role 仅 organizer/member |
 | PersonalSettings | user 一对一主键、shortcut_overrides JSON、audio_display_mode（waveform/spectrum，默认 spectrum）、updated_at；无组织字段，无记录时返回默认值，按需创建 |
 
 Django 自带 auth、Admin、contenttypes、session 等表正常保留。dev 使用 is_superuser；is_staff 仅提供 Admin 登录资格，不授予组织权限。organizer/member 属于成员关系，同一账号可以在不同组织拥有不同角色，不使用全局 Group 映射组织角色。
 
-member 查看本组织及成员、退出自己所在组织。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、提升 member、移除 member；不能移除或降级其他 organizer，避免先降级再移除的绕过。本人仍可降级或退出，但必须满足最后活动 organizer 约束。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织及 organizer，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
+member 查看本组织及成员、退出自己所在组织；业务操作按组织配置，默认值与固定身份边界见 [member权限](member-permissions.md)。organizer 还可改组织名、按准确用户名添加活动账号（初始 member）、提升 member、移除 member；不能移除或降级其他 organizer，避免先降级再移除的绕过。本人仍可降级或退出，但必须满足最后活动 organizer 约束。organizer 不能修改站点字段、授予 dev、停用全站账号或管理其他组织。dev 可以管理全部组织及 organizer，无需伪造成员关系。不提供用户目录、公开注册、邮件邀请或第三方登录。
 
 账号只使用 username，不再有独立显示名；个人设置不展示重复身份字段，不提供本人资料写接口。Session/本人 DTO 仅含 id、username、is_dev；成员及项目操作者同样只提供 username。成员移除先显示账号和组织的确认框，取消不发送移除请求；移除自己沿用退出组织的确认及本地稿件保护流程。
 
@@ -54,8 +54,9 @@ Django CsrfViewMiddleware 保护全部身份/组织/设置写请求，包括匿�
 | POST /api/auth/logout | 空 JSON；不能 GET 退出 |
 | GET /api/auth/me | 只读安全用户字段；PATCH 返回 405 |
 | POST /api/auth/password | old_password、new_password、new_password_confirmation；确认值必须一致 |
-| GET /api/organizations | 当前可访问组织、该组织 role、can_manage |
-| GET/PATCH /api/organizations/{id} | 查看；PATCH 仅 name |
+| GET /api/organizations | 当前可访问组织、该组织 role、can_manage、effective_permissions |
+| GET/PATCH /api/organizations/{id} | 查看；PATCH 仅 name，检查rename_organization |
+| GET/PUT /api/organizations/{id}/member-permissions | 仅dev/本组织organizer；全量14项严格boolean与revision，冲突409 |
 | GET/POST /api/organizations/{id}/members | 查看；POST 仅准确 username |
 | PATCH/DELETE /api/organizations/{id}/members/{membership_id} | PATCH 仅 role；DELETE 空 JSON；成员关系必须属于 URL 组织 |
 | POST /api/organizations/{id}/leave | 空 JSON，退出本人关系 |

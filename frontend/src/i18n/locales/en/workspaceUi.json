@@ -186,5 +186,7 @@
   "draftDiscard": "Discard draft",
   "draftShow": "View local drafts",
   "draftActionFailed": "Could not complete the draft action. Reopen the workspace and try again.",
-  "draftUnavailable": "This draft is no longer available."
+  "draftUnavailable": "This draft is no longer available.",
+  "subtitleReadOnlyState": " · subtitles read only",
+  "subtitlePermissionRevoked": "Subtitle editing is disabled for members. Your local draft is kept; viewing and export remain available."
 }

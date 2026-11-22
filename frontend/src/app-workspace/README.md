@@ -1,5 +1,10 @@
 # 保留的工作区
 
+## member权限观察（2026-11-22）
+
+项目detail的effective_permissions随status一起通过原ReadOrder接纳；focus/visibilitychange/30秒读取不更换实例、文档、revision或媒体。reload允许较新相同revision/status确认旧快照时，采用较新确认的权限。App只将字幕能力合入字幕readOnly，术语维护单独接收可访问状态与fork/edit权限，避免字幕只读影响术语。参见 [权限契约](../../../docs/member-permissions.md)。
+
+
 `useWorkspace` 拥有单个工作区实例、初始化 ProjectDetail/File、挂载代号、按路由加载状态、显式保存/重载和归档/权限观察。字幕正文、选中行、时间草稿、视频节点和播放状态仍唯一属于 EditorWorkbench/LocalVideoPlayer。
 
 公开接口：workspace/visible/projectLoad/accessDenied/statusIssue；clear、adoptCreated、save、split、reload、updateSummary、checkDraftRevision、retry。checkDraftRevision 供草稿恢复读取当前服务端 revision，不改变保留实例的保存基准。save 接收 contracts/projects.ProjectSaveRequest（document、上次成功保存的 baseDocument/revision、历史所需样式 ID），返回 ProjectSaveResult（project 摘要和实际保存 document）；基准与历史信息只在内存传递，不进入 HTTP。App 在获得切换许可后调用 clear；在列表点击新建时先处理该文档保留的旧稿保护，再打开本地单页表单；创建成功后把已有详情与所选 File/可选只读句柄交给 adoptCreated，再 push 工作区 URL。创建表单不拥有页面路由，不新开标签页。初始化 File 只留本标签页内存，不放 URL/history/Storage；media 模块在播放器校验通过后仅将句柄存入本机 IndexedDB。

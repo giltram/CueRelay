@@ -131,7 +131,7 @@
   "importStyle": "导入「{{name}}」样式",
   "deleteTemplateConfirmation": "删除「{{name}}」？已有项目中的样式副本不受影响。",
   "emptyLine": "（空行）",
-  "managedBy": "模板由 organizer / dev 管理。",
+  "managedBy": "当前仅可查看组织样式模板。",
   "usageFailure": "使用数检查失败：{{reason}}",
   "editTemplate": "编辑组织模板",
   "viewTemplate": "查看组织模板",

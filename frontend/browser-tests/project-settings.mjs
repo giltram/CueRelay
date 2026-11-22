@@ -177,7 +177,7 @@ try {
   await settings.getByText('项目不存在。', { exact: true }).waitFor();
   failLoad = false; await button(settings, '重试').click(); await field(settings, '项目名称').waitFor();
   organization.can_manage = false; organization.role = 'member'; await settings.reload();
-  await settings.getByText('只有组织管理员可以修改项目名称和说明。', { exact: true }).waitFor();
+  await settings.getByText('当前无修改项目名称与说明的权限。', { exact: true }).waitFor();
   await button(settings, '管理项目样式').click();
   const manager = settings.getByRole('dialog', { name: '项目样式管理', exact: true });
   assert(await button(manager, '应用并保存').isDisabled());

@@ -137,7 +137,7 @@
   "importStyle": "Import style “{{name}}”",
   "deleteTemplateConfirmation": "Delete “{{name}}”? Style copies in existing projects will not be affected.",
   "emptyLine": "(empty line)",
-  "managedBy": "Templates are managed by organizers / devs.",
+  "managedBy": "You have read-only access to organization templates.",
   "usageFailure": "Could not check usage: {{reason}}",
   "editTemplate": "Edit organization template",
   "viewTemplate": "View organization template",

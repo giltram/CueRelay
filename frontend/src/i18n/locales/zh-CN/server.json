@@ -39,7 +39,7 @@
   "invalidVideoSize": "视频大小无效。",
   "videoDurationMustBeBetween0And10Hours": "视频时长须在 0–10 小时之间。",
   "revisionMustBeAPositiveInteger": "revision 必须是正整数。",
-  "theProjectIsArchivedAndCanOnlyBeViewed": "项目已归档，仅可查看和导出。请由管理员恢复后再修改；本地稿件已保留。",
+  "theProjectIsArchivedAndCanOnlyBeViewed": "项目已归档，仅可查看和导出。请先恢复后再修改；本地稿件已保留。",
   "theProjectAssTemplateOrStyleDefinitionsCannotBe": "不能替换项目 ASS 模板或样式定义；请使用样式管理操作。",
   "batchImportRequiresANonEmptyTemplateList": "批量导入须提供非空模板列表。",
   "thisEntryChangedElsewhereYourInputsHaveBeenKept": "词条已被其他人修改，当前输入已保留。请重新加载服务器词条后再编辑。",
@@ -184,5 +184,8 @@
   "serviceUnavailable": "服务暂时不可用，请导出诊断信息并重试。",
   "proxyBodyTooLarge": "请求体不能超过 3MiB",
   "invalidAssOverride": "ASS 标签不受支持或参数无效：\\{{tag}}",
-  "duplicateAssLineOverride": "每条字幕最多一个 \\{{tag}} 标签，重置不能清除整行定位。"
+  "duplicateAssLineOverride": "每条字幕最多一个 \\{{tag}} 标签，重置不能清除整行定位。",
+  "invalidMemberPermissions": "须提交全部14项权限，且每项只能为布尔值。",
+  "invalidPermissionsRevision": "权限版本须为正整数。",
+  "permissionsChanged": "权限配置已变化。当前选择已保留，请重新加载配置后检查并保存。"
 }

@@ -145,7 +145,12 @@ test('workspace revocation preserves local edits and backup', async ({ page, req
   await backupAndCancel(page, original, value);
   expect(await records(page)).toEqual([stored]);
   expect(writes).toEqual([]);
-  expect(await project(request)).toEqual(original);
+  // Capabilities describe the reader, rather than persisted project content.
+  const { effective_permissions: memberPermissions, ...memberSnapshot } = original;
+  const { effective_permissions: organizerPermissions, ...organizerSnapshot } = await project(request);
+  expect(organizerSnapshot).toEqual(memberSnapshot);
+  expect(memberPermissions.edit_subtitles).toBe(true);
+  expect(Object.values(organizerPermissions).every(Boolean)).toBe(true);
 });
 
 test('workspace lost save response preserves draft and recovers explicitly', async ({ page }) => {

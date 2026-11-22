@@ -12,6 +12,7 @@ import { ProjectForm } from './ProjectForm';
 import { RouteLink } from '../navigation/RouteLink';
 import { HomeLink } from '../navigation/HomeLink';
 import type { Route } from '../navigation/routes';
+import { permits } from '../contracts/permissions';
 import { ReadOrder } from '../request-state/read-order';
 
 interface ListReads { order: ReadOrder; pending: number; lastPage?: number }
@@ -114,7 +115,7 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
       {localScopeReady
         ? <RouteLink className="button-link" route={{ kind: 'local', organizationId: localOrganizationId }} navigate={navigate}>{t("projectUi.localWorkspace")}</RouteLink>
         : <button disabled>{t("projectUi.localWorkspace")}</button>}
-      {organization?.can_manage && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>{t("projectUi.newProject")}</button>}
+      {permits(organization, 'create_project') && <button className="primary" disabled={!enabled || busy} onClick={() => onCreate(() => setCreating(true))}>{t("projectUi.newProject")}</button>}
     </div></div>
     {organization ? <>
       <div className="project-filters">
@@ -135,14 +136,14 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
         <td>{person(status === 'active' ? project.updated_by : project.archived_by)}</td>
         <td><div className="controls">
           <RouteLink className="button-link" route={{ kind: 'project-settings', organizationId: project.organization_id, projectId: project.id }} navigate={navigate}>{t("projectUi.projectSettings")}</RouteLink>
-          {organization.can_manage && <>
+          {permits(organization, status === 'active' ? 'archive_project' : 'restore_project') && <>
             <button disabled={!enabled || busy} onClick={() => { setConfirm(project); setError(''); }}>{status === 'active' ? t("projectUi.archiveProject") : t("projectUi.restoreProject")}</button>
           </>}
         </div></td>
       </tr>)}</tbody></table>
         {data.projects.length === 0 && <div className="empty">
           {query ? <><p>{t("projectUi.noMatchingProjects")}</p><button onClick={() => setSearch('')}>{t("projectUi.clearSearch")}</button></> :
-            <p>{status === 'archived' ? t("projectUi.noArchivedProjects") : organization.can_manage ? t("projectUi.noActiveProjectsYouCanCreateOne") : t("projectUi.thisOrganizationHasNoActiveProjects")}</p>}
+            <p>{status === 'archived' ? t("projectUi.noArchivedProjects") : permits(organization, 'create_project') ? t("projectUi.noActiveProjectsYouCanCreateOne") : t("projectUi.thisOrganizationHasNoActiveProjects")}</p>}
         </div>}
       </div>}
       {data && <div className="project-pagination"><span>{t("projectUi.pagination", { count: data.total, page: data.page })}</span><div className="controls">
@@ -154,13 +155,13 @@ export function ProjectsPanel({ organization, localOrganizationId, localScopeRea
       : t("projectUi.noOrganizationsAskADevOrOrganizerTo")}</p>
       {unavailableOrganization && <RouteLink target="_self" route={{ kind: 'projects' }} navigate={navigate}>{t("projectUi.chooseAnAccessibleOrganization")}</RouteLink>}
     </div>}
-    {organization && creating && <ProjectForm api={api} organization={organization} request={request}
+    {organization && permits(organization, 'create_project') && creating && <ProjectForm api={api} organization={organization} request={request}
       onClose={() => setCreating(false)} onSaved={saved} />}
     {confirm && <Modal title={confirm.status === 'active' ? t("projectUi.archiveProject") : t("projectUi.restoreProject")} showCloseButton={confirm.status !== 'active'} onClose={busy ? undefined : () => setConfirm(null)}>
       <p>{confirm.status === 'active' ? t("projectUi.afterArchivingValueMembersCanOnlyViewAnd", { v0: confirm.name }) : t("projectUi.afterRestoringValueOrganizationMembersCanContinueWorking", { v0: confirm.name })}</p>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="controls"><button disabled={busy} onClick={() => setConfirm(null)}>{t("projectUi.cancel")}</button>
-        <button className="primary" disabled={busy} onClick={() => {
+        <button className="primary" disabled={busy || !permits(organization, confirm.status === 'active' ? 'archive_project' : 'restore_project')} onClick={() => {
           setBusy(true); setError('');
           void api.archive(confirm, confirm.status === 'active').then(project => { onLifecycle(project); setConfirm(null); setRefresh(value => value + 1); })
             .catch(reason => setError(reason)).finally(() => setBusy(false));

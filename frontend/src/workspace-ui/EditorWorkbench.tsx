@@ -94,19 +94,20 @@ interface Props {
   initialMedia?: InitialVideo;
   mediaOwnerId?: number;
   readOnly?: boolean;
+  glossaryEditable?: boolean;
   visible?: boolean;
   onSave?: (input: ProjectSaveRequest) => Promise<ProjectSaveResult>;
   onSplit?: (request: SplitRequest, revision: number) => Promise<SplitResult & { project: ProjectSummary }>;
   styleRequest?: JsonRequest;
   styleOrganizationId?: number;
-  canManageTemplates?: boolean;
+  canCreateTemplate?: boolean;
   onReload?: () => void;
   draftScope?: string;
   onCheckDraftRevision?: () => Promise<number | null>;
   onLeaveStateChange?: (state: WorkbenchLeaveState | null) => void;
 }
 
-export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canManageTemplates, onReload, draftScope, onCheckDraftRevision, onLeaveStateChange }: Props) {
+export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcutsPaused = false, shortcutOverrides = {}, audioMode = 'spectrum', mouseSetsCueBoundary = true, project, initialMedia, mediaOwnerId, readOnly = false, glossaryEditable, visible = true, onSave, onSplit, styleRequest, styleOrganizationId, canCreateTemplate, onReload, draftScope, onCheckDraftRevision, onLeaveStateChange }: Props) {
   useLocale();
   const edits = useEditHistory({
     document: project?.document ?? null, selectedId: null, startText: formatTime(0),
@@ -688,7 +689,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     }} actions={
         <div className="file-actions" aria-label={t("workspaceUi.subtitleFileActions")}>
           {project && <>
-            <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? t("workspaceUi.archivedState") : t("workspaceUi.unavailableState") : ''}</span>
+            <span className="workspace-project-name">{project.name}{readOnly ? project.status === 'archived' ? t("workspaceUi.archivedState") : project.effective_permissions?.edit_subtitles === false ? t('workspaceUi.subtitleReadOnlyState') : t("workspaceUi.unavailableState") : ''}</span>
             <button onClick={onReload} disabled={busy}>{t("workspaceUi.reloadProject")}</button>
             {!readOnly && <button className="primary" disabled={busy || !canEdit || !documentChanged} onClick={() => run(async () => { await saveProject(); })}>{t("workspaceUi.saveProject")}</button>}
           </>}
@@ -718,7 +719,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       {busy && <HeaderNotice>{t("workspaceUi.converting")}</HeaderNotice>}
       {srtImported && <HeaderNotice role="status">{t('srt.importNotice')}</HeaderNotice>}
       {project && (readOnly || mediaVerified) && <HeaderNotice>{readOnly
-        ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")
+        ? project.status === 'archived' ? t("workspaceUi.archivedProjectsCanOnlyBeViewedAndExported") : project.effective_permissions?.edit_subtitles === false ? t('workspaceUi.subtitlePermissionRevoked') : t("workspaceUi.projectAccessCouldNotBeVerifiedYouCan")
         : saveMessage || (!documentChanged ? t("workspaceUi.subtitlesSaved") : t("workspaceUi.thereAreUnsavedSubtitleChangesClickSaveProject"))}</HeaderNotice>}
       {saveMessage && (!project || !mediaVerified || readOnly) && <HeaderNotice>{saveMessage}</HeaderNotice>}
       {pendingImport && (
@@ -755,7 +756,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             onToggle: () => { qc.close(); setGlossaryOpen(value => !value); }, onClose: () => setGlossaryOpen(false),
             panel: <GlossaryPanel key={`${mediaOwnerId}:${project.organization_id}:${project.id}`} request={styleRequest}
               organizationId={project.organization_id} projectId={project.id} enabled={glossaryEnabled && glossaryOpen}
-              editable={!readOnly} canInsert={canEdit && glossaryEnabled && !busy && Boolean(selected)} onInsert={termInsertion.insert} /> } : undefined}
+              editable={(glossaryEditable ?? !readOnly) && project.effective_permissions?.edit_project_glossary !== false} canFork={(glossaryEditable ?? !readOnly) && project.effective_permissions?.fork_project_glossary !== false} canInsert={canEdit && glossaryEnabled && !busy && Boolean(selected)} onInsert={termInsertion.insert} /> } : undefined}
           qc={{ open: qc.open, onToggle: () => { if (qc.open) closeQc(); else { setGlossaryOpen(false); qc.toggle(); } }, onClose: qc.close,
             label: qc.checking ? t("workspaceUi.qcChecking") : qc.stale ? t("workspaceUi.qcCheckAgain") : qc.report ? qc.report.formatError ? t('workspaceUi.qcIncomplete', { summary: t('workspaceUi.qcLabel', { count: qc.report.issues.length }) }) : t('workspaceUi.qcLabel', { count: qc.report.issues.length }) : 'QC',
             panel: <SubtitleQcPanel cues={document?.cues ?? []} issues={qc.report?.issues ?? []}
@@ -828,7 +829,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       {timeShiftOpen && canOpenTimeShift && <TimeShiftDialog selectedCount={selectedIds.length} totalCount={document?.cues.length ?? 0}
         pendingTiming={pendingTiming} onClose={() => setTimeShiftOpen(false)} onApply={applyTimeShift} />}
       {!project && stylesOpen && document && <ProjectStyleManager document={document} cueRows={cueRows} selectedCueId={selectedId} editable={canEdit}
-        persisted={false} request={styleRequest} organizationId={styleOrganizationId} canManageTemplates={canManageTemplates}
+        persisted={false} request={styleRequest} organizationId={styleOrganizationId} canCreateTemplate={canCreateTemplate}
         onApply={changeStyles} onClose={() => setStylesOpen(false)} />}
     </PageLayout>
   );

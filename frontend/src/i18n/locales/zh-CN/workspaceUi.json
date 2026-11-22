@@ -180,5 +180,7 @@
   "draftDiscard": "放弃草稿",
   "draftShow": "查看本地草稿",
   "draftActionFailed": "无法完成草稿操作。请重新打开工作区后再试。",
-  "draftUnavailable": "此草稿已不可用。"
+  "draftUnavailable": "此草稿已不可用。",
+  "subtitleReadOnlyState": " · 字幕只读",
+  "subtitlePermissionRevoked": "当前成员无字幕编辑权限。本地稿件已保留，仍可浏览与导出。"
 }

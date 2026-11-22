@@ -14,10 +14,10 @@ import { assColor, chosenFields, sampleStyleDocument, uniqueStyleName } from './
 
 type Mode = 'edit' | 'create' | 'copy' | 'batch' | 'script' | 'import' | 'assign';
 
-export function ProjectStyleManager({ document, cueRows, selectedCueId, editable, persisted, request, organizationId, canManageTemplates, projectName,
+export function ProjectStyleManager({ document, cueRows, selectedCueId, editable, canEditSubtitles = editable, persisted, request, organizationId, canCreateTemplate, projectName,
   onApply, onClose }: {
-  document: AssDocument; cueRows: readonly Cue[]; selectedCueId: string | null; editable: boolean; persisted: boolean;
-  request?: JsonRequest; organizationId?: number; canManageTemplates?: boolean; projectName?: string;
+  document: AssDocument; cueRows: readonly Cue[]; selectedCueId: string | null; editable: boolean; canEditSubtitles?: boolean; persisted: boolean;
+  request?: JsonRequest; organizationId?: number; canCreateTemplate?: boolean; projectName?: string;
   onApply: (operation: StyleOperation) => Promise<StyleResult>; onClose: () => void;
 }) {
   useLocale();
@@ -50,6 +50,7 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
     setActiveId(style.id); setName(style.name); setFields(style.fields); setMode('edit'); setConfirmDelete(false); setError(''); setMessage('');
   }
   async function perform(operation: StyleOperation) {
+    if (pending || (operation.type === 'assign' ? !canEditSubtitles : !editable)) return;
     const origin = captureDiagnosticOrigin();
     setPending(true); setError(''); setMessage(''); setConfirmDelete(false);
     try {
@@ -102,7 +103,7 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
           {error && <p role="alert" className="error">{error}</p>}
           {message && <p role="status">{message}</p>}
           {mode !== 'import' && <StyleSamplePreview document={sample} />}
-          <fieldset disabled={disabled}>
+          <fieldset disabled={pending || (mode === 'assign' ? !canEditSubtitles : !editable)}>
             {mode === 'import' && request && organizationId ? <>
               <TemplateImportSelection request={request} organizationId={organizationId} value={imports} onChange={setImports} existing={document.styles} />
               <p className="hint">{t("styleUi.importSummary", { count: imports.length })}</p>
@@ -128,15 +129,15 @@ export function ProjectStyleManager({ document, cueRows, selectedCueId, editable
               <div className="controls"><button className="primary" disabled={mode === 'batch' && (!selected.length || !batchFields.length)} onClick={() => void perform(mode === 'batch'
                 ? { type: 'batch', ids: selected, fields: chosenFields(fields, batchFields) }
                 : mode === 'create' ? { type: 'create', name, fields } : { type: mode === 'copy' ? 'copy' : 'update', id: active.id, name, fields })}>{applyLabel}</button>
-                {request && organizationId && canManageTemplates && mode !== 'batch' && <button onClick={() => {
-                  const origin = captureDiagnosticOrigin();
-                  setPending(true); setError('');
-                  void templateApi(request, organizationId).create({ name, fields, reference: document.script, source_label: projectName ? `${projectName} / ${active.name}`.slice(0, 500) : t("styleUi.localWorkspace") })
-                    .then(() => setMessage(msg("styleUi.organizationTemplateSavedProjectStylesRemainIndependent"))).catch(reason => { reportFailure('style-ui', 'handled_error', reason, origin); setError(reason); }).finally(() => setPending(false));
-                }}>{t("styleUi.saveAsOrganizationTemplate")}</button>}
               </div>
             </>}
           </fieldset>
+          {request && organizationId && canCreateTemplate && ['edit', 'create', 'copy'].includes(mode) && <button disabled={pending} onClick={() => {
+            const origin = captureDiagnosticOrigin();
+            setPending(true); setError('');
+            void templateApi(request, organizationId).create({ name, fields, reference: document.script, source_label: projectName ? `${projectName} / ${active.name}`.slice(0, 500) : t("styleUi.localWorkspace") })
+              .then(() => setMessage(msg("styleUi.organizationTemplateSavedProjectStylesRemainIndependent"))).catch(reason => { reportFailure('style-ui', 'handled_error', reason, origin); setError(reason); }).finally(() => setPending(false));
+          }}>{t("styleUi.saveAsOrganizationTemplate")}</button>}
         </section>
       </div>
     </div>

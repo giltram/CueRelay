@@ -11,7 +11,7 @@ from django.utils import timezone
 from ass_format import empty_document, parse_ass, serialize_ass, split_document as split_ass_document
 from accounts.models import User
 from organizations.models import Organization
-from organizations.services import require_access
+from organizations.services import require_access, require_permission
 from .models import Project
 from .document_styles import import_templates
 from ass_format import validate_script
@@ -57,7 +57,7 @@ def check_revision(project, revision):
 
 def require_active(project):
     if project.status != Project.Status.ACTIVE:
-        raise ProjectConflict('project_archived', localized('server.theProjectIsArchivedAndCanOnlyBeViewed', '项目已归档，仅可查看和导出。请由管理员恢复后再修改；本地稿件已保留。', {}))
+        raise ProjectConflict('project_archived', localized('server.theProjectIsArchivedAndCanOnlyBeViewed', '项目已归档，仅可查看和导出。请先恢复后再修改；本地稿件已保留。', {}))
 
 
 def touch(project, actor):
@@ -67,7 +67,7 @@ def touch(project, actor):
     return project
 
 
-def organization_for(actor, organization_id, manage=False, lock=False):
+def organization_for(actor, organization_id, manage=False, lock=False, permission=None):
     if lock:
         # Account deactivation uses User -> Organization too. Lock the actor before
         # referencing it in create/update/archive FKs (including deferred checks).
@@ -75,6 +75,8 @@ def organization_for(actor, organization_id, manage=False, lock=False):
     query = Organization.objects.select_for_update() if lock else Organization.objects
     org = query.get(pk=organization_id)
     role = require_access(actor, org, manage)
+    if permission:
+        require_permission(actor, org, permission)
     return org, role
 
 
@@ -90,7 +92,7 @@ def create_project(actor, organization_id, *, name, description, media, source, 
     description = text(description, 2000)
     media = validate_media(media)
     document = empty_document() if source is None else parse_ass(source)
-    org, _ = organization_for(actor, organization_id, manage=True, lock=True)
+    org, _ = organization_for(actor, organization_id, permission='create_project', lock=True)
     if script is not None:
         if script != document['script']:
             validate_script(script)
@@ -103,7 +105,7 @@ def create_project(actor, organization_id, *, name, description, media, source, 
 
 @transaction.atomic
 def update_project(actor, organization_id, project_id, revision, *, name, description):
-    org, _ = organization_for(actor, organization_id, manage=True, lock=True)
+    org, _ = organization_for(actor, organization_id, permission='edit_project', lock=True)
     project = Project.objects.select_for_update().get(pk=project_id, organization=org)
     require_active(project)
     check_revision(project, revision)
@@ -116,7 +118,7 @@ def update_project(actor, organization_id, project_id, revision, *, name, descri
 
 @transaction.atomic
 def set_archived(actor, organization_id, project_id, revision, *, archived):
-    org, _ = organization_for(actor, organization_id, manage=True, lock=True)
+    org, _ = organization_for(actor, organization_id, permission='archive_project' if archived else 'restore_project', lock=True)
     project = Project.objects.select_for_update().get(pk=project_id, organization=org)
     check_revision(project, revision)
     target = Project.Status.ARCHIVED if archived else Project.Status.ACTIVE
@@ -132,7 +134,7 @@ def set_archived(actor, organization_id, project_id, revision, *, archived):
 def save_document(actor, organization_id, project_id, revision, document):
     # Pure codec validates source, ids, styles, timing, text and final size bounds.
     serialize_ass(document)
-    org, _ = organization_for(actor, organization_id, lock=True)
+    org, _ = organization_for(actor, organization_id, permission='edit_subtitles', lock=True)
     project = Project.objects.select_for_update().get(pk=project_id, organization=org)
     require_active(project)
     check_revision(project, revision)

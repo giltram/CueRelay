@@ -5,6 +5,7 @@ import { PageLayout, HeaderNotice } from '../page-ui/PageLayout';
 import { ExportDiagnostics } from '../page-ui/ExportDiagnostics';
 import { useState, type ReactNode } from 'react';
 import type { AccountRequest, Organization, Settings, User } from './api';
+import { MemberPermissionsPanel } from './MemberPermissionsPanel';
 import { MembersPanel } from './MembersPanel';
 import { PersonalPanel } from './PersonalPanel';
 import { HomeLink } from '../navigation/HomeLink';
@@ -52,6 +53,7 @@ export function SettingsPage({ user, organization, section, header, organization
           </div> : organization
             ? <><MembersPanel key={organization.id} currentUserId={user.id} isDev={user.is_dev} request={request}
               organization={organization} onChanged={onChanged} onLeave={onLeave} />
+              {organization.can_manage && <MemberPermissionsPanel key={`permissions:${user.id}:${organization.id}`} request={request} organizationId={organization.id} onChanged={onChanged} />}
               {organizationGlossary}{organizationStyles}</>
             : <div className="account-form"><HeaderNotice role="alert">{t("accountUi.organizationNotFoundOrAccessDenied")}</HeaderNotice><button onClick={onRetry}>{t("accountUi.reloadOrganizations")}</button></div>}
         </fieldset>}

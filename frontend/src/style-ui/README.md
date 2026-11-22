@@ -1,5 +1,10 @@
 # 样式界面
 
+## member权限（2026-11-22）
+
+OrganizationStyleLibrary分别接收canCreate/canEdit/canDelete；ProjectStyleManager的editable控制定义/脚本，canEditSubtitles控制行分配，canCreateTemplate只控制另存新模板。三个边界独立，模板保存不被样式定义fieldset误禁。参见 [成员权限](../../../docs/member-permissions.md)。
+
+
 拥有组织模板、项目样式管理的展示/表单与临时效果预览投影，不拥有第二份可写字幕文档。服务端验证、ID 生成、ASS 适配、持久事务不在 React 组件中实现。
 
 - `ProjectStyleManager` 接收当前文档、上层已排序的 cueRows、当前行、编辑能力及 onApply；表单输入只是未应用草稿。成功后上层一次接纳服务端完整文档/版本，失败保留输入。项目管理器由 ProjectSettingsPage 组合，使用已保存字幕快照，无需视频，不提交工作区未保存的内容；已打开的工作区在下次显式保存时尝试安全合并新样式，也可显式重载接受服务器快照。本地管理器仍由 EditorWorkbench 组合，需要导出。列表选择用于批量属性编辑，字幕选择独立用于批量分配。
