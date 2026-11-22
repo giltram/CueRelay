@@ -1,5 +1,7 @@
 # CueRelay 架构入口
 
+2026-11-23 全屏视频：`media/LocalVideoPlayer` 仅在本 stage 全屏时将 video 单击通过显式 onTogglePlayback 回调交给 `workspace-ui/EditorWorkbench`；左右方向键复用全屏键盘过滤和 seekPlayback，以实时视频时钟跳转 ±5 秒并截断媒体边界，保持播放/暂停。播放和定位继续统一取消音频试听，不更改字幕/时间草稿/历史；无新增状态或反向依赖。交互契约及回归见 [工作区模块](../frontend/src/workspace-ui/README.md#全屏视频交互)。
+
 工作区字幕表由 `CueTable → {CueTableHeading, CueRow, use-cue-window}` 组合：固定单行表头统一列名和工具按钮，不显示字幕总数；表头与正文显式共享列宽并同步横向滚动，QC/术语切换不隐藏工具。窗口化只计算正文容器坐标，表头不拥有字幕或历史。契约见 [工作区模块](../frontend/src/workspace-ui/README.md#字幕表渲染与滚动)。
 
 2026-11-22 项目参考字幕：`projects` 独占可空 reference_cues / 独立 reference_version；创建原子初始化，项目设置 PUT 以参考版本 CAS，仅更新两列，不触及正文 revision/document/updated_at。创建用可配置 create_project，后续补传/替换/清除用 edit_project（组织设置已明确包含参考字幕）。`{projects/services, projects/reference_services} → srt_format.parse_reference_srt → {blocks, text}` 共用严格 SRT 扫描，原始毫秒和安全纯文本不进入 ASS。迁移 projects.0005 为旧项目设 null/1。

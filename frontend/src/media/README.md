@@ -14,6 +14,8 @@
 
 工作区通过 `playbackControls` 提供播放和时钟，通过 `subtitleToggle` 提供字幕开关。播放控制行仅显示上层注入的额外动作和预览字幕开关；时间字号为13px（较窄列为12px），总时长为11px。导入视频入口位于 video-stage 中央，沿用同一 VideoFilePicker 和校验流程；metadata 校验成功进入 locked 后移除按钮及文件 input，校验取消/失败仍保留重试入口，已经固定后的播放错误不解除固定状态。
 
+仅本播放器 stage 全屏时，单击 video 通过显式 `onTogglePlayback` 回调交给工作区切换播放/暂停；全屏按钮不触发此回调，普通画面点击保持原行为。全屏 Space 与左右方向键的过滤由 `playback.ts` 提供，工作区拥有实际播放、5 秒相对定位及试听取消，不在媒体组件中建立第二套播放状态。
+
 ## 恢复行为与边界
 
 App 将当前已登录且仍有项目访问权的账号 ID 传入工作区；工作区构造项目专属 key，媒体模块不反查账号或路由。新建项目经 ProjectForm → ProjectsPanel → App → app-workspace → EditorWorkbench 显式传递 SelectedVideo。只有 media 的存储函数执行 IndexedDB 读写，业务 HTTP DTO 不变。
@@ -29,6 +31,7 @@ App 将当前已登录且仍有项目访问权的账号 ID 传入工作区；工
 - `npm test -- --run` / `npm run typecheck` / `npm run build`。
 - `npm run test:video-restore`：Chrome、FFmpeg、Vite 默认 5204（`VIDEO_RESTORE_URL` 可覆盖），隔离 HTTP 夹具，不写开发数据库。使用真实 IndexedDB 和可序列化 OPFS 句柄；系统选片/权限决定用夹具模拟，覆盖跨刷新、重新授权、完整摘要、取消/迟到结果、账号/组织/项目/基准隔离、创建交接、选择器/存储失败及本地工作区行为。
 - `npm run test:video-progress`：普通视频选片/播放/进度和布局回归。真实操作系统选片及浏览器持久授权 UI 仍需人工验收。
+- `npm run test:fullscreen-playback`：Vite 默认 5173（`FULLSCREEN_PLAYBACK_URL` 可覆盖），真实 Chrome Fullscreen API 和合成视频，隔离 HTTP 夹具。覆盖全屏 Space/鼠标播放暂停、左右键 5 秒跳转、长按/边界、退出全屏及字幕草稿保留。
 
 ## 中英文展示边界（2026-11-15）
 

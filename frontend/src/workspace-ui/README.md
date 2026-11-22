@@ -7,6 +7,12 @@
 
 EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-edit-history.ts` 唯一拥有本实例的可编辑状态，`edit-history.ts` 是无 React / DOM 依赖的不可变历史转换。依赖方向：EditorWorkbench → use-edit-history → edit-history → contracts；音频组件只报告操作与生命周期，不读取历史。
 
+## 全屏视频交互
+
+仅当前视频所在 stage 全屏时，无修饰 Space 切换普通视频播放/暂停，左右方向键按 video 的实时 currentTime 后退/前进 5 秒，长按可连续跳转，位置截断至片头/片尾并保持播放或暂停。沿用工作区可见性、忙碌、弹窗和 IME/输入焦点保护；Space 长按只切换一次。单击全屏 video 由 LocalVideoPlayer 的 onTogglePlayback 显式回调复用 togglePlayback，采用相同的可用性门禁。全屏按钮点击仅切换全屏。
+
+播放与定位复用 togglePlayback / seekPlayback 取消独立音频试听；不读取或应用字幕时间草稿、不进入编辑历史、不依赖个人试听快捷键。普通画面点击和退出全屏后的快捷键维持既有规则。回归入口：`browser-tests/fullscreen-playback.mjs`，纯键盘过滤见 `media/playback.test.ts`。
+
 ## SRT 文件
 
 本地原导入控件接受 `.ass,.srt`，经 project-data/subtitle-api 使用同一文档、初始化、替换确认与历史基线；失败保留正文、原始时间、选择、撤销栈与本机草稿。SRT 默认样式/10ms 舍入和不能无损表示的文字边界见 [格式契约](../../../backend/srt_format/README.md)。项目工作区继续不提供文件替换。

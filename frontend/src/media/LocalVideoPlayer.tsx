@@ -19,6 +19,7 @@ interface Props {
   currentTime: number;
   duration: number;
   onSeek: (milliseconds: number) => void;
+  onTogglePlayback: () => void;
   playbackControls: ReactNode;
   subtitleToggle: ReactNode;
   additionalActions?: ReactNode;
@@ -29,7 +30,7 @@ interface Props {
   onVerifiedChange?: (verified: boolean) => void;
 }
 
-export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, playbackControls, subtitleToggle, additionalActions, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
+export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile, currentTime, duration, onSeek, onTogglePlayback, playbackControls, subtitleToggle, additionalActions, expectedMedia, initialMedia, persistenceKey, enabled = true, onVerifiedChange }: Props) {
   useLocale();
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -63,6 +64,9 @@ export function LocalVideoPlayer({ onVideo, onTime, onDuration, onError, onFile,
   return <section className="player-section">
     <div className="video-stage" ref={stage}>
       <video ref={ref} playsInline preload="metadata"
+        onClick={() => {
+          if (document.fullscreenElement === stage.current) onTogglePlayback();
+        }}
         onLoadedMetadata={e => {
           diagnostics.record('media', 'load_metadata', 'success');
           source.loaded(e.currentTarget.duration);

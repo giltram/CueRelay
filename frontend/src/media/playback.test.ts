@@ -33,25 +33,30 @@ describe('10ms timing contract', () => {
   });
 });
 
-describe('fullscreen Space playback guard', () => {
+describe('fullscreen playback shortcut guard', () => {
   const base = { code: 'Space', target: null, isComposing: false, keyCode: 0, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false };
-  it.each(['video', 'button', null])('accepts Space with %s focus while normal shortcuts keep their filtering', control => {
+  it.each(['video', 'button', null])('accepts playback keys with %s focus while normal Space keeps its filtering', control => {
     const target = control ? { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget : null;
-    expect(isFullscreenPlaybackShortcut({ ...base, target }, false)).toBe(true);
+    for (const code of ['Space', 'ArrowLeft', 'ArrowRight']) {
+      expect(isFullscreenPlaybackShortcut({ ...base, code, target }, false)).toBe(true);
+    }
     if (control) expect(allowsShortcut({ ...base, target }, false)).toBe(false);
   });
-  it('preserves IME, modifier and already handled key protection, while claiming held Space', () => {
-    expect(isFullscreenPlaybackShortcut({ ...base, repeat: true }, false)).toBe(true);
+  it.each(['Space', 'ArrowLeft', 'ArrowRight'])('preserves IME, modifier and already handled key protection for %s, while claiming repeats', code => {
+    const event = { ...base, code };
+    expect(isFullscreenPlaybackShortcut({ ...event, repeat: true }, false)).toBe(true);
     for (const property of ['ctrlKey', 'metaKey', 'altKey', 'shiftKey', 'isComposing', 'defaultPrevented']) {
-      expect(isFullscreenPlaybackShortcut({ ...base, [property]: true }, false)).toBe(false);
+      expect(isFullscreenPlaybackShortcut({ ...event, [property]: true }, false)).toBe(false);
     }
-    expect(isFullscreenPlaybackShortcut(base, true)).toBe(false);
-    expect(isFullscreenPlaybackShortcut({ ...base, keyCode: 229 }, false)).toBe(false);
+    expect(isFullscreenPlaybackShortcut(event, true)).toBe(false);
+    expect(isFullscreenPlaybackShortcut({ ...event, keyCode: 229 }, false)).toBe(false);
     expect(isFullscreenPlaybackShortcut({ ...base, code: 'KeyS' }, false)).toBe(false);
   });
-  it.each(['input', 'textarea', 'select', '[contenteditable]:not([contenteditable="false"])', '[role="textbox"]'])('does not steal Space from %s', control => {
+  it.each(['input', 'textarea', 'select', '[contenteditable]:not([contenteditable="false"])', '[role="textbox"]'])('does not steal playback keys from %s', control => {
     const target = { closest: (selector: string) => selector.split(', ').includes(control) ? {} : null } as unknown as EventTarget;
-    expect(isFullscreenPlaybackShortcut({ ...base, target }, false)).toBe(false);
+    for (const code of ['Space', 'ArrowLeft', 'ArrowRight']) {
+      expect(isFullscreenPlaybackShortcut({ ...base, code, target }, false)).toBe(false);
+    }
   });
 });
 

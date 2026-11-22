@@ -542,7 +542,12 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
         && handleSubtitleFocusShortcut(event, composing.current, workbench.current, textEditor.current, textFocusBinding)) return;
       if (video && window.document.fullscreenElement?.contains(video) && isFullscreenPlaybackShortcut(event, composing.current)) {
         event.preventDefault();
-        if (!event.repeat) run(togglePlayback);
+        if (event.code === 'Space') {
+          if (!event.repeat) run(togglePlayback);
+        } else if (duration) {
+          const offset = event.code === 'ArrowLeft' ? -5 : 5;
+          seekPlayback(Math.max(0, Math.min(video.duration, video.currentTime + offset)) * 1000);
+        }
         return;
       }
       const shortcut = timingShortcut(event, composing.current, shortcutOverrides, textEditor.current);
@@ -769,6 +774,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
           <LocalVideoPlayer persistenceKey={project && mediaOwnerId !== undefined ? videoStorageKey(mediaOwnerId, project.organization_id, project.id, project.media) : undefined}
             enabled={visible && (!project || mediaOwnerId !== undefined)} expectedMedia={project?.media} initialMedia={initialMedia} onVerifiedChange={onVerifiedChange} onVideo={onVideo} onFile={setMediaFile} onTime={setCurrentTime} onDuration={setDuration} onError={setError}
             currentTime={currentTime} duration={duration} onSeek={seekPlayback}
+            onTogglePlayback={() => {
+              if (controlsEnabled && !transforming.current && duration) run(togglePlayback);
+            }}
             additionalActions={referenceCues ? <ReferenceToggle collapsed={referenceCollapsed} panelId={referencePanelId}
               onToggle={() => setReferenceCollapsed(value => !value)} /> : undefined}
             playbackControls={<>

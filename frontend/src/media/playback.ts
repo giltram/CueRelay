@@ -74,10 +74,10 @@ export function isShortcutSuppressed(event: ShortcutEvent, composing: boolean): 
   return Boolean(event.defaultPrevented || composing || event.isComposing || event.keyCode === 229 || event.repeat);
 }
 
-/** Only called for this player's fullscreen surface. Claims repeat events too,
- * preventing native button activation; the caller toggles only on initial keydown. */
+/** Only called for this player's fullscreen surface. Claims repeat events too;
+ * the caller repeats arrow seeks but toggles playback only on initial keydown. */
 export function isFullscreenPlaybackShortcut(event: ShortcutEvent, composing: boolean): boolean {
-  if (event.code !== 'Space' || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey
+  if (!['Space', 'ArrowLeft', 'ArrowRight'].includes(event.code) || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey
     || event.defaultPrevented || composing || event.isComposing || event.keyCode === 229) return false;
   const element = event.target as { closest?: (selector: string) => unknown } | null;
   return !element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]');

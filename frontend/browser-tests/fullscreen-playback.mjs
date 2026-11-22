@@ -51,6 +51,12 @@ async function seek(time) {
   await video.evaluate((el, time) => { el.currentTime = time; }, time);
   await page.waitForFunction(time => !document.querySelector('video').seeking && Math.abs(document.querySelector('video').currentTime - time) < .15, time);
 }
+async function pausedAt(time) {
+  await page.waitForFunction(time => {
+    const video = document.querySelector('video');
+    return video.paused && !video.seeking && Math.abs(video.currentTime - time) < .05;
+  }, time);
+}
 async function previewSelection() {
   await main.focus(); await page.keyboard.press('Space');
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'playing');
@@ -75,12 +81,30 @@ try {
   await page.waitForFunction(() => document.querySelector('.audio-timeline')?.dataset.auditionPhase === 'finished');
   assert(await video.evaluate(el => el.paused && el.currentTime === 0));
   await seek(3.5);
+  await video.click(); await pausedAt(3.5);
   // Entering fullscreen while paused never seeks or starts playback by itself.
   await fullscreen.click(); await active();
   assert.equal(await fullscreen.getAttribute('aria-pressed'), 'true');
   assert.equal(await fullscreen.getAttribute('title'), '退出全屏');
   assert.notEqual(await fullscreen.locator('path').getAttribute('d'), enterIcon);
   assert(await video.evaluate(el => el.paused && Math.abs(el.currentTime - 3.5) < .05));
+  // Fullscreen arrows use the live media clock, preserve pause and clamp both ends.
+  await fullscreen.focus();
+  await page.keyboard.press('ArrowRight'); await pausedAt(8.5);
+  await page.keyboard.press('ArrowLeft'); await pausedAt(3.5);
+  await page.keyboard.press('Shift+ArrowRight'); await pausedAt(3.5);
+  await page.keyboard.down('ArrowLeft'); await pausedAt(0);
+  await page.keyboard.down('ArrowLeft'); await pausedAt(0);
+  await page.keyboard.up('ArrowLeft');
+  await page.keyboard.down('ArrowRight'); await pausedAt(5);
+  await page.keyboard.down('ArrowRight'); await pausedAt(10);
+  await page.keyboard.up('ArrowRight');
+  const mediaDuration = await video.evaluate(el => el.duration);
+  await page.keyboard.press('ArrowRight'); await pausedAt(mediaDuration);
+  await page.keyboard.press('ArrowRight'); await pausedAt(mediaDuration);
+  await video.click(); await playingPast(.1);
+  await video.click(); assert(await video.evaluate(el => el.paused));
+  await seek(3.5);
   // A focused fullscreen button must not be reactivated by Space.
   await fullscreen.focus(); await page.keyboard.press('Space');
   await playingPast(3.7); await active();
@@ -122,16 +146,23 @@ try {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await fullscreen.click(); await active();
   await fullscreen.focus(); await page.keyboard.press('Space'); await playingPast(2.2);
+  await page.keyboard.press('ArrowRight'); await playingPast(7.2);
+  assert(await video.evaluate(el => el.currentTime < 8));
+  await page.keyboard.press('ArrowLeft'); await playingPast(2.2);
+  assert(await video.evaluate(el => el.currentTime < 3));
+  await video.click(); assert(await video.evaluate(el => el.paused));
+  await video.click(); await playingPast(2.3);
   await page.keyboard.press('Space'); assert(await video.evaluate(el => el.paused));
   await fullscreen.click(); await normal();
-  const pausedAt = await video.evaluate(el => el.currentTime);
+  const pausedTime = await video.evaluate(el => el.currentTime);
+  await video.click();
   await main.focus(); await page.keyboard.press('Space');
-  assert(await video.evaluate((el, at) => el.paused && Math.abs(el.currentTime - at) < .02, pausedAt));
+  assert(await video.evaluate((el, at) => el.paused && Math.abs(el.currentTime - at) < .02, pausedTime));
   assert.equal(await start.inputValue(), '0:'); assert.equal(await end.inputValue(), 'invalid');
   assert.equal(await page.locator('.cue-list tbody').innerText(), rows);
   assert(await videoIdentity.evaluate(el => el === document.querySelector('video')));
   assert.deepEqual(errors, []); assert.deepEqual(unexpected, []);
-  const result = { checks: ['28px icon button', 'enter/exit icons', 'normal range audition', 'paused entry preserves time', 'fullscreen Space play/pause on button focus', 'repeat suppression', 'active audition cancelled on entry', 'external fullscreen exit preserves continuous playback', 'normal shortcuts/preferences restored', 'invalid timing drafts preserved', 'same video and subtitle content'], errors, unexpected, artifacts };
+  const result = { checks: ['28px icon button', 'enter/exit icons', 'normal range audition', 'paused entry preserves time', 'fullscreen Space play/pause on button focus', 'repeat suppression', 'fullscreen arrows seek 5 seconds paused and playing', 'held arrows repeat and clamp at media boundaries', 'modified arrows ignored', 'fullscreen video click play/pause and replay after end', 'normal video click preserves pause', 'active audition cancelled on entry', 'external fullscreen exit preserves continuous playback', 'normal shortcuts/preferences restored', 'invalid timing drafts preserved', 'same video and subtitle content'], errors, unexpected, artifacts };
   writeFileSync(join(artifacts, 'result.json'), JSON.stringify(result, null, 2));
   console.log('PASS', JSON.stringify(result));
 } catch (error) {
