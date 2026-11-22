@@ -15,6 +15,8 @@ class Project(models.Model):
     status = models.CharField(max_length=8, choices=Status.choices, default=Status.ACTIVE)
     media = models.JSONField()
     document = models.JSONField()
+    reference_cues = models.JSONField(null=True, blank=True)
+    reference_version = models.PositiveBigIntegerField(default=1)
     revision = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
@@ -25,6 +27,7 @@ class Project(models.Model):
 
     class Meta:
         constraints = [
+            models.CheckConstraint(condition=models.Q(reference_version__gte=1), name='positive_project_reference_version'),
             models.CheckConstraint(condition=models.Q(glossary_version__gte=1), name='positive_project_glossary_version'),
             models.CheckConstraint(condition=models.Q(status__in=['active', 'archived']), name='valid_project_status'),
             models.CheckConstraint(condition=models.Q(revision__gte=1), name='positive_project_revision'),

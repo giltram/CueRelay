@@ -75,7 +75,7 @@
   "savePermissions": "Save permissions",
   "reloadPermissions": "Reload permission configuration",
   "permission_create_project": "Create projects",
-  "permission_edit_project": "Edit project name and description",
+  "permission_edit_project": "Edit project name, description and reference subtitles",
   "permission_archive_project": "Archive projects",
   "permission_restore_project": "Restore projects",
   "permission_edit_subtitles": "Edit and save subtitles",

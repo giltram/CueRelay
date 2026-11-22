@@ -94,7 +94,7 @@ export function useCueSearch({ cues, selectedId, epoch, enabled, editable, works
       const withinWorkspace = root && target instanceof Element && (root.contains(target)
         || target === window.document.body || target === window.document.documentElement);
       if (!enabled || !withinWorkspace || !(target instanceof Element)
-        || target.closest('dialog, [role="dialog"], [data-glossary]') || event.defaultPrevented
+        || target.closest('dialog, [role="dialog"], [data-glossary], [data-reference-subtitles]') || event.defaultPrevented
         || composing.current || event.isComposing || event.keyCode === 229) return;
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.code === 'KeyF') {
         event.preventDefault();

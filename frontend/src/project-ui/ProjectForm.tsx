@@ -1,3 +1,4 @@
+import { ReferenceFileField } from './ReferenceFileField';
 import { useMessageState, useLocale } from '../i18n/react';
 import { t, msg } from "../i18n";
 import { captureDiagnosticOrigin, reportFailure } from '../diagnostics/errors';
@@ -10,7 +11,7 @@ import { VideoFilePicker } from '../media/VideoFilePicker';
 import type { SelectedVideo } from '../media/video-file-access';
 import { createMediaManifest } from '../media/media-manifest';
 import { loadEmptyDocument } from '../project-data/ass-api';
-import { importSubtitleFile } from '../project-data/subtitle-api';
+import { readSrtFile, importSubtitleFile } from '../project-data/subtitle-api';
 import type { JsonRequest } from '../contracts/http';
 import type { ImportStyle, ScriptSettings } from '../contracts/styles';
 import type { AssDocument } from '../contracts/subtitles';
@@ -23,6 +24,8 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
   onClose: () => void; onSaved: (project: ProjectDetail, video?: SelectedVideo) => void;
 }) {
   useLocale();
+  const [reference, setReference] = useState<{ name: string; source: string } | null>(null);
+  const [referenceError, setReferenceError] = useMessageState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [media, setMedia] = useState<MediaManifest | null>(null);
@@ -92,7 +95,7 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
       setError('');
       if (!media) { setError(msg("projectUi.finishVideoVerification")); return; }
       setBusy(true);
-      void api.create({ name, description, media, source: subtitle?.document?.source ?? null, style_imports: styleImports, ...(scriptOverride ? { script: scriptOverride } : {}) })
+      void api.create({ name, description, media, source: subtitle?.document?.source ?? null, reference_source: reference?.source ?? null, style_imports: styleImports, ...(scriptOverride ? { script: scriptOverride } : {}) })
         .then(value => onSaved(value, selectedFile.current)).catch(reason => { reportFailure('project-ui', 'handled_error', reason, origin); setError(reason); }).finally(() => setBusy(false));
     }}>
       <p>{t("projectUi.organizationLabel", { name: organization.name })}</p>
@@ -132,6 +135,19 @@ export function ProjectForm({ organization, api, request, onClose, onSaved }: {
       </div>
       {subtitle?.document && /\.srt$/i.test(subtitle.name) && <p role="status">{t('srt.importNotice')}</p>}
       {subtitleError && <p className="error" role="alert">{subtitleError}</p>}
+      <div className="account-form">
+        <span>{t('reference.optional')}</span>
+        <p className="hint">{t('reference.help')}</p>
+        <div className="controls">
+          <ReferenceFileField disabled={busy} onFile={file => {
+            setBusy(true); setReferenceError('');
+            void readSrtFile(file).then(source => setReference({ name: file.name, source }))
+              .catch(setReferenceError).finally(() => setBusy(false));
+          }} />
+          {reference && <><span>{reference.name}</span><button type="button" disabled={busy} onClick={() => { setReference(null); setReferenceError(''); }}>{t('reference.clear')}</button></>}
+        </div>
+        {referenceError && <p role="alert" className="error">{referenceError}</p>}
+      </div>
       <fieldset disabled={busy}>
         <details><summary>{t("projectUi.styleTemplatesAndScriptSettingsOptional")}</summary>
           {script && <ScriptSettingsEditor value={script} onChange={setScriptOverride} />}

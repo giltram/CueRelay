@@ -10,6 +10,16 @@ For your first subtitle, follow the steps below. CueRelay uses familiar audio ti
 4. **Enter text.** Press `Tab` to focus the subtitle text input. Enter the dialogue, then press `Tab` to return to timing. Press `G` or `Enter` to commit and move to the next line. Committing the last line creates a new empty line.
 5. **Review and save.** Click the line in the subtitle grid to pause and seek to its applied start. Play the video to review picture and subtitles. In a project, click Save project to store applied subtitles on the server. In a local workspace, use Export ASS to download the document.
 
+## Reference subtitle comparison {#reference-subtitles}
+
+If you have a downloaded SRT, such as YouTube automatic captions, use “Reference subtitles (optional, SRT)” when creating a project. You can leave it empty, then choose a file and click “Upload reference subtitles” in “Project settings → Reference subtitles”. People with “Edit project name, description and reference subtitles” permission can upload, replace or directly clear it. The organization’s dev / organizer configures that capability; everyone with project access can read references. Archived projects are read-only.
+
+Only UTF-8 SRT (with or without BOM) is accepted, up to 1MiB, 5000 segments and 16384 characters per segment. YouTube links are not supported. Invalid files preserve the old reference and your inputs. Valid b/i/u/s tags become plain text; unknown or broken tags are rejected and HTML is never executed. Reference timestamps retain their original milliseconds.
+
+A collapsible read-only area appears above the subtitle input when a reference exists. While paused, it shows every reference overlapping the selected subtitle’s applied interval, with one neighboring segment on each side in muted text. Unapplied time inputs do not change that interval. It follows video time during playback and the real audio clock during independent audition, then returns to the selected interval when stopped. Without a selected subtitle, it uses the video position. “No reference matches the current interval” means nearby text is context, not an exact match. Empty text is marked “(Empty segment)”. Segments are sorted by time, with source order breaking identical-time ties.
+
+Long text scrolls inside the panel and can be selected and copied normally. References never fill translations, apply timing, or enter ASS / SRT exports, QC, undo history or subtitle saves. No reference means no empty panel. After project settings save, open workspaces update on return, focus or their next status check (about 30 seconds), preserving subtitle drafts, video and history. Local workspaces do not have this feature.
+
 ## Timing in detail {#timing}
 
 **Adjust boundaries:** Drag start with the left mouse button and end with the right mouse button. With a boundary focused, arrow keys adjust by 10ms; hold Shift for 100ms. You can also edit Start and End directly. Start must not be after end; press `G` / `Enter` to apply your inputs. A zero-duration line is allowed and is reported by QC as short.

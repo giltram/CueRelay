@@ -387,3 +387,9 @@ npm --prefix frontend run test -- --run --exclude 'platform-tests/**'
 本轮后端246项运行，245通过、1项Nginx代理测试因本机未安装Nginx而skip；549项前端单元、6项脚本检查、7场定向真实Chromium（含新增3场及原项目生命周期/模板/术语/撤权）、类型/i18n/生产构建及ASS引擎兼容检查通过。未跑全部57场浏览器或手工真片源。
 
 既有默认Vitest配置漏排除`platform-tests/**`，直接`npm run test -- --run`会误收集3个需要Django夹具的Playwright文件；本轮未改无关测试配置，使用上述明确排除命令运行全部单元测试。该问题与权限功能分开记录。
+
+## 项目参考字幕（2026-11-22）
+
+`projects.test_reference` / `projects.test_reference_migration` / `srt_format.test_reference` 验证独立参考CAS、创建原子性、可配置edit_project、组织/身份/CSRF/归档、并发字幕保存和旧项目迁移。`frontend/src/reference-subtitles/matching.test.ts` 验证时间/零段/多匹配/上下文与媒体上下文优先级，文件读取复用subtitle-api.test.ts。
+
+统一Chromium新增显式 `test_reference_settings` / `test_reference_creation` / `test_reference_isolation`（reference-subtitles.spec.mjs），发现选择校验仍一一对应，当前共60场。本轮实际运行的后端222（221通过/1项Nginx跳过）、前端554与6场浏览器、失败历史/证据/迁移复现及人工边界见 [实施记录](plans/project-reference-subtitles.md)。不把发现数写作完整回归通过数。

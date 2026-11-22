@@ -1,4 +1,4 @@
-.audio-panel.audio-timeline { --audio-start-color: #ffb86b; --audio-end-color: #de8cff; padding: 0; justify-content: start; align-items: stretch; min-height: 136px; flex-basis: 136px; overflow: hidden; background: #08080c; color: #9bbce0; border-color: #27344c; }
+.audio-panel.audio-timeline { --audio-start-color: #ffb86b; --audio-end-color: #de8cff; padding: 0; justify-content: start; align-items: stretch; min-height: calc(136px + var(--audio-height-gain, 0px)); flex-basis: calc(136px + var(--audio-height-gain, 0px)); overflow: hidden; background: #08080c; color: #9bbce0; border-color: #27344c; }
 .audio-visualization { display: flex; flex: 1; min-height: 64px; min-width: 0; }
 .audio-vertical-zoom { display: flex; flex-direction: column; flex: 0 0 18px; align-items: center; padding: 4px 0; border-left: 1px solid #27344c; user-select: none; }
 .audio-vertical-zoom input[type="range"] { appearance: none; writing-mode: vertical-lr; direction: rtl; flex: 1; width: 16px; height: 0; min-height: 24px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: ns-resize; touch-action: none; }

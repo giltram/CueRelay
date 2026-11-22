@@ -1,3 +1,4 @@
+import { ReferencePanel } from '../reference-subtitles/ReferencePanel';
 import { type MessageValue, describe, MessageError } from '../contracts/messages';
 import { formatMessage, msg, t } from '../i18n';
 import { useMessageState, useLocale } from '../i18n/react';
@@ -534,7 +535,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
     const end = () => { composing.current = false; };
     const blur = () => edits.finish();
     const keydown = (event: KeyboardEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-workspace-drafts]')) return;
+      if (event.target instanceof Element && event.target.closest('[data-cue-qc], [data-glossary], [data-reference-subtitles], [data-workspace-drafts]')) return;
       const candidate = !event.repeat && timingActions.find(action => effectiveBindings(action, shortcutOverrides).includes(bindingFor(event)));
       const blocked = !controlsEnabled || transforming.current;
       if (candidate && blocked) noteIgnored('editor', stylesOpen || timeShiftOpen || shortcutsPaused ? 'modal_or_paused' : !visible ? 'hidden' : 'busy');
@@ -680,7 +681,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       // Blank space and ordinary mouse buttons return to timing shortcuts.
       // Form controls, labels and focusable timing surfaces keep their own focus.
       const target = event.target as Element;
-      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-workspace-drafts], [data-time-shift]')) return;
+      if (event.detail <= 0 || target.closest('dialog, [data-cue-search], [data-cue-qc], [data-glossary], [data-reference-subtitles], [data-workspace-drafts], [data-time-shift]')) return;
       const button = target.closest('button');
       const control = target.closest('input, textarea, select, label, a, summary, video, [tabindex], [contenteditable]');
       if (button ? button.getAttribute('role') !== 'slider' : !control || control === event.currentTarget) {
@@ -797,6 +798,9 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
             } : undefined}
             onSeek={seekPlayback} />
           <section className="cue-editor" aria-label={t("workspaceUi.subtitleEditing")}>
+            {project?.reference?.cues && mediaOwnerId !== undefined && <ReferencePanel cues={project.reference.cues} selected={selected}
+              video={video} currentTime={currentTime} auditionPlaying={audioAudition.state.phase === 'playing'}
+              getAuditionPosition={audioAudition.getPosition} visible={visible} />}
             <fieldset disabled={busy || !document || !canEdit}>
               <legend className="sr-only">{t("workspaceUi.subtitleEditing")}</legend>
               <div className="cue-fields">

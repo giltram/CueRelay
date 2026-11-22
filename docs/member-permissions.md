@@ -9,7 +9,7 @@
 | key | member 能力 | 默认 |
 | --- | --- | --- |
 | create_project | 原子创建项目，包括字幕/样式/脚本/媒体初始化 | 禁止 |
-| edit_project | 修改项目名称与说明 | 禁止 |
+| edit_project | 修改项目名称、说明与参考字幕 | 禁止 |
 | archive_project | 归档项目 | 禁止 |
 | restore_project | 恢复项目 | 禁止 |
 | edit_subtitles | 字幕正文、时间、行样式分配、行操作及保存 | 允许 |
@@ -57,3 +57,5 @@
 - `test_member_permission_workspace`：真实撤权/恢复、乱序响应、保留稿件/媒体/历史/导出和独立术语维护。
 
 实际执行结果与环境限制见 [实施记录](plans/member-permissions.md)。
+
+项目参考字幕创建随 create_project 原子初始化；后续上传/更换/清除需 edit_project，无需创建者身份或 edit_subtitles。所有有项目访问权的成员可读取参考，归档只读。权限 key/默认值/CAS 不变。

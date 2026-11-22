@@ -50,3 +50,7 @@ App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显�
 ## 中英文展示边界（2026-11-15）
 
 日期展示使用当前界面 locale；项目名/说明保持用户原值。错误/成功反馈保存 MessageValue，切换语言时重新格式化，不重新保存或刷新项目。设置页与创建弹窗的 key 仍只反映账号/资源归属，未保存名称、说明和文件选择不因语言变化重建。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。
+
+## 参考 SRT
+
+ProjectForm 可选 reference_source/null 与项目同请求创建，严格UTF-8文件读取复用 project-data/readSrtFile；服务端验证失败保留表单。ProjectReferenceSettings 拥有独立参考快照、候选文件、busy/失败信息和请求生命周期，选择文件后显式上传，失败保留候选与旧参考；清除为直接操作，无额外确认。项目版本刷新接纳新参考供CAS重试，但保留候选及名称/说明草稿。后续管理使用可配置 edit_project；归档只读。只写独立参考资源，不接纳正文 revision，不与元数据/样式写入互相覆盖。身份/项目由App key隔离，禁用/卸载作废迟到响应。

@@ -7,9 +7,9 @@
 
 拥有组织内项目生命周期及显式保存的 ASS 文档快照。公开入口在 services.py：organization_for、read_project、create_project、update_project、set_archived、save_document。ProjectConflict 表示 revision 冲突或归档只读。HTTP 适配在 ../http_api/project_views.py。
 
-SRT 初始化由上游 `srt_format` 先转换为同一 v2 文档及完整 ASS source，创建仍只接受现有 source 契约；本模块不依赖 SRT parser、不新增格式字段/保存路径。已有项目的 source/styles/script 仍不可由普通字幕保存替换；只读 SRT 导出不触及项目/revision。持久化与拒绝替换回归见 test_srt.py，格式规则见相邻 srt_format/README.md。
+SRT 初始化由上游 `srt_format` 先转换为同一 v2 文档及完整 ASS source，创建仍只接受现有 source 契约；正式字幕初始化路径不新增格式字段/保存路径；独立参考字幕调用下述 SRT 公开只读接口。已有项目的 source/styles/script 仍不可由普通字幕保存替换；只读 SRT 导出不触及项目/revision。持久化与拒绝替换回归见 test_srt.py，格式规则见相邻 srt_format/README.md。
 
-依赖：organizations 的 Organization/require_access、accounts 的 User 外键、ass_format 的纯格式入口、Django。底层模块不反向依赖 projects；没有 signals 或实时广播；固定业务权限契约归 organizations。
+依赖：srt_format 的 parse_reference_srt（独立参考），organizations 的 Organization/require_access、accounts 的 User 外键、ass_format 的纯格式入口、Django。底层模块不反向依赖 projects；没有 signals 或实时广播；固定业务权限契约归 organizations。
 
 ## 数据与不变量
 
@@ -61,3 +61,11 @@ migrations/0001_initial.py 增量建表，保留既有数据。tests.py 使用 P
 ## 中英文展示边界（2026-11-15）
 
 校验/冲突信息附带稳定 reason/params；HTTP 保留原 code/message/status 并把具体错误交给展示层。语言偏好不参与项目 revision、文档快照、保存重试、术语关联或媒体基准。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。
+
+## 项目参考字幕
+
+`reference_services.replace_reference(actor, organization_id, project_id, version, source)` 是唯一管理入口。Project.reference_cues 为 null（无文件）或有界纯文本 cue 数组；reference_version 从1开始。输入为 UTF-8 已解码 SRT/null，复用 `srt_format.parse_reference_srt`，保留原始毫秒/空段/源顺序，不放进 ASS。创建接受可选 reference_source，仅需 create_project，与媒体/文档同事务；后续补传/替换/清除需可配置 edit_project，服务在 User → Organization → Project 锁内重查身份/归属/归档与独立 CAS。相同值不推进版本，失败保留旧值。
+
+PUT `/api/organizations/:org/projects/:id/reference` 接受 `{version, source}`，返回 `{reference: {version, cues}}`；GET 项目 detail 含相同 reference。沿用 Session/CSRF/账号一致性边界。reference_conflict 为409，格式错误422且保留 SRT issue/reason/line/block，归档拒绝写入；成员有项目访问权即可读取。
+
+更新仅 save reference_cues/reference_version 两列，不改字幕 revision/document/media/updated_at/updated_by。普通保存持锁后取新 Project，故并发字幕保存与参考维护可同时成功且互不覆盖。独立 CAS 防同参考覆盖；归档/撤权共用现有组织锁串行，无实时推送。迁移0005只增可空字段/default1/正版本约束。测试 test_reference.py / test_reference_migration.py，部署和实际结果见 docs/plans/project-reference-subtitles.md。

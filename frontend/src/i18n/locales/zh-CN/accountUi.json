@@ -75,7 +75,7 @@
   "savePermissions": "保存权限",
   "reloadPermissions": "重新加载权限配置",
   "permission_create_project": "创建项目",
-  "permission_edit_project": "修改项目名称与说明",
+  "permission_edit_project": "修改项目名称、说明与参考字幕",
   "permission_archive_project": "归档项目",
   "permission_restore_project": "恢复项目",
   "permission_edit_subtitles": "编辑与保存字幕",

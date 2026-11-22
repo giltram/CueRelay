@@ -35,7 +35,20 @@ try {
   await page.goto(`${process.env.CUE_TABLE_URL || 'http://127.0.0.1:5173'}/workspace/local`);
   const rows = page.locator('.cue-list tbody tr');
   await rows.first().waitFor();
-  assert.deepEqual(await page.locator('.cue-list th').allTextContents(), ['行', '入', '出', 'CPS', 'style', '字幕文本']);
+  assert.deepEqual(await page.locator('.cue-list th').allTextContents(), ['行', '入', '出', 'CPS', '样式', '字幕文本']);
+  assert.equal(await page.locator('.cue-list > .section-heading').count(), 0);
+  assert.equal((await page.locator('.cue-table-heading').boundingBox()).height, 32);
+  assert.equal(await page.locator('.cue-table-heading .count').textContent(), '字幕 1 行');
+  const headingCells = await page.locator('.cue-heading-cell').all();
+  for (let index = 0; index < headingCells.length; index++) {
+    const heading = await headingCells[index].boundingBox(), cell = await rows.first().locator('td').nth(index).boundingBox();
+    assert(Math.abs(heading.x - cell.x) < 1, 'heading aligns with native table columns');
+  }
+  const headingBox = await page.locator('.cue-table-heading').boundingBox();
+  for (const button of await page.locator('.cue-list-actions button').all()) {
+    const box = await button.boundingBox();
+    assert(box.y >= headingBox.y && box.y + box.height <= headingBox.y + headingBox.height);
+  }
   assert.equal(await rows.first().locator('td').count(), 6);
   assert.equal(await rows.first().locator('.cps-cell').textContent(), '0');
   assert.equal(await rows.first().locator('.cue-text em').textContent(), '（empty）');
@@ -83,7 +96,7 @@ try {
   assert(style.x < text.x && text.width > style.width * 2);
   const widthOf = async index => (await rows.first().locator('td').nth(index).boundingBox()).width;
   const defaults = [100, 100, 44, 88];
-  const labels = ['入', '出', 'CPS', 'style'];
+  const labels = ['入', '出', 'CPS', '样式'];
   const almost = (actual, expected) => assert(Math.abs(actual - expected) <= 1, `${actual} != ${expected}`);
   await page.evaluate(() => {
     window.__gridVideo = document.querySelector('video');
@@ -180,6 +193,7 @@ try {
   }
   const scroll = page.locator('.cue-list .table-scroll');
   await scroll.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+  await page.waitForFunction(() => Math.abs(document.querySelector('.cue-heading-scroll').scrollLeft - document.querySelector('.table-scroll').scrollLeft) < 1);
   const edge = await scroll.boundingBox();
   const lastCell = await rows.first().locator('td').last().boundingBox();
   assert(lastCell.x + lastCell.width <= edge.x + edge.width + 1);

@@ -8,6 +8,7 @@ from http_api import glossary_views as glossary
 from http_api.srt_views import import_srt, export_srt
 
 urlpatterns = [
+    path('api/organizations/<int:organization_id>/projects/<int:project_id>/reference', projects.reference),
     path('api/srt/import', import_srt),
     path('api/srt/export', export_srt),
     path('api/organizations/<int:organization_id>/glossary', glossary.organization_glossary),

@@ -1,6 +1,6 @@
 # srt_format
 
-纯格式模块，无 Django、ORM、文件、网络或浏览器依赖。公开接口为 `parse_srt(source: str) -> v2 document`、`serialize_srt(document: dict) -> str`、`SrtError.issue`。依赖向下为 `srt_format → {ass_format 公共接口, message_contracts, stdlib}`，ASS 模块不依赖 SRT。没有新库、持久字段或编辑器。
+纯格式模块，无 Django、ORM、文件、网络或浏览器依赖。公开接口为 `parse_srt(source: str) -> v2 document`、`serialize_srt(document: dict) -> str`、`SrtError.issue`。依赖向下为 `srt_format → {ass_format 公共接口, message_contracts, stdlib}`，ASS 模块不依赖 SRT。本模块没有新库、持久状态或编辑器；参考持久化由 projects 独占。
 
 `blocks.py` 拥有块结构、原始毫秒时间及源位置；`text.py` 拥有内联标签/实体转换，ASS 导出消费 `ass_format.text_tokens` 的已验证正文 token，不再独立识别 ASS 文法；`codec.py` 组合默认文档、时间量化及全结果验证。`errors.py` 提供 code/reason/params 和可用的物理 `line`、一基 `block`（不是文件内序号）。纯格式回归在 `tests.py`，HTTP 在 `http_api/test_srt.py`，持久化在 `projects/test_srt.py`，实际浏览器在 `frontend/regression/srt.spec.mjs`。
 
@@ -44,3 +44,9 @@ SRT 没有统一严格标准，下列是 CueRelay 的明确产品边界，不是
 - [FFmpeg htmlsubtitles.c](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/htmlsubtitles.c)：支持 b/i/u/s，另有 font/br 与丢弃未知标签/部分花括号的宽松处理；仅作成熟实现对照，不复制容错策略。CueRelay 使用自写样本和明确期望检验差异，不从公开说明推导“统一标准”。
 
 命令和本次实际执行结果见 [实施记录](../../docs/plans/srt.md)；测试总入口见 [docs/testing.md](../../docs/testing.md)。
+
+## 只读项目参考
+
+公开 `parse_reference_srt(source) -> [{start_ms, end_ms, text}]`，供 projects 创建/独立参考服务消费。复用 read_blocks 的全部 framing/UTF-8/1MiB/5000块/时间边界规则与 text 的同一个标签/实体扫描器；b/i/u/s 正确验证后只保留可见文字，实体只解码一次，不解析或执行 DOM。未知/坏标签整份拒绝，正文最多16384字符。参考 DTO 使用原始毫秒，不经过 ASS 或10ms量化；保留乱序/重叠/零时长/空正文及文件顺序。纯文本不受 ASS 的字面花括号/反斜线表达限制，原样安全显示。空文件得到 []，是否无文件（null）归项目管理接口。
+
+`text._convert` 私有扫描器由 to_ass/to_plain 显式选择输出；格式转换仍走原 ASS 规则与完整验证，无第二套 parser。`test_reference.py` 覆盖原始毫秒、纯文本、边界和拒绝；原 tests.py 继续保护正式 SRT 导入/导出。

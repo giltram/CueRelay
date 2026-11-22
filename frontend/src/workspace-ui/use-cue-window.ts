@@ -36,7 +36,7 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
   }
   function readAnchor(container: HTMLDivElement): CueScrollAnchor | null {
     const { rows, offsets } = current.current;
-    const header = container.querySelector('thead')?.getBoundingClientRect().bottom ?? container.getBoundingClientRect().top;
+    const header = container.getBoundingClientRect().top;
     const bottom = container.getBoundingClientRect().bottom;
     let first: { id: string; top: number } | null = null;
     for (const [id, element] of elements.current) {
@@ -112,7 +112,6 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
       pendingReveal.current = null; pendingFocus.current = null; restoring.current = false;
     }
     const targetIndex = rows.findIndex(cue => cue.id === pendingReveal.current);
-    const header = container.querySelector('thead')?.getBoundingClientRect().height ?? 0;
     let anchorTop: number | null = null;
     if (anchor.current && (enabled || modeChanged)) {
       const element = elements.current.get(anchor.current.id);
@@ -121,11 +120,11 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
         // from cumulative model offsets. Restore against mounted geometry, then repeat after
         // measured spacer updates; the model is only a fallback until the anchor mounts.
         const rect = element.getBoundingClientRect();
-        const headerBottom = container.querySelector('thead')?.getBoundingClientRect().bottom ?? container.getBoundingClientRect().top;
+        const headerBottom = container.getBoundingClientRect().top;
         anchorTop = Math.max(0, container.scrollTop + rect.top - headerBottom + Math.min(anchor.current.inset, rect.height - 1));
       } else anchorTop = cueAnchorScrollTop(rows, nextOffsets, anchor.current);
     }
-    const top = targetIndex >= 0 ? cueRevealScrollTop(nextOffsets, targetIndex, container.scrollTop, container.clientHeight, header) : anchorTop;
+    const top = targetIndex >= 0 ? cueRevealScrollTop(nextOffsets, targetIndex, container.scrollTop, container.clientHeight, 0) : anchorTop;
     if (top !== null && Math.abs(container.scrollTop - top) > .5) {
       container.scrollTop = top;
     }
@@ -160,8 +159,7 @@ export function useCueWindow(rows: Cue[], scroll: RefObject<HTMLDivElement | nul
     const row = elements.current.get(id);
     if (!row) return;
     const viewport = container.getBoundingClientRect(), rect = row.getBoundingClientRect();
-    const header = container.querySelector('thead')?.getBoundingClientRect().height ?? 0;
-    if (rect.top < viewport.top + header || rect.height > container.clientHeight - header) container.scrollTop += rect.top - viewport.top - header;
+    if (rect.top < viewport.top || rect.height > container.clientHeight) container.scrollTop += rect.top - viewport.top;
     else if (rect.bottom > viewport.bottom) container.scrollTop += rect.bottom - viewport.bottom;
   }
   return { enabled, offsets, indices, registerRow, reveal,

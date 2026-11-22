@@ -1,5 +1,5 @@
 import type { JsonRequest } from '../contracts/http';
-import type { ProjectDetail, ProjectSummary, ProjectPage, MediaManifest } from '../contracts/projects';
+import type { ProjectDetail, ProjectSummary, ProjectPage, MediaManifest, ProjectReference } from '../contracts/projects';
 import type { AssDocument, SplitRequest, SplitResult, StyleResult } from '../contracts/subtitles';
 import type { ImportStyle, ScriptSettings, StyleOperation } from '../contracts/styles';
 import { documentV2 } from './document-version';
@@ -14,8 +14,10 @@ export function projectApi(request: JsonRequest, organizationId: number) {
   return {
     list: (status: 'active' | 'archived', search: string, page: number) => request<ProjectPage>(`${base}?${new URLSearchParams({ status, search, page: String(page) })}`),
     get: async (id: number) => checkedProject((await request<{ project: ProjectDetail }>(`${base}/${id}`)).project),
-    create: async (data: { name: string; description: string; media: MediaManifest; source: string | null; style_imports?: ImportStyle[]; script?: ScriptSettings }) =>
+    create: async (data: { name: string; description: string; media: MediaManifest; source: string | null; style_imports?: ImportStyle[]; script?: ScriptSettings; reference_source?: string | null }) =>
       checkedProject((await request<{ project: ProjectDetail }>(base, 'POST', data)).project),
+    replaceReference: async (id: number, version: number, source: string | null) =>
+      (await request<{ reference: ProjectReference }>(`${base}/${id}/reference`, 'PUT', { version, source })).reference,
     update: async (project: ProjectSummary, name: string, description: string) =>
       (await request<{ project: ProjectDetail }>(`${base}/${project.id}`, 'PATCH', { name, description, revision: project.revision })).project,
     archive: async (project: ProjectSummary, archived: boolean) =>

@@ -1,0 +1,18 @@
+{
+  "title": "Reference subtitles",
+  "optional": "Reference subtitles (optional, SRT)",
+  "help": "Read-only reference; never imports into your subtitles or timeline. UTF-8 SRT only, up to 1MiB and 5000 segments.",
+  "choose": "Choose reference SRT",
+  "clear": "Clear reference subtitles",
+  "upload": "Upload reference subtitles",
+  "saved": "Reference subtitles saved. Open workspaces update on return, focus, or their next status check.",
+  "none": "No reference subtitles.",
+  "count": "{{count}} reference segments saved.",
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "empty": "(Empty segment)",
+  "noMatch": "No reference matches the current interval",
+  "fileType": "Choose an .srt reference subtitle file.",
+  "invalidVersion": "Reference version must be a positive integer.",
+  "conflict": "Reference subtitles changed. Refresh the project version and retry; your inputs are retained."
+}

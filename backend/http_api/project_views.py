@@ -3,6 +3,8 @@ from message_contracts import localized
 from functools import wraps
 from django.core.exceptions import ValidationError
 from ass_format import AssError
+from srt_format import SrtError
+from projects.reference_services import reference_data, replace_reference
 from projects import services
 from projects.models import Project
 from organizations.services import effective_permissions
@@ -19,6 +21,8 @@ def project_endpoint(methods):
                 return function(*args, **kwargs)
             except services.ProjectConflict as failure:
                 return error(failure.code, failure.message, 409)
+            except SrtError as failure:
+                return error('invalid_srt', failure.issue['message'], 422, details=[failure.issue])
             except AssError as failure:
                 return error('invalid_ass', failure.issue['message'], 422)
             except TemplateConflict as failure:
@@ -41,7 +45,7 @@ def project_data(project, detail=False):
         'archived_by': person(project.archived_by),
     }
     if detail:
-        data.update(media=project.media, document=project.document)
+        data.update(media=project.media, document=project.document, reference=reference_data(project))
     return data
 
 
@@ -49,7 +53,7 @@ def project_data(project, detail=False):
 def project_list(request, organization_id):
     org, _ = services.organization_for(request.user, organization_id, permission='create_project' if request.method == 'POST' else None)
     if request.method == 'POST':
-        data = payload(request, ['name', 'description', 'media', 'source', 'style_imports', 'script'], partial=True)
+        data = payload(request, ['name', 'description', 'media', 'source', 'style_imports', 'script', 'reference_source'], partial=True)
         if not {'name', 'description', 'media', 'source'} <= set(data):
             raise ValidationError(localized('server.creatingAProjectRequiresNameDescriptionMediaAndSource', '创建项目需要 name、description、media、source。', {}))
         project = services.create_project(request.user, org.pk, **data)
@@ -110,3 +114,11 @@ def split_cue(request, organization_id, project_id):
     data = payload(request, ['revision', 'document', 'cue_id', 'mode', 'position'])
     project, result = services.split_cue(request.user, organization_id, project_id, **data)
     return {**result, 'project': project_data(project)}
+
+
+@project_endpoint(['PUT'])
+def reference(request, organization_id, project_id):
+    # Check access before parsing, then reauthorize under the write lock.
+    services.organization_for(request.user, organization_id, permission='edit_project')
+    data = payload(request, ['version', 'source'])
+    return {'reference': replace_reference(request.user, organization_id, project_id, **data)}

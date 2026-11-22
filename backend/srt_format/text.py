@@ -17,7 +17,7 @@ TAG_LIKE = re.compile(r'</?[a-zA-Z!/?]')
 ENTITY = re.compile(r'&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]+);', re.IGNORECASE)
 
 
-def to_ass(text, block):
+def _convert(text, block, *, plain=False):
     """Map a balanced, attribute-free basic tag subset, preserving literal text."""
     output, stack = [], []
     cursor, line = 0, block.line + 2
@@ -26,7 +26,7 @@ def to_ass(text, block):
         raise SrtError(reason, message, line=line, block=block.number)
 
     def literal(value):
-        if any(char in '{}\\' for char in value):
+        if not plain and any(char in '{}\\' for char in value):
             fail('srt.unrepresentableText', '普通花括号或字面反斜线无法由当前 ASS 子集无损表示；请保留原件。')
         if any(ord(char) < 32 or char in '\u0085\u2028\u2029' for char in value):
             fail('srt.controlCharacter', '正文包含当前文档不支持的控制字符或换行。')
@@ -35,7 +35,7 @@ def to_ass(text, block):
     while cursor < len(text):
         char = text[cursor]
         if char == '\n':
-            output.append(r'\N'); line += 1; cursor += 1
+            output.append('\n' if plain else r'\N'); line += 1; cursor += 1
             continue
         match = MARKUP.match(text, cursor) if char == '<' else None
         if match:
@@ -45,9 +45,12 @@ def to_ass(text, block):
                     fail('srt.unbalancedTag', '基础格式标签必须正确配对和嵌套。')
                 stack.pop()
                 # Nested identical tags restore their enclosing state.
-                output.append('{\\' + tag + ('1' if tag in stack else '0') + '}')
+                if not plain:
+                    output.append('{\\' + tag + ('1' if tag in stack else '0') + '}')
             else:
-                stack.append(tag); output.append('{\\' + tag + '1}')
+                stack.append(tag)
+                if not plain:
+                    output.append('{\\' + tag + '1}')
             cursor = match.end()
             continue
         if char == '<' and TAG_LIKE.match(text, cursor):
@@ -77,6 +80,15 @@ def to_ass(text, block):
     if len(result) > 16384:
         fail('srt.textTooLong', '转换后的正文不能超过 16384 字符。')
     return result
+
+
+def to_ass(text, block):
+    return _convert(text, block)
+
+
+def to_plain(text, block):
+    """Same SRT scanner, with formatting omitted and literal ASS characters safe."""
+    return _convert(text, block, plain=True)
 
 
 def from_ass(text, fields):

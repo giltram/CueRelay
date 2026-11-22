@@ -30,3 +30,5 @@ PostgreSQL 竞争测试：tests.py（多线程独立连接，同时降级/移除
 ## 中英文展示边界（2026-11-15）
 
 校验失败通过 message_contracts.localized 附带具体 reason/params，原中文字符串/异常类型/权限与事务边界继续兼容。HTTP 展示语言不进入组织或样式模板服务。完整维护/语言验收流程见 [国际化文档](../../docs/internationalization.md)。
+
+`edit_project` 的配置展示包含项目名称、说明与参考字幕；参考创建跟随 create_project，后续管理跟随 edit_project。没有新增固定能力、默认值或身份管理授权。

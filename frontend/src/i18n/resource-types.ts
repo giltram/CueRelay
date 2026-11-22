@@ -15,6 +15,7 @@ import type pageUi from './locales/en/pageUi.json';
 import type password from './locales/en/password.json';
 import type projectData from './locales/en/projectData.json';
 import type projectUi from './locales/en/projectUi.json';
+import type reference from './locales/en/reference.json';
 import type server from './locales/en/server.json';
 import type shortcuts from './locales/en/shortcuts.json';
 import type srt from './locales/en/srt.json';
@@ -39,6 +40,7 @@ export interface TranslationResources {
   password: typeof password;
   projectData: typeof projectData;
   projectUi: typeof projectUi;
+  reference: typeof reference;
   server: typeof server;
   shortcuts: typeof shortcuts;
   srt: typeof srt;

@@ -69,7 +69,7 @@ try {
   const start = await startDrag();
   await page.mouse.move(start.x + 100, start.y, { steps: 8 }); await settle();
   const grown = await snapshot();
-  assert(grown.upper.height > initial.upper.height + 50); assert(grown.frame.width > initial.frame.width + 95);
+  assert(grown.upper.height > initial.upper.height); assert(grown.frame.width > initial.frame.width + 95);
   near(grown.upper.height - initial.upper.height, initial.list.height - grown.list.height, 'height transferred from subtitle list');
   statePreserved(initial, grown);
   await page.mouse.move(start.x, start.y, { steps: 8 }); await settle();

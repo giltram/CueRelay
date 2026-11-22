@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { exportSrt, importSubtitleFile } from './subtitle-api';
+import { exportSrt, importSubtitleFile, readSrtFile } from './subtitle-api';
 import { testScript, testStyle } from '../contracts/subtitles.test-fixtures';
 import { formatMessage, applyLanguage } from '../i18n';
 
@@ -51,4 +51,14 @@ it('exports exactly the supplied applied snapshot without persisting or mutating
   expect(options.signal).toBe(controller.signal);
   expect(JSON.parse(options.body)).toEqual({ document });
   expect(document).toEqual(before);
+});
+
+it('decodes reference files without converting them into ASS or sending data before a project write', async () => {
+  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+  const source = '\ufeff1\r\n00:00:00,001 --> 00:00:00,004\r\n{literal} \\N';
+  expect(await readSrtFile(new File([source], 'ref.SRT'))).toBe(source);
+  await expect(readSrtFile(new File([new Uint8Array([255])], 'ref.srt'))).rejects.toThrow('UTF-8');
+  await expect(readSrtFile(new File(['text'], 'ref.ass'))).rejects.toThrow('.srt');
+  await expect(readSrtFile(new File([new Uint8Array(1024*1024+1)], 'ref.srt'))).rejects.toThrow('1MiB');
+  expect(fetch).not.toHaveBeenCalled();
 });

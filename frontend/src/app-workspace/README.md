@@ -34,3 +34,5 @@ App 以登录会话启用工作区加载，请求由项目接口校验访问权�
 ## 中英文展示边界（2026-11-15）
 
 statusIssue 以 contracts/messages.MessageValue 保留当前项目检查错误，App 只负责格式化与组合展示。错误归属状态上下文，按反馈版本在成功检查时清除；不写入或清除 App 的组织/设置错误及用户操作消息。语言不参与保留实例、generation、路由加载、save/split 或权限观察的依赖；不因文案重新请求/重建工作区。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。
+
+项目detail的reference按已有ReadOrder/身份/项目生命周期随路由读取及focus/visibility/30秒观察刷新。保留实例只接纳status/effective_permissions/reference，不采纳远端document/revision；参考修改不触发reload或generation变化。同一参考版本保留原对象/数组引用，不因状态轮询重排或重置滚动；不同版本才接纳内容。独立服务版本不参与正文保存冲突。拒绝项目访问后上层不给mediaOwnerId，EditorWorkbench立即隐藏参考；身份/项目替换沿用原代次，迟到旧请求无法回显旧参考。无新增轮询/实时协作。

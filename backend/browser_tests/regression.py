@@ -35,6 +35,15 @@ class WorkspaceRegressionTests(RegressionFixture):
             'CUERELAY_REGRESSION_FIXTURES': json.dumps(self.fixtures),
         }, check=True, timeout=240)
 
+    def test_reference_settings(self):
+        self.run_browser('project reference settings refresh preserves subtitle draft media selection history and follows real playback clocks')
+
+    def test_reference_isolation(self):
+        self.run_browser('project reference stale reads cannot override revocation and local navigation hides project reference')
+
+    def test_reference_creation(self):
+        self.run_browser('project reference optional creation validates atomically and English short layout has a read only reference')
+
     def test_member_permission_settings(self):
         self.run_browser('member permissions settings CAS and independent grants retain identity boundaries in both languages')
 

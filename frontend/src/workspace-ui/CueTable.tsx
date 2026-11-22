@@ -12,7 +12,7 @@ import type { ReplaceCueRequest, ReplaceFeedback } from './cue-replacement';
 import { CueSearchBar } from './CueSearchBar';
 import { CueRow } from './CueRow';
 import { useCueWindow } from './use-cue-window';
-import { CueColumnResizeHandle } from './CueColumnResizeHandle';
+import { CueTableHeading } from './CueTableHeading';
 import { clampCueColumnWidth, cueColumns, cueRowNumberWidth, cueTableMinimumWidth, defaultCueColumnWidths } from './cue-column-widths';
 
 interface Props {
@@ -48,6 +48,7 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
   const closeMenu = () => { setMenu(null); workspace.current?.focus({ preventScroll: true }); };
   const rows = useMemo(() => orderCues(cues), [cues]);
   const [widths, setWidths] = useState(defaultCueColumnWidths);
+  const [headingMinimumWidth, setHeadingMinimumWidth] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const pane = useRef<HTMLDivElement>(null);
   const rowWindow = useCueWindow(rows, scroll, JSON.stringify(widths));
@@ -65,7 +66,18 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
   }, []);
   const selectedSet = new Set(selectedIds);
   const names = new Map(styles.map(style => [style.id, style.name]));
-  const table = <table style={{ minWidth: cueTableMinimumWidth(widths) }} aria-rowcount={rows.length + 1}
+  const actions = <div className="cue-list-actions">
+    <button type="button" data-time-shift aria-haspopup="dialog" disabled={!timeShiftEnabled} onClick={event => {
+      event.currentTarget.focus({ preventScroll: true }); onTimeShift();
+    }}>{t('workspaceUi.timeShift')}</button>
+    <button data-cue-search aria-label={t('workspaceUi.findSubtitles')} aria-expanded={search.open} aria-pressed={search.open}
+      disabled={!searchEnabled} onClick={search.toggle}>{t('workspaceUi.find')}</button>
+    {qc && <button data-cue-qc aria-label={t('workspaceUi.subtitleQualityCheck')} aria-expanded={qc.open} aria-pressed={qc.open}
+      disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}
+    {glossary && <button data-glossary aria-label={t('workspaceUi.glossary')} aria-expanded={glossary.open} aria-pressed={glossary.open}
+      disabled={!searchEnabled} onClick={glossary.onToggle}>{t('workspaceUi.glossary')}</button>}
+  </div>;
+  const table = <table style={{ minWidth: Math.max(cueTableMinimumWidth(widths), headingMinimumWidth) }} aria-rowcount={rows.length + 1}
     onFocusCapture={event => rowWindow.onFocus((event.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-cue-id]')?.dataset.cueId ?? null)}
     onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) rowWindow.onFocus(null); }}
     onKeyDownCapture={event => {
@@ -76,10 +88,9 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
       <colgroup><col style={{ width: cueRowNumberWidth }} />
         {cueColumns.map(column => <col key={column.id} style={{ width: widths[column.id] }} />)}<col />
       </colgroup>
-      <thead><tr><th scope="col">{t("workspaceUi.line")}</th>{cueColumns.map(column => <th key={column.id} scope="col"
+      <thead className="sr-only"><tr><th scope="col">{t("workspaceUi.line")}</th>{cueColumns.map(column => <th key={column.id} scope="col"
         className={column.id === 'cps' ? 'cps-cell' : undefined} aria-label={column.id === 'cps' ? t("workspaceUi.cpsCharactersPerSecond") : undefined}>
-        {formatMessage(column.label)}<CueColumnResizeHandle column={column} width={widths[column.id]}
-          onResize={width => setWidths(previous => ({ ...previous, [column.id]: clampCueColumnWidth(column, width) }))} />
+        {formatMessage(column.label)}
       </th>)}<th scope="col">{t("workspaceUi.subtitleText")}</th></tr></thead>
       <tbody>{rowWindow.indices.map((index, position) => {
         const cue = rows[index];
@@ -99,18 +110,8 @@ export function CueTable({ cues, styles, selectedId, currentTime, selectedIds, o
       </tbody>
     </table>;
   return <section className="cue-list" data-qc-open={qc?.open || glossary?.open || undefined}>
-    <div className="section-heading"><h2><span>{t("workspaceUi.cueCount", { count: cues.length })}</span></h2>
-      <div className="cue-list-actions"><span title={t("workspaceUi.ctrlCmdClickToSelectMultipleLinesShift")}>{t("workspaceUi.sortedByTime")}</span>
-        <button type="button" data-time-shift aria-haspopup="dialog" disabled={!timeShiftEnabled} onClick={event => {
-          event.currentTarget.focus({ preventScroll: true });
-          onTimeShift();
-        }}>{t('workspaceUi.timeShift')}</button>
-        <button data-cue-search aria-label={t("workspaceUi.findSubtitles")} aria-expanded={search.open} aria-pressed={search.open}
-        disabled={!searchEnabled} onClick={search.toggle}>{t("workspaceUi.find")}</button>
-        {qc && <button data-cue-qc aria-label={t("workspaceUi.subtitleQualityCheck")} aria-expanded={qc.open} aria-pressed={qc.open}
-          disabled={!searchEnabled} onClick={qc.onToggle}>{qc.label}</button>}
-        {glossary && <button data-glossary aria-label={t("workspaceUi.glossary")} aria-expanded={glossary.open} aria-pressed={glossary.open}
-          disabled={!searchEnabled} onClick={glossary.onToggle}>{t("workspaceUi.glossary")}</button>}</div></div>
+    <CueTableHeading count={cues.length} widths={widths} scroll={scroll} actions={actions} onMinimumWidth={setHeadingMinimumWidth}
+      onResize={(column, width) => setWidths(previous => ({ ...previous, [column.id]: clampCueColumnWidth(column, width) }))} />
     <div className="cue-list-body"><div className="cue-table-pane" ref={pane}>
     {search.open && <CueSearchBar search={search} enabled={searchEnabled} editable={editable} />}
     <div className="table-scroll" ref={scroll} data-windowed={rowWindow.enabled || undefined}>{table}{!cues.length && <p className="empty">{t("workspaceUi.noSubtitlesYetChooseStartAndEndTimes")}</p>}</div>

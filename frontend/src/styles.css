@@ -64,6 +64,7 @@ h1, h2, p { margin: 0; }
 h1 { font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
 h2 { font-size: 15px; font-weight: 600; }
 main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-height: 540px; padding: 0 16px 12px; }
+.editor-workbench { gap: 4px; }
 /* Timing shortcuts return focus here; the page-sized container needs no ring. */
 .editor-workbench:focus { outline: none; }
 .app-header { display: flex; flex: 0 0 44px; height: 44px; align-items: center; gap: 12px; overflow-x: auto; border-bottom: 1px solid var(--border); }
@@ -80,7 +81,7 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
 .file-picker { position: relative; flex-direction: row; font-size: 14px; }
 .file-picker input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: inherit; }
 /* Desktop height belongs to the viewport; each pane owns its overflow. */
-.workbench-layout { --subtitle-min-height: 144px; display: flex; flex: 1; flex-direction: column; gap: 12px; min-height: 0; }
+.workbench-layout { --subtitle-min-height: 144px; --audio-height-gain: 58px; display: flex; flex: 1; flex-direction: column; gap: 4px; min-height: 0; }
 .workbench-subtitles { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: var(--subtitle-min-height); }
 .workbench {
   --default-media-share: .42;
@@ -89,7 +90,8 @@ main { display: flex; flex-direction: column; gap: 12px; height: 100dvh; min-hei
   --video-controls-space: 96px;
   display: grid;
   grid-template-columns: minmax(0, calc((100% - var(--divider-width)) * var(--media-share))) var(--divider-width) minmax(0, 1fr);
-  flex: 0 1 max(clamp(348px, calc(54dvh - 52px), 508px), var(--requested-workbench-height, 0px));
+  /* Give the compact toolbar and header/pane gaps' saved height to the audio area. */
+  flex: 0 1 max(calc(clamp(348px, calc(54dvh - 52px), 508px) + var(--audio-height-gain)), var(--requested-workbench-height, 0px));
   min-height: 0;
   gap: 0;
   padding: 12px;
@@ -142,8 +144,13 @@ summary { cursor: pointer; font-size: 13px; }
 .cue-list { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: var(--subtitle-min-height, 144px); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .section-heading { display: flex; flex-shrink: 0; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 12px; }
 .section-heading > span, .count { color: var(--text-muted); font-size: 12px; font-weight: 400; }
-.cue-list-actions { display: flex; align-items: center; gap: 12px; }
-.cue-list-actions > span { color: var(--text-muted); font-size: 12px; }
+.cue-table-heading { flex-shrink: 0; min-width: 0; background: var(--subtle); }
+.cue-heading-scroll { margin-right: var(--cue-scrollbar-gutter, 0px); overflow-x: auto; scrollbar-width: none; }
+.cue-heading-grid { display: grid; width: 100%; min-width: max-content; height: 32px; align-items: stretch; font-size: 12px; color: var(--text-muted); }
+.cue-heading-cell { display: flex; position: relative; align-items: center; padding: 2px 6px; }
+.cue-text-heading { justify-content: space-between; gap: 16px; white-space: nowrap; }
+.cue-list-actions { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.cue-list-actions button { white-space: nowrap; }
 .cue-list-actions button { min-height: 28px; padding: 2px 8px; }
 .cue-search-bar { display: grid; flex-shrink: 0; gap: 4px; padding: 0 12px 4px; }
 .cue-search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -179,7 +186,11 @@ tr.playing td:first-child { box-shadow: inset 2px 0 var(--accent); }
 .cue-list .cue-spacer td { padding: 0; border: 0; }
 .cue-list th, .cue-list td { width: auto; padding-inline: 6px; }
 .cue-list th { position: relative; }
+/* Keep native column semantics without reserving a second visible heading row. */
+.cue-list thead.sr-only { position: sticky; top: 0; width: auto; height: 0; margin: 0; }
+.cue-list thead.sr-only th { height: 0; padding: 0; border: 0; font-size: 0; line-height: 0; }
 .cue-list .cps-cell { text-align: center; font-variant-numeric: tabular-nums; }
+.cue-heading-cell.cps-cell { justify-content: center; }
 .cue-list td:not(:last-child) { overflow: hidden; text-overflow: ellipsis; }
 .cue-list .style-cell { white-space: nowrap; }
 .cue-column-resize { position: absolute; top: 0; right: -5px; bottom: 0; z-index: 1; width: 10px; cursor: col-resize; touch-action: none; user-select: none; }
@@ -204,6 +215,7 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 
 @media (max-width: 900px) {
   main { height: auto; min-height: 100dvh; }
+  .workbench-layout { --audio-height-gain: 0px; }
   .workbench-layout, .workbench-subtitles { flex: none; }
   .workbench { flex: none; grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .workbench-divider { display: none; }
@@ -315,10 +327,6 @@ main > :is(.error, .warning, .confirm) { flex-shrink: 0; max-height: 120px; over
 .project-heading, .project-pagination, .project-filters { flex-wrap: wrap; }
 .section-heading { flex-wrap: wrap; align-items: center; }
 .section-heading h2 { min-width: 0; overflow-wrap: anywhere; }
-.cue-list-actions { flex-wrap: wrap; min-width: 0; }
 .cue-fields { align-items: end; }
 .cue-style select { min-height: 34px; height: auto; }
 .cue-list th { white-space: normal; overflow-wrap: anywhere; }
-@container (max-width: 600px) {
-  .cue-list-actions { gap: 4px; }
-}

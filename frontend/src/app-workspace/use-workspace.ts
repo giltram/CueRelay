@@ -13,6 +13,10 @@ import { ReadOrder } from '../request-state/read-order';
 interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; localOrganizationId?: number; generation: number }
 interface LoadState { key: string; status: 'loading' | 'ready' | 'error'; error?: Error }
 interface StatusContext { key: string; order: ReadOrder; confirmed?: Pick<ProjectDetail, 'revision' | 'status' | 'effective_permissions'> }
+// Keep unchanged reference content stable across status polls (including native text selection/scroll).
+const observedReference = (current: ProjectDetail, latest: ProjectDetail) =>
+  current.reference?.version === latest.reference?.version ? current.reference : latest.reference;
+
 interface StatusRead { context: StatusContext; version: number }
 interface RouteAttempt extends StatusRead { recovered: boolean }
 const beginStatusRead = (context: StatusContext): StatusRead => ({ context, version: context.order.start() });
@@ -89,7 +93,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       setWorkspace(value => {
         if (!matches(value, organizationId, projectId)) return { project: detail, generation: ++generation.current };
         if (!acceptStatus) return value;
-        return { ...value!, project: { ...value!.project!, status: detail.status, effective_permissions: detail.effective_permissions } };
+        return { ...value!, project: { ...value!.project!, status: detail.status, effective_permissions: detail.effective_permissions, reference: observedReference(value!.project!, detail) } };
       });
       statusRead.recovered = true;
       setLoad({ key, status: 'ready' });
@@ -192,7 +196,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       void projectApi(request, project.organization_id).get(project.id).then(latest => {
         if (!active || !acceptStatusRead(statusRead, latest)) return;
         setWorkspace(value => matches(value, latest.organization_id, latest.id)
-          ? { ...value!, project: { ...value!.project!, status: latest.status, effective_permissions: latest.effective_permissions } } : value);
+          ? { ...value!, project: { ...value!.project!, status: latest.status, effective_permissions: latest.effective_permissions, reference: observedReference(value!.project!, latest) } } : value);
         setAccessDenied(false);
         // Data can still be useful after a newer transient route failure, but
         // recovery requires a check issued during or after that route load.

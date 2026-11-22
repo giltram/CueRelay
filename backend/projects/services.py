@@ -13,6 +13,7 @@ from accounts.models import User
 from organizations.models import Organization
 from organizations.services import require_access, require_permission
 from .models import Project
+from srt_format import parse_reference_srt
 from .document_styles import import_templates
 from ass_format import validate_script
 
@@ -86,8 +87,9 @@ def read_project(actor, organization_id, project_id):
 
 
 @transaction.atomic
-def create_project(actor, organization_id, *, name, description, media, source, style_imports=None, script=None):
+def create_project(actor, organization_id, *, name, description, media, source, style_imports=None, script=None, reference_source=None):
     # Validate the bounded format input before taking the short database lock.
+    reference_cues = None if reference_source is None else parse_reference_srt(reference_source)
     name = text(name, 100, True)
     description = text(description, 2000)
     media = validate_media(media)
@@ -100,7 +102,7 @@ def create_project(actor, organization_id, *, name, description, media, source, 
     document = import_templates(actor, org.pk, document, [] if style_imports is None else style_imports)
     serialize_ass(document)
     return Project.objects.create(organization=org, name=name, description=description, media=media, document=document,
-                                  created_by=actor, updated_by=actor)
+                                  created_by=actor, updated_by=actor, reference_cues=reference_cues)
 
 
 @transaction.atomic

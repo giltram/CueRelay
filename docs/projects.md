@@ -70,3 +70,9 @@ Session/CSRF、账号变更头、no-store、错误格式复用既有 HTTP 边界
 样式不再是名称数组：Project.document 使用 schema_version=2 的结构化样式与脚本设置，Cue.style_id 指向本项目 UUID。项目样式管理沿用当前 member 可编辑能力及整文档 revision；操作会保存当前已应用字幕，时间草稿保持独立。组织模板创建/修改/删除分别按组织业务权限控制，创建项目和已有项目都可复制导入。模板来源 UUID/revision 仅用于追踪。ASS 初始 source 仍不可替换。
 
 需应用 organizations.0002 与 projects.0002 并同步升级客户端；维护窗口先导出页面稿件和备份数据库。旧页面与 v1 写入明确拒绝。详细 API、适配边界与验证见 [样式管理契约](style-management.md)。
+
+## 项目参考字幕（2026-11-22）
+
+创建表单可选上传本地UTF-8 SRT，旧项目可在项目设置补传、更换、清除。创建需create_project，后续管理需可配置edit_project；读取跟随项目访问权，归档只读。文件无链接获取能力。输入限1MiB/5000块/每段16384字，复用SRT严格规则，原始毫秒与安全纯文本独立于ASS文档。空文件为已上传零段，未上传/清除为null。
+
+迁移projects.0005_project_reference增加reference_cues及reference_version（旧项目null/1）。部署前照常备份，在应用启动新版本前运行 `python backend/manage.py migrate`；不需要转换既有字幕。PUT /reference采用独立CAS，只更新参考两列；不推进正文revision，不让维护操作覆盖编辑器未保存稿。工作区进入/返回/聚焦/可见或30秒状态观察时更新参考，无实时广播，显式重载不是刷新参考的必要步骤。详细接口/边界/验证见 [实施记录](plans/project-reference-subtitles.md)。

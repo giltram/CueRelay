@@ -1,3 +1,4 @@
+import { ProjectReferenceSettings } from './ProjectReferenceSettings';
 import { useMessageState, useLocale } from '../i18n/react';
 import { describe, MessageError } from "../contracts/messages";
 import { msg, t } from "../i18n";
@@ -135,6 +136,8 @@ export function ProjectSettingsPage({ organization, organizationId, projectId, r
             {project.status === 'archived' && <p className="hint">{t("projectUi.thisProjectIsArchivedStylesAreReadOnly")}</p>}
             <div className="controls"><button disabled={!enabled || busy} onClick={() => void openStyles()}>{t("projectUi.manageProjectStyles")}</button></div>
           </section>
+          <ProjectReferenceSettings key={`${organizationId}:${projectId}`} api={api} projectId={projectId} reference={project.reference}
+            enabled={enabled} editable={project.status === 'active' && permits(organization, 'edit_project')} />
           <GlossarySettings request={request} organizationId={organizationId} projectId={projectId}
             enabled={enabled} archived={project.status === 'archived'} canUseOrganizationDefault={permits(organization, 'use_organization_glossary')} canFork={permits(organization, 'fork_project_glossary')} editable={permits(organization, 'edit_project_glossary')} />
           <div className="controls"><button disabled={!enabled || busy} onClick={() => void refreshProject()}>{t("projectUi.refreshProjectVersion")}</button></div>
