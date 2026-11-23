@@ -54,3 +54,5 @@ App 在接纳组织列表后通过其 `readVersion` 作为 `refreshVersion` 显�
 ## 参考 SRT
 
 ProjectForm 可选 reference_source/null 与项目同请求创建，严格UTF-8文件读取复用 project-data/readSrtFile；服务端验证失败保留表单。ProjectReferenceSettings 拥有独立参考快照、候选文件、busy/失败信息和请求生命周期，选择文件后显式上传，失败保留候选与旧参考；清除为直接操作，无额外确认。项目版本刷新接纳新参考供CAS重试，但保留候选及名称/说明草稿。后续管理使用可配置 edit_project；归档只读。只写独立参考资源，不接纳正文 revision，不与元数据/样式写入互相覆盖。身份/项目由App key隔离，禁用/卸载作废迟到响应。
+
+参考快照接纳统一使用 `project-data/reference-snapshot.newestReference`：props 刷新与 PUT 成功都只接受更高版本，cues=null 同样参与版本排序，缺少 reference 不清除已知快照。迟到的成功写入仍完成本次候选清理、成功提示和 busy 收尾，但不能降低刷新已接纳的权威版本；下一次写用最新参考版本。原 api/projectId/enabled 生命周期及 App 账号/资源 key 隔离保持。回归：`npm run test:reference-response-races`（PUT v2 迟于 GET v3，含 v3 清除及后续 CAS）。

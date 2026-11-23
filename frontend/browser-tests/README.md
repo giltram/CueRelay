@@ -101,3 +101,7 @@ layout-checks.mjs 只检查页面边界、指定 surface 和关键按钮的裁�
 `npm run test:reference-performance` 在同一个 Chrome 进程中交替比较 `REFERENCE_PERF_URLS=baseline=http://127.0.0.1:5281,updated=http://127.0.0.1:5282`，默认 `REFERENCE_PERF_COUNTS=500,5000`、`REFERENCE_PERF_ROUNDS=3`；`REFERENCE_PERF_OUTPUT` 指定原始 JSON。每轮为独立 context 和相同 30s 合成 MP4、100 条主字幕、含软/硬换行、重叠/间隙/零时长/空段的有效 SRT。输出展开/远距定位到绘制延迟、CDP Task/Script/Layout 总时间、长任务、RAF 帧间隔与挂载节点数；另测收起参考的播放成本作为工作区背景成本参照。原版不能进行完整滚动，因此连续滚动比较重放相同输入，实际浏览距离不同；不应把这项差值解释为等量业务工作的回退。内存不作不可靠归因。
 
 Chrome 使用 `--disable-audio-output` 保持本机无音频设备时的原生渲染时钟工作；未替换 AudioContext、PCM 解码或 position getter，听感仍需人工验收。完整复现步骤和结果见 [实测记录](../../docs/experiments/reference-scroll.md)。
+
+## 参考字幕响应竞态
+
+`REFERENCE_RACES_URL=http://127.0.0.1:5291 npm run test:reference-response-races`，需先启动对应 Vite 开发/生产预览。真实 Chromium 与可控 HTTP 夹具，不使用业务数据库；ASS 夹具来自 Python codec，预览明确禁用。六组（七个场景）可单独传 `reload` / `reload-clear` / `settings` / `settings-clear` / `lifetime` / `revision`：相同正文 revision/status 的旧显式重载不得覆盖较新观察参考或复活已清除内容，观察不接纳远端正文，较新权限不会被旧重载恢复，较新正文 revision 阻止旧重载且仅新显式重载接纳正文；已提交 PUT v2 迟于刷新 GET v3 时，完成提示/候选清理但保留 v3（包括清除），下一次清除/上传须用 v3 并成功；会话禁用或同页切换到独立版本的另一项目后，迟到写不能改变快照、候选或反馈。原保存、撤权、草稿和真实媒体保留另由资源响应竞态套件覆盖。每组关闭独立 context，结束关闭浏览器。

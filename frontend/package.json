@@ -18,6 +18,7 @@
     "test:session-observation": "node browser-tests/session-observation.mjs",
     "test:context-refresh": "node browser-tests/context-refresh.mjs",
     "test:resource-response-races": "node browser-tests/resource-response-races.mjs",
+    "test:reference-response-races": "node browser-tests/reference-response-races.mjs",
     "test:projects-refresh": "node browser-tests/projects-refresh.mjs",
     "test:handbook": "node browser-tests/handbook.mjs",
     "test:audio-timeline": "node browser-tests/audio-timeline.mjs",

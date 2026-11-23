@@ -1,5 +1,7 @@
 # CueRelay 架构入口
 
+2026-11-23 参考快照乱序接纳：`{app-workspace, project-ui} → project-data/reference-snapshot → contracts/projects` 共用纯版本比较；同一资源/生命周期仅更高 reference.version 替换，相同版本保留对象，带版本的 cues=null 明确清除。工作区状态确认保留权限及参考快照，旧显式 reload 仅在新确认 revision/status 相同且无更新拒绝时采用正文，并合入已接纳的最新参考；观察仍不能替换正文/revision/媒体。设置页 props 与 PUT 结果共用单调接纳，写请求完成反馈/候选清理独立于权威快照是否更新，后续 CAS 用最新版本。身份/项目/会话屏障保持，无全局状态或反向依赖。契约见工作区、项目 UI 与 project-data README，回归入口 `npm run test:reference-response-races`。
+
 2026-11-23 全屏视频：`media/LocalVideoPlayer` 仅在本 stage 全屏时将 video 单击通过显式 onTogglePlayback 回调交给 `workspace-ui/EditorWorkbench`；左右方向键复用全屏键盘过滤和 seekPlayback，以实时视频时钟跳转 ±5 秒并截断媒体边界，保持播放/暂停。播放和定位继续统一取消音频试听，不更改字幕/时间草稿/历史；无新增状态或反向依赖。交互契约及回归见 [工作区模块](../frontend/src/workspace-ui/README.md#全屏视频交互)。
 
 2026-11-23 参考字幕整份浏览：`workspace-ui → reference-subtitles/ReferencePanel → {matching, use-reference-window → window}`。工作台仅增加主表每次选行（含重复点击）的瞬时定位序号，不进入文档/历史；参考模块独占完整只读列表的可变行高窗口、测量/阅读锚点和跟随。手动浏览/选字暂停跟随，主表点击及视频/真实音频播放启动恢复；匹配组未变化不提交逐帧 React 更新。窗口保留可视区及前后各6行，远距目标先挂载再按真实换行高度校正；宽度变化保留阅读行。收起/隐藏/卸载停止相应观察与采样，不向 media 或 workspace-ui 内部表格模块反向依赖。契约见 [对照模块](../frontend/src/reference-subtitles/README.md)，实际浏览器对照见 [验证记录](experiments/reference-scroll.md)。

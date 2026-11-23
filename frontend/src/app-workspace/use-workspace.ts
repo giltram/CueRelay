@@ -6,16 +6,14 @@ import type { ProjectDetail, ProjectSummary, ProjectSaveRequest } from '../contr
 import type { SplitRequest } from '../contracts/subtitles';
 import { projectApi } from '../project-data/projects-api';
 import { saveProjectDocument } from '../project-data/project-document-save';
+import { newestReference } from '../project-data/reference-snapshot';
 import type { InitialVideo, SelectedVideo } from '../media/video-file-access';
 import type { Route } from '../navigation/routes';
 import { ReadOrder } from '../request-state/read-order';
 
 interface Workspace { project?: ProjectDetail; initialMedia?: InitialVideo; localOrganizationId?: number; generation: number }
 interface LoadState { key: string; status: 'loading' | 'ready' | 'error'; error?: Error }
-interface StatusContext { key: string; order: ReadOrder; confirmed?: Pick<ProjectDetail, 'revision' | 'status' | 'effective_permissions'> }
-// Keep unchanged reference content stable across status polls (including native text selection/scroll).
-const observedReference = (current: ProjectDetail, latest: ProjectDetail) =>
-  current.reference?.version === latest.reference?.version ? current.reference : latest.reference;
+interface StatusContext { key: string; order: ReadOrder; confirmed?: Pick<ProjectDetail, 'revision' | 'status' | 'effective_permissions' | 'reference'> }
 
 interface StatusRead { context: StatusContext; version: number }
 interface RouteAttempt extends StatusRead { recovered: boolean }
@@ -44,7 +42,9 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
   }, [actorId]);
   const acceptStatusRead = useCallback(({ context, version }: StatusRead, confirmed?: ProjectDetail) => {
     if (statusContext.current !== context || !context.order.acceptData(version)) return false;
-    context.confirmed = confirmed ? { revision: confirmed.revision, status: confirmed.status, effective_permissions: confirmed.effective_permissions } : undefined;
+    context.confirmed = confirmed ? { revision: confirmed.revision, status: confirmed.status,
+      effective_permissions: confirmed.effective_permissions,
+      reference: newestReference(context.confirmed?.reference, confirmed.reference) } : undefined;
     if (context.order.acceptFeedback(version)) setStatusIssue(value => value?.context === context ? null : value);
     return true;
   }, []);
@@ -93,7 +93,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       setWorkspace(value => {
         if (!matches(value, organizationId, projectId)) return { project: detail, generation: ++generation.current };
         if (!acceptStatus) return value;
-        return { ...value!, project: { ...value!.project!, status: detail.status, effective_permissions: detail.effective_permissions, reference: observedReference(value!.project!, detail) } };
+        return { ...value!, project: { ...value!.project!, status: detail.status, effective_permissions: detail.effective_permissions, reference: newestReference(value!.project!.reference, detail.reference) } };
       });
       statusRead.recovered = true;
       setLoad({ key, status: 'ready' });
@@ -177,10 +177,14 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
     // A later status-only read may confirm this exact snapshot. It must not
     // cancel an explicit reload, but a newer denial/archive/revision still does.
     if (!accepted && (!confirmed || confirmed.revision !== detail.revision || confirmed.status !== detail.status)) return false as const;
-    if (!accepted && confirmed) detail = { ...detail, effective_permissions: confirmed.effective_permissions };
+    if (!accepted && confirmed) detail = { ...detail, effective_permissions: confirmed.effective_permissions,
+      reference: newestReference(detail.reference, confirmed.reference) };
     diagnostics.record('workspace', 'reload', 'success', { revision: detail.revision });
     routeAttempt.current = null;
-    setWorkspace({ project: detail, generation: ++generation.current });
+    const nextGeneration = ++generation.current;
+    setWorkspace(value => ({ project: { ...detail, reference: newestReference(
+      matches(value, detail.organization_id, detail.id) ? value!.project!.reference : undefined, detail.reference,
+    ) }, generation: nextGeneration }));
     setLoad({ key: projectKey(detail.organization_id, detail.id), status: 'ready' }); setAccessDenied(false);
   }, [workspace?.project, request, statusFor, acceptStatusRead, denyStatusRead]);
 
@@ -196,7 +200,7 @@ export function useWorkspace(route: Route, request: JsonRequest, enabled: boolea
       void projectApi(request, project.organization_id).get(project.id).then(latest => {
         if (!active || !acceptStatusRead(statusRead, latest)) return;
         setWorkspace(value => matches(value, latest.organization_id, latest.id)
-          ? { ...value!, project: { ...value!.project!, status: latest.status, effective_permissions: latest.effective_permissions, reference: observedReference(value!.project!, latest) } } : value);
+          ? { ...value!, project: { ...value!.project!, status: latest.status, effective_permissions: latest.effective_permissions, reference: newestReference(value!.project!.reference, latest.reference) } } : value);
         setAccessDenied(false);
         // Data can still be useful after a newer transient route failure, but
         // recovery requires a check issued during or after that route load.

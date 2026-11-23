@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ProjectReference } from '../contracts/projects';
 import type { projectApi } from '../project-data/projects-api';
 import { readSrtFile } from '../project-data/subtitle-api';
+import { newestReference } from '../project-data/reference-snapshot';
 import { t, msg } from '../i18n';
 import { useLocale, useMessageState } from '../i18n/react';
 import { ReferenceFileField } from './ReferenceFileField';
@@ -17,7 +18,7 @@ export function ProjectReferenceSettings({ api, projectId, reference, enabled, e
   const [message, setMessage] = useMessageState('');
   const lifetime = useRef(0);
   useEffect(() => { lifetime.current++; setBusy(false); return () => { lifetime.current++; }; }, [api, projectId, enabled]);
-  useEffect(() => { setSaved(current => !current || !reference || reference.version >= current.version ? reference : current); }, [reference]);
+  useEffect(() => { setSaved(current => newestReference(current, reference)); }, [reference]);
   async function write(source: string | null) {
     if (!enabled || !editable || busy || !saved) return;
     const epoch = lifetime.current;
@@ -25,7 +26,9 @@ export function ProjectReferenceSettings({ api, projectId, reference, enabled, e
     try {
       const result = await api.replaceReference(projectId, saved.version, source);
       if (epoch !== lifetime.current) return;
-      setSaved(result); setPending(null); setMessage(msg('reference.saved'));
+      setSaved(current => newestReference(current, result));
+      // Completing this upload is independent of accepting its reference snapshot.
+      setPending(null); setMessage(msg('reference.saved'));
     } catch (reason) { if (epoch === lifetime.current) setError(reason as Error); }
     finally { if (epoch === lifetime.current) setBusy(false); }
   }

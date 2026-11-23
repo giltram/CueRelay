@@ -2,7 +2,7 @@
 
 ## member权限观察（2026-11-22）
 
-项目detail的effective_permissions随status一起通过原ReadOrder接纳；focus/visibilitychange/30秒读取不更换实例、文档、revision或媒体。reload允许较新相同revision/status确认旧快照时，采用较新确认的权限。App只将字幕能力合入字幕readOnly，术语维护单独接收可访问状态与fork/edit权限，避免字幕只读影响术语。参见 [权限契约](../../../docs/member-permissions.md)。
+项目detail的effective_permissions随status一起通过原ReadOrder接纳；focus/visibilitychange/30秒读取不更换实例、文档、revision或媒体。reload允许较新相同revision/status确认旧快照时，采用较新确认的权限与参考快照。参考独立按reference.version单调接纳（project-data/reference-snapshot.newestReference），较新cues=null是清除；相同版本保留对象以保护滚动/选字，缺少reference不覆盖已知快照。显式重载也合入本实例已接纳的最新参考，不改变正文版本/状态屏障。App只将字幕能力合入字幕readOnly，术语维护单独接收可访问状态与fork/edit权限，避免字幕只读影响术语。参见 [权限契约](../../../docs/member-permissions.md)。
 
 
 `useWorkspace` 拥有单个工作区实例、初始化 ProjectDetail/File、挂载代号、按路由加载状态、显式保存/重载和归档/权限观察。字幕正文、选中行、时间草稿、视频节点和播放状态仍唯一属于 EditorWorkbench/LocalVideoPlayer。
@@ -13,7 +13,7 @@
 
 同一账号/项目的路由读取、显式 reload 和后台状态观察共用 request-state/ReadOrder。成功状态及明确 permission_denied/not_found 按数据版本排序，暂时失败只影响反馈；路由恢复资格与通用反馈顺序分开：每次路由建立独立 RouteAttempt，同步记录读取版本及已恢复事实，LoadState 只负责展示加载/就绪/错误；较新成功恢复后，即使随后撤权，迟到的旧路由错误也不能隐藏已恢复的只读编辑器或带来过时的不存在提示。每次路由重试建立新的读取门槛。只有本次路由或已接纳的较新成功能建立 ready；较新轮询和路由都暂时失败时保留路由错误及重试入口。背景成功仍可接纳状态数据，但发起早于本次路由的隐藏轮询不能清除其加载/错误状态。发起晚于路由的有效成功能恢复访问及 ready，不替换文档。save/split 返回 project_archived 时，在响应确认时推进状态版本并清空快照确认信息；已经发出的 active 轮询不能解除归档，只允许确认后发出的成功检查恢复。两个写入路径复用 confirmArchived，且只作用于开始写入时的原状态上下文。
 
-clear/adoptCreated、本地实例替换或会话禁用使旧状态上下文失效。后台观察的旧反馈和 request_superseded 静默丢弃；本次路由读取若被身份确认取代，仅在尚未恢复时重新读取当前资源，避免停在加载状态；已经恢复的尝试静默忽略迟到取消，不增加请求、不隐藏编辑器，也不改变后续撤权形成的只读状态。状态上下文只另存最近接纳成功的 revision/status，不保存第二份远端文档。显式 reload 若仍是有效状态响应，则采用文档；若已有更新成功检查确认相同 revision/status，也可完成用户授权的文档替换。更新拒绝、归档确认或不同 revision 阻止旧快照替换，reload 返回 false，App 保留原实例及 IndexedDB 草稿，不将旧快照视为已完成替换。集成回归见 `npm run test:resource-response-races`，覆盖真实片源验证、403/404、轮询/重返/重载乱序、双 503/隐藏旧轮询与新检查或直接重试恢复、已恢复路由迟到取消无多余请求、保存及拆分归档、保留的编辑节点和持久草稿保护。
+clear/adoptCreated、本地实例替换或会话禁用使旧状态上下文失效。后台观察的旧反馈和 request_superseded 静默丢弃；本次路由读取若被身份确认取代，仅在尚未恢复时重新读取当前资源，避免停在加载状态；已经恢复的尝试静默忽略迟到取消，不增加请求、不隐藏编辑器，也不改变后续撤权形成的只读状态。状态上下文只另存最近接纳成功的 revision/status/权限及已接纳参考快照，不保存第二份远端正文。显式 reload 若仍是有效状态响应，则采用文档；若已有更新成功检查确认相同 revision/status，也可完成用户授权的文档替换。更新拒绝、归档确认或不同 revision 阻止旧快照替换，reload 返回 false，App 保留原实例及 IndexedDB 草稿，不将旧快照视为已完成替换。集成回归见 `npm run test:resource-response-races`，覆盖真实片源验证、403/404、轮询/重返/重载乱序、双 503/隐藏旧轮询与新检查或直接重试恢复、已恢复路由迟到取消无多余请求、保存及拆分归档、保留的编辑节点和持久草稿保护。
 
 App 以登录会话启用工作区加载，请求由项目接口校验访问权限。个人设置独立加载，工作台先使用当前账号已知设置或默认值，设置更新通过 props 应用到原实例。
 
@@ -35,4 +35,6 @@ App 以登录会话启用工作区加载，请求由项目接口校验访问权�
 
 statusIssue 以 contracts/messages.MessageValue 保留当前项目检查错误，App 只负责格式化与组合展示。错误归属状态上下文，按反馈版本在成功检查时清除；不写入或清除 App 的组织/设置错误及用户操作消息。语言不参与保留实例、generation、路由加载、save/split 或权限观察的依赖；不因文案重新请求/重建工作区。完整维护/语言验收流程见 [国际化文档](../../../docs/internationalization.md)。
 
-项目detail的reference按已有ReadOrder/身份/项目生命周期随路由读取及focus/visibility/30秒观察刷新。保留实例只接纳status/effective_permissions/reference，不采纳远端document/revision；参考修改不触发reload或generation变化。同一参考版本保留原对象/数组引用，不因状态轮询重排或重置滚动；不同版本才接纳内容。独立服务版本不参与正文保存冲突。拒绝项目访问后上层不给mediaOwnerId，EditorWorkbench立即隐藏参考；身份/项目替换沿用原代次，迟到旧请求无法回显旧参考。无新增轮询/实时协作。
+项目detail的reference按已有ReadOrder/身份/项目生命周期随路由读取及focus/visibility/30秒观察刷新。保留实例只接纳status/effective_permissions/reference，不采纳远端document/revision；参考修改不触发reload或generation变化。同一参考版本保留原对象/数组引用，不因状态轮询重排或重置滚动；仅更高版本接纳内容（含清除）。独立服务版本不参与正文保存冲突。拒绝项目访问后上层不给mediaOwnerId，EditorWorkbench立即隐藏参考；身份/项目替换沿用原代次，迟到旧请求无法回显旧参考。无新增轮询/实时协作。
+
+参考乱序回归：`npm run test:reference-response-races`，覆盖相同正文 revision/status 的旧 reload 迟于参考替换/清除观察；观察不接纳正文，重载合入最新参考。
