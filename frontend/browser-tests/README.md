@@ -93,3 +93,11 @@ layout-checks.mjs 只检查页面边界、指定 surface 和关键按钮的裁�
 `--suite media --production-app`提供180秒/48kHz/5.1、16MiB文件预算的合成媒体闭环；`--suite platform --browser firefox|webkit`为兼容评估，mac14冻结WebKit的显式兼容驱动/生产选项与原失败记录见 [测试手册](../../docs/testing.md)。全部实际执行统计、失败历史、版本及待人工边界归该手册和 [覆盖矩阵](../../docs/testing-coverage.md)，不在本目录重复维护另一套结论。
 
 参考字幕位于视频下方的布局实验：`npm run test:reference-layout`（默认已运行的 `http://127.0.0.1:5173`，可设 `REFERENCE_LAYOUT_URL`）。真实 Chrome/合成媒体，隔离 HTTP 夹具；覆盖四种窗口、参考有无/收起/长文本/多匹配/无匹配、分栏拖动、编辑和播放可用性。实际验证与既有测试限制见 [实验记录](../../docs/plans/reference-below-video.md)。
+
+## 参考字幕完整滚动及生产性能对照
+
+`npm run test:reference-scroll`（`REFERENCE_SCROLL_URL`，默认生产 preview 5282）覆盖 5000 条真实 parser 验证的数据、首尾滚动、主表重复定位、真实视频/音频时钟、手动浏览/原生复制、宽高变化、隐藏/收起和替换。`npm run test:reference-layout` 可用同一生产服务，变量为 `REFERENCE_LAYOUT_URL`。
+
+`npm run test:reference-performance` 在同一个 Chrome 进程中交替比较 `REFERENCE_PERF_URLS=baseline=http://127.0.0.1:5281,updated=http://127.0.0.1:5282`，默认 `REFERENCE_PERF_COUNTS=500,5000`、`REFERENCE_PERF_ROUNDS=3`；`REFERENCE_PERF_OUTPUT` 指定原始 JSON。每轮为独立 context 和相同 30s 合成 MP4、100 条主字幕、含软/硬换行、重叠/间隙/零时长/空段的有效 SRT。输出展开/远距定位到绘制延迟、CDP Task/Script/Layout 总时间、长任务、RAF 帧间隔与挂载节点数；另测收起参考的播放成本作为工作区背景成本参照。原版不能进行完整滚动，因此连续滚动比较重放相同输入，实际浏览距离不同；不应把这项差值解释为等量业务工作的回退。内存不作不可靠归因。
+
+Chrome 使用 `--disable-audio-output` 保持本机无音频设备时的原生渲染时钟工作；未替换 AudioContext、PCM 解码或 position getter，听感仍需人工验收。完整复现步骤和结果见 [实测记录](../../docs/experiments/reference-scroll.md)。

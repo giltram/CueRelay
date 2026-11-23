@@ -1,6 +1,9 @@
 .reference-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; max-height: 100%; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); font-size: 13px; line-height: 1.25; }
 .reference-panel[hidden] { display: none; }
-.reference-content { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 2px; overscroll-behavior: contain; user-select: text; }
+.reference-content { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 2px; overscroll-behavior: contain; user-select: text; overflow-anchor: none; }
 .reference-content p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .reference-context, .reference-unmatched { color: var(--text-muted); }
 .reference-current { font-weight: 600; }
+
+.reference-window { position: relative; min-width: 0; }
+.reference-window > p { position: absolute; left: 0; right: 0; }

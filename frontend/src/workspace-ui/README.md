@@ -7,6 +7,10 @@
 
 EditorWorkbench 编排媒体、字幕 UI、预览及显式持久接口；`use-edit-history.ts` 唯一拥有本实例的可编辑状态，`edit-history.ts` 是无 React / DOM 依赖的不可变历史转换。依赖方向：EditorWorkbench → use-edit-history → edit-history → contracts；音频组件只报告操作与生命周期，不读取历史。
 
+## 参考字幕定位意图
+
+EditorWorkbench 向 ReferencePanel 传完整参考 cues、已应用选中区间、真实媒体时钟和可见性；每次 selectCueFromTable 接纳选行时递增瞬时 referenceLocateRequest，包括同一行重选及复用该入口的搜索/QC 定位。该序号仅表达重新定位意图，不拥有参考的浏览位置，不进入编辑历史/草稿/项目数据。参考模块自行处理窗口、手动浏览暂停跟随及播放启动恢复，media 不依赖参考业务。契约与实测见 [参考模块](../reference-subtitles/README.md)。
+
 ## 全屏视频交互
 
 仅当前视频所在 stage 全屏时，无修饰 Space 切换普通视频播放/暂停，左右方向键按 video 的实时 currentTime 后退/前进 5 秒，长按可连续跳转，位置截断至片头/片尾并保持播放或暂停。沿用工作区可见性、忙碌、弹窗和 IME/输入焦点保护；Space 长按只切换一次。单击全屏 video 由 LocalVideoPlayer 的 onTogglePlayback 显式回调复用 togglePlayback，采用相同的可用性门禁。全屏按钮点击仅切换全屏。

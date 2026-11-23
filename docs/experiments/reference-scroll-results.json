@@ -1,0 +1,1727 @@
+{
+  "environment": {
+    "browser": "147.0.7727.101",
+    "node": "v26.4.0",
+    "cpu": "Apple M3 Pro",
+    "os": "23.6.0",
+    "ram": 19327352832,
+    "viewport": [
+      1440,
+      900
+    ],
+    "dpr": 1,
+    "cpuRate": 1,
+    "rounds": 3,
+    "media": {
+      "size": 508139,
+      "sha256": "a1fa0d048a78c67281920c3e504ac4732c29bae425ae2418926a27afd66b2a3d",
+      "duration_ms": 30000
+    },
+    "build": "vite production / preview",
+    "preview": "formal ASS preview disabled equally; actual media and audio analysis enabled",
+    "chromeArgs": [
+      "--autoplay-policy=no-user-gesture-required",
+      "--disable-audio-output"
+    ],
+    "memory": "not reported: no reliable whole-process attribution"
+  },
+  "fixtures": [
+    {
+      "count": 500,
+      "bytes": 64383,
+      "sha256": "f7284c337e8c74494a0ec3bd92ac23b4adaa68975860981fc9bb17b628900515",
+      "maxCues": 5000,
+      "maxBytes": 1048576
+    },
+    {
+      "count": 5000,
+      "bytes": 656351,
+      "sha256": "9fdef5d5fd5de3dc49604e4a0299754e8e44f8b659b3b50e65759cc8efeb0164",
+      "maxCues": 5000,
+      "maxBytes": 1048576
+    }
+  ],
+  "runs": [
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 500,
+      "round": 0,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 20.680000007152557,
+        "elapsedMs": 47.264999985694885,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 11.903999999999998,
+        "scriptMs": 3.3620000000000037,
+        "layoutMs": 0.4699999999999982,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.334999999999809,
+          "p95": 8.335000000000036,
+          "min": 8.329999999999927,
+          "max": 8.335000000000036
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 22.084999978542328,
+        "elapsedMs": 48.814999997615814,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 12.52700000000001,
+        "scriptMs": 4.490999999999995,
+        "layoutMs": 2.109,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.330000000000155,
+          "p95": 9.24499999999989,
+          "min": 7.4249999999999545,
+          "max": 9.24499999999989
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1524.9749999642372,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 68.85500000000003,
+        "scriptMs": 27.188000000000002,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 9.579999999999927,
+          "min": 6.724999999999909,
+          "max": 10.289999999999964
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3040.714999973774,
+        "mounted": 5,
+        "maxMounted": 5,
+        "taskMs": 877.9780000000002,
+        "scriptMs": 90.26600000000002,
+        "layoutMs": 43.752,
+        "layouts": 492,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.335000000000036,
+          "p95": 8.43499999999949,
+          "min": 6.769999999999982,
+          "max": 10.075000000000273
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3040.3650000095367,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 814.986,
+        "scriptMs": 51.894,
+        "layoutMs": 23.305999999999994,
+        "layouts": 383,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.329999999999927,
+          "p95": 9.265000000000327,
+          "min": 6.470000000000255,
+          "max": 10.299999999999272
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 500,
+      "round": 0,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 19.90499997138977,
+        "elapsedMs": 47.344999969005585,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 12.650999999999996,
+        "scriptMs": 3.8379999999999943,
+        "layoutMs": 0.7519999999999992,
+        "layouts": 7,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.329999999999927,
+          "p95": 10.014999999999873,
+          "min": 6.975000000000136,
+          "max": 10.014999999999873
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.2049999833107,
+        "elapsedMs": 49.16499996185303,
+        "mounted": 16,
+        "maxMounted": 16,
+        "taskMs": 13.877,
+        "scriptMs": 4.7979999999999965,
+        "layoutMs": 2.2700000000000014,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.334999999999809,
+          "p95": 8.345000000000027,
+          "min": 8.330000000000155,
+          "max": 8.345000000000027
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1524.2599999904633,
+        "mounted": 15,
+        "maxMounted": 18,
+        "taskMs": 368.78599999999994,
+        "scriptMs": 51.88899999999999,
+        "layoutMs": 19.193,
+        "layouts": 98,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 8.394999999999982,
+          "min": 6.694999999999936,
+          "max": 10.299999999999955
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.5299999713898,
+        "mounted": 12,
+        "maxMounted": 18,
+        "taskMs": 825.134,
+        "scriptMs": 94.994,
+        "layoutMs": 42.907,
+        "layouts": 529,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.334999999999582,
+          "p95": 9.045000000000073,
+          "min": 6.710000000000036,
+          "max": 10.274999999999636
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3039.9549999833107,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 836.7629999999999,
+        "scriptMs": 52.68699999999998,
+        "layoutMs": 23.59,
+        "layouts": 383,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.334999999999127,
+          "p95": 9.209999999999127,
+          "min": 6.505000000001019,
+          "max": 10.329999999999927
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 500,
+      "round": 1,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 21.344999969005585,
+        "elapsedMs": 47.269999980926514,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 11.42600000000002,
+        "scriptMs": 3.386,
+        "layoutMs": 0.6300000000000021,
+        "layouts": 7,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.329999999999927,
+          "p95": 8.350000000000136,
+          "min": 8.319999999999936,
+          "max": 8.350000000000136
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.474999964237213,
+        "elapsedMs": 49.285000026226044,
+        "mounted": 16,
+        "maxMounted": 16,
+        "taskMs": 12.78700000000002,
+        "scriptMs": 4.334999999999992,
+        "layoutMs": 2.022999999999997,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.335000000000036,
+          "p95": 8.345000000000027,
+          "min": 8.324999999999818,
+          "max": 8.345000000000027
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1524.5550000071526,
+        "mounted": 15,
+        "maxMounted": 18,
+        "taskMs": 368.45300000000003,
+        "scriptMs": 51.778000000000006,
+        "layoutMs": 20.288000000000004,
+        "layouts": 98,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000382,
+          "p95": 8.660000000000082,
+          "min": 6.795000000000073,
+          "max": 10.00500000000011
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3039.860000014305,
+        "mounted": 12,
+        "maxMounted": 18,
+        "taskMs": 831.5369999999998,
+        "scriptMs": 96.83899999999998,
+        "layoutMs": 41.98199999999999,
+        "layouts": 532,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.330000000000382,
+          "p95": 8.684999999999945,
+          "min": 6.720000000000255,
+          "max": 10.284999999999854
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3037.8650000095367,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 814.7819999999999,
+        "scriptMs": 50.31600000000003,
+        "layoutMs": 23.19600000000001,
+        "layouts": 382,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.334999999999127,
+          "p95": 9.135000000000218,
+          "min": 6.774999999999636,
+          "max": 10.269999999999527
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 500,
+      "round": 1,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 21.400000035762787,
+        "elapsedMs": 47.5799999833107,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 10.669000000000011,
+        "scriptMs": 3.0179999999999927,
+        "layoutMs": 0.42400000000000077,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.339999999999918,
+          "p95": 8.3599999999999,
+          "min": 8.305000000000064,
+          "max": 8.3599999999999
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.27999997138977,
+        "elapsedMs": 49.189999997615814,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 12.489,
+        "scriptMs": 4.243000000000011,
+        "layoutMs": 2.0519999999999983,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.335000000000036,
+          "p95": 8.349999999999909,
+          "min": 8.319999999999936,
+          "max": 8.349999999999909
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1525.300000011921,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 73.06499999999997,
+        "scriptMs": 29.374,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 9.185000000000173,
+          "min": 6.694999999999936,
+          "max": 10.294999999999618
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.6200000047684,
+        "mounted": 5,
+        "maxMounted": 5,
+        "taskMs": 968.133,
+        "scriptMs": 101.39000000000001,
+        "layoutMs": 47.85600000000001,
+        "layouts": 492,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.335000000000036,
+          "p95": 8.875,
+          "min": 6.719999999999345,
+          "max": 10.270000000000437
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3031.6800000071526,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 808.7549999999999,
+        "scriptMs": 51.24999999999999,
+        "layoutMs": 23.612999999999996,
+        "layouts": 382,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.330000000001746,
+          "p95": 8.970000000000255,
+          "min": 6.769999999999527,
+          "max": 10.265000000000327
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 500,
+      "round": 2,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 21.310000002384186,
+        "elapsedMs": 47.47000002861023,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 10.722999999999983,
+        "scriptMs": 2.963999999999994,
+        "layoutMs": 0.4310000000000008,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.335000000000036,
+          "p95": 8.339999999999918,
+          "min": 8.320000000000164,
+          "max": 8.339999999999918
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 21.82499998807907,
+        "elapsedMs": 49.185000002384186,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 11.658000000000001,
+        "scriptMs": 4.740999999999995,
+        "layoutMs": 2.1220000000000026,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.339999999999918,
+          "p95": 10.025000000000091,
+          "min": 6.964999999999918,
+          "max": 10.025000000000091
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1525.6400000452995,
+        "mounted": 6,
+        "maxMounted": 6,
+        "taskMs": 74.81299999999999,
+        "scriptMs": 29.175000000000008,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 9.309999999999945,
+          "min": 6.610000000000127,
+          "max": 10.264999999999873
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3036.9099999666214,
+        "mounted": 5,
+        "maxMounted": 5,
+        "taskMs": 818.473,
+        "scriptMs": 88.926,
+        "layoutMs": 40.04800000000001,
+        "layouts": 491,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.334999999999127,
+          "p95": 8.965000000000146,
+          "min": 6.819999999999709,
+          "max": 10.1850000000004
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3031.9050000309944,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 838.9650000000001,
+        "scriptMs": 52.147999999999975,
+        "layoutMs": 23.521,
+        "layouts": 382,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.334999999999127,
+          "p95": 8.989999999999782,
+          "min": 6.404999999998836,
+          "max": 10.265000000001237
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 500,
+      "round": 2,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 23.430000007152557,
+        "elapsedMs": 51.375,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 10.479000000000017,
+        "scriptMs": 3.058000000000005,
+        "layoutMs": 0.6770000000000005,
+        "layouts": 6,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.325000000000045,
+          "p95": 8.3599999999999,
+          "min": 7.310000000000173,
+          "max": 8.3599999999999
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 21.349999964237213,
+        "elapsedMs": 47.174999952316284,
+        "mounted": 16,
+        "maxMounted": 16,
+        "taskMs": 14.147999999999994,
+        "scriptMs": 4.774000000000001,
+        "layoutMs": 2.259000000000001,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.325000000000045,
+          "p95": 8.870000000000118,
+          "min": 7.644999999999982,
+          "max": 8.870000000000118
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1526.675000011921,
+        "mounted": 15,
+        "maxMounted": 18,
+        "taskMs": 376.386,
+        "scriptMs": 53.25400000000001,
+        "layoutMs": 20.744,
+        "layouts": 98,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.335000000000036,
+          "p95": 9.295000000000073,
+          "min": 6.764999999999873,
+          "max": 10.154999999999745
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.6700000166893,
+        "mounted": 12,
+        "maxMounted": 18,
+        "taskMs": 855.226,
+        "scriptMs": 95.834,
+        "layoutMs": 44.572,
+        "layouts": 528,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.330000000000382,
+          "p95": 9.075000000000728,
+          "min": 6.799999999999727,
+          "max": 10.200000000000273
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3033.4099999666214,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 774.3879999999998,
+        "scriptMs": 48.35800000000001,
+        "layoutMs": 21.805000000000003,
+        "layouts": 383,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.329999999999927,
+          "p95": 8.835000000000946,
+          "min": 6.694999999999709,
+          "max": 10.300000000000182
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 5000,
+      "round": 0,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 21.05000001192093,
+        "elapsedMs": 47.18000000715256,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 11.512999999999995,
+        "scriptMs": 3.295000000000006,
+        "layoutMs": 0.4480000000000005,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.335000000000036,
+          "p95": 8.349999999999909,
+          "min": 8.324999999999818,
+          "max": 8.349999999999909
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.209999978542328,
+        "elapsedMs": 49.18000000715256,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 14.064999999999994,
+        "scriptMs": 4.729999999999998,
+        "layoutMs": 2.461000000000001,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.329999999999927,
+          "p95": 8.355000000000018,
+          "min": 8.320000000000164,
+          "max": 8.355000000000018
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1527.1899999976158,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 91.88900000000002,
+        "scriptMs": 30.57,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 9.154999999999745,
+          "min": 6.860000000000127,
+          "max": 10.259999999999991
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.5400000214577,
+        "mounted": 41,
+        "maxMounted": 41,
+        "taskMs": 1010.2739999999999,
+        "scriptMs": 117.43400000000001,
+        "layoutMs": 77.812,
+        "layouts": 724,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.335000000000036,
+          "p95": 8.350000000000364,
+          "min": 6.945000000000164,
+          "max": 10.045000000000073
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3039.824999988079,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 794.467,
+        "scriptMs": 51.30599999999999,
+        "layoutMs": 22.49699999999999,
+        "layouts": 384,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.329999999999927,
+          "p95": 9.234999999999673,
+          "min": 6.649999999999636,
+          "max": 10.324999999999818
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 5000,
+      "round": 0,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 23.415000021457672,
+        "elapsedMs": 49.185000002384186,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 12.051000000000005,
+        "scriptMs": 4.716999999999999,
+        "layoutMs": 0.7059999999999983,
+        "layouts": 6,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.339999999999918,
+          "p95": 8.350000000000136,
+          "min": 8.319999999999936,
+          "max": 8.350000000000136
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.339999973773956,
+        "elapsedMs": 49.30000001192093,
+        "mounted": 17,
+        "maxMounted": 17,
+        "taskMs": 13.537999999999995,
+        "scriptMs": 4.8020000000000005,
+        "layoutMs": 2.0960000000000005,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.329999999999927,
+          "p95": 9.379999999999882,
+          "min": 7.720000000000027,
+          "max": 9.379999999999882
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1524.3899999856949,
+        "mounted": 16,
+        "maxMounted": 18,
+        "taskMs": 368.193,
+        "scriptMs": 49.583000000000006,
+        "layoutMs": 19.038,
+        "layouts": 102,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.335000000000036,
+          "p95": 8.424999999999955,
+          "min": 6.835000000000036,
+          "max": 10.159999999999854
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.5099999904633,
+        "mounted": 12,
+        "maxMounted": 18,
+        "taskMs": 990.2840000000001,
+        "scriptMs": 166.69199999999998,
+        "layoutMs": 82.021,
+        "layouts": 1022,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.335000000000036,
+          "p95": 9.059999999999945,
+          "min": 6.704999999999927,
+          "max": 10.289999999999964
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3039.8299999833107,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 805.596,
+        "scriptMs": 49.065999999999995,
+        "layoutMs": 22.227999999999984,
+        "layouts": 385,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.329999999999927,
+          "p95": 9.225000000000364,
+          "min": 6.680000000000291,
+          "max": 10.30999999999949
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 5000,
+      "round": 1,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 21.52000004053116,
+        "elapsedMs": 47.5,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 14.55300000000001,
+        "scriptMs": 5.505999999999997,
+        "layoutMs": 0.7880000000000005,
+        "layouts": 7,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.329999999999927,
+          "p95": 8.355000000000018,
+          "min": 8.319999999999936,
+          "max": 8.355000000000018
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.17500001192093,
+        "elapsedMs": 49.30500000715256,
+        "mounted": 17,
+        "maxMounted": 17,
+        "taskMs": 13.581999999999983,
+        "scriptMs": 5.380999999999997,
+        "layoutMs": 2.3190000000000017,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.339999999999918,
+          "p95": 9.815000000000055,
+          "min": 7.144999999999982,
+          "max": 9.815000000000055
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1524.175000011921,
+        "mounted": 16,
+        "maxMounted": 18,
+        "taskMs": 346.721,
+        "scriptMs": 46.68899999999999,
+        "layoutMs": 17.753,
+        "layouts": 102,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.329999999999927,
+          "p95": 8.769999999999982,
+          "min": 6.759999999999991,
+          "max": 10.204999999999927
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3042.025000035763,
+        "mounted": 12,
+        "maxMounted": 18,
+        "taskMs": 995.252,
+        "scriptMs": 167.52800000000002,
+        "layoutMs": 82.15,
+        "layouts": 1019,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.335000000000036,
+          "p95": 8.454999999999927,
+          "min": 6.720000000000255,
+          "max": 10.300000000000182
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3040.4900000095367,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 688.4220000000004,
+        "scriptMs": 49.209,
+        "layoutMs": 21.711999999999996,
+        "layouts": 337,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 325,
+          "median": 8.329999999999927,
+          "p95": 9.460000000000036,
+          "min": 6.664999999999964,
+          "max": 333.2349999999997
+        },
+        "framesOver25ms": 1
+      }
+    },
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 5000,
+      "round": 1,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 21.19999998807907,
+        "elapsedMs": 47.2950000166893,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 11.423999999999989,
+        "scriptMs": 3.251000000000004,
+        "layoutMs": 0.4879999999999989,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.325000000000045,
+          "p95": 8.35499999999979,
+          "min": 8.310000000000173,
+          "max": 8.35499999999979
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.22000002861023,
+        "elapsedMs": 49.214999973773956,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 14.66400000000001,
+        "scriptMs": 5.0479999999999965,
+        "layoutMs": 2.765,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.340000000000146,
+          "p95": 9.810000000000173,
+          "min": 7.964999999999918,
+          "max": 9.810000000000173
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1523.9650000333786,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 76.355,
+        "scriptMs": 26.647000000000006,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.330000000000155,
+          "p95": 9.570000000000164,
+          "min": 6.579999999999927,
+          "max": 10.329999999999927
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3033.4950000047684,
+        "mounted": 41,
+        "maxMounted": 41,
+        "taskMs": 921.9300000000001,
+        "scriptMs": 106.479,
+        "layoutMs": 71.597,
+        "layouts": 731,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.330000000000382,
+          "p95": 8.664999999999964,
+          "min": 6.6899999999996,
+          "max": 10.305000000000291
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3031.9699999690056,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 820.9340000000001,
+        "scriptMs": 51.147999999999996,
+        "layoutMs": 23.220999999999993,
+        "layouts": 382,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.329999999999927,
+          "p95": 9.555000000000291,
+          "min": 6.740000000000691,
+          "max": 10.264999999999418
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "baseline",
+      "origin": "http://127.0.0.1:5281",
+      "count": 5000,
+      "round": 2,
+      "bundle": {
+        "path": "/assets/index-q4Hs_4kx.js",
+        "sha256": "a0b56734b58d98753fdbe32aa1726a455d32cda97c6f919f9ab69eb176faf098"
+      },
+      "expand": {
+        "latencyMs": 23.24500000476837,
+        "elapsedMs": 49.25999999046326,
+        "mounted": 2,
+        "maxMounted": 2,
+        "taskMs": 9.353,
+        "scriptMs": 2.5860000000000047,
+        "layoutMs": 0.47699999999999826,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.325000000000045,
+          "p95": 8.355000000000018,
+          "min": 8.309999999999945,
+          "max": 8.355000000000018
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 22.955000042915344,
+        "elapsedMs": 48.90000003576279,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 14.479999999999993,
+        "scriptMs": 4.87499999999999,
+        "layoutMs": 2.5669999999999997,
+        "layouts": 3,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.335000000000036,
+          "p95": 8.419999999999845,
+          "min": 8.2650000000001,
+          "max": 8.419999999999845
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1525.9699999690056,
+        "mounted": 43,
+        "maxMounted": 43,
+        "taskMs": 80.35600000000001,
+        "scriptMs": 27.747000000000007,
+        "layoutMs": 0,
+        "layouts": 0,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.334999999999809,
+          "p95": 9.794999999999845,
+          "min": 6.789999999999964,
+          "max": 10.200000000000045
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3035.4800000190735,
+        "mounted": 41,
+        "maxMounted": 41,
+        "taskMs": 921.018,
+        "scriptMs": 112.371,
+        "layoutMs": 68.017,
+        "layouts": 731,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.334999999999582,
+          "p95": 8.645000000000437,
+          "min": 6.540000000000418,
+          "max": 10.320000000000164
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3031.9900000095367,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 752.9110000000001,
+        "scriptMs": 49.110000000000014,
+        "layoutMs": 22.073999999999998,
+        "layouts": 382,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 363,
+          "median": 8.335000000000036,
+          "p95": 9.039999999999964,
+          "min": 6.680000000000291,
+          "max": 10.299999999999272
+        },
+        "framesOver25ms": 0
+      }
+    },
+    {
+      "label": "updated",
+      "origin": "http://127.0.0.1:5282",
+      "count": 5000,
+      "round": 2,
+      "bundle": {
+        "path": "/assets/index-mtefakph.js",
+        "sha256": "3ca44bc2bf501b05a317067ee6770bb73ebc78ea7b4a0e3a512885548d79cff4"
+      },
+      "expand": {
+        "latencyMs": 21.64000004529953,
+        "elapsedMs": 47.589999973773956,
+        "mounted": 11,
+        "maxMounted": 11,
+        "taskMs": 13.490000000000002,
+        "scriptMs": 5.162,
+        "layoutMs": 0.6949999999999977,
+        "layouts": 7,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.339999999999918,
+          "p95": 8.345000000000027,
+          "min": 8.325000000000045,
+          "max": 8.345000000000027
+        },
+        "framesOver25ms": 0
+      },
+      "far": {
+        "latencyMs": 23.429999947547913,
+        "elapsedMs": 50.405000030994415,
+        "mounted": 17,
+        "maxMounted": 17,
+        "taskMs": 13.468000000000007,
+        "scriptMs": 4.7800000000000065,
+        "layoutMs": 2.1500000000000026,
+        "layouts": 4,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 5,
+          "median": 8.325000000000045,
+          "p95": 10.200000000000045,
+          "min": 6.809999999999945,
+          "max": 10.200000000000045
+        },
+        "framesOver25ms": 0
+      },
+      "scroll": {
+        "latencyMs": null,
+        "elapsedMs": 1522.8199999928474,
+        "mounted": 16,
+        "maxMounted": 18,
+        "taskMs": 366.4769999999999,
+        "scriptMs": 49.55399999999999,
+        "layoutMs": 18.072,
+        "layouts": 102,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 182,
+          "median": 8.335000000000036,
+          "p95": 9.454999999999927,
+          "min": 6.545000000000073,
+          "max": 10.299999999999727
+        },
+        "framesOver25ms": 0
+      },
+      "play": {
+        "latencyMs": null,
+        "elapsedMs": 3044.4449999928474,
+        "mounted": 11,
+        "maxMounted": 18,
+        "taskMs": 1025.7009999999998,
+        "scriptMs": 167.36400000000003,
+        "layoutMs": 83.569,
+        "layouts": 1010,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.329999999999927,
+          "p95": 9.194999999999709,
+          "min": 6.734999999999673,
+          "max": 10.269999999999982
+        },
+        "framesOver25ms": 0
+      },
+      "collapsedPlay": {
+        "latencyMs": null,
+        "elapsedMs": 3040.235000014305,
+        "mounted": 0,
+        "maxMounted": 0,
+        "taskMs": 806.03,
+        "scriptMs": 50.02899999999999,
+        "layoutMs": 23.286,
+        "layouts": 383,
+        "longTasks": {
+          "n": 0,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frameMs": {
+          "n": 364,
+          "median": 8.330000000000837,
+          "p95": 9.665000000000873,
+          "min": 6.399999999999636,
+          "max": 10.275000000000546
+        },
+        "framesOver25ms": 0
+      }
+    }
+  ],
+  "errors": []
+}

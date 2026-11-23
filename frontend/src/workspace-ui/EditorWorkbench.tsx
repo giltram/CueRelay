@@ -122,6 +122,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
   const referencePanelId = useId();
   const referenceCues = mediaOwnerId !== undefined ? project?.reference?.cues : null;
   const [referenceCollapsed, setReferenceCollapsed] = useState(false);
+  const [referenceLocateRequest, setReferenceLocateRequest] = useState(0);
   useEffect(() => { if (!referenceCues) setReferenceCollapsed(false); }, [referenceCues]);
   const [duration, setDuration] = useState(0);
   const audioAudition = useAudioAudition(mediaFile, video, visible);
@@ -337,6 +338,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
       const active = state.document?.cues.find(item => item.id === selection.selectedId);
       const next = state.selectedId === selection.selectedId ? state : withSelection(state, active);
       edits.navigate({ ...next, ...selection }); cancelAudition();
+      setReferenceLocateRequest(value => value + 1);
       if (active && video && duration) {
         video.pause(); seekVideo(video, active.start_ms); setCurrentTime(video.currentTime * 1000);
       }
@@ -792,7 +794,7 @@ export function EditorWorkbench({ ref, header, title, diagnosticOwner, shortcuts
               onClick={() => subtitles.setEnabled(value => !value)}>{subtitles.enabled ? t("workspaceUi.hideSubtitles") : t("workspaceUi.showSubtitles")}</button>} />
       } mediaFooter={referenceCues ? <ReferencePanel id={referencePanelId} collapsed={referenceCollapsed} cues={referenceCues} selected={selected}
           video={video} currentTime={currentTime} auditionPlaying={audioAudition.state.phase === 'playing'}
-          getAuditionPosition={audioAudition.getPosition} visible={visible} /> : undefined} editor={<>
+          getAuditionPosition={audioAudition.getPosition} visible={visible} locateRequest={referenceLocateRequest} /> : undefined} editor={<>
           <AudioTimeline visible={visible} file={mediaFile} video={video} duration={duration} currentTime={currentTime} audition={audioAudition.state} getAuditionPosition={audioAudition.getPosition} mode={audioMode} mouseSetsCueBoundary={mouseSetsCueBoundary}
             historyEpoch={edits.epoch} selectionId={selectedId} selection={audioSelection} cues={document?.cues || []}
             onBoundaryChange={canEdit && controlsEnabled && document ? (point, time) => {
